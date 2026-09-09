@@ -1,0 +1,3 @@
+// Forward to the stock Terrain gem; preserve its declarations and binary layout.
+#pragma once
+#include <Terrain/Assets/Shaders/Terrain/TerrainDetailHelpers.azsli>

@@ -1,0 +1,7 @@
+Terrain Compositor
+Copyright (c) 2026 Terrain Compositor contributors
+
+This repository was extracted from TGProject at commit
+425908e44a3d38a88a9e9f7ee12b12b4b4db8f1a. The extracted component and
+configuration UUIDs are intentionally unchanged so existing O3DE levels and
+prefabs continue to deserialize without migration.

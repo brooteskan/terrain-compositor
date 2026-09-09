@@ -1,0 +1,119 @@
+#pragma once
+
+#include <TerrainMaterialSrg.azsli>
+#include <TerrainMeshHeightGapPredicate.azsli>
+
+float3 TGMeshCutoutRotate(float4 quaternion, float3 value)
+{
+    return value + 2.0 * cross(quaternion.xyz, cross(quaternion.xyz, value) + quaternion.w * value);
+}
+
+float TGMeshCutoutDistanceSquaredToTriangle(float3 samplePosition, float3 a, float3 b, float3 c)
+{
+    float3 ab = b - a;
+    float3 ac = c - a;
+    float3 ap = samplePosition - a;
+    float d1 = dot(ab, ap);
+    float d2 = dot(ac, ap);
+    if (d1 <= 0.0 && d2 <= 0.0) return dot(ap, ap);
+    float3 bp = samplePosition - b;
+    float d3 = dot(ab, bp);
+    float d4 = dot(ac, bp);
+    if (d3 >= 0.0 && d4 <= d3) return dot(bp, bp);
+    float vc = d1 * d4 - d3 * d2;
+    if (vc <= 0.0 && d1 >= 0.0 && d3 <= 0.0)
+    {
+        float v = d1 / (d1 - d3);
+        float3 delta = samplePosition - (a + v * ab);
+        return dot(delta, delta);
+    }
+    float3 cp = samplePosition - c;
+    float d5 = dot(ab, cp);
+    float d6 = dot(ac, cp);
+    if (d6 >= 0.0 && d5 <= d6) return dot(cp, cp);
+    float vb = d5 * d2 - d1 * d6;
+    if (vb <= 0.0 && d2 >= 0.0 && d6 <= 0.0)
+    {
+        float w = d2 / (d2 - d6);
+        float3 delta = samplePosition - (a + w * ac);
+        return dot(delta, delta);
+    }
+    float va = d3 * d6 - d5 * d4;
+    if (va <= 0.0 && d4 - d3 >= 0.0 && d5 - d6 >= 0.0)
+    {
+        float w = (d4 - d3) / ((d4 - d3) + (d5 - d6));
+        float3 delta = samplePosition - (b + w * (c - b));
+        return dot(delta, delta);
+    }
+    float denominator = 1.0 / (va + vb + vc);
+    float3 closest = a + ab * (vb * denominator) + ac * (vc * denominator);
+    float3 delta = samplePosition - closest;
+    return dot(delta, delta);
+}
+
+bool TGMeshCutoutRayIntersectsTriangle(float3 origin, float3 direction, float3 a, float3 b, float3 c)
+{
+    float3 edge1 = b - a;
+    float3 edge2 = c - a;
+    float3 p = cross(direction, edge2);
+    float determinant = dot(edge1, p);
+    if (abs(determinant) < 1.0e-7) return false;
+    float inverse = 1.0 / determinant;
+    float3 t = origin - a;
+    float u = dot(t, p) * inverse;
+    if (u < 0.0 || u >= 1.0) return false;
+    float3 q = cross(t, edge1);
+    float v = dot(direction, q) * inverse;
+    if (v < 0.0 || u + v >= 1.0) return false;
+    return dot(edge2, q) * inverse > 0.0;
+}
+
+bool TGMeshCutoutContains(float3 worldPosition, TerrainMaterialSrg::MeshCutout cutout)
+{
+    float3 localPoint = TGMeshCutoutRotate(
+        cutout.m_inverseRotation,
+        (worldPosition - cutout.m_translationAndInverseScale.xyz) * cutout.m_translationAndInverseScale.w);
+    float margin = cutout.m_localBoundsMinAndMargin.w;
+    if (any(localPoint < cutout.m_localBoundsMinAndMargin.xyz - margin) ||
+        any(localPoint > cutout.m_localBoundsMax.xyz + margin))
+    {
+        return false;
+    }
+
+    const float3 rayDirection = normalize(float3(1.0, 0.37139067, 0.19792317));
+    uint intersections = 0;
+    float marginSquared = margin * margin;
+    for (uint offset = 0; offset < cutout.m_indexCount; offset += 3)
+    {
+        uint first = cutout.m_firstIndex + offset;
+        float3 a = TerrainMaterialSrg::m_meshCutoutVertices[TerrainMaterialSrg::m_meshCutoutIndices[first]].xyz;
+        float3 b = TerrainMaterialSrg::m_meshCutoutVertices[TerrainMaterialSrg::m_meshCutoutIndices[first + 1]].xyz;
+        float3 c = TerrainMaterialSrg::m_meshCutoutVertices[TerrainMaterialSrg::m_meshCutoutIndices[first + 2]].xyz;
+        if (margin > 0.0 && TGMeshCutoutDistanceSquaredToTriangle(localPoint, a, b, c) <= marginSquared)
+        {
+            return true;
+        }
+        intersections += TGMeshCutoutRayIntersectsTriangle(localPoint, rayDirection, a, b, c) ? 1 : 0;
+    }
+    return (intersections & 1u) != 0u;
+}
+
+bool TGMeshCutoutDiscardsTerrain(float3 worldPosition)
+{
+    // Mesh-height gaps are a remove-only XY union. No ordered Restore operation
+    // may fill them, and neither collision padding nor triangle raycasts applies.
+    for (uint gapIndex = 0; gapIndex < TerrainMaterialSrg::m_meshHeightGapCount; ++gapIndex)
+    {
+        if (TGMeshHeightGapContains(worldPosition, TerrainMaterialSrg::m_meshHeightGaps[gapIndex])) return true;
+    }
+    bool terrainExists = true;
+    for (uint index = 0; index < TerrainMaterialSrg::m_meshCutoutCount; ++index)
+    {
+        TerrainMaterialSrg::MeshCutout cutout = TerrainMaterialSrg::m_meshCutouts[index];
+        if (TGMeshCutoutContains(worldPosition, cutout))
+        {
+            terrainExists = cutout.m_operation != 0u;
+        }
+    }
+    return !terrainExists;
+}

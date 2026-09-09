@@ -1,0 +1,21 @@
+set(FILES
+    Code/Source/Editor/TerrainCompositorEditorModule.cpp
+    Code/Source/Editor/EditorHeightmapStampComponent.h
+    Code/Source/Editor/EditorHeightmapStampComponent.cpp
+    Code/Source/Editor/EditorPreviewStatus.h
+    Code/Source/Editor/EditorTerrainCompositionGradientComponent.h
+    Code/Source/Editor/EditorTerrainCompositionGradientComponent.cpp
+    Code/Source/Editor/EditorTerrainCompositionHeightProviderComponent.h
+    Code/Source/Editor/EditorTerrainCompositionHeightProviderComponent.cpp
+    Code/Source/Editor/EditorTerrainCompositionSurfaceProviderComponent.h
+    Code/Source/Editor/EditorTerrainCompositionSurfaceProviderComponent.cpp
+    Code/Source/Editor/EditorTerrainMeshCutoutComponent.h
+    Code/Source/Editor/EditorTerrainMeshCutoutComponent.cpp
+    Code/Source/Editor/EditorTerrainMeshHeightStampComponent.h
+    Code/Source/Editor/EditorTerrainMeshHeightStampComponent.cpp
+    Code/Source/Editor/HeightmapStampEditorSystemComponent.h
+    Code/Source/Editor/HeightmapStampEditorSystemComponent.cpp
+    Code/Source/Editor/HeightmapStampIdentityProcessor.h
+    Code/Source/Editor/HeightmapStampIdentityProcessor.cpp
+)
+

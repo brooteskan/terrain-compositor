@@ -1,0 +1,85 @@
+/*
+ * Copyright (c) Contributors to the Open 3D Engine Project.
+ * For complete copyright and license terms please see the LICENSE at the root of this distribution.
+ *
+ * SPDX-License-Identifier: Apache-2.0 OR MIT
+ *
+ */
+
+#pragma once
+
+#include <Atom/Features/SrgSemantics.azsli>
+
+ShaderResourceGroup TerrainMaterialSrg : SRG_PerMaterial
+{
+    struct MeshCutout
+    {
+        float4 m_inverseRotation;
+        float4 m_translationAndInverseScale;
+        float4 m_localBoundsMinAndMargin;
+        float4 m_localBoundsMax;
+        uint m_firstIndex;
+        uint m_indexCount;
+        uint m_operation;
+        uint m_padding;
+    };
+
+    struct MeshHeightGap
+    {
+        float4 m_worldBounds;
+        float4 m_originAndRotation;
+        float4 m_gridOriginAndInverseSpacing;
+        float4 m_inverseScaleAndDomainMax;
+        uint m_cellWidth;
+        uint m_cellHeight;
+        uint m_maskOffset;
+        uint m_tileOffset;
+        uint m_tileWidth;
+        uint m_revisionLow;
+        uint m_revisionHigh;
+        uint m_padding;
+    };
+
+    Sampler m_detailSampler
+    {
+        AddressU = Wrap;
+        AddressV = Wrap;
+        MinFilter = Linear;
+        MagFilter = Linear;
+        MipFilter = Linear;
+        MaxAnisotropy = 16;
+    };
+
+    Sampler m_macroSampler
+    {
+        AddressU = Clamp;
+        AddressV = Clamp;
+        MinFilter = Linear;
+        MagFilter = Linear;
+        MipFilter = Linear;
+        MaxAnisotropy = 16;
+    };
+
+    // Base Color
+    float3 m_baseColor;
+
+    // Detail Material Properties
+    float m_detailTextureMultiplier;
+    float m_detailFadeDistance;
+    float m_detailFadeLength;
+
+    // TG project: shared terrain-wide procedural base-color tint.
+    float m_noiseTintStrength;
+
+    // Immutable mesh-cutout publication. Buffers are rebuilt only when the snapshot revision changes.
+    uint m_meshCutoutCount;
+    // Material-connected publication revision. Its value is not shaded; changing it dirties the material SRG.
+    uint m_meshCutoutRevision;
+    StructuredBuffer<MeshCutout> m_meshCutouts;
+    StructuredBuffer<float4> m_meshCutoutVertices;
+    StructuredBuffer<uint> m_meshCutoutIndices;
+    uint m_meshHeightGapCount;
+    uint m_meshHeightGapRevision;
+    StructuredBuffer<MeshHeightGap> m_meshHeightGaps;
+    StructuredBuffer<uint> m_meshHeightGapWords;
+}

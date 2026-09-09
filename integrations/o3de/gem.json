@@ -1,0 +1,14 @@
+{
+    "gem_name": "TerrainCompositor",
+    "version": "0.1.0",
+    "display_name": "Terrain Compositor",
+    "summary": "Ordered height, surface, hole, cutout, and mesh-height composition for O3DE Terrain.",
+    "type": "Code",
+    "canonical_tags": ["Gem"],
+    "user_tags": ["Terrain", "Rendering", "World Building"],
+    "dependencies": [
+        "GradientSignal",
+        "Terrain"
+    ]
+}
+

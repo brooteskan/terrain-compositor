@@ -1,0 +1,9 @@
+set(FILES
+    TestMain.cpp
+    ProceduralGroundGradientComponentTests.cpp
+    HeightmapReconstructionTests.cpp
+    TerrainMeshCutoutTests.cpp
+    TerrainMeshHeightStampTests.cpp
+    TerrainMeshHeightGapGpuTests.cpp
+    TerrainQualityTests.cpp
+)

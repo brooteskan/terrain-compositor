@@ -1,0 +1,52 @@
+#pragma once
+
+// Included by terrain rendering and the GPU classification verification shader.
+// Explicit precise intermediates match TerrainMeshHeightMapping.h: no fused
+// multiply-add and no shader division at a cell ownership boundary.
+uint TGMeshHeightGapFloatOrder(float value)
+{
+    // Float comparisons flush subnormal inputs on Direct3D. Integer ordering
+    // preserves the immediately adjacent float outside a zero-valued bound.
+    uint bits = asuint(value);
+    if ((bits & 0x7fffffffu) == 0u) bits = 0u; // Treat both signed zeros equally.
+    return bits ^ ((bits & 0x80000000u) != 0u ? 0xffffffffu : 0x80000000u);
+}
+
+bool TGMeshHeightGapInRange(float value, float lower, float upper)
+{
+    uint ordered = TGMeshHeightGapFloatOrder(value);
+    return ordered >= TGMeshHeightGapFloatOrder(lower) && ordered <= TGMeshHeightGapFloatOrder(upper);
+}
+
+bool TGMeshHeightGapContains(float3 worldPosition, TerrainMaterialSrg::MeshHeightGap gap)
+{
+    if (!TGMeshHeightGapInRange(worldPosition.x, gap.m_worldBounds.x, gap.m_worldBounds.z) ||
+        !TGMeshHeightGapInRange(worldPosition.y, gap.m_worldBounds.y, gap.m_worldBounds.w)) return false;
+    precise float dx = worldPosition.x - gap.m_originAndRotation.x;
+    precise float dy = worldPosition.y - gap.m_originAndRotation.y;
+    precise float xx = gap.m_originAndRotation.z * dx;
+    precise float xy = gap.m_originAndRotation.w * dy;
+    precise float yx = -gap.m_originAndRotation.w * dx;
+    precise float yy = gap.m_originAndRotation.z * dy;
+    precise float rx = xx + xy;
+    precise float ry = yx + yy;
+    precise float localX = rx * gap.m_inverseScaleAndDomainMax.x;
+    precise float localY = ry * gap.m_inverseScaleAndDomainMax.x;
+    // The authored domain is inclusive. Test before reciprocal multiplication so
+    // rounding at the maximum edge cannot turn a valid final cell into a miss.
+    if (!(localX >= gap.m_gridOriginAndInverseSpacing.x && localY >= gap.m_gridOriginAndInverseSpacing.y &&
+        localX <= gap.m_inverseScaleAndDomainMax.y && localY <= gap.m_inverseScaleAndDomainMax.z)) return false;
+    precise float offsetX = localX - gap.m_gridOriginAndInverseSpacing.x;
+    precise float offsetY = localY - gap.m_gridOriginAndInverseSpacing.y;
+    precise float gridX = offsetX * gap.m_gridOriginAndInverseSpacing.z;
+    precise float gridY = offsetY * gap.m_gridOriginAndInverseSpacing.w;
+    if (!isfinite(gridX) || !isfinite(gridY)) return false;
+    uint x = uint(clamp(gridX, 0.0, float(gap.m_cellWidth - 1u)));
+    uint y = uint(clamp(gridY, 0.0, float(gap.m_cellHeight - 1u)));
+    uint tile = (y / 8u) * gap.m_tileWidth + x / 8u;
+    uint occupancy = (TerrainMaterialSrg::m_meshHeightGapWords[gap.m_tileOffset + tile / 16u] >> ((tile % 16u) * 2u)) & 3u;
+    if (occupancy == 0u) return false;
+    if (occupancy == 2u) return true;
+    uint cell = y * gap.m_cellWidth + x;
+    return (TerrainMaterialSrg::m_meshHeightGapWords[gap.m_maskOffset + cell / 32u] & (1u << (cell % 32u))) != 0u;
+}

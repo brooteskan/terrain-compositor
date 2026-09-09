@@ -1,0 +1,40 @@
+/*
+ * Copyright (c) Contributors to the Open 3D Engine Project. For complete copyright and license terms please see the LICENSE at the root of this distribution.
+ * 
+ * SPDX-License-Identifier: Apache-2.0 OR MIT
+ *
+ */
+
+#include <Atom/Features/SrgSemantics.azsli>
+#include <scenesrg_all.srgi>
+#include <viewsrg_all.srgi>
+#include <Terrain/Assets/Shaders/Terrain/TerrainCommon.azsli>
+#include <TerrainMeshCutout.azsli>
+
+struct VSDepthOutput
+{
+    float4 m_position : SV_Position;
+    float3 m_worldPosition : UV0;
+};
+
+VSDepthOutput MainVS(in VertexInput input)
+{
+    VSDepthOutput output;
+
+    float3 normal; // ignored
+
+    CalculateTerrainPosition(
+        SceneSrg::m_terrainWorldData, ObjectSrg::m_patchData, input, // input params
+        output.m_worldPosition, output.m_position, normal // output params
+        );
+
+    return output;
+}
+
+void MainPS(VSDepthOutput input)
+{
+    if (TGMeshCutoutDiscardsTerrain(input.m_worldPosition))
+    {
+        discard;
+    }
+}
