@@ -1,4 +1,6 @@
 #include <TerrainCompositor/Components/TerrainMeshHeightStampComponent.h>
+#include "MeshPlacementHelpers.h"
+#include "../ComponentConfiguration.h"
 
 #include <AzCore/RTTI/BehaviorContext.h>
 #include <AzCore/Serialization/EditContext.h>
@@ -182,22 +184,15 @@ namespace TerrainCompositor
 
     bool TerrainMeshHeightStampComponent::ReadInConfig(const AZ::ComponentConfig* configuration)
     {
-        if (const auto* stamp = azrtti_cast<const TerrainMeshHeightStampConfig*>(configuration))
+        return Internal::ReadConfiguration<TerrainMeshHeightStampConfig>(configuration, [this](const auto& value)
         {
-            SetStampConfiguration(*stamp);
-            return true;
-        }
-        return false;
+            SetStampConfiguration(value);
+        });
     }
 
     bool TerrainMeshHeightStampComponent::WriteOutConfig(AZ::ComponentConfig* configuration) const
     {
-        if (auto* stamp = azrtti_cast<TerrainMeshHeightStampConfig*>(configuration))
-        {
-            *stamp = m_configuration;
-            return true;
-        }
-        return false;
+        return Internal::WriteConfiguration(configuration, m_configuration);
     }
 
     AZ::u32 TerrainMeshHeightStampComponent::OnConfigurationChanged()
@@ -218,30 +213,7 @@ namespace TerrainCompositor
 
     AZ::EntityId TerrainMeshHeightStampComponent::ResolvePlacementEntity(size_t& matchingMeshCount) const
     {
-        matchingMeshCount = 0;
-        AZ::EntityId match;
-        const AZ::Data::AssetId terrainAssetId = m_configuration.m_terrainMeshAsset.GetId();
-        if (!m_activeEntityId.IsValid() || !terrainAssetId.IsValid())
-            return match;
-
-        AZStd::vector<AZ::EntityId> candidates{ m_activeEntityId };
-        AZStd::vector<AZ::EntityId> descendants;
-        AZ::TransformBus::EventResult(descendants, m_activeEntityId, &AZ::TransformInterface::GetAllDescendants);
-        candidates.insert(candidates.end(), descendants.begin(), descendants.end());
-        for (const AZ::EntityId candidate : candidates)
-        {
-            if (!AZ::Render::MeshComponentRequestBus::HasHandlers(candidate))
-                continue;
-            AZ::Data::AssetId modelAssetId;
-            AZ::Render::MeshComponentRequestBus::EventResult(
-                modelAssetId, candidate, &AZ::Render::MeshComponentRequestBus::Events::GetModelAssetId);
-            if (modelAssetId == terrainAssetId)
-            {
-                match = candidate;
-                ++matchingMeshCount;
-            }
-        }
-        return matchingMeshCount == 1 ? match : AZ::EntityId{};
+        return Internal::ResolveUniqueModelEntity(m_activeEntityId, m_configuration.m_terrainMeshAsset.GetId(), matchingMeshCount);
     }
 
     void TerrainMeshHeightStampComponent::SchedulePlacementEntityUpdate()
@@ -279,37 +251,13 @@ namespace TerrainCompositor
 
     void TerrainMeshHeightStampComponent::HideRuntimeSourceMesh()
     {
-        if (m_editor)
-            return;
-        const AZ::EntityId candidate = m_boundPlacementEntityId;
-        if (!candidate.IsValid() || !AZ::Render::MeshComponentRequestBus::HasHandlers(candidate))
-            return;
-        AZ::Data::AssetId modelAssetId;
-        AZ::Render::MeshComponentRequestBus::EventResult(
-            modelAssetId, candidate, &AZ::Render::MeshComponentRequestBus::Events::GetModelAssetId);
-        if (modelAssetId != m_configuration.m_terrainMeshAsset.GetId())
-            return;
-        if (!m_runtimeMeshPreviousVisibility.contains(candidate))
-        {
-            bool wasVisible = true;
-            AZ::Render::MeshComponentRequestBus::EventResult(
-                wasVisible, candidate, &AZ::Render::MeshComponentRequestBus::Events::GetVisibility);
-            m_runtimeMeshPreviousVisibility.emplace(candidate, wasVisible);
-        }
-        AZ::Render::MeshComponentRequestBus::Event(candidate, &AZ::Render::MeshComponentRequestBus::Events::SetVisibility, false);
+        if (m_editor) return;
+        Internal::HideMatchingModel(m_boundPlacementEntityId, m_configuration.m_terrainMeshAsset.GetId(), m_runtimeMeshPreviousVisibility);
     }
 
     void TerrainMeshHeightStampComponent::RestoreRuntimeSourceMeshVisibility()
     {
-        for (const auto& [entityId, previousVisibility] : m_runtimeMeshPreviousVisibility)
-        {
-            if (AZ::Render::MeshComponentRequestBus::HasHandlers(entityId))
-            {
-                AZ::Render::MeshComponentRequestBus::Event(
-                    entityId, &AZ::Render::MeshComponentRequestBus::Events::SetVisibility, previousVisibility);
-            }
-        }
-        m_runtimeMeshPreviousVisibility.clear();
+        Internal::RestoreModelVisibility(m_runtimeMeshPreviousVisibility);
     }
 
     void TerrainMeshHeightStampComponent::OnSystemTick()

@@ -1,4 +1,5 @@
 #include "EditorTerrainMeshCutoutComponent.h"
+#include "../ComponentConfiguration.h"
 #include "EditorPreviewStatus.h"
 
 #include <AzCore/Component/NonUniformScaleBus.h>
@@ -51,9 +52,7 @@ namespace TerrainCompositor
     {
         BaseClass::Activate();
         m_preview = AZStd::make_unique<TerrainMeshCutoutComponent>(m_configuration);
-        m_preview->EditorActivate(GetEntityId());
-        m_status = m_preview->GetStatusMessage();
-        m_statusElapsed = 0.0f;
+        ActivateEditorPreview(*m_preview, GetEntityId(), m_status, m_statusElapsed);
         AzFramework::EntityDebugDisplayEventBus::Handler::BusConnect(GetEntityId());
         AZ::TickBus::Handler::BusConnect();
     }
@@ -62,11 +61,7 @@ namespace TerrainCompositor
     {
         AZ::TickBus::Handler::BusDisconnect();
         AzFramework::EntityDebugDisplayEventBus::Handler::BusDisconnect();
-        if (m_preview)
-        {
-            m_preview->EditorDeactivate(GetEntityId());
-            m_preview.reset();
-        }
+        StopEditorPreview(m_preview, GetEntityId());
         m_status = "Inactive: no mesh cutout contribution.";
         BaseClass::Deactivate();
     }
@@ -96,32 +91,21 @@ namespace TerrainCompositor
 
     bool EditorTerrainMeshCutoutComponent::ReadInConfig(const AZ::ComponentConfig* configuration)
     {
-        if (const auto* cutout = azrtti_cast<const TerrainMeshCutoutConfig*>(configuration))
+        return Internal::ReadConfiguration<TerrainMeshCutoutConfig>(configuration, [this](const auto& value)
         {
-            m_configuration = *cutout;
+            m_configuration = value;
             OnConfigurationChanged();
-            return true;
-        }
-        return false;
+        });
     }
 
     bool EditorTerrainMeshCutoutComponent::WriteOutConfig(AZ::ComponentConfig* configuration) const
     {
-        if (auto* cutout = azrtti_cast<TerrainMeshCutoutConfig*>(configuration))
-        {
-            *cutout = m_configuration;
-            return true;
-        }
-        return false;
+        return Internal::WriteConfiguration(configuration, m_configuration);
     }
 
     AZ::u32 EditorTerrainMeshCutoutComponent::OnConfigurationChanged()
     {
-        if (m_preview)
-        {
-            m_preview->SetCutoutConfiguration(m_configuration);
-            m_status = m_preview->GetStatusMessage();
-        }
+        RefreshEditorPreview(m_preview.get(), m_configuration, m_status);
         return AZ::Edit::PropertyRefreshLevels::AttributesAndValues;
     }
 

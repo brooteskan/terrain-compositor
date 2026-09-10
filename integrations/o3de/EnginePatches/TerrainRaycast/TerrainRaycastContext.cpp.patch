@@ -1,0 +1,84 @@
+diff --git a/TerrainRaycast/TerrainRaycastContext.cpp b/TerrainRaycast/TerrainRaycastContext.cpp
+index 5e324a6..bb81434 100644
+--- a/TerrainRaycast/TerrainRaycastContext.cpp
++++ b/TerrainRaycast/TerrainRaycastContext.cpp
+@@ -6,7 +6,11 @@
+  *
+  */
+ 
++// Project-owned integration copy of O3DE TerrainRaycastContext.cpp from
++// engine revision 061180bf24f1666eb30315b35da292eb14f4659c.
++
+ #include <TerrainRaycast/TerrainRaycastContext.h>
++#include <TerrainRaycast/TerrainRaycastExistence.h>
+ #include <TerrainSystem/TerrainSystem.h>
+ 
+ #include <AzCore/Math/IntersectSegment.h>
+@@ -39,26 +43,31 @@ namespace
+         // Finally, triangulate the four terrain points and check for a hit,
+         // splitting using the top-left -> bottom-right diagonal so to match
+         // the current behavior of the terrain physics and rendering systems.
+-        AZ::Vector3 bottomLeftHitNormal;
+-        float bottomLeftHitDistance;
+-        bool bottomLeftHit =
+-            hitTester.IntersectSegmentTriangleCCW(point0, point3, point1, bottomLeftHitNormal, bottomLeftHitDistance);
+-
+-        AZ::Vector3 topRightHitNormal;
+-        float topRightHitDistance;
+-        bool topRightHit =
+-            hitTester.IntersectSegmentTriangleCCW(point2, point1, point3, topRightHitNormal, topRightHitDistance);
+-
+-        if (bottomLeftHit && (!topRightHit || (bottomLeftHitDistance < topRightHitDistance)))
++        TerrainRaycastCandidate bottomLeft;
++        bottomLeft.m_hit = hitTester.IntersectSegmentTriangleCCW(
++            point0, point3, point1, bottomLeft.m_normal, bottomLeft.m_distance);
++
++        TerrainRaycastCandidate topRight;
++        topRight.m_hit = hitTester.IntersectSegmentTriangleCCW(
++            point2, point1, point3, topRight.m_normal, topRight.m_distance);
++
++        // A numeric height is still returned for missing terrain. Validate each
++        // candidate independently at its actual intersection point so a removed
++        // first triangle cannot hide a valid second triangle or terminate the ray.
++        const TerrainRaycastCandidate* selected = SelectNearestExistingTerrainCandidate(
++            bottomLeft, topRight, [&terrainSystem, &hitTester](float distance)
+         {
+-            result.m_distance = bottomLeftHitDistance;
+-            result.m_worldNormal = bottomLeftHitNormal;
+-            result.m_worldPosition = hitTester.GetIntersectionPoint(result.m_distance);
+-        }
+-        else if (topRightHit)
++            bool terrainExists = false;
++            terrainSystem.GetHeight(
++                hitTester.GetIntersectionPoint(distance),
++                AzFramework::Terrain::TerrainDataRequests::Sampler::EXACT,
++                &terrainExists);
++            return terrainExists;
++        });
++        if (selected)
+         {
+-            result.m_distance = topRightHitDistance;
+-            result.m_worldNormal = topRightHitNormal;
++            result.m_distance = selected->m_distance;
++            result.m_worldNormal = selected->m_normal;
+             result.m_worldPosition = hitTester.GetIntersectionPoint(result.m_distance);
+         }
+     }
+@@ -217,8 +226,15 @@ AzFramework::RenderGeometry::RayResult TerrainRaycastContext::RayIntersect(
+         {
+             // Intersection found. Replace the triangle normal from the hit with a higher-quality normal calculated
+             // by the terrain system.
+-            rayIntersectionResult.m_worldNormal = m_terrainSystem.GetNormal(
+-                rayIntersectionResult.m_worldPosition, AzFramework::Terrain::TerrainDataRequests::Sampler::DEFAULT);
++            bool normalExists = false;
++            const AZ::Vector3 terrainNormal = m_terrainSystem.GetNormal(
++                rayIntersectionResult.m_worldPosition,
++                AzFramework::Terrain::TerrainDataRequests::Sampler::DEFAULT,
++                &normalExists);
++            if (normalExists && terrainNormal.IsFinite())
++            {
++                rayIntersectionResult.m_worldNormal = terrainNormal;
++            }
+ 
+             // Return the distance in world space instead of in ray distance space.
+             rayIntersectionResult.m_distance = rayIntersectionResult.m_worldPosition.GetDistance(ray.m_startWorldPosition);

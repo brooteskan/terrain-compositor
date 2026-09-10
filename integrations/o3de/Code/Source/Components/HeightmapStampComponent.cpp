@@ -1,4 +1,5 @@
 #include <TerrainCompositor/Components/HeightmapStampComponent.h>
+#include "../ComponentConfiguration.h"
 
 #include <AzCore/Serialization/EditContext.h>
 #include <AzCore/Serialization/SerializeContext.h>
@@ -135,23 +136,16 @@ namespace TerrainCompositor
     bool HeightmapStampComponent::ReadInConfig(const AZ::ComponentConfig* baseConfig)
     {
         if (!m_controlThread.Check()) { return false; }
-        if (const auto* configuration = azrtti_cast<const HeightmapStampConfig*>(baseConfig))
+        return Internal::ReadConfiguration<HeightmapStampConfig>(baseConfig, [this](const auto& value)
         {
-            SetStampConfiguration(*configuration);
-            return true;
-        }
-        return false;
+            SetStampConfiguration(value);
+        });
     }
 
     bool HeightmapStampComponent::WriteOutConfig(AZ::ComponentConfig* outBaseConfig) const
     {
         if (!m_controlThread.Check()) { return false; }
-        if (auto* configuration = azrtti_cast<HeightmapStampConfig*>(outBaseConfig))
-        {
-            *configuration = m_configuration;
-            return true;
-        }
-        return false;
+        return Internal::WriteConfiguration(outBaseConfig, m_configuration);
     }
 
     AZ::u32 HeightmapStampComponent::OnConfigurationChanged()

@@ -1,29 +1,16 @@
 #include <TerrainCompositor/TerrainMeshCutoutDataCache.h>
+#include "ModelAssetSource.h"
 #include <TerrainCompositor/TerrainModelGeometry.h>
 
-#include <Atom/Feature/Mesh/ModelReloaderSystemInterface.h>
 #include <Atom/RPI.Reflect/Model/ModelLodAsset.h>
-#include <AzCore/Asset/AssetManager.h>
-#include <AzCore/Component/TickBus.h>
 #include <AzCore/Jobs/JobFunction.h>
 #include <AzCore/Name/Name.h>
-#include <AzCore/std/parallel/atomic.h>
-#include <AzCore/std/smart_ptr/enable_shared_from_this.h>
-#include <AzCore/std/smart_ptr/make_shared.h>
-#include <AzFramework/Asset/AssetCatalogBus.h>
 
 namespace TerrainCompositor
 {
     namespace
     {
         AZ::u64 s_nextCutoutRevision = 0;
-
-        AZ::Data::AssetInfo GetAssetInfo(const AZ::Data::AssetId& id)
-        {
-            AZ::Data::AssetInfo info;
-            AZ::Data::AssetCatalogRequestBus::BroadcastResult(info, &AZ::Data::AssetCatalogRequestBus::Events::GetAssetInfoById, id);
-            return info;
-        }
 
         TerrainMeshCutoutValidation ExtractModelGeometry(
             AZ::RPI::ModelAsset& model, AZStd::vector<AZ::Vector3>& positions, AZStd::vector<AZ::u32>& indices)
@@ -56,50 +43,15 @@ namespace TerrainCompositor
     } // namespace
 
     class TerrainMeshCutoutDataSource final
-        : public AZStd::enable_shared_from_this<TerrainMeshCutoutDataSource>
-        , private AZ::Data::AssetBus::Handler
-        , private AzFramework::AssetCatalogEventBus::Handler
+        : public Internal::ModelAssetSource<TerrainMeshCutoutDataSource, TerrainMeshCutoutDataStatus>
     {
+        using Base = Internal::ModelAssetSource<TerrainMeshCutoutDataSource, TerrainMeshCutoutDataStatus>;
+        friend Base;
+
     public:
-        explicit TerrainMeshCutoutDataSource(AZ::Data::AssetId assetId)
-            : m_assetId(assetId)
-            , m_modelReloadedHandler(
-                  [this](const AZ::Data::Asset<AZ::RPI::ModelAsset>& model)
-                  {
-                      QueueReady(model, true);
-                  })
-        {
-        }
+        using Base::Base;
+        ~TerrainMeshCutoutDataSource() { Stop(); }
 
-        ~TerrainMeshCutoutDataSource()
-        {
-            Stop();
-        }
-
-        void Start()
-        {
-            if (!m_controlThread.Check())
-                return;
-            m_active = true;
-            m_weakSelf = shared_from_this();
-            AzFramework::AssetCatalogEventBus::Handler::BusConnect();
-            StartModel();
-        }
-
-        void Stop()
-        {
-            if (!m_controlThread.Check())
-                return;
-            m_active = false;
-            ++m_generation;
-            AZ::Data::AssetBus::Handler::BusDisconnect();
-            AzFramework::AssetCatalogEventBus::Handler::BusDisconnect();
-            m_modelReloadedHandler.Disconnect();
-            m_model.Reset();
-            m_changed.DisconnectAllHandlers();
-        }
-
-        HeightmapControlThread m_controlThread;
         TerrainMeshCutoutDataSnapshot m_snapshot;
         TerrainMeshCutoutDataCache::ChangedEvent m_changed;
 
@@ -117,48 +69,7 @@ namespace TerrainCompositor
             m_changed.Signal(snapshot);
         }
 
-        void StartModel()
-        {
-            ++m_generation;
-            AZ::Data::AssetBus::Handler::BusDisconnect();
-            m_modelReloadedHandler.Disconnect();
-            m_model.Reset();
-            const auto info = GetAssetInfo(m_assetId);
-            if (!info.m_assetId.IsValid())
-            {
-                Publish(TerrainMeshCutoutDataStatus::Missing);
-                return;
-            }
-            if (info.m_assetType != azrtti_typeid<AZ::RPI::ModelAsset>())
-            {
-                Publish(TerrainMeshCutoutDataStatus::Unsupported);
-                return;
-            }
-            Publish(TerrainMeshCutoutDataStatus::Loading);
-            m_model =
-                AZ::Data::AssetManager::Instance().GetAsset<AZ::RPI::ModelAsset>(info.m_assetId, AZ::Data::AssetLoadBehavior::PreLoad);
-            AZ::Data::AssetBus::Handler::BusConnect(info.m_assetId);
-            if (!m_model.Get())
-            {
-                Publish(TerrainMeshCutoutDataStatus::Error);
-            }
-        }
-
-        void QueueReady(const AZ::Data::Asset<AZ::RPI::ModelAsset>& model, bool reloaded)
-        {
-            const auto weak = m_weakSelf;
-            const AZ::u64 generation = m_generation;
-            AZ::SystemTickBus::QueueFunction(
-                [weak, generation, model, reloaded]()
-                {
-                    if (auto source = weak.lock(); source && source->m_active)
-                    {
-                        source->OnReady(generation, model, reloaded);
-                    }
-                });
-        }
-
-        void OnReady(AZ::u64 generation, const AZ::Data::Asset<AZ::RPI::ModelAsset>& model, bool reloaded)
+        void OnReady(AZ::u64 generation, const AZ::Data::Asset<AZ::RPI::ModelAsset>& model)
         {
             if (!m_controlThread.Check() || generation != m_generation || model.GetId() != m_assetId || !model.IsReady())
             {
@@ -168,7 +79,7 @@ namespace TerrainCompositor
             Publish(TerrainMeshCutoutDataStatus::Loading);
             const auto weak = m_weakSelf;
             AZ::Job* job = AZ::CreateJobFunction(
-                [weak, generation, model, reloaded]() mutable
+                [weak, generation, model]() mutable
                 {
                     AZStd::vector<AZ::Vector3> positions;
                     AZStd::vector<AZ::u32> indices;
@@ -180,9 +91,8 @@ namespace TerrainCompositor
                         validation = BuildTerrainMeshCutoutData(positions, indices, *data);
                     }
                     AZ::SystemTickBus::QueueFunction(
-                        [weak, generation, model, data, validation, reloaded]()
+                        [weak, generation, model, data, validation]()
                         {
-                            (void)reloaded;
                             if (auto source = weak.lock(); source && source->m_active && source->m_generation == generation &&
                                 source->m_model.GetId() == model.GetId())
                             {
@@ -204,102 +114,8 @@ namespace TerrainCompositor
 
         void QueueFailure()
         {
-            const auto weak = m_weakSelf;
-            const AZ::u64 generation = m_generation;
-            AZ::SystemTickBus::QueueFunction(
-                [weak, generation]()
-                {
-                    if (auto source = weak.lock(); source && source->m_active && source->m_generation == generation)
-                    {
-                        source->Publish(TerrainMeshCutoutDataStatus::Error);
-                    }
-                });
+            QueueStatus(TerrainMeshCutoutDataStatus::Error, m_generation);
         }
-
-        void OnAssetReady(AZ::Data::Asset<AZ::Data::AssetData> asset) override
-        {
-            QueueReady(asset, false);
-        }
-        void OnAssetReloaded(AZ::Data::Asset<AZ::Data::AssetData> asset) override
-        {
-            QueueReady(asset, true);
-        }
-        void OnAssetPreReload([[maybe_unused]] AZ::Data::Asset<AZ::Data::AssetData> asset) override
-        {
-            const AZ::u64 generation = ++m_generation;
-            const auto weak = m_weakSelf;
-            AZ::SystemTickBus::QueueFunction(
-                [weak, generation]()
-                {
-                    if (auto source = weak.lock(); source && source->m_active && source->m_generation == generation)
-                    {
-                        source->Publish(TerrainMeshCutoutDataStatus::Loading);
-                    }
-                });
-        }
-        void OnAssetError([[maybe_unused]] AZ::Data::Asset<AZ::Data::AssetData> asset) override
-        {
-            QueueFailure();
-        }
-        void OnAssetReloadError([[maybe_unused]] AZ::Data::Asset<AZ::Data::AssetData> asset) override
-        {
-            QueueFailure();
-        }
-
-        void QueueCatalogChanged(const AZ::Data::AssetId& id, bool removed)
-        {
-            if (id != m_assetId)
-                return;
-            const auto weak = m_weakSelf;
-            AZ::SystemTickBus::QueueFunction(
-                [weak, removed]()
-                {
-                    if (auto source = weak.lock(); source && source->m_active)
-                    {
-                        if (removed && !GetAssetInfo(source->m_assetId).m_assetId.IsValid())
-                        {
-                            ++source->m_generation;
-                            source->Publish(TerrainMeshCutoutDataStatus::Missing);
-                            return;
-                        }
-                        if (!source->m_model.IsReady())
-                        {
-                            source->StartModel();
-                        }
-                        else if (auto* reloader = AZ::Render::ModelReloaderSystemInterface::Get())
-                        {
-                            ++source->m_generation;
-                            source->Publish(TerrainMeshCutoutDataStatus::Loading);
-                            source->m_modelReloadedHandler.Disconnect();
-                            reloader->ReloadModel(source->m_model, source->m_modelReloadedHandler);
-                        }
-                        else
-                        {
-                            source->StartModel();
-                        }
-                    }
-                });
-        }
-
-        void OnCatalogAssetAdded(const AZ::Data::AssetId& id) override
-        {
-            QueueCatalogChanged(id, false);
-        }
-        void OnCatalogAssetChanged(const AZ::Data::AssetId& id) override
-        {
-            QueueCatalogChanged(id, false);
-        }
-        void OnCatalogAssetRemoved(const AZ::Data::AssetId& id, [[maybe_unused]] const AZ::Data::AssetInfo& info) override
-        {
-            QueueCatalogChanged(id, true);
-        }
-
-        const AZ::Data::AssetId m_assetId;
-        AZStd::weak_ptr<TerrainMeshCutoutDataSource> m_weakSelf;
-        AZ::Data::Asset<AZ::RPI::ModelAsset> m_model;
-        AZ::Render::ModelReloadedEvent::Handler m_modelReloadedHandler;
-        AZStd::atomic<AZ::u64> m_generation = 0;
-        bool m_active = false;
     };
 
     TerrainMeshCutoutDataCache::TerrainMeshCutoutDataCache()
@@ -322,25 +138,7 @@ namespace TerrainCompositor
     {
         if (!m_controlThread.Check() || !assetId.IsValid())
             return {};
-        const auto info = GetAssetInfo(assetId);
-        const AZ::Data::AssetId canonical = info.m_assetId.IsValid() ? info.m_assetId : assetId;
-        for (auto iterator = m_sources.begin(); iterator != m_sources.end();)
-        {
-            if (iterator->second.expired())
-            {
-                iterator = m_sources.erase(iterator);
-            }
-            else
-            {
-                ++iterator;
-            }
-        }
-        if (auto source = m_sources[canonical].lock())
-            return source;
-        auto source = AZStd::make_shared<TerrainMeshCutoutDataSource>(canonical);
-        m_sources[canonical] = source;
-        source->Start();
-        return source;
+        return Internal::AcquireModelSource<TerrainMeshCutoutDataSource>(m_sources, assetId);
     }
 
     TerrainMeshCutoutDataSnapshot TerrainMeshCutoutDataCache::GetSnapshot(const Handle& handle)

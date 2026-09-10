@@ -1,0 +1,422 @@
+#include <AzTest/AzTest.h>
+#include <AzCore/Component/TickBus.h>
+#include <AzCore/std/smart_ptr/make_shared.h>
+#include <AzCore/std/smart_ptr/unique_ptr.h>
+#include <AzFramework/Scene/SceneSystemComponent.h>
+#include <LmbrCentral/Shape/MockShapes.h>
+#include <TerrainCompositor/Components/TerrainCompositionGradientComponent.h>
+#include <TerrainCompositor/HeightmapStampRegistration.h>
+#include <TerrainCompositor/TerrainMeshCutoutRegistration.h>
+#include <TerrainCompositor/TerrainMeshHeightStampRegistration.h>
+#include "TerrainTestFixtures.h"
+
+namespace TerrainCompositor
+{
+    namespace RegistrationTestSupport
+    {
+        struct Image
+        {
+            using Record = HeightmapStampRegistrationData;
+            using Lease = HeightmapStampRegistration;
+            static constexpr auto Register = &TerrainCompositionRequests::RegisterStamp;
+            static constexpr auto Unregister = &TerrainCompositionRequests::UnregisterStamp;
+            static constexpr auto Enumerate = &TerrainCompositionRequests::GetRegisteredStamps;
+            static AZ::EntityId& Entity(Record& record) { return record.m_stampEntityId; }
+            static auto& Snapshot(Record& record) { return record.m_heightmap; }
+        };
+
+        struct Cutout
+        {
+            using Record = TerrainMeshCutoutRegistrationData;
+            using Lease = TerrainMeshCutoutRegistration;
+            static constexpr auto Register = &TerrainCompositionRequests::RegisterMeshCutout;
+            static constexpr auto Unregister = &TerrainCompositionRequests::UnregisterMeshCutout;
+            static constexpr auto Enumerate = &TerrainCompositionRequests::GetRegisteredMeshCutouts;
+            static AZ::EntityId& Entity(Record& record) { return record.m_cutoutEntityId; }
+            static auto& Snapshot(Record& record) { return record.m_mesh; }
+        };
+
+        struct MeshHeight
+        {
+            using Record = TerrainMeshHeightStampRegistrationData;
+            using Lease = TerrainMeshHeightStampRegistration;
+            static constexpr auto Register = &TerrainCompositionRequests::RegisterMeshHeightStamp;
+            static constexpr auto Unregister = &TerrainCompositionRequests::UnregisterMeshHeightStamp;
+            static constexpr auto Enumerate = &TerrainCompositionRequests::GetRegisteredMeshHeightStamps;
+            static AZ::EntityId& Entity(Record& record) { return record.m_stampEntityId; }
+            static auto& Snapshot(Record& record) { return record.m_mesh; }
+        };
+
+        class ContextOwner : public AzFramework::EntityIdContextQueryBus::MultiHandler
+        {
+        public:
+            ~ContextOwner() override { BusDisconnect(); }
+            AzFramework::EntityContextId GetOwningContextId() override { return m_context; }
+            AzFramework::EntityContextId m_context = AZ::Uuid::CreateRandom();
+        };
+    }
+
+    template<class Kind>
+    class TerrainRegistrationLifecycleTests : public ::testing::Test
+    {
+    protected:
+        using Record = typename Kind::Record;
+
+        void SetUp() override
+        {
+            for (const auto id : { m_owner, m_otherOwner, m_stamp, m_peer })
+                m_context.BusConnect(id);
+            m_address = { m_context.m_context, m_owner };
+            StartComposition();
+        }
+
+        void TearDown() override
+        {
+            StopComposition();
+            AZ::TickBus::ExecuteQueuedEvents();
+            AZ::SystemTickBus::ExecuteQueuedEvents();
+        }
+
+        void StartComposition()
+        {
+            m_composition = AZStd::make_unique<TerrainCompositionGradientComponent>(m_configuration);
+            m_composition->EditorActivate(m_owner);
+        }
+
+        void StopComposition()
+        {
+            if (m_composition)
+            {
+                m_composition->EditorDeactivate(m_owner);
+                m_composition.reset();
+            }
+        }
+
+        AZ::Uuid Session() const
+        {
+            AZ::Uuid session;
+            TerrainCompositionRequestBus::EventResult(session, m_address, &TerrainCompositionRequests::GetCompositionSession);
+            return session;
+        }
+
+        Record MakeRecord(AZ::EntityId entity) const
+        {
+            Record record;
+            Kind::Entity(record) = entity;
+            record.m_contextId = m_context.m_context;
+            record.m_compositionSession = Session();
+            record.m_registrationId = AZ::Uuid::CreateRandom();
+            record.m_updateRevision = 1;
+            record.m_configuration.m_targetCompositionEntityId = m_owner;
+            record.m_configuration.AssignNewPersistentOrderingIdentity();
+            return record;
+        }
+
+        bool Register(const Record& record)
+        {
+            bool accepted = false;
+            TerrainCompositionRequestBus::EventResult(accepted, m_address, Kind::Register, record);
+            return accepted;
+        }
+
+        void Unregister(Record record)
+        {
+            TerrainCompositionRequestBus::Event(
+                m_address, Kind::Unregister, Kind::Entity(record), record.m_registrationId, record.m_compositionSession);
+        }
+
+        AZStd::vector<Record> Records() const { return RecordsAt(m_address); }
+
+        static AZStd::vector<Record> RecordsAt(const TerrainCompositionAddress& address)
+        {
+            AZStd::vector<Record> records;
+            TerrainCompositionRequestBus::EventResult(records, address, Kind::Enumerate);
+            return records;
+        }
+
+        const AZ::EntityId m_owner{ 71001 }, m_otherOwner{ 71002 }, m_stamp{ 71003 }, m_peer{ 71004 };
+        AzFramework::SceneSystemComponent m_sceneSystem;
+        RegistrationTestSupport::ContextOwner m_context;
+        TerrainCompositionAddress m_address;
+        TerrainCompositionConfig m_configuration;
+        AZStd::unique_ptr<TerrainCompositionGradientComponent> m_composition;
+    };
+
+    using RegistrationKinds = ::testing::Types<
+        RegistrationTestSupport::Image, RegistrationTestSupport::Cutout, RegistrationTestSupport::MeshHeight>;
+    TYPED_TEST_SUITE(TerrainRegistrationLifecycleTests, RegistrationKinds);
+
+    TYPED_TEST(TerrainRegistrationLifecycleTests, RejectsWrongContextTargetSessionAndInvalidLease)
+    {
+        const auto valid = this->MakeRecord(this->m_stamp);
+        const auto reject = [this, &valid](const char* reason, auto mutate)
+        {
+            SCOPED_TRACE(reason);
+            auto invalid = valid;
+            mutate(invalid);
+            EXPECT_FALSE(this->Register(invalid));
+            EXPECT_TRUE(this->Records().empty());
+        };
+        reject("wrong context", [](auto& r) { r.m_contextId = AZ::Uuid::CreateRandom(); });
+        reject("wrong target", [this](auto& r) { r.m_configuration.m_targetCompositionEntityId = this->m_otherOwner; });
+        reject("old session", [](auto& r) { r.m_compositionSession = AZ::Uuid::CreateRandom(); });
+        reject("invalid lease", [](auto& r) { r.m_registrationId = {}; });
+        reject("invalid revision", [](auto& r) { r.m_updateRevision = 0; });
+        reject("unowned entity", [](auto& r) { TypeParam::Entity(r) = AZ::EntityId(71999); });
+        EXPECT_TRUE(this->Register(valid));
+    }
+
+    TYPED_TEST(TerrainRegistrationLifecycleTests, ReplayIsIdempotentAndOlderRevisionsCannotOverwriteNewerData)
+    {
+        auto record = this->MakeRecord(this->m_stamp);
+        record.m_updateRevision = 4;
+        record.m_configuration.m_priority = 12;
+        ASSERT_TRUE(this->Register(record));
+        auto replay = record;
+        replay.m_configuration.m_priority = 99;
+        EXPECT_TRUE(this->Register(replay));
+        ASSERT_EQ(this->Records().size(), 1);
+        EXPECT_EQ(this->Records()[0].m_configuration.m_priority, 12);
+        replay.m_updateRevision = 3;
+        EXPECT_FALSE(this->Register(replay));
+        replay.m_updateRevision = 5;
+        EXPECT_TRUE(this->Register(replay));
+        EXPECT_EQ(this->Records()[0].m_configuration.m_priority, 99);
+        EXPECT_EQ(this->Records()[0].m_updateRevision, 5);
+    }
+
+    TYPED_TEST(TerrainRegistrationLifecycleTests, RetiredLeaseCannotResurrectAndWrongLeaseCannotRemoveItsReplacement)
+    {
+        auto record = this->MakeRecord(this->m_stamp);
+        ASSERT_TRUE(this->Register(record));
+        auto wrong = record;
+        wrong.m_compositionSession = AZ::Uuid::CreateRandom();
+        this->Unregister(wrong);
+        ASSERT_EQ(this->Records().size(), 1);
+        auto competing = record;
+        competing.m_registrationId = AZ::Uuid::CreateRandom();
+        EXPECT_FALSE(this->Register(competing));
+        this->Unregister(record);
+        EXPECT_TRUE(this->Records().empty());
+        record.m_updateRevision += 100;
+        EXPECT_FALSE(this->Register(record));
+        ASSERT_TRUE(this->Register(competing));
+        this->Unregister(record);
+        ASSERT_EQ(this->Records().size(), 1);
+        EXPECT_EQ(this->Records()[0].m_registrationId, competing.m_registrationId);
+    }
+
+    TYPED_TEST(TerrainRegistrationLifecycleTests, UnregisterBeforeDelayedFirstRegisterStillRetiresTheLease)
+    {
+        const auto record = this->MakeRecord(this->m_stamp);
+        this->Unregister(record);
+        EXPECT_FALSE(this->Register(record));
+        EXPECT_TRUE(this->Records().empty());
+    }
+
+    TYPED_TEST(TerrainRegistrationLifecycleTests, CompositionRestartRejectsOldSessionMessages)
+    {
+        const auto old = this->MakeRecord(this->m_stamp);
+        ASSERT_TRUE(this->Register(old));
+        this->StopComposition();
+        this->StartComposition();
+        EXPECT_NE(this->Session(), old.m_compositionSession);
+        EXPECT_FALSE(this->Register(old));
+        const auto current = this->MakeRecord(this->m_stamp);
+        ASSERT_TRUE(this->Register(current));
+        this->Unregister(old);
+        ASSERT_EQ(this->Records().size(), 1);
+        EXPECT_EQ(this->Records()[0].m_registrationId, current.m_registrationId);
+    }
+
+    TYPED_TEST(TerrainRegistrationLifecycleTests, SharedAssetRevisionPropagatesAndStalePlacementUpdatesCannotRegressIt)
+    {
+        auto first = this->MakeRecord(this->m_stamp);
+        auto second = this->MakeRecord(this->m_peer);
+        const AZ::Data::AssetId assetId(AZ::Uuid::CreateRandom(), 1);
+        TypeParam::Snapshot(first).m_assetId = assetId;
+        TypeParam::Snapshot(first).m_revision = 10;
+        TypeParam::Snapshot(second).m_assetId = assetId;
+        TypeParam::Snapshot(second).m_revision = 20;
+        using Status = decltype(TypeParam::Snapshot(first).m_status);
+        TypeParam::Snapshot(second).m_status = Status::Error;
+        ASSERT_TRUE(this->Register(first));
+        ASSERT_TRUE(this->Register(second));
+        ++first.m_updateRevision;
+        first.m_worldTransform.SetTranslation(AZ::Vector3(5.0f));
+        ASSERT_TRUE(this->Register(first));
+        for (auto record : this->Records())
+        {
+            EXPECT_EQ(TypeParam::Snapshot(record).m_revision, 20);
+            EXPECT_EQ(TypeParam::Snapshot(record).m_status, Status::Error);
+        }
+        ++second.m_updateRevision;
+        TypeParam::Snapshot(second).m_revision = 21;
+        TypeParam::Snapshot(second).m_status = Status::Missing;
+        ASSERT_TRUE(this->Register(second));
+        ASSERT_EQ(this->Records().size(), 2);
+        for (auto record : this->Records())
+        {
+            EXPECT_EQ(TypeParam::Snapshot(record).m_revision, 21);
+            EXPECT_EQ(TypeParam::Snapshot(record).m_status, Status::Missing);
+        }
+    }
+
+    TYPED_TEST(TerrainRegistrationLifecycleTests, WaitingClientReplaysAfterCreationAndRestartButIgnoresOldNotifications)
+    {
+        auto config = this->MakeRecord(this->m_stamp).m_configuration;
+        this->StopComposition();
+        typename TypeParam::Lease lease;
+        lease.Activate(this->m_stamp, config, AZ::Transform::CreateIdentity());
+        EXPECT_FALSE(lease.IsRegistered());
+        this->StartComposition();
+        ASSERT_TRUE(lease.IsRegistered());
+        ASSERT_EQ(this->Records().size(), 1);
+        const auto previous = this->Records()[0];
+        this->StopComposition();
+        EXPECT_FALSE(lease.IsRegistered());
+        this->StartComposition();
+        ASSERT_TRUE(lease.IsRegistered());
+        ASSERT_EQ(this->Records().size(), 1);
+        const auto current = this->Records()[0];
+        EXPECT_NE(current.m_compositionSession, previous.m_compositionSession);
+        EXPECT_GT(current.m_updateRevision, previous.m_updateRevision);
+        TerrainCompositionNotificationBus::Event(this->m_address,
+            &TerrainCompositionNotifications::OnCompositionUnavailable, previous.m_compositionSession);
+        TerrainCompositionNotificationBus::Event(this->m_address,
+            &TerrainCompositionNotifications::OnCompositionAvailable, previous.m_compositionSession);
+        EXPECT_TRUE(lease.IsRegistered());
+        EXPECT_EQ(this->Records()[0].m_updateRevision, current.m_updateRevision);
+        lease.Deactivate();
+        EXPECT_TRUE(this->Records().empty());
+    }
+
+    TYPED_TEST(TerrainRegistrationLifecycleTests, RetargetingRetiresOldLeaseAndDeactivationPreventsFurtherReplay)
+    {
+        auto config = this->MakeRecord(this->m_stamp).m_configuration;
+        typename TypeParam::Lease lease;
+        lease.Activate(this->m_stamp, config, AZ::Transform::CreateIdentity());
+        ASSERT_TRUE(lease.IsRegistered());
+        const auto old = this->Records()[0];
+        TerrainCompositionGradientComponent other;
+        other.EditorActivate(this->m_otherOwner);
+        const TerrainCompositionAddress address{ this->m_context.m_context, this->m_otherOwner };
+        config.m_targetCompositionEntityId = this->m_otherOwner;
+        lease.Update(config, AZ::Transform::CreateIdentity());
+        EXPECT_TRUE(this->Records().empty());
+        auto records = this->RecordsAt(address);
+        EXPECT_EQ(records.size(), 1);
+        if (!records.empty())
+            EXPECT_NE(records[0].m_registrationId, old.m_registrationId);
+        EXPECT_FALSE(this->Register(old));
+        lease.Deactivate();
+        TerrainCompositionNotificationBus::Event(address,
+            &TerrainCompositionNotifications::OnCompositionAvailable, AZ::Uuid{});
+        EXPECT_TRUE(this->RecordsAt(address).empty());
+        EXPECT_FALSE(lease.IsRegistered());
+        other.EditorDeactivate(this->m_otherOwner);
+    }
+
+    class TerrainImageRegistrationTests : public TerrainRegistrationLifecycleTests<RegistrationTestSupport::Image>
+    {
+    protected:
+        void SetUp() override
+        {
+            m_source = AZStd::make_unique<TestSupport::ConstantGradient>(AZ::EntityId(71006), 0.25f);
+            m_shape = AZStd::make_unique<::testing::NiceMock<UnitTest::MockShapeComponentRequests>>(AZ::EntityId(71005));
+            ON_CALL(*m_shape, GetEncompassingAabb()).WillByDefault(::testing::Return(
+                AZ::Aabb::CreateFromMinMaxValues(-100.0f, -100.0f, 0.0f, 100.0f, 100.0f, 100.0f)));
+            m_configuration.m_proceduralSourceEntityId = AZ::EntityId(71006);
+            m_configuration.m_targetTerrainRegionEntityId = AZ::EntityId(71005);
+            TerrainRegistrationLifecycleTests::SetUp();
+        }
+
+        Record ContributingImage(AZ::EntityId entity, float value)
+        {
+            auto record = MakeRecord(entity);
+            auto image = AZStd::make_shared<HeightmapData>(TestSupport::MakeImage(1, 1, { value }));
+            image->m_assetId = { AZ::Uuid::CreateRandom(), 1 };
+            image->m_revision = 1;
+            record.m_heightmap = { HeightmapDataStatus::Ready, 1, image, image->m_assetId };
+            record.m_configuration.m_featherWidth = 0.0f;
+            return record;
+        }
+
+        float Sample() const
+        {
+            float value = -1.0f;
+            GradientSignal::GradientRequestBus::EventResult(value, m_owner, &GradientSignal::GradientRequests::GetValue,
+                GradientSignal::GradientSampleParams(AZ::Vector3::CreateZero()));
+            return value;
+        }
+
+        AZStd::unique_ptr<TestSupport::ConstantGradient> m_source;
+        AZStd::unique_ptr<::testing::NiceMock<UnitTest::MockShapeComponentRequests>> m_shape;
+    };
+
+    TEST_F(TerrainImageRegistrationTests, OrderingCollisionSuppressesEveryClaimantAndRemovalRecoversTheSurvivor)
+    {
+        const auto first = ContributingImage(m_stamp, 0.8f);
+        auto second = ContributingImage(m_peer, 0.6f);
+        second.m_configuration.m_orderingId = first.m_configuration.m_orderingId;
+        second.m_configuration.m_stableOrderKey = first.m_configuration.m_stableOrderKey;
+        ASSERT_TRUE(Register(first));
+        EXPECT_FLOAT_EQ(Sample(), 0.8f);
+        ASSERT_TRUE(Register(second));
+        EXPECT_FLOAT_EQ(Sample(), 0.25f);
+        Unregister(second);
+        EXPECT_FLOAT_EQ(Sample(), 0.8f);
+    }
+
+    TEST_F(TerrainImageRegistrationTests, SharedImageFailureRemovesAllContributionsAndReadyRevisionRestoresThem)
+    {
+        auto first = ContributingImage(m_stamp, 0.8f);
+        auto second = MakeRecord(m_peer);
+        second.m_heightmap = first.m_heightmap;
+        second.m_configuration.m_featherWidth = 0.0f;
+        ASSERT_TRUE(Register(first));
+        ASSERT_TRUE(Register(second));
+        EXPECT_FLOAT_EQ(Sample(), 0.8f);
+        const auto retained = first.m_heightmap.m_data;
+        ++first.m_updateRevision;
+        first.m_heightmap = { HeightmapDataStatus::Error, 2, {}, retained->m_assetId };
+        ASSERT_TRUE(Register(first));
+        EXPECT_FLOAT_EQ(Sample(), 0.25f);
+        EXPECT_FLOAT_EQ(retained->m_samples[0], 0.8f);
+        auto replacement = AZStd::make_shared<HeightmapData>(*retained);
+        replacement->m_revision = 3;
+        replacement->m_samples[0] = 0.6f;
+        ++second.m_updateRevision;
+        second.m_heightmap = { HeightmapDataStatus::Ready, 3, replacement, replacement->m_assetId };
+        ASSERT_TRUE(Register(second));
+        EXPECT_FLOAT_EQ(Sample(), 0.6f);
+        EXPECT_FLOAT_EQ(retained->m_samples[0], 0.8f);
+    }
+
+    TEST_F(TerrainImageRegistrationTests, AssetRevisionPropagatesAcrossHeightSurfaceAndHoleRoles)
+    {
+        auto first = MakeRecord(m_stamp);
+        auto second = MakeRecord(m_peer);
+        const AZ::Data::AssetId asset(AZ::Uuid::CreateRandom(), 1);
+        first.m_heightmap = { HeightmapDataStatus::Loading, 8, {}, asset };
+        second.m_surfaceIdA = first.m_heightmap;
+        second.m_holeMask = first.m_heightmap;
+        ASSERT_TRUE(Register(first));
+        ASSERT_TRUE(Register(second));
+        ++first.m_updateRevision;
+        first.m_heightmap.m_revision = 9;
+        first.m_heightmap.m_status = HeightmapDataStatus::Missing;
+        ASSERT_TRUE(Register(first));
+        ++second.m_updateRevision;
+        ASSERT_TRUE(Register(second));
+        for (const auto& record : Records())
+        {
+            if (record.m_stampEntityId == m_peer)
+            {
+                EXPECT_EQ(record.m_surfaceIdA.m_revision, 9);
+                EXPECT_EQ(record.m_holeMask.m_revision, 9);
+                EXPECT_EQ(record.m_holeMask.m_status, HeightmapDataStatus::Missing);
+            }
+        }
+    }
+}

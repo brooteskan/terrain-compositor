@@ -1,4 +1,5 @@
 #include <TerrainCompositor/SurfaceStampSampling.h>
+#include "StampMath.h"
 
 #include <AzCore/std/algorithm.h>
 #include <AzCore/std/limits.h>
@@ -14,12 +15,6 @@ namespace TerrainCompositor
             AZ::Crc32 m_tag;
             double m_weight = 0.0;
         };
-
-        double Smooth(double value)
-        {
-            value = std::clamp(value, 0.0, 1.0);
-            return value * value * (3.0 - 2.0 * value);
-        }
 
         const PreparedSurfacePaletteEntry* FindPaletteEntry(const PreparedSurfacePalette& palette, AZ::u16 exportedId)
         {
@@ -370,8 +365,8 @@ namespace TerrainCompositor
             if (stamp.m_feather > 0.0)
             {
                 const double mask = std::clamp(
-                    Smooth((dx - edgeInset) / stamp.m_feather) *
-                    Smooth((dy - edgeInset) / stamp.m_feather), 0.0, 1.0);
+                    Internal::SmoothStep01((dx - edgeInset) / stamp.m_feather) *
+                    Internal::SmoothStep01((dy - edgeInset) / stamp.m_feather), 0.0, 1.0);
                 coverage *= stamp.m_featherExponent == 1.0 || mask == 0.0 || mask == 1.0
                     ? mask : std::pow(mask, stamp.m_featherExponent);
             }

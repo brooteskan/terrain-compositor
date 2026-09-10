@@ -1,4 +1,5 @@
 #include <TerrainCompositor/Components/TerrainCompositionHeightProviderComponent.h>
+#include "../ComponentConfiguration.h"
 
 #include <AzCore/Math/MathUtils.h>
 #include <AzCore/Serialization/EditContext.h>
@@ -146,25 +147,18 @@ namespace TerrainCompositor
     bool TerrainCompositionHeightProviderComponent::ReadInConfig(const AZ::ComponentConfig* baseConfig)
     {
         if (!m_binding.CheckControlThread()) { return false; }
-        if (const auto* configuration = azrtti_cast<const TerrainCompositionHeightProviderConfig*>(baseConfig))
+        return Internal::ReadConfiguration<TerrainCompositionHeightProviderConfig>(baseConfig, [this](const auto& value)
         {
-            const bool changed = configuration->m_compositionEntityId != m_configuration.m_compositionEntityId;
-            m_configuration = *configuration;
+            const bool changed = value.m_compositionEntityId != m_configuration.m_compositionEntityId;
+            m_configuration = value;
             if (changed) { RestartProvider(); }
-            return true;
-        }
-        return false;
+        });
     }
 
     bool TerrainCompositionHeightProviderComponent::WriteOutConfig(AZ::ComponentConfig* outBaseConfig) const
     {
         if (!m_binding.CheckControlThread()) { return false; }
-        if (auto* configuration = azrtti_cast<TerrainCompositionHeightProviderConfig*>(outBaseConfig))
-        {
-            *configuration = m_configuration;
-            return true;
-        }
-        return false;
+        return Internal::WriteConfiguration(outBaseConfig, m_configuration);
     }
 
     AZStd::string TerrainCompositionHeightProviderComponent::GetStatusMessage() const

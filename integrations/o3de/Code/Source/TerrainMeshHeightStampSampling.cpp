@@ -1,4 +1,5 @@
 #include <TerrainCompositor/TerrainMeshHeightStampSampling.h>
+#include "StampMath.h"
 #include <TerrainCompositor/TerrainMeshHeightMapping.h>
 
 #include <algorithm>
@@ -11,21 +12,6 @@ namespace TerrainCompositor
     {
         constexpr double RotationTolerance = 1.0e-4;
 
-        float RoundBound(double value, bool lower)
-        {
-            float result = static_cast<float>(value);
-            if ((lower && result > value) || (!lower && result < value))
-            {
-                result = std::nextafter(result, lower ? -std::numeric_limits<float>::infinity() : std::numeric_limits<float>::infinity());
-            }
-            return result;
-        }
-
-        double Smooth(double value)
-        {
-            value = std::clamp(value, 0.0, 1.0);
-            return value * value * (3.0 - 2.0 * value);
-        }
     } // namespace
 
     TerrainMeshHeightStampPlacementValidation PrepareTerrainMeshHeightStamp(
@@ -147,8 +133,8 @@ namespace TerrainCompositor
             return TerrainMeshHeightStampPlacementValidation::Bounds;
         }
         prepared.m_worldBounds = AZ::Aabb::CreateFromMinMax(
-            AZ::Vector3(RoundBound(minimumX, true), RoundBound(minimumY, true), 0.0f),
-            AZ::Vector3(RoundBound(maximumX, false), RoundBound(maximumY, false), 0.0f));
+            AZ::Vector3(Internal::RoundOutward(minimumX, true), Internal::RoundOutward(minimumY, true), 0.0f),
+            AZ::Vector3(Internal::RoundOutward(maximumX, false), Internal::RoundOutward(maximumY, false), 0.0f));
         result = AZStd::move(prepared);
         return TerrainMeshHeightStampPlacementValidation::Valid;
     }
@@ -183,8 +169,8 @@ namespace TerrainCompositor
         contribution.m_weight = stamp.m_strength;
         if (stamp.m_feather > 0.0)
         {
-            const double featherX = Smooth((edgeX - stamp.m_edgeInset) / stamp.m_feather);
-            const double featherY = Smooth((edgeY - stamp.m_edgeInset) / stamp.m_feather);
+            const double featherX = Internal::SmoothStep01((edgeX - stamp.m_edgeInset) / stamp.m_feather);
+            const double featherY = Internal::SmoothStep01((edgeY - stamp.m_edgeInset) / stamp.m_feather);
             contribution.m_replaceBlend = std::clamp(featherX * featherY, 0.0, 1.0);
             contribution.m_weight = stamp.m_strength *
                 (stamp.m_featherExponent == 1.0 ? contribution.m_replaceBlend

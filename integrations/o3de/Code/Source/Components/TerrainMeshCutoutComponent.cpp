@@ -1,4 +1,6 @@
 #include <TerrainCompositor/Components/TerrainMeshCutoutComponent.h>
+#include "MeshPlacementHelpers.h"
+#include "../ComponentConfiguration.h"
 
 #include <AtomLyIntegration/CommonFeatures/Mesh/MeshComponentBus.h>
 #include <AzCore/Serialization/EditContext.h>
@@ -138,22 +140,15 @@ namespace TerrainCompositor
 
     bool TerrainMeshCutoutComponent::ReadInConfig(const AZ::ComponentConfig* configuration)
     {
-        if (const auto* cutout = azrtti_cast<const TerrainMeshCutoutConfig*>(configuration))
+        return Internal::ReadConfiguration<TerrainMeshCutoutConfig>(configuration, [this](const auto& value)
         {
-            SetCutoutConfiguration(*cutout);
-            return true;
-        }
-        return false;
+            SetCutoutConfiguration(value);
+        });
     }
 
     bool TerrainMeshCutoutComponent::WriteOutConfig(AZ::ComponentConfig* configuration) const
     {
-        if (auto* cutout = azrtti_cast<TerrainMeshCutoutConfig*>(configuration))
-        {
-            *cutout = m_configuration;
-            return true;
-        }
-        return false;
+        return Internal::WriteConfiguration(configuration, m_configuration);
     }
 
     AZ::u32 TerrainMeshCutoutComponent::OnConfigurationChanged()
@@ -174,35 +169,7 @@ namespace TerrainCompositor
 
     AZ::EntityId TerrainMeshCutoutComponent::ResolvePlacementEntity(size_t& matchingMeshCount) const
     {
-        matchingMeshCount = 0;
-        AZ::EntityId match;
-        const AZ::Data::AssetId cutoutAssetId = m_configuration.m_cutoutMeshAsset.GetId();
-        if (!m_activeEntityId.IsValid() || !cutoutAssetId.IsValid())
-        {
-            return match;
-        }
-
-        AZStd::vector<AZ::EntityId> candidates{ m_activeEntityId };
-        AZStd::vector<AZ::EntityId> descendants;
-        AZ::TransformBus::EventResult(
-            descendants, m_activeEntityId, &AZ::TransformInterface::GetAllDescendants);
-        candidates.insert(candidates.end(), descendants.begin(), descendants.end());
-        for (const AZ::EntityId candidate : candidates)
-        {
-            if (!AZ::Render::MeshComponentRequestBus::HasHandlers(candidate))
-            {
-                continue;
-            }
-            AZ::Data::AssetId modelAssetId;
-            AZ::Render::MeshComponentRequestBus::EventResult(
-                modelAssetId, candidate, &AZ::Render::MeshComponentRequestBus::Events::GetModelAssetId);
-            if (modelAssetId == cutoutAssetId)
-            {
-                match = candidate;
-                ++matchingMeshCount;
-            }
-        }
-        return matchingMeshCount == 1 ? match : AZ::EntityId{};
+        return Internal::ResolveUniqueModelEntity(m_activeEntityId, m_configuration.m_cutoutMeshAsset.GetId(), matchingMeshCount);
     }
 
     void TerrainMeshCutoutComponent::ScheduleRuntimeMeshVisibilityUpdate()
@@ -247,46 +214,13 @@ namespace TerrainCompositor
 
     void TerrainMeshCutoutComponent::HideRuntimeCutoutMeshInstances()
     {
-        const AZ::Data::AssetId cutoutAssetId = m_configuration.m_cutoutMeshAsset.GetId();
-        if (!cutoutAssetId.IsValid())
-        {
-            return;
-        }
-
-        const AZ::EntityId candidate = m_boundPlacementEntityId;
-        if (!candidate.IsValid() || !AZ::Render::MeshComponentRequestBus::HasHandlers(candidate))
-        {
-            return;
-        }
-        AZ::Data::AssetId modelAssetId;
-        AZ::Render::MeshComponentRequestBus::EventResult(
-            modelAssetId, candidate, &AZ::Render::MeshComponentRequestBus::Events::GetModelAssetId);
-        if (modelAssetId != cutoutAssetId)
-        {
-            return;
-        }
-        if (!m_runtimeMeshPreviousVisibility.contains(candidate))
-        {
-            bool wasVisible = true;
-            AZ::Render::MeshComponentRequestBus::EventResult(
-                wasVisible, candidate, &AZ::Render::MeshComponentRequestBus::Events::GetVisibility);
-            m_runtimeMeshPreviousVisibility.emplace(candidate, wasVisible);
-        }
-        AZ::Render::MeshComponentRequestBus::Event(
-            candidate, &AZ::Render::MeshComponentRequestBus::Events::SetVisibility, false);
+        if (!m_configuration.m_cutoutMeshAsset.GetId().IsValid()) return;
+        Internal::HideMatchingModel(m_boundPlacementEntityId, m_configuration.m_cutoutMeshAsset.GetId(), m_runtimeMeshPreviousVisibility);
     }
 
     void TerrainMeshCutoutComponent::RestoreRuntimeCutoutMeshVisibility()
     {
-        for (const auto& [entityId, previousVisibility] : m_runtimeMeshPreviousVisibility)
-        {
-            if (AZ::Render::MeshComponentRequestBus::HasHandlers(entityId))
-            {
-                AZ::Render::MeshComponentRequestBus::Event(
-                    entityId, &AZ::Render::MeshComponentRequestBus::Events::SetVisibility, previousVisibility);
-            }
-        }
-        m_runtimeMeshPreviousVisibility.clear();
+        Internal::RestoreModelVisibility(m_runtimeMeshPreviousVisibility);
     }
 
     void TerrainMeshCutoutComponent::OnSystemTick()

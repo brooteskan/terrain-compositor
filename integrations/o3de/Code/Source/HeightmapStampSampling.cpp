@@ -1,4 +1,5 @@
 #include <TerrainCompositor/HeightmapStampSampling.h>
+#include "StampMath.h"
 
 #include <algorithm>
 #include <cmath>
@@ -9,12 +10,6 @@ namespace TerrainCompositor
     namespace
     {
         constexpr float MaximumReconstructionRadius = 8.0f;
-
-        double Smooth(double value)
-        {
-            value = std::clamp(value, 0.0, 1.0);
-            return value * value * (3.0 - 2.0 * value);
-        }
 
         double CubicBSpline(double value)
         {
@@ -88,8 +83,8 @@ namespace TerrainCompositor
             sample.m_weight = stamp.m_strength;
             if (stamp.m_feather > 0.0)
             {
-                const double featherX = Smooth((dx - edgeInset) / stamp.m_feather);
-                const double featherY = Smooth((dy - edgeInset) / stamp.m_feather);
+                const double featherX = Internal::SmoothStep01((dx - edgeInset) / stamp.m_feather);
+                const double featherY = Internal::SmoothStep01((dy - edgeInset) / stamp.m_feather);
                 sample.m_replaceBlend = std::clamp(featherX * featherY, 0.0, 1.0);
                 sample.m_weight = stamp.m_featherExponent == 1.0
                     ? stamp.m_strength * featherX * featherY

@@ -1,4 +1,5 @@
 #include <TerrainCompositor/Components/TerrainCompositionGradientComponent.h>
+#include "../ComponentConfiguration.h"
 
 #include "TerrainCompositionQueryHelpers.h"
 
@@ -477,13 +478,11 @@ namespace TerrainCompositor
         {
             return false;
         }
-        if (const auto* configuration = azrtti_cast<const TerrainCompositionConfig*>(baseConfig))
+        return Internal::ReadConfiguration<TerrainCompositionConfig>(baseConfig, [this](const auto& value)
         {
-            m_configuration = *configuration;
+            m_configuration = value;
             OnConfigurationChanged();
-            return true;
-        }
-        return false;
+        });
     }
 
     bool TerrainCompositionGradientComponent::WriteOutConfig(AZ::ComponentConfig* outBaseConfig) const
@@ -492,12 +491,7 @@ namespace TerrainCompositor
         {
             return false;
         }
-        if (auto* configuration = azrtti_cast<TerrainCompositionConfig*>(outBaseConfig))
-        {
-            *configuration = m_configuration;
-            return true;
-        }
-        return false;
+        return Internal::WriteConfiguration(outBaseConfig, m_configuration);
     }
 
     void TerrainCompositionGradientComponent::SetTerrainQualityBaseline(const TerrainQualityBaseline& baseline)
@@ -1332,33 +1326,14 @@ namespace TerrainCompositor
 
     bool TerrainCompositionGradientComponent::RegisterStamp(const HeightmapStampRegistrationData& registration)
     {
-        if (!m_controlThread.Check() || !m_active || m_address.first.IsNull() || registration.m_contextId != m_address.first ||
-            registration.m_compositionSession != m_session || registration.m_registrationId.IsNull() ||
-            registration.m_updateRevision == 0 || m_retiredRegistrations.contains(registration.m_registrationId) ||
-            registration.m_configuration.m_targetCompositionEntityId != m_address.second)
+        if (!m_controlThread.Check() || !m_active) return false;
+        const auto admission = Internal::AdmitRegistration(
+            registration, registration.m_stampEntityId, m_registrations, m_address, m_session, m_retiredRegistrations);
+        if (admission != Internal::RegistrationAdmission::Apply)
         {
-            return false;
+            return admission == Internal::RegistrationAdmission::Replay;
         }
-        AzFramework::EntityContextId stampContext{};
-        AzFramework::EntityIdContextQueryBus::EventResult(
-            stampContext, registration.m_stampEntityId, &AzFramework::EntityIdContextQueryBus::Events::GetOwningContextId);
-        if (!registration.m_stampEntityId.IsValid() || stampContext != m_address.first)
-        {
-            return false;
-        }
-        if (const auto previous = m_registrations.find(registration.m_stampEntityId); previous != m_registrations.end())
-        {
-            if (previous->second.m_registrationId != registration.m_registrationId ||
-                previous->second.m_updateRevision > registration.m_updateRevision)
-            {
-                return false;
-            }
-            if (previous->second.m_updateRevision == registration.m_updateRevision)
-            {
-                return true; // Same lease/revision is an idempotent replay, not a second
-                             // registration.
-            }
-        }
+
         using SnapshotMember = HeightmapDataSnapshot HeightmapStampRegistrationData::*;
         const SnapshotMember snapshotMembers[] = { &HeightmapStampRegistrationData::m_heightmap,
                                                    &HeightmapStampRegistrationData::m_surfaceIdA,
@@ -1432,32 +1407,12 @@ namespace TerrainCompositor
 
     bool TerrainCompositionGradientComponent::RegisterMeshCutout(const TerrainMeshCutoutRegistrationData& registration)
     {
-        if (!m_controlThread.Check() || !m_active || m_address.first.IsNull() || registration.m_contextId != m_address.first ||
-            registration.m_compositionSession != m_session || registration.m_registrationId.IsNull() ||
-            registration.m_updateRevision == 0 || m_retiredRegistrations.contains(registration.m_registrationId) ||
-            registration.m_configuration.m_targetCompositionEntityId != m_address.second)
+        if (!m_controlThread.Check() || !m_active) return false;
+        const auto admission = Internal::AdmitRegistration(
+            registration, registration.m_cutoutEntityId, m_meshCutoutRegistrations, m_address, m_session, m_retiredRegistrations);
+        if (admission != Internal::RegistrationAdmission::Apply)
         {
-            return false;
-        }
-        AzFramework::EntityContextId context{};
-        AzFramework::EntityIdContextQueryBus::EventResult(
-            context, registration.m_cutoutEntityId, &AzFramework::EntityIdContextQueryBus::Events::GetOwningContextId);
-        if (!registration.m_cutoutEntityId.IsValid() || context != m_address.first)
-        {
-            return false;
-        }
-        if (const auto previous = m_meshCutoutRegistrations.find(registration.m_cutoutEntityId);
-            previous != m_meshCutoutRegistrations.end())
-        {
-            if (previous->second.m_registrationId != registration.m_registrationId ||
-                previous->second.m_updateRevision > registration.m_updateRevision)
-            {
-                return false;
-            }
-            if (previous->second.m_updateRevision == registration.m_updateRevision)
-            {
-                return true;
-            }
+            return admission == Internal::RegistrationAdmission::Replay;
         }
 
         auto current = registration;
@@ -1496,31 +1451,12 @@ namespace TerrainCompositor
 
     bool TerrainCompositionGradientComponent::RegisterMeshHeightStamp(const TerrainMeshHeightStampRegistrationData& registration)
     {
-        if (!m_controlThread.Check() || !m_active || m_address.first.IsNull() || registration.m_contextId != m_address.first ||
-            registration.m_compositionSession != m_session || registration.m_registrationId.IsNull() ||
-            registration.m_updateRevision == 0 || m_retiredRegistrations.contains(registration.m_registrationId) ||
-            registration.m_configuration.m_targetCompositionEntityId != m_address.second)
+        if (!m_controlThread.Check() || !m_active) return false;
+        const auto admission = Internal::AdmitRegistration(
+            registration, registration.m_stampEntityId, m_meshHeightRegistrations, m_address, m_session, m_retiredRegistrations);
+        if (admission != Internal::RegistrationAdmission::Apply)
         {
-            return false;
-        }
-        AzFramework::EntityContextId context{};
-        AzFramework::EntityIdContextQueryBus::EventResult(
-            context, registration.m_stampEntityId, &AzFramework::EntityIdContextQueryBus::Events::GetOwningContextId);
-        if (!registration.m_stampEntityId.IsValid() || context != m_address.first)
-        {
-            return false;
-        }
-        if (const auto previous = m_meshHeightRegistrations.find(registration.m_stampEntityId); previous != m_meshHeightRegistrations.end())
-        {
-            if (previous->second.m_registrationId != registration.m_registrationId ||
-                previous->second.m_updateRevision > registration.m_updateRevision)
-            {
-                return false;
-            }
-            if (previous->second.m_updateRevision == registration.m_updateRevision)
-            {
-                return true;
-            }
+            return admission == Internal::RegistrationAdmission::Replay;
         }
 
         auto current = registration;
@@ -1652,30 +1588,20 @@ namespace TerrainCompositor
         }
 
         AZStd::unordered_map<AZStd::string, AZStd::vector<AZ::EntityId>> claims;
-        for (const auto& [id, registration] : m_registrations)
+        const auto collectClaims = [&claims](const auto& registrations)
         {
-            const auto key = registration.m_configuration.GetRuntimeOrderKey();
-            if (!key.empty())
+            for (const auto& [id, registration] : registrations)
             {
-                claims[key].push_back(id);
+                const auto key = registration.m_configuration.GetRuntimeOrderKey();
+                if (!key.empty())
+                {
+                    claims[key].push_back(id);
+                }
             }
-        }
-        for (const auto& [id, registration] : m_meshCutoutRegistrations)
-        {
-            const auto key = registration.m_configuration.GetRuntimeOrderKey();
-            if (!key.empty())
-            {
-                claims[key].push_back(id);
-            }
-        }
-        for (const auto& [id, registration] : m_meshHeightRegistrations)
-        {
-            const auto key = registration.m_configuration.GetRuntimeOrderKey();
-            if (!key.empty())
-            {
-                claims[key].push_back(id);
-            }
-        }
+        };
+        collectClaims(m_registrations);
+        collectClaims(m_meshCutoutRegistrations);
+        collectClaims(m_meshHeightRegistrations);
         AZStd::unordered_map<AZStd::string, AZStd::string> collisions;
         for (const auto& [key, claimants] : claims)
         {
@@ -2080,76 +2006,11 @@ namespace TerrainCompositor
         // footprint metadata.
         auto affected = AZStd::move(m_dirtyStamps);
         m_dirtyStamps.clear();
-        for (const auto& [id, bounds] : oldBounds)
-        {
-            if (!currentBounds.contains(id))
-            {
-                affected[id] |= DirtyHeight;
-            }
-        }
-        for (const auto& [id, bounds] : currentBounds)
-        {
-            if (!oldBounds.contains(id))
-            {
-                affected[id] |= DirtyHeight; // Includes recovery of a formerly colliding claimant.
-            }
-        }
-        for (const auto& [id, bounds] : oldSurfaceBounds)
-        {
-            if (!currentSurfaceBounds.contains(id))
-            {
-                affected[id] |= DirtySurface;
-            }
-        }
-        for (const auto& [id, bounds] : currentSurfaceBounds)
-        {
-            if (!oldSurfaceBounds.contains(id))
-            {
-                affected[id] |= DirtySurface;
-            }
-        }
-        for (const auto& [id, bounds] : oldExistenceBounds)
-        {
-            if (!currentExistenceBounds.contains(id))
-            {
-                affected[id] |= DirtyExistence;
-            }
-        }
-        for (const auto& [id, bounds] : currentExistenceBounds)
-        {
-            if (!oldExistenceBounds.contains(id))
-            {
-                affected[id] |= DirtyExistence;
-            }
-        }
-        for (const auto& [id, bounds] : oldMeshHeightQueryBounds)
-        {
-            if (!currentMeshHeightQueryBounds.contains(id))
-            {
-                affected[id] |= DirtyExistence;
-            }
-        }
-        for (const auto& [id, bounds] : currentMeshHeightQueryBounds)
-        {
-            if (!oldMeshHeightQueryBounds.contains(id))
-            {
-                affected[id] |= DirtyExistence;
-            }
-        }
-        for (const auto& [id, bounds] : oldMeshHeightRenderBounds)
-        {
-            if (!currentMeshHeightRenderBounds.contains(id))
-            {
-                affected[id] |= DirtyExistence;
-            }
-        }
-        for (const auto& [id, bounds] : currentMeshHeightRenderBounds)
-        {
-            if (!oldMeshHeightRenderBounds.contains(id))
-            {
-                affected[id] |= DirtyExistence;
-            }
-        }
+        Internal::MarkMembershipChanges(oldBounds, currentBounds, DirtyHeight, affected);
+        Internal::MarkMembershipChanges(oldSurfaceBounds, currentSurfaceBounds, DirtySurface, affected);
+        Internal::MarkMembershipChanges(oldExistenceBounds, currentExistenceBounds, DirtyExistence, affected);
+        Internal::MarkMembershipChanges(oldMeshHeightQueryBounds, currentMeshHeightQueryBounds, DirtyExistence, affected);
+        Internal::MarkMembershipChanges(oldMeshHeightRenderBounds, currentMeshHeightRenderBounds, DirtyExistence, affected);
         // Atomic ownership exchange publishes references, mapping, keys, transforms
         // and pixels together. Standard shared_ptr atomics need not be lock-free, but
         // no application lock encloses external calls.
@@ -2299,44 +2160,20 @@ namespace TerrainCompositor
 
     AZStd::vector<HeightmapStampRegistrationData> TerrainCompositionGradientComponent::GetRegisteredStamps() const
     {
-        AZStd::vector<HeightmapStampRegistrationData> registrations;
-        if (m_controlThread.Check())
-        {
-            registrations.reserve(m_registrations.size());
-            for (const auto& entry : m_registrations)
-            {
-                registrations.push_back(entry.second);
-            }
-        }
-        return registrations;
+        if (!m_controlThread.Check()) return {};
+        return Internal::RegistrationValues(m_registrations);
     }
 
     AZStd::vector<TerrainMeshCutoutRegistrationData> TerrainCompositionGradientComponent::GetRegisteredMeshCutouts() const
     {
-        AZStd::vector<TerrainMeshCutoutRegistrationData> registrations;
-        if (m_controlThread.Check())
-        {
-            registrations.reserve(m_meshCutoutRegistrations.size());
-            for (const auto& entry : m_meshCutoutRegistrations)
-            {
-                registrations.push_back(entry.second);
-            }
-        }
-        return registrations;
+        if (!m_controlThread.Check()) return {};
+        return Internal::RegistrationValues(m_meshCutoutRegistrations);
     }
 
     AZStd::vector<TerrainMeshHeightStampRegistrationData> TerrainCompositionGradientComponent::GetRegisteredMeshHeightStamps() const
     {
-        AZStd::vector<TerrainMeshHeightStampRegistrationData> registrations;
-        if (m_controlThread.Check())
-        {
-            registrations.reserve(m_meshHeightRegistrations.size());
-            for (const auto& entry : m_meshHeightRegistrations)
-            {
-                registrations.push_back(entry.second);
-            }
-        }
-        return registrations;
+        if (!m_controlThread.Check()) return {};
+        return Internal::RegistrationValues(m_meshHeightRegistrations);
     }
 
     size_t TerrainCompositionGradientComponent::GetOrderingClaimCount(AZStd::string_view stableOrderKey) const

@@ -1,4 +1,5 @@
 #include "EditorTerrainMeshHeightStampComponent.h"
+#include "../ComponentConfiguration.h"
 #include "EditorPreviewStatus.h"
 
 #include <AzCore/Math/Color.h>
@@ -60,9 +61,7 @@ namespace TerrainCompositor
     {
         BaseClass::Activate();
         m_preview = AZStd::make_unique<TerrainMeshHeightStampComponent>(m_configuration);
-        m_preview->EditorActivate(GetEntityId());
-        m_status = m_preview->GetStatusMessage();
-        m_statusElapsed = 0.0f;
+        ActivateEditorPreview(*m_preview, GetEntityId(), m_status, m_statusElapsed);
         AzFramework::EntityDebugDisplayEventBus::Handler::BusConnect(GetEntityId());
         AZ::TickBus::Handler::BusConnect();
     }
@@ -71,11 +70,7 @@ namespace TerrainCompositor
     {
         AZ::TickBus::Handler::BusDisconnect();
         AzFramework::EntityDebugDisplayEventBus::Handler::BusDisconnect();
-        if (m_preview)
-        {
-            m_preview->EditorDeactivate(GetEntityId());
-            m_preview.reset();
-        }
+        StopEditorPreview(m_preview, GetEntityId());
         m_status = "Inactive: no terrain mesh height contribution.";
         BaseClass::Deactivate();
     }
@@ -107,32 +102,21 @@ namespace TerrainCompositor
 
     bool EditorTerrainMeshHeightStampComponent::ReadInConfig(const AZ::ComponentConfig* configuration)
     {
-        if (const auto* stamp = azrtti_cast<const TerrainMeshHeightStampConfig*>(configuration))
+        return Internal::ReadConfiguration<TerrainMeshHeightStampConfig>(configuration, [this](const auto& value)
         {
-            m_configuration = *stamp;
+            m_configuration = value;
             OnConfigurationChanged();
-            return true;
-        }
-        return false;
+        });
     }
 
     bool EditorTerrainMeshHeightStampComponent::WriteOutConfig(AZ::ComponentConfig* configuration) const
     {
-        if (auto* stamp = azrtti_cast<TerrainMeshHeightStampConfig*>(configuration))
-        {
-            *stamp = m_configuration;
-            return true;
-        }
-        return false;
+        return Internal::WriteConfiguration(configuration, m_configuration);
     }
 
     AZ::u32 EditorTerrainMeshHeightStampComponent::OnConfigurationChanged()
     {
-        if (m_preview)
-        {
-            m_preview->SetStampConfiguration(m_configuration);
-            m_status = m_preview->GetStatusMessage();
-        }
+        RefreshEditorPreview(m_preview.get(), m_configuration, m_status);
         return AZ::Edit::PropertyRefreshLevels::AttributesAndValues;
     }
 

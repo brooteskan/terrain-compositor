@@ -2,7 +2,7 @@
 #include <AzCore/Jobs/JobContext.h>
 #include <AzCore/Jobs/JobManager.h>
 #include <AzCore/Jobs/JobManagerBus.h>
-#include <AzCore/Name/NameDictionary.h>
+#include "TerrainTestFixtures.h"
 #include <AzTest/AzTest.h>
 #include <Atom/RHI/RHISystem.h>
 #include <TerrainCompositor/Components/ProceduralGroundGradientComponent.h>
@@ -28,23 +28,6 @@ namespace Terrain
     class TerrainSectorPreparationTests : public ::testing::Test
     {
     protected:
-        void SetUp() override
-        {
-            if (!AZ::NameDictionary::IsReady())
-            {
-                AZ::NameDictionary::Create();
-                m_ownsNameDictionary = true;
-            }
-        }
-
-        void TearDown() override
-        {
-            if (m_ownsNameDictionary)
-            {
-                AZ::NameDictionary::Destroy();
-            }
-        }
-
         using Vertex = TerrainMeshManager::HeightNormalVertex;
         static void CheckSectorGridCrossing(bool crossX, bool crossY)
         {
@@ -183,7 +166,7 @@ namespace Terrain
         }
 
     private:
-        bool m_ownsNameDictionary = false;
+        TerrainCompositor::TestSupport::ScopedNameDictionary m_names;
     };
     TEST_F(TerrainSectorPreparationTests, ClodPreservesInterpolationRemappingAndHoleFallback)
     {
@@ -632,20 +615,7 @@ namespace TerrainCompositor
 
         PreparedTerrainExistenceStamp MakeActiveImageMask(TerrainExistenceOperation operation)
         {
-            PreparedTerrainExistenceStamp stamp;
-            auto mask = AZStd::make_shared<HeightmapData>();
-            mask->m_width = 1;
-            mask->m_height = 1;
-            mask->m_samples = { 1.0f };
-            stamp.m_mask = mask;
-            stamp.m_placement.m_worldBounds = AZ::Aabb::CreateFromMinMax(AZ::Vector3(-2.0f, -2.0f, 0.0f), AZ::Vector3(2.0f, 2.0f, 0.0f));
-            stamp.m_placement.m_cosYaw = 1.0;
-            stamp.m_placement.m_inverseScale = 1.0;
-            stamp.m_placement.m_halfWidth = 2.0;
-            stamp.m_placement.m_halfDepth = 2.0;
-            stamp.m_threshold = 0.5f;
-            stamp.m_operation = operation;
-            return stamp;
+            return TestSupport::MakePreparedMask(1.0f, operation, 2.0f);
         }
 
         PreparedTerrainMeshHeightGap MakePreparedGap()

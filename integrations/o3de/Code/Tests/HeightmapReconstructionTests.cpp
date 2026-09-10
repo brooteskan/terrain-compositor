@@ -1,5 +1,6 @@
 #include <AzTest/AzTest.h>
 #include <TerrainCompositor/HeightmapStampSampling.h>
+#include "TerrainTestFixtures.h"
 
 #include <algorithm>
 
@@ -7,14 +8,7 @@ namespace TerrainCompositor
 {
     namespace
     {
-        HeightmapData MakeImage(AZ::u32 width, AZ::u32 height, AZStd::vector<float> samples)
-        {
-            HeightmapData image;
-            image.m_width = width;
-            image.m_height = height;
-            image.m_samples = AZStd::move(samples);
-            return image;
-        }
+        using TestSupport::MakeImage;
 
         PreparedHeightmapStamp MakeStamp(const HeightmapDataPtr& image, HeightmapReconstructionDataPtr reconstruction = {})
         {

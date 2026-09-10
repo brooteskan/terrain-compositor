@@ -1,4 +1,5 @@
 #include <TerrainCompositor/Components/TerrainCompositionSurfaceProviderComponent.h>
+#include "../ComponentConfiguration.h"
 
 #include "TerrainCompositionQueryHelpers.h"
 
@@ -150,17 +151,15 @@ namespace TerrainCompositor
         {
             return false;
         }
-        if (const auto* configuration = azrtti_cast<const TerrainCompositionSurfaceProviderConfig*>(baseConfig))
+        return Internal::ReadConfiguration<TerrainCompositionSurfaceProviderConfig>(baseConfig, [this](const auto& value)
         {
-            const bool changed = configuration->m_compositionEntityId != m_configuration.m_compositionEntityId;
-            m_configuration = *configuration;
+            const bool changed = value.m_compositionEntityId != m_configuration.m_compositionEntityId;
+            m_configuration = value;
             if (changed)
             {
                 RestartProvider();
             }
-            return true;
-        }
-        return false;
+        });
     }
 
     bool TerrainCompositionSurfaceProviderComponent::WriteOutConfig(AZ::ComponentConfig* outBaseConfig) const
@@ -169,12 +168,7 @@ namespace TerrainCompositor
         {
             return false;
         }
-        if (auto* configuration = azrtti_cast<TerrainCompositionSurfaceProviderConfig*>(outBaseConfig))
-        {
-            *configuration = m_configuration;
-            return true;
-        }
-        return false;
+        return Internal::WriteConfiguration(outBaseConfig, m_configuration);
     }
 
     AZStd::string TerrainCompositionSurfaceProviderComponent::GetStatusMessage() const

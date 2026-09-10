@@ -1,4 +1,5 @@
 #include "EditorTerrainCompositionGradientComponent.h"
+#include "../ComponentConfiguration.h"
 #include "EditorPreviewStatus.h"
 
 #include <AzCore/Serialization/EditContext.h>
@@ -119,9 +120,7 @@ namespace TerrainCompositor
         m_preview = AZStd::make_unique<TerrainCompositionGradientComponent>(m_configuration);
         const TerrainQualityBaseline baseline = CaptureTerrainQualityBaseline(GetEntityId());
         m_preview->SetTerrainQualityBaseline(baseline);
-        m_preview->EditorActivate(GetEntityId());
-        m_status = m_preview->GetStatusMessage();
-        m_statusElapsed = 0.0f;
+        ActivateEditorPreview(*m_preview, GetEntityId(), m_status, m_statusElapsed);
         AzFramework::EntityDebugDisplayEventBus::Handler::BusConnect(GetEntityId());
         AZ::TickBus::Handler::BusConnect();
     }
@@ -130,11 +129,7 @@ namespace TerrainCompositor
     {
         AZ::TickBus::Handler::BusDisconnect();
         AzFramework::EntityDebugDisplayEventBus::Handler::BusDisconnect();
-        if (m_preview)
-        {
-            m_preview->EditorDeactivate(GetEntityId());
-            m_preview.reset();
-        }
+        StopEditorPreview(m_preview, GetEntityId());
         m_status = "Inactive: no composed gradient.";
         BaseClass::Deactivate();
     }
@@ -150,33 +145,21 @@ namespace TerrainCompositor
 
     bool EditorTerrainCompositionGradientComponent::ReadInConfig(const AZ::ComponentConfig* configuration)
     {
-        if (const auto* composition = azrtti_cast<const TerrainCompositionConfig*>(configuration))
+        return Internal::ReadConfiguration<TerrainCompositionConfig>(configuration, [this](const auto& value)
         {
-            m_configuration = *composition;
+            m_configuration = value;
             OnConfigurationChanged();
-            return true;
-        }
-        return false;
+        });
     }
 
     bool EditorTerrainCompositionGradientComponent::WriteOutConfig(AZ::ComponentConfig* configuration) const
     {
-        if (auto* composition = azrtti_cast<TerrainCompositionConfig*>(configuration))
-        {
-            *composition = m_configuration;
-            return true;
-        }
-        return false;
+        return Internal::WriteConfiguration(configuration, m_configuration);
     }
 
     AZ::u32 EditorTerrainCompositionGradientComponent::OnConfigurationChanged()
     {
-        if (m_preview)
-        {
-            // Publish one replacement source/region state without tearing down the composition session.
-            m_preview->ReadInConfig(&m_configuration);
-            m_status = m_preview->GetStatusMessage();
-        }
+        RefreshEditorPreview(m_preview.get(), m_configuration, m_status);
         return AZ::Edit::PropertyRefreshLevels::AttributesAndValues;
     }
 

@@ -40,6 +40,10 @@ set(FILES
     Code/Include/TerrainCompositor/TerrainMeshHeightStampSampling.h
     Code/Include/TerrainCompositor/TerrainModelGeometry.h
     Code/Include/TerrainCompositor/TerrainQuality.h
+    Code/Source/ComponentConfiguration.h
+    Code/Source/ModelAssetSource.h
+    Code/Source/StampMath.h
+    Code/Source/Components/MeshPlacementHelpers.h
     Code/Source/Components/HeightmapStampComponent.cpp
     Code/Source/Components/HeightmapStampConfig.cpp
     Code/Source/Components/ProceduralGroundGradientComponent.cpp
@@ -78,4 +82,3 @@ set(FILES
     Code/Source/TerrainModelGeometry.cpp
     Code/Source/TerrainQuality.cpp
 )
-
