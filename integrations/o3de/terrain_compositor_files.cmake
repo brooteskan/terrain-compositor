@@ -1,6 +1,7 @@
 set(FILES
     Code/Include/TerrainCompositor/Internal/AssetSubscription.h
     Code/Include/TerrainCompositor/Internal/RegistrationClient.h
+    Code/Include/TerrainCompositor/Internal/MeshPlacementLifecycle.h
     Code/Include/TerrainCompositor/Components/HeightmapStampComponent.h
     Code/Include/TerrainCompositor/Components/HeightmapStampConfig.h
     Code/Include/TerrainCompositor/Components/ProceduralGroundGradientComponent.h
@@ -46,6 +47,7 @@ set(FILES
     Code/Source/PublicationState.h
     Code/Source/CompositionRegistrationState.h
     Code/Source/ModelAssetSource.h
+    Code/Source/MeshPlacementLifecycle.cpp
     Code/Source/StampMath.h
     Code/Source/Components/MeshPlacementHelpers.h
     Code/Source/Components/HeightmapStampComponent.cpp

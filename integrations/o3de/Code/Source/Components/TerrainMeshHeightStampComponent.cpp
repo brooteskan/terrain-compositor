@@ -1,5 +1,4 @@
 #include <TerrainCompositor/Components/TerrainMeshHeightStampComponent.h>
-#include "MeshPlacementHelpers.h"
 #include "../ComponentConfiguration.h"
 
 #include <AzCore/RTTI/BehaviorContext.h>
@@ -14,22 +13,10 @@ namespace TerrainCompositor
         TerrainMeshHeightStampComponentTypeId,
         AzFramework::EditorEntityEvents);
 
-    TerrainMeshHeightStampComponent::TerrainMeshHeightStampComponent()
-        : m_nonUniformScaleChangedHandler(
-              [this]([[maybe_unused]] const AZ::Vector3& scale)
-              {
-                  UpdateRegistration();
-              })
-    {
-    }
+    TerrainMeshHeightStampComponent::TerrainMeshHeightStampComponent() = default;
 
     TerrainMeshHeightStampComponent::TerrainMeshHeightStampComponent(const TerrainMeshHeightStampConfig& configuration)
         : m_configuration(configuration)
-        , m_nonUniformScaleChangedHandler(
-              [this]([[maybe_unused]] const AZ::Vector3& scale)
-              {
-                  UpdateRegistration();
-              })
     {
     }
 
@@ -105,45 +92,19 @@ namespace TerrainCompositor
 
     void TerrainMeshHeightStampComponent::StartStamp(AZ::EntityId entityId, bool editor)
     {
-        if (!m_activeEntityId.IsValid())
-            m_controlThread.BindForActivation();
-        if (!m_controlThread.Check())
-            return;
+        if (!m_placement.IsActive()) m_controlThread.BindForActivation();
+        if (!m_controlThread.Check()) return;
         StopStamp();
-        m_activeEntityId = entityId;
-        m_editor = editor;
         TerrainMeshHeightStampRequestBus::Handler::BusConnect(entityId);
-        m_deferredUpdateState = AZStd::make_shared<DeferredUpdateState>();
-        m_deferredUpdateState->m_component.store(this);
-        if (editor)
-            HeightmapStampIdentityNotificationBus::Handler::BusConnect();
-        BindPlacementEntity();
-        UpdateRegistration();
-        SchedulePlacementEntityUpdate();
-        if (!editor)
-        {
-            ScheduleRuntimeMeshVisibilityUpdate();
-        }
+        m_placement.Start(entityId, m_configuration.m_terrainMeshAsset.GetId(), editor);
     }
 
     void TerrainMeshHeightStampComponent::StopStamp()
     {
-        if (!m_activeEntityId.IsValid() || !m_controlThread.Check())
-            return;
-        if (m_deferredUpdateState)
-            m_deferredUpdateState->m_component.store(nullptr);
-        AZ::SystemTickBus::Handler::BusDisconnect();
-        m_placementRetriesRemaining = 0;
-        m_runtimeVisibilityRetriesRemaining = 0;
-        RestoreRuntimeSourceMeshVisibility();
+        if (!m_placement.IsActive() || !m_controlThread.Check()) return;
+        m_placement.Stop();
         TerrainMeshHeightStampRequestBus::Handler::BusDisconnect();
-        HeightmapStampIdentityNotificationBus::Handler::BusDisconnect();
-        UnbindPlacementEntity();
         m_registration.Deactivate();
-        m_deferredUpdateState.reset();
-        m_matchingMeshCount = 0;
-        m_activeEntityId.SetInvalid();
-        m_editor = false;
     }
 
     void TerrainMeshHeightStampComponent::SetStampConfiguration(const TerrainMeshHeightStampConfig& configuration)
@@ -165,12 +126,13 @@ namespace TerrainCompositor
             return "Unavailable off the control thread.";
         if (!m_configuration.m_terrainMeshAsset.GetId().IsValid())
             return "Select a Terrain Mesh model asset.";
-        if (m_matchingMeshCount == 0)
+        if (m_placement.GetMatchingMeshCount() == 0)
         {
-            return m_placementRetriesRemaining > 0 ? "Waiting for the matching Terrain Mesh instance to activate in this entity hierarchy."
-                                                   : "No Atom Mesh instance using Terrain Mesh exists on this entity or its descendants.";
+            return m_placement.IsWaitingForPlacement()
+                ? "Waiting for the matching Terrain Mesh instance to activate in this entity hierarchy."
+                : "No Atom Mesh instance using Terrain Mesh exists on this entity or its descendants.";
         }
-        if (m_matchingMeshCount > 1)
+        if (m_placement.GetMatchingMeshCount() > 1)
         {
             return "More than one Atom Mesh instance uses Terrain Mesh in this hierarchy; placement is ambiguous.";
         }
@@ -197,200 +159,13 @@ namespace TerrainCompositor
 
     AZ::u32 TerrainMeshHeightStampComponent::OnConfigurationChanged()
     {
-        if (!m_editor)
-        {
-            RestoreRuntimeSourceMeshVisibility();
-        }
-        BindPlacementEntity();
-        UpdateRegistration();
-        SchedulePlacementEntityUpdate();
-        if (!m_editor)
-        {
-            ScheduleRuntimeMeshVisibilityUpdate();
-        }
+        m_placement.Refresh(m_configuration.m_terrainMeshAsset.GetId());
         return AZ::Edit::PropertyRefreshLevels::AttributesAndValues;
-    }
-
-    AZ::EntityId TerrainMeshHeightStampComponent::ResolvePlacementEntity(size_t& matchingMeshCount) const
-    {
-        return Internal::ResolveUniqueModelEntity(m_activeEntityId, m_configuration.m_terrainMeshAsset.GetId(), matchingMeshCount);
-    }
-
-    void TerrainMeshHeightStampComponent::SchedulePlacementEntityUpdate()
-    {
-        m_placementRetriesRemaining = 8;
-        if (!AZ::SystemTickBus::Handler::BusIsConnected())
-            AZ::SystemTickBus::Handler::BusConnect();
-    }
-
-    void TerrainMeshHeightStampComponent::ScheduleRuntimeMeshVisibilityUpdate()
-    {
-        if (m_editor)
-            return;
-        m_runtimeVisibilityRetriesRemaining = 8;
-        if (!AZ::SystemTickBus::Handler::BusIsConnected())
-            AZ::SystemTickBus::Handler::BusConnect();
-    }
-
-    void TerrainMeshHeightStampComponent::QueuePlacementEntityUpdate()
-    {
-        const AZStd::weak_ptr<DeferredUpdateState> weak = m_deferredUpdateState;
-        AZ::SystemTickBus::QueueFunction(
-            [weak]()
-            {
-                if (const auto state = weak.lock())
-                {
-                    if (auto* component = state->m_component.load())
-                    {
-                        component->SchedulePlacementEntityUpdate();
-                        component->ScheduleRuntimeMeshVisibilityUpdate();
-                    }
-                }
-            });
-    }
-
-    void TerrainMeshHeightStampComponent::HideRuntimeSourceMesh()
-    {
-        if (m_editor) return;
-        Internal::HideMatchingModel(m_boundPlacementEntityId, m_configuration.m_terrainMeshAsset.GetId(), m_runtimeMeshPreviousVisibility);
-    }
-
-    void TerrainMeshHeightStampComponent::RestoreRuntimeSourceMeshVisibility()
-    {
-        Internal::RestoreModelVisibility(m_runtimeMeshPreviousVisibility);
-    }
-
-    void TerrainMeshHeightStampComponent::OnSystemTick()
-    {
-        if (!m_activeEntityId.IsValid())
-        {
-            AZ::SystemTickBus::Handler::BusDisconnect();
-            return;
-        }
-        if (m_placementRetriesRemaining > 0)
-        {
-            BindPlacementEntity();
-            UpdateRegistration();
-            --m_placementRetriesRemaining;
-        }
-        if (m_runtimeVisibilityRetriesRemaining > 0)
-        {
-            HideRuntimeSourceMesh();
-            --m_runtimeVisibilityRetriesRemaining;
-        }
-        if (m_placementRetriesRemaining == 0 && m_runtimeVisibilityRetriesRemaining == 0)
-        {
-            AZ::SystemTickBus::Handler::BusDisconnect();
-        }
-    }
-
-    void TerrainMeshHeightStampComponent::BindPlacementEntity()
-    {
-        if (!m_activeEntityId.IsValid())
-            return;
-        size_t matchingMeshCount = 0;
-        const AZ::EntityId desired = ResolvePlacementEntity(matchingMeshCount);
-        if (desired == m_boundPlacementEntityId && matchingMeshCount == m_matchingMeshCount && m_transformNotificationsBound)
-            return;
-
-        RestoreRuntimeSourceMeshVisibility();
-        UnbindPlacementEntity();
-        m_matchingMeshCount = matchingMeshCount;
-        m_boundPlacementEntityId = desired;
-        AZ::TransformNotificationBus::MultiHandler::BusConnect(m_activeEntityId);
-        m_transformNotificationsBound = true;
-        if (!m_boundPlacementEntityId.IsValid())
-            return;
-        if (m_boundPlacementEntityId != m_activeEntityId)
-        {
-            AZ::TransformNotificationBus::MultiHandler::BusConnect(m_boundPlacementEntityId);
-        }
-        AZ::Render::MeshComponentNotificationBus::Handler::BusConnect(m_boundPlacementEntityId);
-        if (AZ::NonUniformScaleRequestBus::HasHandlers(m_boundPlacementEntityId))
-        {
-            AZ::NonUniformScaleRequestBus::Event(
-                m_boundPlacementEntityId, &AZ::NonUniformScaleRequests::RegisterScaleChangedEvent, m_nonUniformScaleChangedHandler);
-        }
-    }
-
-    void TerrainMeshHeightStampComponent::UnbindPlacementEntity()
-    {
-        m_nonUniformScaleChangedHandler.Disconnect();
-        AZ::Render::MeshComponentNotificationBus::Handler::BusDisconnect();
-        AZ::TransformNotificationBus::MultiHandler::BusDisconnect();
-        m_transformNotificationsBound = false;
-        m_boundPlacementEntityId.SetInvalid();
     }
 
     void TerrainMeshHeightStampComponent::UpdateRegistration()
     {
-        if (!m_controlThread.Check() || !m_activeEntityId.IsValid())
-            return;
-        if (m_matchingMeshCount != 1 || !m_boundPlacementEntityId.IsValid())
-        {
-            m_registration.Deactivate();
-            return;
-        }
-        AZ::Transform world = AZ::Transform::CreateIdentity();
-        const bool available = AZ::TransformBus::HasHandlers(m_boundPlacementEntityId);
-        if (available)
-        {
-            AZ::TransformBus::EventResult(world, m_boundPlacementEntityId, &AZ::TransformBus::Events::GetWorldTM);
-        }
-        const auto configuration = GetRegistrationConfiguration();
-        const bool pending = m_editor && HeightmapStampIdentityInterface::Get() && configuration.m_stableOrderKey.empty();
-        const bool hasNonUniformScale = AZ::NonUniformScaleRequestBus::HasHandlers(m_boundPlacementEntityId);
-        if (m_registration.IsActive())
-        {
-            m_registration.Update(configuration, world, available, pending, hasNonUniformScale);
-        }
-        else
-        {
-            m_registration.Activate(m_activeEntityId, configuration, world, available, pending, hasNonUniformScale);
-        }
+        if (m_controlThread.Check()) m_placement.UpdateRegistration(m_registration, m_configuration);
     }
 
-    TerrainMeshHeightStampConfig TerrainMeshHeightStampComponent::GetRegistrationConfiguration() const
-    {
-        auto configuration = m_configuration;
-        if (m_editor)
-        {
-            configuration.m_orderingId = {};
-            const auto* resolver = HeightmapStampIdentityInterface::Get();
-            configuration.m_stableOrderKey = resolver ? resolver->ResolveStampOrderKey(m_activeEntityId) : AZStd::string{};
-        }
-        return configuration;
-    }
-
-    void TerrainMeshHeightStampComponent::OnStampIdentitiesChanged()
-    {
-        UpdateRegistration();
-    }
-    void TerrainMeshHeightStampComponent::OnTransformChanged(
-        [[maybe_unused]] const AZ::Transform& local, [[maybe_unused]] const AZ::Transform& world)
-    {
-        UpdateRegistration();
-    }
-    void TerrainMeshHeightStampComponent::OnParentChanged([[maybe_unused]] AZ::EntityId oldParent, [[maybe_unused]] AZ::EntityId newParent)
-    {
-        SchedulePlacementEntityUpdate();
-    }
-    void TerrainMeshHeightStampComponent::OnChildAdded([[maybe_unused]] AZ::EntityId child)
-    {
-        SchedulePlacementEntityUpdate();
-    }
-    void TerrainMeshHeightStampComponent::OnChildRemoved([[maybe_unused]] AZ::EntityId child)
-    {
-        SchedulePlacementEntityUpdate();
-    }
-    void TerrainMeshHeightStampComponent::OnModelReady(
-        [[maybe_unused]] const AZ::Data::Asset<AZ::RPI::ModelAsset>& modelAsset,
-        [[maybe_unused]] const AZ::Data::Instance<AZ::RPI::Model>& model)
-    {
-        QueuePlacementEntityUpdate();
-    }
-    void TerrainMeshHeightStampComponent::OnModelPreDestroy()
-    {
-        QueuePlacementEntityUpdate();
-    }
 } // namespace TerrainCompositor

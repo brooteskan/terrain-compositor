@@ -227,3 +227,88 @@ verification ran 78 cases for 100 iterations (seeds 173-272): 7,500 passes and 3
 known failures, with baseline/full/shuffled failure sets equal. D3D11 matched all
 142,560 classifications and engine override verification passed. Logs, XML and
 the final `MeasureLoc.py --worktree --json` report are in the same session directory.
+
+## Mesh placement and visibility lifecycle consolidation (2026-09-10)
+
+Baseline: `db4c55b`. The selected slice replaces the duplicate state machines in
+`TerrainMeshCutoutComponent` and `TerrainMeshHeightStampComponent` with
+`Internal/MeshPlacementLifecycle.h` and `Source/MeshPlacementLifecycle.cpp`.
+The design estimate was 200-300 net C++ lines; the measured reduction is **292**.
+
+| Scope | Before | After | Change |
+| --- | ---: | ---: | ---: |
+| Two component implementations | 760 | 307 | -453 |
+| Two component headers | 182 | 99 | -83 |
+| New lifecycle header and implementation | 0 | 244 | +244 |
+| **Complete changed C++ scope** | **942** | **650** | **-292** |
+| All production C++ | 13,409 | 13,106 | -303 |
+| All include headers | 3,203 | 3,214 | +11 |
+| **First-party C++** | **16,612** | **16,320** | **-292 (1.76%)** |
+| Tests, including the file list | 4,175 | 4,615 | +440 |
+| Build/tooling | 523 | 525 | +2 |
+| Documentation | 3,243 | 3,328 | +85 |
+| **Total repository text** | **26,486** | **26,721** | **+235** |
+
+The existing `MeshPlacementHelpers.h` remains unchanged and is counted in the
+repository totals. First-party C++ is now 1,087 lines (6.24%) below the original
+extraction and 689 lines (4.05%) below post-cleanup. A safe 50% reduction remains
+unproven. Added characterization tests increase total repository text; the C++
+reduction is not a claim of whole-repository reduction.
+
+The shared owner now holds placement binding, transform/model/scale and editor
+identity subscriptions, the two retry counters, per-activation callback tokens,
+and saved source-mesh visibility. It also derives the common placement/identity
+inputs for the existing typed registration clients. Components retain control
+thread checks, their configurations, reflection, services, status messages, and
+registration clients. The height-stamp request bus and diagnostic snapshot stay
+explicit in its component. Geometry preparation, cache behavior, ordering rules,
+publication, shaders, and engine patches are unchanged. No performance claim is
+made; the goal is one owner for the duplicated transitions.
+
+Characterization covers runtime/editor activation, owner and descendant models,
+late children and model handlers, ambiguity and lease replacement, reparenting,
+transform/scale changes, asset reconfiguration, worker notifications, queued work
+after stop/reactivation/destruction, initially hidden meshes, and editor identity
+resolution without mutating configuration. All **28 cases passed against the
+original implementations** before replacement. The existing distinction between
+hierarchy events (placement retries) and model events (placement and visibility
+retries) is characterized and retained, including after the retry window expires.
+
+Public component method declarations, reflection bodies, service declarations,
+and status-message literals were compared to `db4c55b` and match. Component UUIDs
+and serialized configuration fields/versions are unchanged. Private C++ layouts
+changed when subscriptions and state moved into the owner; consumers must rebuild.
+
+All four targets built successfully: `TerrainCompositor.Static`,
+`TerrainCompositor`, `TerrainCompositor.Editor`, and `TerrainCompositor.Tests`.
+The final full suite ran **189 cases: 186 passed and the same three known
+cutout-cache cases failed**. All 28 new cases passed after replacement; no tests
+were removed or newly disabled, and the one existing disabled test remains.
+Shuffled verification ran **100 iterations of 106 cases**, seeds 173-272:
+10,300 passes and 300 occurrences of those same three failures. Baseline,
+full-suite, and every shuffled iteration have the same failure-name set.
+D3D11 hardware verification matched all 142,560 boundary classifications.
+Engine override generation/rejection checks and `git diff --check` passed.
+
+Verification records are under `D:/TG/TGProject/build/tc-mesh-lifecycle-session`.
+The build uses the standalone sources and existing generated VC projects as
+described above. The maintained CMake file lists include both new source files;
+the reused generated unity inputs additionally include them directly, without
+copying sources into TG. A fresh consumer configuration must still select this
+standalone Gem checkout. Reproduce measurement with:
+
+```powershell
+python tools/MeasureLoc.py --revision db4c55b --json
+python tools/MeasureLoc.py --worktree --json
+```
+
+The final shuffled filter includes the earlier publication footprint case:
+
+```powershell
+& "$bin/AzTestRunner.exe" "$bin/TerrainCompositor.Tests.dll" AzRunUnitTests '--gtest_filter=*LifecycleTests*:*ImageRegistrationTests*:*CompositionRegistrationStateTests*:*PublicationFootprintsTests*' --gtest_shuffle --gtest_random_seed=173 --gtest_repeat=100
+```
+
+Next: consolidate editor/provider lifecycle ownership where measurement supports
+a net reduction. The historical asset-index proposal above remains deferred until
+it demonstrates net code reduction or a separate traversal-performance benefit.
+Keep the three known cutout preparation-retirement failures in a focused fix.
