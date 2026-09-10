@@ -1,4 +1,6 @@
 set(FILES
+    Code/Include/TerrainCompositor/Internal/AssetSubscription.h
+    Code/Include/TerrainCompositor/Internal/RegistrationClient.h
     Code/Include/TerrainCompositor/Components/HeightmapStampComponent.h
     Code/Include/TerrainCompositor/Components/HeightmapStampConfig.h
     Code/Include/TerrainCompositor/Components/ProceduralGroundGradientComponent.h
@@ -41,6 +43,7 @@ set(FILES
     Code/Include/TerrainCompositor/TerrainModelGeometry.h
     Code/Include/TerrainCompositor/TerrainQuality.h
     Code/Source/ComponentConfiguration.h
+    Code/Source/PublicationState.h
     Code/Source/CompositionRegistrationState.h
     Code/Source/ModelAssetSource.h
     Code/Source/StampMath.h

@@ -2,6 +2,8 @@
 #include <TerrainCompositor/Components/HeightmapStampConfig.h>
 #include "ComponentConfiguration.h"
 #include "CompositionRegistrationState.h"
+#include "PublicationState.h"
+#include <TerrainCompositor/SurfaceStampSampling.h>
 #include "StampMath.h"
 
 namespace TerrainCompositor
@@ -48,6 +50,57 @@ namespace TerrainCompositor
         {
             EXPECT_DOUBLE_EQ(Internal::SmoothStep01(values[index]), expected[index]);
         }
+    }
+
+    TEST(PublicationFootprintsTests, PreservesFirstClaimAndDistinctImageCutoutRenderAndQueryCoverage)
+    {
+        struct State
+        {
+            AZStd::vector<PreparedHeightContributor> m_heightContributors;
+            AZStd::vector<PreparedSurfaceStamp> m_surfaceStamps;
+            AZStd::vector<PreparedTerrainExistenceContributor> m_existenceContributors;
+            AZStd::vector<PreparedTerrainMeshHeightGap> m_meshHeightGaps;
+        } state;
+        const AZ::EntityId shared(8400), cutoutId(8401), gapId(8402), imageId(8403);
+        const auto small = AZ::Aabb::CreateFromMinMaxValues(1, 2, 0, 3, 4, 0);
+        const auto large = AZ::Aabb::CreateFromMinMaxValues(-1, -2, -3, 5, 6, 7);
+        PreparedHeightContributor image, mesh;
+        image.m_image.m_placement.m_stampEntityId = shared;
+        image.m_image.m_placement.m_worldBounds = small;
+        mesh.m_type = PreparedHeightContributor::Type::Mesh;
+        mesh.m_mesh.m_stampEntityId = shared;
+        mesh.m_mesh.m_worldBounds = large;
+        state.m_heightContributors = { image, mesh };
+        PreparedSurfaceStamp surface;
+        surface.m_placement = image.m_image.m_placement;
+        state.m_surfaceStamps.push_back(surface);
+        PreparedTerrainExistenceContributor cutout, gap, mask;
+        cutout.m_type = PreparedTerrainExistenceContributor::Type::MeshCutout;
+        cutout.m_meshCutout.m_entityId = cutoutId;
+        cutout.m_meshCutout.m_collisionWorldBounds = large;
+        cutout.m_meshCutout.m_renderWorldBounds = small;
+        gap.m_type = PreparedTerrainExistenceContributor::Type::MeshHeightGap;
+        gap.m_meshHeightGap.m_entityId = gapId;
+        gap.m_meshHeightGap.m_worldBounds = small;
+        gap.m_meshHeightGap.m_collisionWorldBounds = large;
+        gap.m_meshHeightGap.m_affectTerrainRendering = true;
+        mask.m_imageMask.m_placement.m_stampEntityId = imageId;
+        mask.m_imageMask.m_placement.m_worldBounds = small;
+        state.m_existenceContributors = { cutout, gap, mask };
+        state.m_meshHeightGaps.push_back(gap.m_meshHeightGap);
+        const Internal::PublicationFootprints bounds(state);
+        EXPECT_EQ(bounds.m_height.at(shared), small);
+        EXPECT_EQ(bounds.m_surface.at(shared), small);
+        EXPECT_EQ(bounds.m_existence.at(cutoutId), large);
+        EXPECT_EQ(bounds.m_existence.at(imageId), small);
+        EXPECT_EQ(bounds.m_cutouts.size(), 1);
+        EXPECT_EQ(bounds.m_gapRendering.at(gapId), small);
+        EXPECT_EQ(bounds.m_gapQueries.at(gapId), large);
+        EXPECT_FALSE(bounds.m_existence.contains(gapId));
+        state.m_meshHeightGaps[0].m_affectTerrainRendering = false;
+        const Internal::PublicationFootprints queryOnly(state);
+        EXPECT_TRUE(queryOnly.m_gapRendering.empty());
+        EXPECT_EQ(queryOnly.m_gapQueries.at(gapId), large);
     }
 
     TEST(CompositionRegistrationStateTests, ReconcilesBeforeClassificationAndPreservesCallerAndPendingDirtyBits)

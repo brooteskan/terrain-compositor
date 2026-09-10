@@ -83,6 +83,7 @@ namespace TerrainCompositor
 
     private:
         friend class TerrainRenderGeometryBatchTests;
+        template<class> friend class TerrainRegistrationLifecycleTests;
         using PreparedHeightContributorList = AZStd::vector<PreparedHeightContributor>;
         using PreparedSurfaceStampList = AZStd::vector<PreparedSurfaceStamp>;
         using PreparedExistenceContributorList = AZStd::vector<PreparedTerrainExistenceContributor>;

@@ -1,4 +1,4 @@
-# LOC reduction: first architecture slice
+# LOC reduction
 
 This report addresses [issue #1](https://github.com/brooteskan/terrain-compositor/issues/1).
 The session starts at `52cbfec5be2aa41df6f4507a68fc3c0ee4971e96` (post-cleanup).
@@ -145,7 +145,7 @@ $bin = 'D:/TG/TGProject/build/windows/bin/profile'
 cmake -DTC_ENGINE_TERRAIN_ROOT=D:/code/o3de-development/Gems/Terrain/Code/Source -DTC_TEST_ROOT=D:/wzmono/terrain-compositor/build/loc-session/engine-overrides -P integrations/o3de/Code/Tests/EngineOverridesTests.cmake
 ```
 
-## Selected next step
+## Next step proposed after the first slice
 
 Build a session-owned **image asset revision and dependent-role index** using
 the newly characterized transformation as its behavioral contract. The five image
@@ -164,3 +164,66 @@ their numbers are not a shared source-asset revision. Establish a source-generat
 contract before making cross-role claims authoritative in one service, and retain
 separate prepared-geometry results and failure semantics. The documented cutout
 preparation-retirement failures should be fixed in a focused behavioral slice.
+
+## Registration-client consolidation (2026-09-10)
+
+Baseline: `f2e888c`. Measure with `python tools/MeasureLoc.py --revision f2e888c`
+and `python tools/MeasureLoc.py --worktree`; add `--json` for every counted file.
+
+| Scope | Before | After | Net change |
+| --- | ---: | ---: | ---: |
+| Three registration implementations | 931 | 472 | -459 |
+| Their headers plus both new internal helpers | 180 | 366 | +186 |
+| First-party C++ | 16,995 | 16,722 | **-273 (1.61%)** |
+| Tests | 3,866 | 4,050 | +184 |
+| Total repository text | 26,494 | 26,443 | -51 |
+
+`Internal/RegistrationClient.h` now owns session/lease admission requests,
+context and target changes, replay, tick retries, and deactivation for all three
+clients. `Internal/AssetSubscription.h` owns each handle, event connection,
+selected ID and callback generation, including all five image subscriptions.
+The clients retain asset selection, preparation diagnostics and image warning/retry
+policies. Public declaration blocks and status-message implementations are unchanged;
+private C++ layouts changed and consumers must rebuild. Reflected schemas, UUIDs,
+registration data, preparation, publication, shaders and engine patches are unchanged.
+
+Verification: 49 characterization tests passed before replacing the clients.
+All four targets built with the standalone-source commands above. The full suite
+ran 156 cases: 153 passed, with exactly the three previously listed cutout-cache
+failures; one existing disabled test remains. All 12 added cases passed. Shuffled
+lifecycle/state verification ran 73 cases for 100 iterations (seeds 173-272):
+7,000 passes and 300 known failures, with the failure-name set matching baseline.
+Tests exercise both activation orders, reactivation, late context, target clearing,
+destruction, all seven asset-role subscriptions, cache restart and queued work after
+asset retargeting/deactivation. D3D11 matched all 142,560 classifications; engine
+override verification passed. Logs/XML are in ignored `build/registration-client-session`.
+
+This slice advances the LOC goal by consolidating clients ahead of asset indexing.
+First-party C++ is now 3.94% below the original extraction; a 50% reduction is not achieved.
+
+## Publication bookkeeping consolidation (2026-09-10)
+
+Baseline is the preceding, uncommitted registration-client worktree; its per-file
+report is saved in `D:/TG/TGProject/build/tc-publication-session/loc-before.json`.
+The estimate was roughly 150 net C++ lines; the measured reduction is 110.
+
+| Scope | Before | After | Change |
+| --- | ---: | ---: | ---: |
+| First-party C++ | 16,722 | 16,612 | -110 |
+| Repository text, including tests and this report | 26,443 | 26,486 | +43 |
+
+The coordinator drops from 2,097 to 1,940 lines; the new footprint helper adds 46
+and a test friend adds one. One diagnostic updater replaces five rebuilt maps;
+histories still retire with their claims. Both publication states use the same
+footprint derivation, retaining candidate insertion order, distinct cutout/render/
+collision bounds and old/new invalidation order. Preparation rules stay explicit.
+Candidate footprint collection adds a linear pass over prepared contributions;
+no performance improvement is claimed. Public signatures and reflected schemas are unchanged.
+
+All four targets built. Before replacement, 53 characterization cases passed.
+The final suite ran 161 cases: 158 passed and the same three cutout-cache cases
+failed; the existing disabled test remains. All five added cases passed. Shuffled
+verification ran 78 cases for 100 iterations (seeds 173-272): 7,500 passes and 300
+known failures, with baseline/full/shuffled failure sets equal. D3D11 matched all
+142,560 classifications and engine override verification passed. Logs, XML and
+the final `MeasureLoc.py --worktree --json` report are in the same session directory.

@@ -1,6 +1,7 @@
 #include <TerrainCompositor/Components/TerrainCompositionGradientComponent.h>
 #include "../ComponentConfiguration.h"
 #include "../CompositionRegistrationState.h"
+#include "../PublicationState.h"
 
 #include "TerrainCompositionQueryHelpers.h"
 
@@ -1526,42 +1527,34 @@ namespace TerrainCompositor
             }
         }
         m_collisions = AZStd::move(collisions);
-        AZStd::unordered_map<AZ::EntityId, AZ::Aabb> currentBounds;
-        AZStd::unordered_map<AZ::EntityId, AZ::Aabb> currentSurfaceBounds;
-        AZStd::unordered_map<AZ::EntityId, AZ::Aabb> currentExistenceBounds;
-        AZStd::unordered_map<AZ::EntityId, AZ::Aabb> currentMeshCutoutBounds;
-        AZStd::unordered_map<AZ::EntityId, AZ::Aabb> currentMeshHeightRenderBounds;
-        AZStd::unordered_map<AZ::EntityId, AZ::Aabb> currentMeshHeightQueryBounds;
+        const auto recordDiagnostic = [this](auto& history, AZ::EntityId id, const auto& registration,
+            AZStd::string reason, const char* format)
+        {
+            if (registration.m_configuration.GetRuntimeOrderKey().empty() && !registration.m_identityPending)
+            {
+                if constexpr (requires { registration.m_heightmap; })
+                    reason = "Ordering identity is unresolved/invalid. Resolve prefab aliases, or assign and persist a unique runtime key.";
+                else
+                    reason = "Ordering identity is unresolved/invalid. Resolve prefab aliases or assign a unique runtime key.";
+            }
+            const auto prior = history.find(id);
+            if (prior == history.end() || prior->second != reason)
+            {
+                if (!reason.empty())
+                    m_pendingDiagnostics.push_back(AZStd::string::format(format, id.ToString().c_str(), reason.c_str()));
+                history.insert_or_assign(id, AZStd::move(reason));
+            }
+        };
         float collisionGridSpacing = 0.0f;
         AzFramework::Terrain::TerrainDataRequestBus::BroadcastResult(
             collisionGridSpacing, &AzFramework::Terrain::TerrainDataRequests::GetTerrainHeightQueryResolution);
-        AZStd::unordered_map<AZ::EntityId, AZStd::string> nextHeightDiagnostics;
-        AZStd::unordered_map<AZ::EntityId, AZStd::string> nextSurfaceDiagnostics;
-        AZStd::unordered_map<AZ::EntityId, AZStd::string> nextExistenceDiagnostics;
         for (const auto& [id, registration] : m_registrations)
         {
             PreparedHeightmapStamp prepared;
             const auto validation = PrepareHeightmapStamp(registration, AZ::NonUniformScaleRequestBus::HasHandlers(id), prepared);
-            AZStd::string reason;
-            if (registration.m_configuration.GetRuntimeOrderKey().empty() && !registration.m_identityPending)
-            {
-                reason = "Ordering identity is unresolved/invalid. Resolve prefab "
-                         "aliases, or assign and persist a unique runtime key.";
-            }
-            else if (validation != HeightmapStampValidation::Valid)
-            {
-                reason = GetHeightmapStampValidationMessage(validation);
-            }
-            const auto priorHeight = m_diagnostics.find(id);
-            if (priorHeight == m_diagnostics.end() || reason != priorHeight->second)
-            {
-                if (!reason.empty())
-                {
-                    m_pendingDiagnostics.push_back(
-                        AZStd::string::format("Stamp %s contributes nothing: %s", id.ToString().c_str(), reason.c_str()));
-                }
-            }
-            nextHeightDiagnostics.emplace(id, reason);
+            recordDiagnostic(m_diagnostics, id, registration,
+                validation == HeightmapStampValidation::Valid ? "" : GetHeightmapStampValidationMessage(validation),
+                "Stamp %s contributes nothing: %s");
             if (validation == HeightmapStampValidation::Valid && !prepared.m_placement.m_stableOrderKey.empty() &&
                 !m_collisions.contains(prepared.m_placement.m_stableOrderKey) && prepared.m_image && prepared.m_strength > 0.0 &&
                 prepared.m_placement.m_edgeInset < prepared.m_placement.m_halfWidth &&
@@ -1569,7 +1562,7 @@ namespace TerrainCompositor
             {
                 prepared.m_reconstruction = AcquireHeightmapReconstruction(
                     prepared.m_image, registration.m_configuration.m_samplingMode, registration.m_configuration.m_reconstructionRadius);
-                currentBounds.emplace(id, prepared.m_placement.m_worldBounds);
+
                 PreparedHeightContributor contributor;
                 contributor.m_type = PreparedHeightContributor::Type::Image;
                 contributor.m_image = AZStd::move(prepared);
@@ -1584,36 +1577,16 @@ namespace TerrainCompositor
                 replacement->m_surfacePalette,
                 preparedSurface,
                 &surfacePlacement);
-            AZStd::string surfaceReason;
-            if (registration.m_configuration.GetRuntimeOrderKey().empty() && !registration.m_identityPending)
-            {
-                surfaceReason = "Ordering identity is unresolved/invalid. Resolve prefab "
-                                "aliases, or assign and persist a unique runtime key.";
-            }
-            else if (surfaceValidation == SurfaceStampValidation::Placement)
-            {
-                surfaceReason = GetHeightmapStampValidationMessage(surfacePlacement);
-            }
-            else if (surfaceValidation != SurfaceStampValidation::Valid && surfaceValidation != SurfaceStampValidation::Absent)
-            {
-                surfaceReason = GetSurfaceStampValidationMessage(surfaceValidation);
-            }
-            const auto priorSurface = m_surfaceDiagnostics.find(id);
-            if (priorSurface == m_surfaceDiagnostics.end() || surfaceReason != priorSurface->second)
-            {
-                if (!surfaceReason.empty())
-                {
-                    m_pendingDiagnostics.push_back(
-                        AZStd::string::format("Stamp %s contributes no surface data: %s", id.ToString().c_str(), surfaceReason.c_str()));
-                }
-            }
-            nextSurfaceDiagnostics.emplace(id, surfaceReason);
+            const AZStd::string surfaceReason = surfaceValidation == SurfaceStampValidation::Placement
+                ? GetHeightmapStampValidationMessage(surfacePlacement)
+                : surfaceValidation != SurfaceStampValidation::Valid && surfaceValidation != SurfaceStampValidation::Absent
+                    ? GetSurfaceStampValidationMessage(surfaceValidation) : "";
+            recordDiagnostic(m_surfaceDiagnostics, id, registration, surfaceReason, "Stamp %s contributes no surface data: %s");
             if (surfaceValidation == SurfaceStampValidation::Valid && !preparedSurface.m_placement.m_stableOrderKey.empty() &&
                 !m_collisions.contains(preparedSurface.m_placement.m_stableOrderKey) && preparedSurface.m_surfaceIdA &&
                 preparedSurface.m_strength > 0.0 && preparedSurface.m_placement.m_edgeInset < preparedSurface.m_placement.m_halfWidth &&
                 preparedSurface.m_placement.m_edgeInset < preparedSurface.m_placement.m_halfDepth)
             {
-                currentSurfaceBounds.emplace(id, preparedSurface.m_placement.m_worldBounds);
                 replacement->m_surfaceStamps.push_back(AZStd::move(preparedSurface));
             }
 
@@ -1621,69 +1594,30 @@ namespace TerrainCompositor
             HeightmapStampValidation existencePlacement = HeightmapStampValidation::Valid;
             const auto existenceValidation = PrepareTerrainExistenceStamp(
                 registration, AZ::NonUniformScaleRequestBus::HasHandlers(id), preparedExistence, &existencePlacement);
-            AZStd::string existenceReason;
-            if (registration.m_configuration.GetRuntimeOrderKey().empty() && !registration.m_identityPending)
-            {
-                existenceReason = "Ordering identity is unresolved/invalid. Resolve prefab aliases, or "
-                                  "assign and persist a unique runtime key.";
-            }
-            else if (existenceValidation == TerrainExistenceStampValidation::Placement)
-            {
-                existenceReason = GetHeightmapStampValidationMessage(existencePlacement);
-            }
-            else if (
-                existenceValidation != TerrainExistenceStampValidation::Valid &&
-                existenceValidation != TerrainExistenceStampValidation::Absent)
-            {
-                existenceReason = GetTerrainExistenceStampValidationMessage(existenceValidation);
-            }
-            const auto priorExistence = m_existenceDiagnostics.find(id);
-            if (priorExistence == m_existenceDiagnostics.end() || existenceReason != priorExistence->second)
-            {
-                if (!existenceReason.empty())
-                {
-                    m_pendingDiagnostics.push_back(
-                        AZStd::string::format(
-                            "Stamp %s contributes no terrain existence data: %s", id.ToString().c_str(), existenceReason.c_str()));
-                }
-            }
-            nextExistenceDiagnostics.emplace(id, existenceReason);
+            const AZStd::string existenceReason = existenceValidation == TerrainExistenceStampValidation::Placement
+                ? GetHeightmapStampValidationMessage(existencePlacement)
+                : existenceValidation != TerrainExistenceStampValidation::Valid && existenceValidation != TerrainExistenceStampValidation::Absent
+                    ? GetTerrainExistenceStampValidationMessage(existenceValidation) : "";
+            recordDiagnostic(m_existenceDiagnostics, id, registration, existenceReason, "Stamp %s contributes no terrain existence data: %s");
             if (existenceValidation == TerrainExistenceStampValidation::Valid && !preparedExistence.m_placement.m_stableOrderKey.empty() &&
                 !m_collisions.contains(preparedExistence.m_placement.m_stableOrderKey) &&
                 preparedExistence.m_placement.m_edgeInset < preparedExistence.m_placement.m_halfWidth &&
                 preparedExistence.m_placement.m_edgeInset < preparedExistence.m_placement.m_halfDepth)
             {
-                currentExistenceBounds.emplace(id, preparedExistence.m_placement.m_worldBounds);
                 PreparedTerrainExistenceContributor contributor;
                 contributor.m_type = PreparedTerrainExistenceContributor::Type::ImageMask;
                 contributor.m_imageMask = AZStd::move(preparedExistence);
                 replacement->m_existenceContributors.push_back(AZStd::move(contributor));
             }
         }
-        AZStd::unordered_map<AZ::EntityId, AZStd::string> nextMeshHeightDiagnostics;
         for (const auto& [id, registration] : m_meshHeightRegistrations)
         {
             PreparedTerrainMeshHeightStamp prepared;
             const auto validation = PrepareTerrainMeshHeightStamp(registration, registration.m_hasNonUniformScale, prepared);
-            AZStd::string reason;
-            if (registration.m_configuration.GetRuntimeOrderKey().empty() && !registration.m_identityPending)
-            {
-                reason = "Ordering identity is unresolved/invalid. Resolve prefab "
-                         "aliases or assign a unique runtime key.";
-            }
-            else if (validation != TerrainMeshHeightStampPlacementValidation::Valid)
-            {
-                reason = validation == TerrainMeshHeightStampPlacementValidation::DataUnavailable
-                    ? GetTerrainMeshHeightDataDiagnostic(registration.m_mesh)
-                    : GetTerrainMeshHeightStampPlacementValidationMessage(validation);
-            }
-            const auto prior = m_meshHeightDiagnostics.find(id);
-            if ((prior == m_meshHeightDiagnostics.end() || prior->second != reason) && !reason.empty())
-            {
-                m_pendingDiagnostics.push_back(
-                    AZStd::string::format("Terrain mesh height stamp %s contributes nothing: %s", id.ToString().c_str(), reason.c_str()));
-            }
-            nextMeshHeightDiagnostics.emplace(id, reason);
+            const AZStd::string reason = validation == TerrainMeshHeightStampPlacementValidation::Valid ? ""
+                : validation == TerrainMeshHeightStampPlacementValidation::DataUnavailable
+                    ? GetTerrainMeshHeightDataDiagnostic(registration.m_mesh) : GetTerrainMeshHeightStampPlacementValidationMessage(validation);
+            recordDiagnostic(m_meshHeightDiagnostics, id, registration, reason, "Terrain mesh height stamp %s contributes nothing: %s");
             if (validation == TerrainMeshHeightStampPlacementValidation::Valid && !prepared.m_stableOrderKey.empty() &&
                 !m_collisions.contains(prepared.m_stableOrderKey) && prepared.m_data)
             {
@@ -1691,13 +1625,8 @@ namespace TerrainCompositor
                 if (PrepareTerrainMeshHeightGap(prepared, collisionGridSpacing, replacement->m_regionBounds, gap))
                 {
                     gap.m_compositionSession = m_session;
-                    if (gap.m_affectTerrainRendering)
-                    {
-                        currentMeshHeightRenderBounds.emplace(id, gap.m_worldBounds);
-                    }
                     if (gap.m_affectTerrainCollisionQueries)
                     {
-                        currentMeshHeightQueryBounds.emplace(id, gap.m_collisionWorldBounds);
                         PreparedTerrainExistenceContributor existenceContributor;
                         existenceContributor.m_type = PreparedTerrainExistenceContributor::Type::MeshHeightGap;
                         existenceContributor.m_meshHeightGap = gap;
@@ -1707,7 +1636,6 @@ namespace TerrainCompositor
                 }
                 if (prepared.m_strength > 0.0)
                 {
-                    currentBounds.emplace(id, prepared.m_worldBounds);
                     PreparedHeightContributor contributor;
                     contributor.m_type = PreparedHeightContributor::Type::Mesh;
                     contributor.m_mesh = AZStd::move(prepared);
@@ -1716,31 +1644,15 @@ namespace TerrainCompositor
             }
         }
 
-        AZStd::unordered_map<AZ::EntityId, AZStd::string> nextMeshCutoutDiagnostics;
         AZStd::vector<PreparedTerrainMeshCutout> renderCutouts;
         for (const auto& [id, registration] : m_meshCutoutRegistrations)
         {
             PreparedTerrainMeshCutout prepared;
             const auto validation = PrepareTerrainMeshCutout(registration, registration.m_hasNonUniformScale, prepared);
-            AZStd::string reason;
-            if (registration.m_configuration.GetRuntimeOrderKey().empty() && !registration.m_identityPending)
-            {
-                reason = "Ordering identity is unresolved/invalid. Resolve prefab "
-                         "aliases or assign a unique runtime key.";
-            }
-            else if (validation != TerrainMeshCutoutPlacementValidation::Valid)
-            {
-                reason = validation == TerrainMeshCutoutPlacementValidation::DataUnavailable
-                    ? GetMeshCutoutDataDiagnostic(registration.m_mesh)
-                    : GetTerrainMeshCutoutPlacementValidationMessage(validation);
-            }
-            const auto prior = m_meshCutoutDiagnostics.find(id);
-            if ((prior == m_meshCutoutDiagnostics.end() || prior->second != reason) && !reason.empty())
-            {
-                m_pendingDiagnostics.push_back(
-                    AZStd::string::format("Terrain mesh cutout %s contributes nothing: %s", id.ToString().c_str(), reason.c_str()));
-            }
-            nextMeshCutoutDiagnostics.emplace(id, reason);
+            const AZStd::string reason = validation == TerrainMeshCutoutPlacementValidation::Valid ? ""
+                : validation == TerrainMeshCutoutPlacementValidation::DataUnavailable
+                    ? GetMeshCutoutDataDiagnostic(registration.m_mesh) : GetTerrainMeshCutoutPlacementValidationMessage(validation);
+            recordDiagnostic(m_meshCutoutDiagnostics, id, registration, reason, "Terrain mesh cutout %s contributes nothing: %s");
             if (validation == TerrainMeshCutoutPlacementValidation::Valid && !m_collisions.contains(prepared.m_stableOrderKey))
             {
                 if (prepared.m_affectTerrainRendering)
@@ -1750,8 +1662,7 @@ namespace TerrainCompositor
                 if (prepared.m_affectTerrainCollisionQueries)
                 {
                     ApplyTerrainMeshCutoutCollisionCellPadding(prepared, collisionGridSpacing);
-                    currentExistenceBounds.emplace(id, prepared.m_collisionWorldBounds);
-                    currentMeshCutoutBounds.emplace(id, prepared.m_collisionWorldBounds);
+
                     PreparedTerrainExistenceContributor contributor;
                     contributor.m_type = PreparedTerrainExistenceContributor::Type::MeshCutout;
                     contributor.m_meshCutout = AZStd::move(prepared);
@@ -1759,44 +1670,32 @@ namespace TerrainCompositor
                 }
             }
         }
-        m_diagnostics = AZStd::move(nextHeightDiagnostics);
-        m_surfaceDiagnostics = AZStd::move(nextSurfaceDiagnostics);
-        m_existenceDiagnostics = AZStd::move(nextExistenceDiagnostics);
-        m_meshCutoutDiagnostics = AZStd::move(nextMeshCutoutDiagnostics);
-        m_meshHeightDiagnostics = AZStd::move(nextMeshHeightDiagnostics);
-        AZStd::sort(
-            replacement->m_heightContributors.begin(),
-            replacement->m_heightContributors.end(),
-            [](const auto& a, const auto& b)
+
+        // Candidate order preserves first-claim footprint selection before the blend streams are sorted.
+        Internal::PublicationFootprints currentFootprints(*replacement);
+        const auto sortContributors = [](auto& values, auto order)
+        {
+            AZStd::sort(values.begin(), values.end(), [order](const auto& a, const auto& b)
             {
-                return a.GetPriority() != b.GetPriority() ? a.GetPriority() < b.GetPriority()
-                                                          : StampOrderKeyLess(a.GetStableOrderKey(), b.GetStableOrderKey());
+                const auto [priorityA, keyA] = order(a);
+                const auto [priorityB, keyB] = order(b);
+                return priorityA != priorityB ? priorityA < priorityB : StampOrderKeyLess(keyA, keyB);
             });
-        AZStd::sort(
-            replacement->m_surfaceStamps.begin(),
-            replacement->m_surfaceStamps.end(),
-            [](const auto& a, const auto& b)
-            {
-                return a.m_placement.m_priority != b.m_placement.m_priority
-                    ? a.m_placement.m_priority < b.m_placement.m_priority
-                    : StampOrderKeyLess(a.m_placement.m_stableOrderKey, b.m_placement.m_stableOrderKey);
-            });
-        AZStd::sort(
-            replacement->m_existenceContributors.begin(),
-            replacement->m_existenceContributors.end(),
-            [](const auto& a, const auto& b)
-            {
-                return a.GetPriority() != b.GetPriority() ? a.GetPriority() < b.GetPriority()
-                                                          : StampOrderKeyLess(a.GetStableOrderKey(), b.GetStableOrderKey());
-            });
-        AZStd::sort(
-            replacement->m_meshHeightGaps.begin(),
-            replacement->m_meshHeightGaps.end(),
-            [](const auto& a, const auto& b)
-            {
-                return a.m_priority != b.m_priority ? a.m_priority < b.m_priority
-                                                    : StampOrderKeyLess(a.m_stableOrderKey, b.m_stableOrderKey);
-            });
+        };
+        const auto contributorOrder = [](const auto& value)
+        {
+            return AZStd::pair(value.GetPriority(), AZStd::string_view(value.GetStableOrderKey()));
+        };
+        sortContributors(replacement->m_heightContributors, contributorOrder);
+        sortContributors(replacement->m_existenceContributors, contributorOrder);
+        sortContributors(replacement->m_surfaceStamps, [](const auto& value)
+        {
+            return AZStd::pair(value.m_placement.m_priority, AZStd::string_view(value.m_placement.m_stableOrderKey));
+        });
+        sortContributors(replacement->m_meshHeightGaps, [](const auto& value)
+        {
+            return AZStd::pair(value.m_priority, AZStd::string_view(value.m_stableOrderKey));
+        });
 
         AZStd::vector<PreparedTerrainMeshHeightGap> publishedMeshHeightGaps = replacement->m_meshHeightGaps;
         auto* renderRegistry = AZ::Interface<TerrainMeshCutoutRenderRegistry>::Get();
@@ -1812,8 +1711,8 @@ namespace TerrainCompositor
                     continue;
                 }
                 suppressed.insert(gap.m_entityId);
-                currentMeshHeightRenderBounds.erase(gap.m_entityId);
-                currentMeshHeightQueryBounds.erase(gap.m_entityId);
+                currentFootprints.m_gapRendering.erase(gap.m_entityId);
+                currentFootprints.m_gapQueries.erase(gap.m_entityId);
                 m_pendingDiagnostics.push_back(
                     AZStd::string::format(
                         "Terrain mesh height gap %s is neutral because the render "
@@ -1857,51 +1756,16 @@ namespace TerrainCompositor
             }
         }
 
-        AZStd::unordered_map<AZ::EntityId, AZ::Aabb> oldBounds;
-        for (const auto& contributor : previous->m_heightContributors)
-        {
-            oldBounds.emplace(contributor.GetEntityId(), contributor.GetWorldBounds());
-        }
-        AZStd::unordered_map<AZ::EntityId, AZ::Aabb> oldSurfaceBounds;
-        for (const auto& stamp : previous->m_surfaceStamps)
-        {
-            oldSurfaceBounds.emplace(stamp.m_placement.m_stampEntityId, stamp.m_placement.m_worldBounds);
-        }
-        AZStd::unordered_map<AZ::EntityId, AZ::Aabb> oldExistenceBounds;
-        AZStd::unordered_map<AZ::EntityId, AZ::Aabb> oldMeshCutoutBounds;
-        AZStd::unordered_map<AZ::EntityId, AZ::Aabb> oldMeshHeightQueryBounds;
-        AZStd::unordered_map<AZ::EntityId, AZ::Aabb> oldMeshHeightRenderBounds;
-        for (const auto& contributor : previous->m_existenceContributors)
-        {
-            if (contributor.m_type == PreparedTerrainExistenceContributor::Type::MeshHeightGap)
-            {
-                oldMeshHeightQueryBounds.emplace(contributor.GetEntityId(), contributor.m_meshHeightGap.m_collisionWorldBounds);
-            }
-            else
-            {
-                oldExistenceBounds.emplace(contributor.GetEntityId(), contributor.GetWorldBounds());
-                if (contributor.m_type == PreparedTerrainExistenceContributor::Type::MeshCutout)
-                {
-                    oldMeshCutoutBounds.emplace(contributor.GetEntityId(), contributor.GetWorldBounds());
-                }
-            }
-        }
-        for (const auto& gap : previous->m_meshHeightGaps)
-        {
-            if (gap.m_affectTerrainRendering)
-            {
-                oldMeshHeightRenderBounds.emplace(gap.m_entityId, gap.m_worldBounds);
-            }
-        }
+        const Internal::PublicationFootprints oldFootprints(*previous);
         // Reentrant registration during dependency reconnection must not lose old/new
         // footprint metadata.
         auto affected = AZStd::move(m_dirtyStamps);
         m_dirtyStamps.clear();
-        Internal::MarkMembershipChanges(oldBounds, currentBounds, DirtyHeight, affected);
-        Internal::MarkMembershipChanges(oldSurfaceBounds, currentSurfaceBounds, DirtySurface, affected);
-        Internal::MarkMembershipChanges(oldExistenceBounds, currentExistenceBounds, DirtyExistence, affected);
-        Internal::MarkMembershipChanges(oldMeshHeightQueryBounds, currentMeshHeightQueryBounds, DirtyExistence, affected);
-        Internal::MarkMembershipChanges(oldMeshHeightRenderBounds, currentMeshHeightRenderBounds, DirtyExistence, affected);
+        Internal::MarkMembershipChanges(oldFootprints.m_height, currentFootprints.m_height, DirtyHeight, affected);
+        Internal::MarkMembershipChanges(oldFootprints.m_surface, currentFootprints.m_surface, DirtySurface, affected);
+        Internal::MarkMembershipChanges(oldFootprints.m_existence, currentFootprints.m_existence, DirtyExistence, affected);
+        Internal::MarkMembershipChanges(oldFootprints.m_gapQueries, currentFootprints.m_gapQueries, DirtyExistence, affected);
+        Internal::MarkMembershipChanges(oldFootprints.m_gapRendering, currentFootprints.m_gapRendering, DirtyExistence, affected);
         // Atomic ownership exchange publishes references, mapping, keys, transforms
         // and pixels together. Standard shared_ptr atomics need not be lock-free, but
         // no application lock encloses external calls.
@@ -1923,6 +1787,24 @@ namespace TerrainCompositor
             QueueSurfaceRegionChange(*previous);
             QueueSurfaceRegionChange(*replacement);
         }
+        const auto visitFootprints = [&](AZ::EntityId id, auto member, auto visit)
+        {
+            using Side = AZStd::pair<const QueryState*, const Internal::PublicationFootprints*>;
+            for (const auto& [state, footprints] : { Side{ previous.get(), &oldFootprints }, Side{ replacement.get(), &currentFootprints } })
+            {
+                const auto& bounds = footprints->*member;
+                if (const auto found = bounds.find(id); found != bounds.end())
+                    visit(*state, found->second, *footprints);
+            }
+        };
+        const auto queueSurface = [this](const auto& state, const auto& bounds, const auto&)
+        {
+            QueueSurfaceFootprintChange(state, bounds);
+        };
+        const auto queueHeight = [this](const auto& state, const auto& bounds, const auto&)
+        {
+            m_pendingHeightTerrain.AddFootprint(state.m_regionEntityId, state.m_regionBounds, bounds);
+        };
         for (const auto& [id, dirty] : affected)
         {
             if ((dirty & DirtyHeight) != 0)
@@ -1932,13 +1814,13 @@ namespace TerrainCompositor
                 change.m_address = m_address;
                 change.m_compositionSession = m_session;
                 change.m_snapshotRevision = replacement->m_revision;
-                if (const auto old = oldBounds.find(id); old != oldBounds.end())
+                if (const auto old = oldFootprints.m_height.find(id); old != oldFootprints.m_height.end())
                 {
                     change.m_previousBounds = old->second;
                     change.m_previousRegionEntityId = previous->m_regionEntityId;
                     change.m_previousRegionBounds = previous->m_regionBounds;
                 }
-                if (const auto current = currentBounds.find(id); current != currentBounds.end())
+                if (const auto current = currentFootprints.m_height.find(id); current != currentFootprints.m_height.end())
                 {
                     change.m_currentBounds = current->second;
                     change.m_currentRegionEntityId = replacement->m_regionEntityId;
@@ -1948,70 +1830,31 @@ namespace TerrainCompositor
                 {
                     QueueHeightFootprintChange(change);
                 }
-                if (change.m_previousBounds.IsValid())
-                {
-                    for (const auto& [cutoutId, cutoutBounds] : oldMeshCutoutBounds)
+                visitFootprints(id, &Internal::PublicationFootprints::m_height,
+                    [&](const auto& state, const auto& heightBounds, const auto& footprints)
                     {
-                        (void)cutoutId;
-                        const AZ::Aabb overlap = IntersectFootprintsXY(change.m_previousBounds, cutoutBounds);
-                        if (overlap.IsValid())
+                        if (!heightBounds.IsValid())
+                            return;
+                        for (const auto& [cutoutId, cutoutBounds] : footprints.m_cutouts)
                         {
-                            QueueSurfaceFootprintChange(*previous, overlap);
+                            const AZ::Aabb overlap = IntersectFootprintsXY(heightBounds, cutoutBounds);
+                            if (overlap.IsValid())
+                                QueueSurfaceFootprintChange(state, overlap);
                         }
-                    }
-                }
-                if (change.m_currentBounds.IsValid())
-                {
-                    for (const auto& [cutoutId, cutoutBounds] : currentMeshCutoutBounds)
-                    {
-                        (void)cutoutId;
-                        const AZ::Aabb overlap = IntersectFootprintsXY(change.m_currentBounds, cutoutBounds);
-                        if (overlap.IsValid())
-                        {
-                            QueueSurfaceFootprintChange(*replacement, overlap);
-                        }
-                    }
-                }
+                    });
             }
             if ((dirty & DirtySurface) != 0)
-            {
-                if (const auto old = oldSurfaceBounds.find(id); old != oldSurfaceBounds.end())
-                {
-                    QueueSurfaceFootprintChange(*previous, old->second);
-                }
-                if (const auto current = currentSurfaceBounds.find(id); current != currentSurfaceBounds.end())
-                {
-                    QueueSurfaceFootprintChange(*replacement, current->second);
-                }
-            }
+                visitFootprints(id, &Internal::PublicationFootprints::m_surface, queueSurface);
             if ((dirty & DirtyExistence) != 0)
             {
-                if (const auto old = oldExistenceBounds.find(id); old != oldExistenceBounds.end())
-                {
-                    m_pendingHeightTerrain.AddFootprint(previous->m_regionEntityId, previous->m_regionBounds, old->second);
-                    QueueSurfaceFootprintChange(*previous, old->second);
-                }
-                if (const auto current = currentExistenceBounds.find(id); current != currentExistenceBounds.end())
-                {
-                    m_pendingHeightTerrain.AddFootprint(replacement->m_regionEntityId, replacement->m_regionBounds, current->second);
-                    QueueSurfaceFootprintChange(*replacement, current->second);
-                }
-                if (const auto old = oldMeshHeightQueryBounds.find(id); old != oldMeshHeightQueryBounds.end())
-                {
-                    m_pendingHeightTerrain.AddFootprint(previous->m_regionEntityId, previous->m_regionBounds, old->second);
-                }
-                if (const auto current = currentMeshHeightQueryBounds.find(id); current != currentMeshHeightQueryBounds.end())
-                {
-                    m_pendingHeightTerrain.AddFootprint(replacement->m_regionEntityId, replacement->m_regionBounds, current->second);
-                }
-                if (const auto old = oldMeshHeightRenderBounds.find(id); old != oldMeshHeightRenderBounds.end())
-                {
-                    QueueSurfaceFootprintChange(*previous, old->second);
-                }
-                if (const auto current = currentMeshHeightRenderBounds.find(id); current != currentMeshHeightRenderBounds.end())
-                {
-                    QueueSurfaceFootprintChange(*replacement, current->second);
-                }
+                visitFootprints(id, &Internal::PublicationFootprints::m_existence,
+                    [&](const auto& state, const auto& bounds, const auto& footprints)
+                    {
+                        queueHeight(state, bounds, footprints);
+                        queueSurface(state, bounds, footprints);
+                    });
+                visitFootprints(id, &Internal::PublicationFootprints::m_gapQueries, queueHeight);
+                visitFootprints(id, &Internal::PublicationFootprints::m_gapRendering, queueSurface);
             }
         }
     }

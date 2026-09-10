@@ -13,220 +13,68 @@ namespace TerrainCompositor
         AZ::EntityId stampEntityId, const HeightmapStampConfig& configuration,
         const AZ::Transform& worldTransform, bool transformAvailable, bool identityPending)
     {
-        if (!m_active) { m_controlThread.BindForActivation(); }
-        if (!m_controlThread.Check()) { return; }
-        Deactivate();
-        m_active = true;
-        m_registration.m_stampEntityId = stampEntityId;
-        AZ::SystemTickBus::Handler::BusConnect();
-        Update(configuration, worldTransform, transformAvailable, identityPending);
+        ActivateClient(stampEntityId, configuration, worldTransform, transformAvailable, identityPending);
     }
 
     void HeightmapStampRegistration::Update(
         const HeightmapStampConfig& configuration, const AZ::Transform& worldTransform, bool transformAvailable, bool identityPending)
     {
-        if (!m_controlThread.Check() || !m_active)
-        {
-            return;
-        }
-        AzFramework::EntityContextId contextId = AzFramework::EntityContextId::CreateNull();
-        if (m_registration.m_stampEntityId.IsValid())
-        {
-            AzFramework::EntityIdContextQueryBus::EventResult(
-                contextId, m_registration.m_stampEntityId, &AzFramework::EntityIdContextQueryBus::Events::GetOwningContextId);
-        }
-        const TerrainCompositionAddress address{ contextId, configuration.m_targetCompositionEntityId };
-        if (address != m_address)
-        {
-            DisconnectTarget();
-            m_registration.m_registrationId = AZ::Uuid::CreateRandom();
-            m_registration.m_updateRevision = 0;
-        }
-        m_registration.m_contextId = contextId;
-        m_registration.m_configuration = configuration;
-        m_registration.m_worldTransform = worldTransform;
-        m_registration.m_transformAvailable = transformAvailable;
-        m_registration.m_identityPending = identityPending;
-        m_address = address;
-        UpdateHeightmapAsset();
-        UpdateSurfaceAssets();
-        UpdateHoleAsset();
+        UpdateClient(configuration, worldTransform, transformAvailable, identityPending);
+    }
 
-        // Unknown contexts fail closed. The component can call Update once entity-context ownership is established.
-        if (!contextId.IsNull() && address.second.IsValid() && m_registration.m_stampEntityId.IsValid())
+    void HeightmapStampRegistration::UpdateAssets()
+    {
+        const auto& config = m_registration.m_configuration;
+        const AZ::Data::AssetId assets[] = { config.m_heightmapAsset.GetId(),
+            config.m_surfaceMaps.m_surfaceIdAAsset.GetId(), config.m_surfaceMaps.m_surfaceIdBAsset.GetId(),
+            config.m_surfaceMaps.m_blendMaskAsset.GetId(), config.m_holeMask.m_maskAsset.GetId() };
+        HeightmapDataSnapshot* snapshots[] = { &m_registration.m_heightmap, &m_registration.m_surfaceIdA,
+            &m_registration.m_surfaceIdB, &m_registration.m_surfaceBlend, &m_registration.m_holeMask };
+        for (size_t role = 0; role < AZ_ARRAY_SIZE(m_images); ++role)
         {
-            if (!TerrainCompositionNotificationBus::Handler::BusIsConnected())
+            const bool reportUnavailable = m_images[role].SelectedAssetId() != assets[role] ||
+                snapshots[role]->m_status != HeightmapDataStatus::Error;
+            if (!RefreshAsset(m_images[role], assets[role], *snapshots[role]))
             {
-                TerrainCompositionNotificationBus::Handler::BusConnect(address);
+                if (role == 0)
+                {
+                    AZ_Warning("HeightmapData", !reportUnavailable,
+                        "Cannot load heightmap %s: TerrainCompositorSystemComponent must be active before stamp activation.",
+                        assets[role].ToFixedString().c_str());
+                }
+                else
+                {
+                    AZ_Warning("SurfaceMapData", false,
+                        "Cannot load surface map %s: TerrainCompositorSystemComponent must be active before stamp activation.",
+                        assets[role].ToFixedString().c_str());
+                }
             }
-            // Connect notifications before trying the existing provider: neither activation order loses a registration.
-            OnCompositionAvailable({});
         }
-        else
-        {
-            // Diagnose placement even while the author has not selected a valid composition target.
-            ValidateCurrentStamp();
-        }
-    }
-
-    void HeightmapStampRegistration::UpdateHeightmapAsset()
-    {
-        const auto assetId = m_registration.m_configuration.m_heightmapAsset.GetId();
-        if (assetId == m_selectedAssetId && ((m_heightmapSource && m_heightmapChanged.IsConnected()) || !assetId.IsValid()))
-        {
-            return; // Transform, blend, or target edits never reload or copy shared image samples.
-        }
-        const bool reportUnavailable = assetId != m_selectedAssetId ||
-            m_registration.m_heightmap.m_status != HeightmapDataStatus::Error;
-        const AZ::u64 generation = ++m_assetGeneration;
-        m_heightmapChanged.Disconnect();
-        m_heightmapSource.reset();
-        m_selectedAssetId = assetId;
-        m_registration.m_heightmap = {};
-        if (!assetId.IsValid())
-        {
-            return;
-        }
-        auto* cache = HeightmapDataCacheInterface::Get();
-        if (!cache)
-        {
-            m_registration.m_heightmap.m_status = HeightmapDataStatus::Error;
-            AZ_Warning("HeightmapData", !reportUnavailable,
-                "Cannot load heightmap %s: TerrainCompositorSystemComponent must be active before stamp activation.",
-                assetId.ToFixedString().c_str());
-            return;
-        }
-        m_heightmapSource = cache->Acquire(assetId);
-        m_heightmapChanged = HeightmapDataCache::ChangedEvent::Handler(
-            [this, generation](const HeightmapDataSnapshot& snapshot)
-            {
-                if (!m_controlThread.Check() || !m_active || generation != m_assetGeneration)
-                {
-                    return;
-                }
-                m_registration.m_heightmap = snapshot;
-                if (TerrainCompositionNotificationBus::Handler::BusIsConnected())
-                {
-                    // Replacing the registration publishes the revision to every matching claim in that
-                    // composition, then queues their old/new footprints for regional terrain invalidation.
-                    OnCompositionAvailable({});
-                }
-            });
-        HeightmapDataCache::ConnectChangedHandler(m_heightmapSource, m_heightmapChanged);
-        m_registration.m_heightmap = HeightmapDataCache::GetSnapshot(m_heightmapSource);
-    }
-
-    void HeightmapStampRegistration::UpdateSurfaceAssets()
-    {
-        const auto& maps = m_registration.m_configuration.m_surfaceMaps;
-        UpdateSurfaceAsset(maps.m_surfaceIdAAsset.GetId(), m_surfaceIdASource, m_surfaceIdAChanged,
-            m_selectedSurfaceIdA, &m_surfaceIdAGeneration, &HeightmapStampRegistrationData::m_surfaceIdA);
-        UpdateSurfaceAsset(maps.m_surfaceIdBAsset.GetId(), m_surfaceIdBSource, m_surfaceIdBChanged,
-            m_selectedSurfaceIdB, &m_surfaceIdBGeneration, &HeightmapStampRegistrationData::m_surfaceIdB);
-        UpdateSurfaceAsset(maps.m_blendMaskAsset.GetId(), m_surfaceBlendSource, m_surfaceBlendChanged,
-            m_selectedSurfaceBlend, &m_surfaceBlendGeneration, &HeightmapStampRegistrationData::m_surfaceBlend);
-    }
-
-    void HeightmapStampRegistration::UpdateHoleAsset()
-    {
-        UpdateSurfaceAsset(m_registration.m_configuration.m_holeMask.m_maskAsset.GetId(),
-            m_holeMaskSource, m_holeMaskChanged, m_selectedHoleMask, &m_holeMaskGeneration,
-            &HeightmapStampRegistrationData::m_holeMask);
-    }
-
-    void HeightmapStampRegistration::UpdateSurfaceAsset(const AZ::Data::AssetId& assetId,
-        HeightmapDataCache::Handle& source, HeightmapDataCache::ChangedEvent::Handler& changed,
-        AZ::Data::AssetId& selectedAssetId, AZ::u64* generation,
-        HeightmapDataSnapshot HeightmapStampRegistrationData::* snapshotMember)
-    {
-        AZ_Assert(generation, "Surface asset generation pointer is required.");
-        if (!generation)
-        {
-            return;
-        }
-        if (assetId == selectedAssetId && ((source && changed.IsConnected()) || !assetId.IsValid()))
-        {
-            return;
-        }
-        const AZ::u64 expectedGeneration = ++(*generation);
-        changed.Disconnect();
-        source.reset();
-        selectedAssetId = assetId;
-        (m_registration.*snapshotMember) = {};
-        if (!assetId.IsValid())
-        {
-            return;
-        }
-        auto* cache = HeightmapDataCacheInterface::Get();
-        if (!cache)
-        {
-            (m_registration.*snapshotMember).m_status = HeightmapDataStatus::Error;
-            AZ_Warning("SurfaceMapData", false,
-                "Cannot load surface map %s: TerrainCompositorSystemComponent must be active before stamp activation.",
-                assetId.ToFixedString().c_str());
-            return;
-        }
-        source = cache->Acquire(assetId);
-        changed = HeightmapDataCache::ChangedEvent::Handler(
-            [this, expectedGeneration, generation, snapshotMember](const HeightmapDataSnapshot& snapshot)
-            {
-                if (!m_controlThread.Check() || !m_active || expectedGeneration != *generation)
-                {
-                    return;
-                }
-                m_registration.*snapshotMember = snapshot;
-                if (TerrainCompositionNotificationBus::Handler::BusIsConnected())
-                {
-                    OnCompositionAvailable({});
-                }
-            });
-        HeightmapDataCache::ConnectChangedHandler(source, changed);
-        m_registration.*snapshotMember = HeightmapDataCache::GetSnapshot(source);
-    }
-
-    void HeightmapStampRegistration::DisconnectTarget()
-    {
-        TerrainCompositionNotificationBus::Handler::BusDisconnect();
-        if (m_address.second.IsValid() && !m_address.first.IsNull())
-        {
-            TerrainCompositionRequestBus::Event(
-                m_address, &TerrainCompositionRequestBus::Events::UnregisterStamp, m_registration.m_stampEntityId,
-                m_registration.m_registrationId, m_registration.m_compositionSession);
-        }
-        m_registered = false;
-        m_address = TerrainCompositionAddress{};
-        m_registration.m_compositionSession = {};
     }
 
     void HeightmapStampRegistration::Deactivate()
     {
-        if (!m_active) { return; }
-        if (!m_controlThread.Check()) { return; }
-        m_active = false;
-        AZ::SystemTickBus::Handler::BusDisconnect();
-        ++m_assetGeneration;
-        ++m_surfaceIdAGeneration;
-        ++m_surfaceIdBGeneration;
-        ++m_surfaceBlendGeneration;
-        ++m_holeMaskGeneration;
-        m_heightmapChanged.Disconnect();
-        m_surfaceIdAChanged.Disconnect();
-        m_surfaceIdBChanged.Disconnect();
-        m_surfaceBlendChanged.Disconnect();
-        m_holeMaskChanged.Disconnect();
-        m_heightmapSource.reset();
-        m_surfaceIdASource.reset();
-        m_surfaceIdBSource.reset();
-        m_surfaceBlendSource.reset();
-        m_holeMaskSource.reset();
-        m_selectedAssetId = {};
-        m_selectedSurfaceIdA = {};
-        m_selectedSurfaceIdB = {};
-        m_selectedSurfaceBlend = {};
-        m_selectedHoleMask = {};
-        DisconnectTarget();
-        m_registration = HeightmapStampRegistrationData{};
+        DeactivateClient();
+    }
+
+    void HeightmapStampRegistration::ResetAssets()
+    {
+        for (auto& image : m_images)
+            image.Reset();
         m_validation = HeightmapStampValidation::Valid;
+    }
+
+    bool HeightmapStampRegistration::NeedsAssetRetry() const
+    {
+        if (HeightmapDataCacheInterface::Get())
+        {
+            for (const auto& image : m_images)
+            {
+                if (image.NeedsRetry())
+                    return true;
+            }
+        }
+        return false;
     }
 
     bool HeightmapStampRegistration::IsRegistered() const
@@ -336,7 +184,7 @@ namespace TerrainCompositor
             hasA ? "; surface maps loaded." : ".");
     }
 
-    void HeightmapStampRegistration::ValidateCurrentStamp()
+    void HeightmapStampRegistration::ValidateUnavailable()
     {
         PreparedHeightmapStamp prepared;
         const auto validation = PrepareHeightmapStamp(m_registration,
@@ -349,55 +197,4 @@ namespace TerrainCompositor
         m_validation = validation;
     }
 
-    void HeightmapStampRegistration::OnCompositionAvailable(const AZ::Uuid& expectedSession)
-    {
-        if (!m_controlThread.Check() || !m_active)
-        {
-            return;
-        }
-        // Invalid claims remain registered but never contribute to query snapshots.
-        AZ::Uuid session{};
-        TerrainCompositionRequestBus::EventResult(
-            session, m_address, &TerrainCompositionRequestBus::Events::GetCompositionSession);
-        if (session.IsNull())
-        {
-            m_registered = false;
-            ValidateCurrentStamp();
-            return;
-        }
-        if (!expectedSession.IsNull() && expectedSession != session) { return; }
-        m_registered = false;
-        m_registration.m_compositionSession = session;
-        ++m_registration.m_updateRevision;
-        TerrainCompositionRequestBus::EventResult(
-            m_registered, m_address, &TerrainCompositionRequestBus::Events::RegisterStamp, m_registration);
-    }
-
-    void HeightmapStampRegistration::OnCompositionUnavailable(const AZ::Uuid& session)
-    {
-        if (!m_controlThread.Check() || session != m_registration.m_compositionSession) { return; }
-        m_registered = false;
-        m_registration.m_compositionSession = {};
-    }
-
-    void HeightmapStampRegistration::OnSystemTick()
-    {
-        if (!m_controlThread.Check() || !m_active) { return; }
-        AzFramework::EntityContextId context{};
-        AzFramework::EntityIdContextQueryBus::EventResult(
-            context, m_registration.m_stampEntityId, &AzFramework::EntityIdContextQueryBus::Events::GetOwningContextId);
-        const bool missingCacheSubscription = HeightmapDataCacheInterface::Get() &&
-            ((m_selectedAssetId.IsValid() && !m_heightmapChanged.IsConnected()) ||
-             (m_selectedSurfaceIdA.IsValid() && !m_surfaceIdAChanged.IsConnected()) ||
-             (m_selectedSurfaceIdB.IsValid() && !m_surfaceIdBChanged.IsConnected()) ||
-             (m_selectedSurfaceBlend.IsValid() && !m_surfaceBlendChanged.IsConnected()) ||
-             (m_selectedHoleMask.IsValid() && !m_holeMaskChanged.IsConnected()));
-        if (context != m_address.first || missingCacheSubscription)
-        {
-            // Retry late context ownership/cache restart using current values, never a captured old target.
-            const auto configuration = m_registration.m_configuration;
-            Update(configuration, m_registration.m_worldTransform, m_registration.m_transformAvailable,
-                m_registration.m_identityPending);
-        }
-    }
 } // namespace TerrainCompositor
