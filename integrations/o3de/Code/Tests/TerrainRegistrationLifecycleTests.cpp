@@ -9,6 +9,7 @@
 #include <TerrainCompositor/TerrainMeshCutoutRegistration.h>
 #include <TerrainCompositor/TerrainMeshHeightStampRegistration.h>
 #include "TerrainTestFixtures.h"
+#include <type_traits>
 
 namespace TerrainCompositor
 {
@@ -262,6 +263,65 @@ namespace TerrainCompositor
         }
     }
 
+    TYPED_TEST(TerrainRegistrationLifecycleTests, EqualAssetRevisionsKeepEachClaimsSnapshot)
+    {
+        auto first = this->MakeRecord(this->m_stamp);
+        auto second = this->MakeRecord(this->m_peer);
+        using Status = decltype(TypeParam::Snapshot(first).m_status);
+        const AZ::Data::AssetId asset(AZ::Uuid::CreateRandom(), 1);
+        TypeParam::Snapshot(first).m_assetId = TypeParam::Snapshot(second).m_assetId = asset;
+        TypeParam::Snapshot(first).m_revision = TypeParam::Snapshot(second).m_revision = 10;
+        TypeParam::Snapshot(first).m_status = Status::Loading;
+        TypeParam::Snapshot(second).m_status = Status::Error;
+        ASSERT_TRUE(this->Register(first));
+        ASSERT_TRUE(this->Register(second));
+        for (auto record : this->Records())
+        {
+            EXPECT_EQ(TypeParam::Snapshot(record).m_revision, 10);
+            EXPECT_EQ(TypeParam::Snapshot(record).m_status,
+                TypeParam::Entity(record) == this->m_stamp ? Status::Loading : Status::Error);
+        }
+    }
+
+    TYPED_TEST(TerrainRegistrationLifecycleTests, UnassignedRevisionReconciliationPreservesRolePolicyWithoutFanout)
+    {
+        auto first = this->MakeRecord(this->m_stamp);
+        auto second = this->MakeRecord(this->m_peer);
+        TypeParam::Snapshot(first).m_revision = 10;
+        TypeParam::Snapshot(second).m_revision = 1;
+        ASSERT_TRUE(this->Register(first));
+        ASSERT_TRUE(this->Register(second));
+        for (auto record : this->Records())
+        {
+            const bool adoptsUnassigned = !std::is_same_v<TypeParam, RegistrationTestSupport::Image>;
+            EXPECT_EQ(TypeParam::Snapshot(record).m_revision,
+                TypeParam::Entity(record) == this->m_stamp || adoptsUnassigned ? 10 : 1);
+        }
+        ++second.m_updateRevision;
+        TypeParam::Snapshot(second).m_revision = 20;
+        ASSERT_TRUE(this->Register(second));
+        for (auto record : this->Records())
+        {
+            EXPECT_EQ(TypeParam::Snapshot(record).m_revision, TypeParam::Entity(record) == this->m_stamp ? 10 : 20);
+        }
+    }
+
+    TYPED_TEST(TerrainRegistrationLifecycleTests, RemovingLastAssetClaimDropsItsRevisionHistory)
+    {
+        auto first = this->MakeRecord(this->m_stamp);
+        auto second = this->MakeRecord(this->m_peer);
+        const AZ::Data::AssetId asset(AZ::Uuid::CreateRandom(), 1);
+        TypeParam::Snapshot(first).m_assetId = TypeParam::Snapshot(second).m_assetId = asset;
+        TypeParam::Snapshot(first).m_revision = 20;
+        TypeParam::Snapshot(second).m_revision = 1;
+        ASSERT_TRUE(this->Register(first));
+        this->Unregister(first);
+        ASSERT_TRUE(this->Register(second));
+        auto records = this->Records();
+        ASSERT_EQ(records.size(), 1);
+        EXPECT_EQ(TypeParam::Snapshot(records[0]).m_revision, 1);
+    }
+
     TYPED_TEST(TerrainRegistrationLifecycleTests, WaitingClientReplaysAfterCreationAndRestartButIgnoresOldNotifications)
     {
         auto config = this->MakeRecord(this->m_stamp).m_configuration;
@@ -390,6 +450,25 @@ namespace TerrainCompositor
         second.m_heightmap = { HeightmapDataStatus::Ready, 3, replacement, replacement->m_assetId };
         ASSERT_TRUE(Register(second));
         EXPECT_FLOAT_EQ(Sample(), 0.6f);
+        EXPECT_FLOAT_EQ(retained->m_samples[0], 0.8f);
+    }
+
+    TEST_F(TerrainImageRegistrationTests, NewRegistrationReconcilesAllImageRolesBeforePublishing)
+    {
+        auto record = ContributingImage(m_stamp, 0.8f);
+        const auto retained = record.m_heightmap.m_data;
+        record.m_surfaceIdA = { HeightmapDataStatus::Loading, 2, {}, retained->m_assetId };
+        record.m_holeMask = { HeightmapDataStatus::Error, 3, {}, retained->m_assetId };
+        ASSERT_TRUE(Register(record));
+        EXPECT_FLOAT_EQ(Sample(), 0.25f);
+        const auto records = Records();
+        ASSERT_EQ(records.size(), 1);
+        for (const auto* snapshot : { &records[0].m_heightmap, &records[0].m_surfaceIdA, &records[0].m_holeMask })
+        {
+            EXPECT_EQ(snapshot->m_revision, 3);
+            EXPECT_EQ(snapshot->m_status, HeightmapDataStatus::Error);
+            EXPECT_FALSE(snapshot->m_data);
+        }
         EXPECT_FLOAT_EQ(retained->m_samples[0], 0.8f);
     }
 

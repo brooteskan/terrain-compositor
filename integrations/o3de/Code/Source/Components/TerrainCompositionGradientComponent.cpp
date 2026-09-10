@@ -1,5 +1,6 @@
 #include <TerrainCompositor/Components/TerrainCompositionGradientComponent.h>
 #include "../ComponentConfiguration.h"
+#include "../CompositionRegistrationState.h"
 
 #include "TerrainCompositionQueryHelpers.h"
 
@@ -22,11 +23,11 @@ namespace TerrainCompositor
 {
     namespace
     {
-        constexpr AZ::u8 DirtyHeight = 1;
-        constexpr AZ::u8 DirtySurface = 2;
-        constexpr AZ::u8 DirtyExistence = 4;
-        constexpr AZ::u8 DirtyAll = DirtyHeight | DirtySurface | DirtyExistence;
-        constexpr AZ::u8 DirtyMeshHeightAll = DirtyHeight | DirtyExistence;
+        using Internal::DirtyHeight;
+        using Internal::DirtySurface;
+        using Internal::DirtyExistence;
+        using Internal::DirtyAll;
+        using Internal::DirtyMeshHeightAll;
 
         bool CanNotifyAddress(const TerrainCompositionAddress& address)
         {
@@ -1334,70 +1335,8 @@ namespace TerrainCompositor
             return admission == Internal::RegistrationAdmission::Replay;
         }
 
-        using SnapshotMember = HeightmapDataSnapshot HeightmapStampRegistrationData::*;
-        const SnapshotMember snapshotMembers[] = { &HeightmapStampRegistrationData::m_heightmap,
-                                                   &HeightmapStampRegistrationData::m_surfaceIdA,
-                                                   &HeightmapStampRegistrationData::m_surfaceIdB,
-                                                   &HeightmapStampRegistrationData::m_surfaceBlend,
-                                                   &HeightmapStampRegistrationData::m_holeMask };
-
-        auto current = registration;
-        // A transform/config edit can arrive before this stamp's cache subscribers
-        // receive a revision already applied to a peer. Never regress an asset shared
-        // across any height/surface role.
-        for (const SnapshotMember currentMember : snapshotMembers)
-        {
-            auto& currentSnapshot = current.*currentMember;
-            if (!currentSnapshot.m_assetId.IsValid())
-            {
-                continue;
-            }
-            for (const auto& [id, other] : m_registrations)
-            {
-                for (const SnapshotMember otherMember : snapshotMembers)
-                {
-                    const auto& candidate = other.*otherMember;
-                    if (candidate.m_assetId == currentSnapshot.m_assetId && candidate.m_revision > currentSnapshot.m_revision)
-                    {
-                        currentSnapshot = candidate;
-                    }
-                }
-            }
-        }
-
-        const auto previous = m_registrations.find(registration.m_stampEntityId);
-        const AZ::u8 directDirty = ClassifyStampChange(previous != m_registrations.end() ? &previous->second : nullptr, current);
-        m_registrations.insert_or_assign(registration.m_stampEntityId, current);
-        if (directDirty != 0)
-        {
-            m_dirtyStamps[registration.m_stampEntityId] |= directDirty;
-        }
-
-        // One cache publication updates every dependent claim before publishing any
-        // replacement query state. Canonical IDs remain available for loading/failure
-        // snapshots, so state transitions fan out too.
-        for (size_t sourceIndex = 0; sourceIndex < AZ_ARRAY_SIZE(snapshotMembers); ++sourceIndex)
-        {
-            const auto sourceSnapshot = current.*snapshotMembers[sourceIndex];
-            if (!sourceSnapshot.m_assetId.IsValid())
-            {
-                continue;
-            }
-            for (auto& [id, other] : m_registrations)
-            {
-                for (size_t targetIndex = 0; targetIndex < AZ_ARRAY_SIZE(snapshotMembers); ++targetIndex)
-                {
-                    auto& targetSnapshot = other.*snapshotMembers[targetIndex];
-                    if (targetSnapshot.m_assetId == sourceSnapshot.m_assetId && targetSnapshot.m_revision < sourceSnapshot.m_revision)
-                    {
-                        targetSnapshot = sourceSnapshot;
-                        m_dirtyStamps[id] |= targetIndex == 0                   ? DirtyHeight
-                            : targetIndex == AZ_ARRAY_SIZE(snapshotMembers) - 1 ? DirtyExistence
-                                                                                : DirtySurface;
-                    }
-                }
-            }
-        }
+        Internal::ApplyRegistrationState(registration, registration.m_stampEntityId, m_registrations,
+            m_dirtyStamps, Internal::ImageAssetRoles, ClassifyStampChange);
         if (!m_dirtyStamps.empty())
         {
             PublishStamps();
@@ -1415,33 +1354,11 @@ namespace TerrainCompositor
             return admission == Internal::RegistrationAdmission::Replay;
         }
 
-        auto current = registration;
-        for (const auto& [id, other] : m_meshCutoutRegistrations)
-        {
-            (void)id;
-            if (other.m_mesh.m_assetId == current.m_mesh.m_assetId && other.m_mesh.m_revision > current.m_mesh.m_revision)
+        Internal::ApplyRegistrationState(registration, registration.m_cutoutEntityId, m_meshCutoutRegistrations,
+            m_dirtyStamps, Internal::CutoutAssetRoles, [](const auto* previous, const auto& current) -> AZ::u8
             {
-                current.m_mesh = other.m_mesh;
-            }
-        }
-        const auto previous = m_meshCutoutRegistrations.find(registration.m_cutoutEntityId);
-        const bool changed = previous == m_meshCutoutRegistrations.end() || !MeshCutoutRegistrationsEqual(previous->second, current);
-        m_meshCutoutRegistrations.insert_or_assign(registration.m_cutoutEntityId, current);
-        if (changed)
-        {
-            m_dirtyStamps[registration.m_cutoutEntityId] |= DirtyExistence;
-        }
-        if (current.m_mesh.m_assetId.IsValid())
-        {
-            for (auto& [id, other] : m_meshCutoutRegistrations)
-            {
-                if (other.m_mesh.m_assetId == current.m_mesh.m_assetId && other.m_mesh.m_revision < current.m_mesh.m_revision)
-                {
-                    other.m_mesh = current.m_mesh;
-                    m_dirtyStamps[id] |= DirtyExistence;
-                }
-            }
-        }
+                return !previous || !MeshCutoutRegistrationsEqual(*previous, current) ? DirtyExistence : AZ::u8{ 0 };
+            });
         if (!m_dirtyStamps.empty())
         {
             PublishStamps();
@@ -1459,34 +1376,8 @@ namespace TerrainCompositor
             return admission == Internal::RegistrationAdmission::Replay;
         }
 
-        auto current = registration;
-        for (const auto& [id, other] : m_meshHeightRegistrations)
-        {
-            (void)id;
-            if (other.m_mesh.m_assetId == current.m_mesh.m_assetId && other.m_mesh.m_revision > current.m_mesh.m_revision)
-            {
-                current.m_mesh = other.m_mesh;
-            }
-        }
-        const auto previous = m_meshHeightRegistrations.find(registration.m_stampEntityId);
-        const AZ::u8 directDirty =
-            ClassifyMeshHeightChange(previous != m_meshHeightRegistrations.end() ? &previous->second : nullptr, current);
-        m_meshHeightRegistrations.insert_or_assign(registration.m_stampEntityId, current);
-        if (directDirty != 0)
-        {
-            m_dirtyStamps[registration.m_stampEntityId] |= directDirty;
-        }
-        if (current.m_mesh.m_assetId.IsValid())
-        {
-            for (auto& [id, other] : m_meshHeightRegistrations)
-            {
-                if (other.m_mesh.m_assetId == current.m_mesh.m_assetId && other.m_mesh.m_revision < current.m_mesh.m_revision)
-                {
-                    other.m_mesh = current.m_mesh;
-                    m_dirtyStamps[id] |= DirtyMeshHeightAll;
-                }
-            }
-        }
+        Internal::ApplyRegistrationState(registration, registration.m_stampEntityId, m_meshHeightRegistrations,
+            m_dirtyStamps, Internal::MeshHeightAssetRoles, ClassifyMeshHeightChange);
         if (!m_dirtyStamps.empty())
         {
             PublishStamps();

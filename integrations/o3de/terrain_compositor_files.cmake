@@ -41,6 +41,7 @@ set(FILES
     Code/Include/TerrainCompositor/TerrainModelGeometry.h
     Code/Include/TerrainCompositor/TerrainQuality.h
     Code/Source/ComponentConfiguration.h
+    Code/Source/CompositionRegistrationState.h
     Code/Source/ModelAssetSource.h
     Code/Source/StampMath.h
     Code/Source/Components/MeshPlacementHelpers.h
