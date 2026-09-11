@@ -41,6 +41,9 @@ namespace TerrainCompositor::Internal
     {
         size_t m_claimsVisited = 0;
         size_t m_fallbackRegistrationsVisited = 0;
+        size_t m_claimsSearched = 0;
+        size_t m_claimsRebuilt = 0;
+        size_t m_claimsShifted = 0;
     };
 
     //! Session-owned records and canonical revisions; each specialization owns an independent asset index.
@@ -185,8 +188,11 @@ namespace TerrainCompositor::Internal
                 const bool matchingAddition = hasClaim && (!hadClaim || oldAsset != newAsset) && cached != m_assets.end() &&
                     cached->second.m_latest.m_revision == (current->*member).m_revision &&
                     PayloadsEqual(cached->second.m_latest, current->*member);
+                // Untied assigned survivors share the cache; retain touches from other changed roles.
+                const bool stableRemoval = hadClaim && (!hasClaim || oldAsset != newAsset) && oldAsset.IsValid() &&
+                    !m_assets.at(oldAsset).m_conflictingTie;
                 for (const auto& [asset, claimed] :
-                    { AZStd::pair{ oldAsset, hadClaim }, AZStd::pair{ newAsset, hasClaim && !matchingAddition } })
+                    { AZStd::pair{ oldAsset, hadClaim && !stableRemoval }, AZStd::pair{ newAsset, hasClaim && !matchingAddition } })
                 {
                     if (claimed && AZStd::find(touched.begin(), touched.end(), asset) == touched.end())
                     {
@@ -200,10 +206,11 @@ namespace TerrainCompositor::Internal
                     auto& claims = old->second.m_claims;
                     const auto claim = AZStd::find_if(claims.begin(), claims.end(), [&](const Claim& candidate)
                     {
-                        if (traversal) { ++traversal->m_claimsVisited; }
+                        if (traversal) { ++traversal->m_claimsVisited; ++traversal->m_claimsSearched; }
                         return candidate.m_entityId == id && candidate.m_role == role;
                     });
                     AZ_Assert(claim != claims.end(), "Registration is missing its dependent-role claim.");
+                    if (traversal) { traversal->m_claimsShifted += claims.end() - claim - 1; }
                     claims.erase(claim);
                     if (claims.empty()) { m_assets.erase(old); }
                 }
@@ -245,7 +252,11 @@ namespace TerrainCompositor::Internal
                 auto& asset = found->second;
                 asset.m_latest = SnapshotFor(asset.m_claims.front());
                 asset.m_conflictingTie = false;
-                if (traversal) { traversal->m_claimsVisited += asset.m_claims.size(); }
+                if (traversal)
+                {
+                    traversal->m_claimsVisited += asset.m_claims.size();
+                    traversal->m_claimsRebuilt += asset.m_claims.size();
+                }
                 for (size_t index = 1; index < asset.m_claims.size(); ++index)
                 {
                     const auto& snapshot = SnapshotFor(asset.m_claims[index]);

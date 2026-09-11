@@ -363,7 +363,7 @@ namespace TerrainCompositor::Internal
             RegistrationTraversal traversal;
             this->m_state.Apply(this->Make(1, retargeted), this->m_dirty,
                 [](const auto*, const auto&) { return AZ::u8{ 0 }; }, &traversal);
-            EXPECT_EQ(traversal.m_claimsVisited, 2); // Search/remnant rebuild of the old asset only.
+            EXPECT_EQ(traversal.m_claimsVisited, unassigned ? 2 : 1); // Only unassigned survivors need rebuilding.
             this->ExpectIndexConsistent();
             EXPECT_TRUE(this->m_state.Remove(AZ::EntityId(2)));
             this->Apply(this->Make(3, low));
@@ -481,6 +481,67 @@ namespace TerrainCompositor::Internal
             this->RecordProperty(AZStd::string::format("bulk_%zu_%s_rev%llu", count, unassigned ? "unassigned" : "assigned", revision).c_str(),
                 AZStd::string::format("claims=%zu fallback=%zu scan=%zu", traversal.m_claimsVisited,
                     traversal.m_fallbackRegistrationsVisited, scans).c_str());
+        }
+    }
+
+    TYPED_TEST(MeshRegistrationStateTests, BulkRemovalsAndRetargetsSkipStableRebuildsButRetainSearchesAndShifts)
+    {
+        for (size_t count : { 32, 2048 })
+        for (bool unassigned : { false, true })
+        for (bool reverse : { false, true })
+        for (bool retarget : { false, true })
+        {
+            this->m_state.Clear();
+            this->m_dirty.clear();
+            AZStd::unordered_map<AZ::EntityId, typename TestFixture::Record> reference;
+            AZStd::unordered_map<AZ::EntityId, AZ::u8> expectedDirty;
+            const auto classify = [](const auto* old, const auto&) { return old ? DirtySurface : DirtyHeight; };
+            const auto apply = [&](const auto& record, RegistrationTraversal* traversal = nullptr)
+            {
+                this->m_state.Apply(record, this->m_dirty, classify, traversal);
+                ApplyRegistrationState(record, record.*TypeParam::Entity, reference, expectedDirty, TypeParam::Roles, classify);
+            };
+            const auto old = this->MakeSnapshot(unassigned ? AZ::Data::AssetId{} : this->m_asset, 9);
+            const auto destination = this->MakeSnapshot(this->m_otherAsset, 9);
+            for (AZ::u64 id = 1; id <= count; ++id) { apply(this->Make(id, old)); }
+            apply(this->Make(count + 1, destination));
+            RegistrationTraversal traversal;
+            for (AZ::u64 step = 1; step <= count; ++step)
+            {
+                const AZ::u64 entity = reverse ? count + 1 - step : step;
+                const AZ::EntityId id(entity);
+                if (retarget)
+                {
+                    auto replacement = this->Make(entity, destination);
+                    replacement.m_mesh.m_revision = 0;
+                    apply(replacement, &traversal);
+                    EXPECT_EQ(replacement.m_mesh.m_revision, 0);
+                    this->ExpectSnapshot(this->Get(entity), reference.at(id).m_mesh);
+                }
+                else { EXPECT_EQ(this->m_state.Remove(id, &traversal), reference.erase(id) != 0); }
+            }
+            const size_t pairs = count * (count - 1) / 2;
+            const size_t searches = count + (reverse ? pairs : 0);
+            EXPECT_EQ(traversal.m_claimsSearched, searches);
+            EXPECT_EQ(traversal.m_claimsRebuilt, unassigned ? pairs : 0);
+            EXPECT_EQ(traversal.m_claimsShifted, reverse ? 0 : pairs);
+            EXPECT_EQ(traversal.m_claimsVisited, searches + (unassigned ? pairs : 0));
+            EXPECT_EQ(traversal.m_fallbackRegistrationsVisited, 0);
+            this->ExpectDirty(expectedDirty);
+            ASSERT_EQ(this->m_state.GetRegistrations().size(), reference.size());
+            for (const auto& [id, expected] : reference)
+                this->ExpectSnapshot(this->m_state.GetRegistrations().at(id).m_mesh, expected.m_mesh);
+            this->ExpectIndexConsistent();
+            this->RecordProperty(AZStd::string::format("bulk_%zu_%s_%s_%s", count, unassigned ? "unassigned" : "assigned",
+                reverse ? "reverse" : "forward", retarget ? "retarget" : "remove").c_str(),
+                AZStd::string::format("visits=%zu searches=%zu rebuilt=%zu shifts=%zu fallback=%zu", traversal.m_claimsVisited,
+                    traversal.m_claimsSearched, traversal.m_claimsRebuilt, traversal.m_claimsShifted,
+                    traversal.m_fallbackRegistrationsVisited).c_str());
+            auto fresh = this->Make(count + 2, old);
+            fresh.m_mesh.m_revision = 0;
+            apply(fresh);
+            this->ExpectSnapshot(this->Get(count + 2), fresh.m_mesh);
+            this->ExpectIndexConsistent();
         }
     }
 

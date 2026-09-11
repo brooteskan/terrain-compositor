@@ -443,6 +443,126 @@ namespace TerrainCompositor::Internal
         apply(Make(1, 0, Snapshot(m_asset, 0))); // Final removal retires the cached revision.
     }
 
+    TEST_F(ImageRegistrationStateTests, BulkRemovalsAndRetargetsSkipStableRebuildsButRetainSearchesAndShifts)
+    {
+        for (size_t count : { 32, 2048 })
+        for (bool shared : { false, true })
+        for (bool reverse : { false, true })
+        for (bool retarget : { false, true })
+        {
+            m_state.Clear();
+            m_dirty.clear();
+            AZStd::unordered_map<AZ::EntityId, Record> reference;
+            AZStd::unordered_map<AZ::EntityId, AZ::u8> expectedDirty;
+            const auto classify = [](const auto* old, const auto&) { return old ? DirtySurface : DirtyHeight; };
+            const auto apply = [&](const Record& record, RegistrationTraversal* traversal = nullptr)
+            {
+                m_state.Apply(record, m_dirty, classify, traversal);
+                ApplyRegistrationState(record, record.m_stampEntityId, reference, expectedDirty, ImageAssetRoles, classify);
+            };
+            auto input = Make(1, 0, Snapshot(m_asset, 9));
+            auto destination = Make(count + 1, 0, Snapshot(m_otherAsset, 9));
+            for (const auto& role : ImageAssetRoles)
+            {
+                input.*role.m_snapshot = shared ? input.m_heightmap : Snapshot({ AZ::Uuid::CreateRandom(), 1 }, 9);
+                destination.*role.m_snapshot = shared ? destination.m_heightmap : Snapshot({ AZ::Uuid::CreateRandom(), 1 }, 9);
+            }
+            for (AZ::u64 id = 1; id <= count; ++id) { input.m_stampEntityId = AZ::EntityId(id); apply(input); }
+            apply(destination);
+            RegistrationTraversal traversal;
+            for (AZ::u64 step = 1; step <= count; ++step)
+            {
+                const AZ::EntityId id(reverse ? count + 1 - step : step);
+                if (retarget)
+                {
+                    auto replacement = destination;
+                    replacement.m_stampEntityId = id;
+                    for (const auto& role : ImageAssetRoles) { (replacement.*role.m_snapshot).m_revision = 0; }
+                    apply(replacement, &traversal);
+                    for (const auto& role : ImageAssetRoles)
+                    {
+                        EXPECT_EQ((replacement.*role.m_snapshot).m_revision, 0);
+                        ExpectSnapshot(m_state.GetRegistrations().at(id).*role.m_snapshot, reference.at(id).*role.m_snapshot);
+                    }
+                }
+                else { EXPECT_EQ(m_state.Remove(id, &traversal), reference.erase(id) != 0); }
+            }
+            const size_t pairs = count * (count - 1) / 2;
+            const size_t searches = 5 * count + (reverse ? (shared ? 25 : 5) * pairs : 0);
+            const size_t shifts = reverse ? (shared ? 10 * count : 0) : (shared ? 5 * count * (5 * count - 1) / 2 : 5 * pairs);
+            EXPECT_EQ(traversal.m_claimsSearched, searches);
+            EXPECT_EQ(traversal.m_claimsRebuilt, 0);
+            EXPECT_EQ(traversal.m_claimsShifted, shifts);
+            EXPECT_EQ(traversal.m_claimsVisited, searches);
+            EXPECT_EQ(traversal.m_fallbackRegistrationsVisited, 0);
+            EXPECT_EQ(m_dirty, expectedDirty);
+            ASSERT_EQ(m_state.GetRegistrations().size(), reference.size());
+            for (const auto& [id, expected] : reference)
+                for (const auto& role : ImageAssetRoles)
+                    ExpectSnapshot(m_state.GetRegistrations().at(id).*role.m_snapshot, expected.*role.m_snapshot);
+            ExpectIndexConsistent();
+            RecordProperty(AZStd::string::format("bulk_%zu_%s_%s_%s", count, shared ? "shared" : "distinct",
+                reverse ? "reverse" : "forward", retarget ? "retarget" : "remove").c_str(),
+                AZStd::string::format("visits=%zu searches=%zu rebuilt=%zu shifts=%zu fallback=%zu", traversal.m_claimsVisited,
+                    traversal.m_claimsSearched, traversal.m_claimsRebuilt, traversal.m_claimsShifted,
+                    traversal.m_fallbackRegistrationsVisited).c_str());
+            // Every old asset lost its final claim, so reusing its ID starts fresh revision history.
+            input.m_stampEntityId = AZ::EntityId(count + 2);
+            for (const auto& role : ImageAssetRoles) { (input.*role.m_snapshot).m_revision = 0; }
+            apply(input);
+            for (const auto& role : ImageAssetRoles) { ExpectSnapshot(Get(count + 2).*role.m_snapshot, input.*role.m_snapshot); }
+            ExpectIndexConsistent();
+        }
+    }
+
+    TEST_F(ImageRegistrationStateTests, StableRemovalsPreserveChangesToOtherRolesInEitherOrder)
+    {
+        for (bool reverse : { false, true })
+        for (bool retarget : { false, true })
+        for (AZ::u64 revision : { 9, 10 })
+        {
+            m_state.Clear();
+            m_dirty.clear();
+            AZStd::unordered_map<AZ::EntityId, Record> reference;
+            AZStd::unordered_map<AZ::EntityId, AZ::u8> expectedDirty;
+            const auto classify = [](const auto*, const auto&) { return DirtySurface; };
+            const auto check = [&]
+            {
+                EXPECT_EQ(m_dirty, expectedDirty);
+                ASSERT_EQ(m_state.GetRegistrations().size(), reference.size());
+                for (const auto& [id, expected] : reference)
+                    for (const auto& role : ImageAssetRoles)
+                        ExpectSnapshot(m_state.GetRegistrations().at(id).*role.m_snapshot, expected.*role.m_snapshot);
+                ExpectIndexConsistent();
+            };
+            const auto apply = [&](const Record& record)
+            {
+                RegistrationTraversal traversal;
+                m_state.Apply(record, m_dirty, classify, &traversal);
+                ApplyRegistrationState(record, record.m_stampEntityId, reference, expectedDirty, ImageAssetRoles, classify);
+                check();
+                return traversal;
+            };
+            const auto first = Snapshot(m_asset, 9), other = Snapshot(m_otherAsset, 9);
+            auto input = Make(1, 0, first);
+            input.m_surfaceIdA = first;
+            input.m_holeMask = first;
+            apply(input);
+            apply(Make(2, 0, first));
+            apply(Make(5, 0, other));
+            input.*ImageAssetRoles[reverse ? 1 : 0].m_snapshot = Snapshot(m_asset, revision, HeightmapDataStatus::Error);
+            input.*ImageAssetRoles[reverse ? 0 : 1].m_snapshot = retarget ? other : HeightmapDataSnapshot{};
+            const auto changed = apply(input);
+            EXPECT_EQ(changed.m_claimsSearched, reverse ? 1 : 2);
+            EXPECT_EQ(changed.m_claimsRebuilt, revision == 9 ? 3 : 0);
+            EXPECT_EQ(apply(Make(3, 0, Snapshot(m_asset, 0))).m_fallbackRegistrationsVisited > 0, revision == 9);
+            EXPECT_EQ(m_state.Remove(AZ::EntityId(1)), reference.erase(AZ::EntityId(1)) != 0);
+            EXPECT_EQ(m_state.Remove(AZ::EntityId(3)), reference.erase(AZ::EntityId(3)) != 0);
+            check();
+            EXPECT_EQ(apply(Make(4, 4, Snapshot(m_asset, 0))).m_fallbackRegistrationsVisited, 0);
+        }
+    }
+
     TEST_F(ImageRegistrationStateTests, ChangingOneImageRoleRebuildsOnlyItsAsset)
     {
         for (size_t changedRole = 0; changedRole < AZ_ARRAY_SIZE(ImageAssetRoles); ++changedRole)
