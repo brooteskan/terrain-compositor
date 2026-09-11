@@ -82,7 +82,6 @@ namespace TerrainCompositor::Internal
 
     private:
         Source& Self() { return *static_cast<Source*>(this); }
-        void Publish(Status status) { Self().Publish(status); }
 
         void StartModel()
         {
@@ -93,21 +92,21 @@ namespace TerrainCompositor::Internal
             const auto info = GetAssetInfo(m_assetId);
             if (!info.m_assetId.IsValid())
             {
-                Publish(Status::Missing);
+                Self().Publish(Status::Missing);
                 return;
             }
             if (info.m_assetType != azrtti_typeid<AZ::RPI::ModelAsset>())
             {
-                Publish(Status::Unsupported);
+                Self().Publish(Status::Unsupported);
                 return;
             }
-            Publish(Status::Loading);
+            Self().Publish(Status::Loading);
             m_model =
                 AZ::Data::AssetManager::Instance().GetAsset<AZ::RPI::ModelAsset>(info.m_assetId, AZ::Data::AssetLoadBehavior::PreLoad);
             AZ::Data::AssetBus::Handler::BusConnect(info.m_assetId);
             if (!m_model.Get())
             {
-                Publish(Status::Error);
+                Self().Publish(Status::Error);
             }
         }
 

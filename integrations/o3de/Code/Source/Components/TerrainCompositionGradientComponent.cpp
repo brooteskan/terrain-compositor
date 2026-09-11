@@ -327,11 +327,6 @@ namespace TerrainCompositor
         StartComposition(GetEntityId());
     }
 
-    void TerrainCompositionGradientComponent::Deactivate()
-    {
-        StopComposition();
-    }
-
     void TerrainCompositionGradientComponent::EditorActivate(AZ::EntityId entityId)
     {
         StartComposition(entityId);
@@ -339,7 +334,7 @@ namespace TerrainCompositor
 
     void TerrainCompositionGradientComponent::EditorDeactivate([[maybe_unused]] AZ::EntityId entityId)
     {
-        StopComposition();
+        Deactivate();
     }
 
     void TerrainCompositionGradientComponent::StartComposition(AZ::EntityId entityId)
@@ -352,7 +347,7 @@ namespace TerrainCompositor
         {
             return;
         }
-        StopComposition();
+        Deactivate();
         m_active = true;
         m_session = AZ::Uuid::CreateRandom(); // A lifetime token, never persistent
                                               // ordering identity.
@@ -382,7 +377,7 @@ namespace TerrainCompositor
         }
     }
 
-    void TerrainCompositionGradientComponent::StopComposition()
+    void TerrainCompositionGradientComponent::Deactivate()
     {
         if (!m_active || !m_controlThread.Check())
         {

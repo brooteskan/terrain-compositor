@@ -36,7 +36,6 @@ namespace TerrainCompositor
 
     private:
         void StartCutout(AZ::EntityId entityId, bool editor = false);
-        void StopCutout();
         AZ::u32 OnConfigurationChanged();
         void UpdateRegistration();
 

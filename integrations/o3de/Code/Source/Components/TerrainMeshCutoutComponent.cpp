@@ -58,19 +58,18 @@ namespace TerrainCompositor
     }
 
     void TerrainMeshCutoutComponent::Activate() { StartCutout(GetEntityId()); }
-    void TerrainMeshCutoutComponent::Deactivate() { StopCutout(); }
     void TerrainMeshCutoutComponent::EditorActivate(AZ::EntityId entityId) { StartCutout(entityId, true); }
-    void TerrainMeshCutoutComponent::EditorDeactivate([[maybe_unused]] AZ::EntityId entityId) { StopCutout(); }
+    void TerrainMeshCutoutComponent::EditorDeactivate([[maybe_unused]] AZ::EntityId entityId) { Deactivate(); }
 
     void TerrainMeshCutoutComponent::StartCutout(AZ::EntityId entityId, bool editor)
     {
         if (!m_placement.IsActive()) m_controlThread.BindForActivation();
         if (!m_controlThread.Check()) return;
-        StopCutout();
+        Deactivate();
         m_placement.Start(entityId, m_configuration.m_cutoutMeshAsset.GetId(), editor);
     }
 
-    void TerrainMeshCutoutComponent::StopCutout()
+    void TerrainMeshCutoutComponent::Deactivate()
     {
         if (!m_placement.IsActive() || !m_controlThread.Check()) return;
         m_placement.Stop();

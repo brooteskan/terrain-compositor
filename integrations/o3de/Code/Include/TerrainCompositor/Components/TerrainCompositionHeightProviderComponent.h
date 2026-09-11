@@ -40,7 +40,6 @@ namespace TerrainCompositor
         static void GetDependentServices(AZ::ComponentDescriptor::DependencyArrayType& services);
 
         // Intentional O3DE terrain-provider adapter interface; the height and surface buses require distinct components.
-        /* jscpd:ignore-start */
         TerrainCompositionHeightProviderComponent() = default;
         explicit TerrainCompositionHeightProviderComponent(const TerrainCompositionHeightProviderConfig& configuration);
 
@@ -58,7 +57,6 @@ namespace TerrainCompositor
         void ConnectProvider();
         void DisconnectProvider();
         void ClearProvider();
-        /* jscpd:ignore-end */
         void RefreshHeightBounds();
         void OnCompositionChanged() override;
         void OnCompositionRegionChanged(const AZ::Aabb& dirtyRegion) override;

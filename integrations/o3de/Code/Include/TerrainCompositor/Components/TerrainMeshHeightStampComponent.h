@@ -39,7 +39,6 @@ namespace TerrainCompositor
 
     private:
         void StartStamp(AZ::EntityId entityId, bool editor = false);
-        void StopStamp();
         AZ::u32 OnConfigurationChanged();
         void UpdateRegistration();
 

@@ -63,11 +63,6 @@ namespace TerrainCompositor
         StartStamp(GetEntityId());
     }
 
-    void HeightmapStampComponent::Deactivate()
-    {
-        StopStamp();
-    }
-
     void HeightmapStampComponent::EditorActivate(AZ::EntityId entityId)
     {
         // GenericComponentWrapper calls this instead of Activate; the wrapped component has no editor entity.
@@ -76,7 +71,7 @@ namespace TerrainCompositor
 
     void HeightmapStampComponent::EditorDeactivate([[maybe_unused]] AZ::EntityId entityId)
     {
-        StopStamp();
+        Deactivate();
     }
 
     void HeightmapStampComponent::StartStamp(AZ::EntityId entityId, bool editor)
@@ -86,7 +81,7 @@ namespace TerrainCompositor
             m_controlThread.BindForActivation();
         }
         if (!m_controlThread.Check()) { return; }
-        StopStamp();
+        Deactivate();
         m_activeEntityId = entityId;
         m_editor = editor;
         if (editor)
@@ -105,7 +100,7 @@ namespace TerrainCompositor
         m_registration.Activate(entityId, configuration, world, available, pending);
     }
 
-    void HeightmapStampComponent::StopStamp()
+    void HeightmapStampComponent::Deactivate()
     {
         if (!m_activeEntityId.IsValid()) { return; }
         if (!m_controlThread.Check()) { return; }

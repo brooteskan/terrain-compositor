@@ -15,7 +15,6 @@ namespace TerrainCompositor
     public:
         using BaseClass = AzToolsFramework::Components::EditorComponentBase;
         // Intentional reflected editor adapter; component identity and Configuration ownership must remain explicit.
-        /* jscpd:ignore-start */
         AZ_COMPONENT(EditorHeightmapStampComponent, EditorHeightmapStampComponentTypeId, BaseClass);
         static void Reflect(AZ::ReflectContext* context);
         static void GetProvidedServices(AZ::ComponentDescriptor::DependencyArrayType& services);
@@ -29,7 +28,6 @@ namespace TerrainCompositor
         AZ::TypeId GetUnderlyingComponentType() const override;
         bool ReadInConfig(const AZ::ComponentConfig* configuration) override;
         bool WriteOutConfig(AZ::ComponentConfig* configuration) const override;
-        /* jscpd:ignore-end */
 
         HeightmapStampConfig GetStampConfiguration() const { return m_configuration; }
         //! Only the inactive conversion copy may receive a baked key. Never dirty the live authoring template.

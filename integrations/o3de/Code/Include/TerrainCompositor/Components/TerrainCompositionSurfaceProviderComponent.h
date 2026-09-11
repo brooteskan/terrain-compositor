@@ -37,7 +37,6 @@ namespace TerrainCompositor
         static void GetDependentServices(AZ::ComponentDescriptor::DependencyArrayType& services);
 
         // Intentional O3DE terrain-provider adapter interface; the height and surface buses require distinct components.
-        /* jscpd:ignore-start */
         TerrainCompositionSurfaceProviderComponent() = default;
         explicit TerrainCompositionSurfaceProviderComponent(const TerrainCompositionSurfaceProviderConfig& configuration);
 
@@ -55,7 +54,6 @@ namespace TerrainCompositor
         void ConnectProvider();
         void DisconnectProvider();
         void ClearProvider() {}
-        /* jscpd:ignore-end */
 
         void GetSurfaceWeights(const AZ::Vector3& position,
             AzFramework::SurfaceData::SurfaceTagWeightList& outSurfaceWeights) const override;

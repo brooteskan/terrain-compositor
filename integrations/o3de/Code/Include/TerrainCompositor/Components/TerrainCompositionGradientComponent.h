@@ -130,7 +130,6 @@ namespace TerrainCompositor
         };
 
         void StartComposition(AZ::EntityId entityId);
-        void StopComposition();
         AZ::u32 OnConfigurationChanged();
         void ConnectDependencies();
         void RefreshRegionBounds();

@@ -77,29 +77,25 @@ namespace TerrainCompositor
     {
         StartStamp(GetEntityId());
     }
-    void TerrainMeshHeightStampComponent::Deactivate()
-    {
-        StopStamp();
-    }
     void TerrainMeshHeightStampComponent::EditorActivate(AZ::EntityId entityId)
     {
         StartStamp(entityId, true);
     }
     void TerrainMeshHeightStampComponent::EditorDeactivate([[maybe_unused]] AZ::EntityId entityId)
     {
-        StopStamp();
+        Deactivate();
     }
 
     void TerrainMeshHeightStampComponent::StartStamp(AZ::EntityId entityId, bool editor)
     {
         if (!m_placement.IsActive()) m_controlThread.BindForActivation();
         if (!m_controlThread.Check()) return;
-        StopStamp();
+        Deactivate();
         TerrainMeshHeightStampRequestBus::Handler::BusConnect(entityId);
         m_placement.Start(entityId, m_configuration.m_terrainMeshAsset.GetId(), editor);
     }
 
-    void TerrainMeshHeightStampComponent::StopStamp()
+    void TerrainMeshHeightStampComponent::Deactivate()
     {
         if (!m_placement.IsActive() || !m_controlThread.Check()) return;
         m_placement.Stop();

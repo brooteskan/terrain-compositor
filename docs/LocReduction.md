@@ -667,3 +667,90 @@ unproven. A subsequent bounded pass can audit obsolete wrappers and comments acr
 the consolidated owners and their adapters. Cross-mesh revision authority still
 requires its source-generation contract, and the three cutout-cache failures remain
 a separate behavioral fix.
+
+## Obsolete-wrapper and comment audit (2026-09-10)
+
+Baseline: `475c861` (`Consolidate composition registration lifecycle ownership`).
+This bounded audit covers the consolidated registration, asset-subscription,
+image-index, registration-store, mesh-placement, provider and editor-preview
+owners, their component adapters, and the shared model-asset source.
+
+Five internal entry points are removed:
+
+- The image stamp, composition coordinator and two mesh components now implement
+  teardown directly in their existing `Deactivate()` override. Editor teardown
+  and restart call that operation; the four private `StopStamp`, `StopCutout` and
+  `StopComposition` aliases are gone. Their original stop bodies, guard order,
+  subscription teardown, visibility restoration and publication cleanup are intact.
+  All four components are final, so the calls cannot dispatch to a derived override.
+- `ModelAssetSource::Publish` only forwarded to `Self().Publish`. Its four callers
+  now name the derived publisher directly, matching the queued callback paths.
+  Each cache retains its own publication and preparation-retirement behavior.
+
+Removed all 12 `jscpd:ignore-start/end` comment lines from six adapter headers.
+Duplicate scans now see those declarations; the comments explaining why reflected
+editor and terrain-provider interfaces remain explicit are retained. No code is
+minified, moved into generated output, or replaced with macros or a new framework.
+The reduction is **20 code/declaration/associated separator lines plus 12 comment
+lines**, totaling **32 first-party C++ lines (0.19% of this slice's baseline)**.
+
+The audit deliberately retains these small operations and comments:
+
+| Area | Reason to retain |
+| --- | --- |
+| Component reflection, services, configuration and registration-client entry points | These are existing public or framework contracts, including legacy generic wrappers. |
+| `Start*` adapters and mesh registration-update callbacks | They supply editor/entity context or enforce control-thread checks. |
+| `RegistrationClient::BeforeRegister` and unavailable/retry hooks | Image registration clears its admission result before dispatch and retains distinct warning/retry behavior. |
+| Editor preview accessors, activation overloads and status adapters | Viewport drawing, lifecycle tests, composition quality preparation and reflected status metadata use them. |
+| Typed registration views, diagnostic helpers and revision roles | They preserve read-only access, diagnostic channels and independent mesh revision counters. |
+| Lifecycle, numerical and compatibility comments | Activation ordering, stale callbacks, equal-revision ties, prefab identity, query draining and render/collision bounds remain non-obvious constraints. |
+
+Normalized source comparison verifies each removed wrapper's expansion against
+`475c861`, with the complete stop body unchanged. All other integration files match
+the baseline apart from the six comment-only headers. Public declarations, virtual
+methods, member fields, base classes, reflection, services, diagnostics, UUIDs and
+serialized fields/versions are unchanged. This slice does not change member or
+base-class layout. No tests, shaders or engine patches are edited.
+
+All five targets built from the standalone sources: `TerrainCompositor.Static`,
+`TerrainCompositor`, `TerrainCompositor.Editor`, `TerrainCompositor.Tests` and
+`TerrainCompositor.Editor.Tests`. The existing generated VC projects and installed
+dependencies were reused with custom-build regeneration disabled, as documented
+above. Fresh CMake generation and a live Editor scene smoke test were not performed.
+
+The unchanged runtime suite ran **254 cases: 251 passed and the same three known
+cutout-cache failures remained**. Its test-name set and one disabled test match
+the baseline. The editor suite passed **all 46 cases**, before and after the edit.
+Across 100 shuffled seeds (173-272), runtime recorded **16,800 passes and 300
+occurrences of exactly those known failures**; editor recorded **4,600 passes**.
+Every iteration's failure-name set was checked. D3D11 hardware matched **142,560
+classifications with zero mismatches**. Engine override generation, repetition and
+both hash-mismatch rejection checks passed, as did `git diff --check`.
+
+Reproduce counts with `python tools/MeasureLoc.py --revision 475c861 --json` and
+`python tools/MeasureLoc.py --worktree --json`. Counts include every helper and
+this report; ignored build logs and temporary audit scripts are not maintained
+repository inputs. Logs, XML, source comparisons and per-file measurements are in
+`D:/wzmono/terrain-compositor/build/wrapper-audit-session`.
+
+| Repository category | Before `475c861` | After | Change |
+| --- | ---: | ---: | ---: |
+| Production C++ | 12,722 | 12,698 | -24 |
+| Include headers | 3,771 | 3,763 | -8 |
+| **First-party C++** | **16,493** | **16,461** | **-32** |
+| Tests, including file lists | 6,063 | 6,063 | 0 |
+| Shaders/assets | 966 | 966 | 0 |
+| Engine patches/overrides | 939 | 939 | 0 |
+| Build/tooling | 537 | 537 | 0 |
+| Documentation | 3,683 | 3,770 | +87 |
+| License/notice | 28 | 28 | 0 |
+| **Total repository text** | **28,709** | **28,764** | **+55** |
+
+Cumulative first-party C++ reduction is **946 lines (5.43%)** from the initial
+extraction and **548 lines (3.22%)** from post-cleanup. This audit establishes no
+safe reduction ceiling, speedup or memory improvement; the 50% target remains
+unproven. A further 7,758 C++ lines would have to be removed to reach 8,703.
+The next behavioral slice can address the three characterized cutout preparation-
+retirement failures separately. Broader geometry preparation and immutable
+publication ownership remain architectural candidates; cross-mesh revision
+canonicalization still requires a shared source-generation contract.

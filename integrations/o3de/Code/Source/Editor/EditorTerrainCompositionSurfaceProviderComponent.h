@@ -12,7 +12,6 @@ namespace TerrainCompositor
     public:
         using BaseClass = AzToolsFramework::Components::EditorComponentBase;
         // Intentional reflected editor adapter; component identity and Configuration ownership must remain explicit.
-        /* jscpd:ignore-start */
         AZ_COMPONENT(EditorTerrainCompositionSurfaceProviderComponent,
             EditorTerrainCompositionSurfaceProviderComponentTypeId, BaseClass);
 
@@ -28,7 +27,6 @@ namespace TerrainCompositor
         AZ::TypeId GetUnderlyingComponentType() const override;
         bool ReadInConfig(const AZ::ComponentConfig* configuration) override;
         bool WriteOutConfig(AZ::ComponentConfig* configuration) const override;
-        /* jscpd:ignore-end */
 
     private:
         template<class> friend class TerrainEditorPreviewLifecycleTests;
