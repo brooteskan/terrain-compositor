@@ -12,6 +12,7 @@
 #include <LmbrCentral/Dependency/DependencyMonitor.h>
 #include <LmbrCentral/Shape/ShapeComponentBus.h>
 #include <TerrainCompositor/HeightmapControlThread.h>
+#include <TerrainCompositor/Internal/CompositionRegistrationState.h>
 #include <TerrainCompositor/HeightmapStampSampling.h>
 #include <TerrainCompositor/SurfaceCompositionConfig.h>
 #include <TerrainCompositor/SurfaceStampSampling.h>
@@ -214,7 +215,7 @@ namespace TerrainCompositor
         AZ::u64 m_revision = 0;
         bool m_active = false;
         unsigned m_configurationUpdateDepth = 0;
-        AZStd::unordered_map<AZ::EntityId, HeightmapStampRegistrationData> m_registrations;
+        Internal::ImageRegistrationState m_imageRegistrations;
         AZStd::unordered_map<AZ::EntityId, TerrainMeshCutoutRegistrationData> m_meshCutoutRegistrations;
         AZStd::unordered_map<AZ::EntityId, TerrainMeshHeightStampRegistrationData> m_meshHeightRegistrations;
         AZStd::unordered_set<AZ::Uuid> m_retiredRegistrations;

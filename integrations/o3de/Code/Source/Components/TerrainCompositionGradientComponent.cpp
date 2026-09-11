@@ -1,6 +1,5 @@
 #include <TerrainCompositor/Components/TerrainCompositionGradientComponent.h>
 #include "../ComponentConfiguration.h"
-#include "../CompositionRegistrationState.h"
 #include "../PublicationState.h"
 
 #include "TerrainCompositionQueryHelpers.h"
@@ -442,7 +441,7 @@ namespace TerrainCompositor
         m_pendingSurfaceTerrain = {};
         auto changes = AZStd::move(m_pendingChanges);
         m_pendingChanges.clear();
-        m_registrations.clear();
+        m_imageRegistrations.Clear();
         m_meshCutoutRegistrations.clear();
         m_meshHeightRegistrations.clear();
         m_dirtyStamps.clear();
@@ -544,7 +543,7 @@ namespace TerrainCompositor
             return AZStd::string::format("Height ready; surface palette invalid: %s", state->m_surfacePalette.m_error.c_str());
         }
         bool surfaceConfigured = !m_configuration.m_surfacePalette.empty() || !m_configuration.m_baseSurfaceWeights.empty();
-        for (const auto& entry : m_registrations)
+        for (const auto& entry : m_imageRegistrations.GetRegistrations())
         {
             const auto& registration = entry.second;
             const auto& maps = registration.m_configuration.m_surfaceMaps;
@@ -1330,14 +1329,13 @@ namespace TerrainCompositor
     {
         if (!m_controlThread.Check() || !m_active) return false;
         const auto admission = Internal::AdmitRegistration(
-            registration, registration.m_stampEntityId, m_registrations, m_address, m_session, m_retiredRegistrations);
+            registration, registration.m_stampEntityId, m_imageRegistrations.GetRegistrations(), m_address, m_session, m_retiredRegistrations);
         if (admission != Internal::RegistrationAdmission::Apply)
         {
             return admission == Internal::RegistrationAdmission::Replay;
         }
 
-        Internal::ApplyRegistrationState(registration, registration.m_stampEntityId, m_registrations,
-            m_dirtyStamps, Internal::ImageAssetRoles, ClassifyStampChange);
+        m_imageRegistrations.Apply(registration, m_dirtyStamps, ClassifyStampChange);
         if (!m_dirtyStamps.empty())
         {
             PublishStamps();
@@ -1396,13 +1394,13 @@ namespace TerrainCompositor
         // Tombstones prevent a delayed register from reviving this lease after
         // removal in the same session.
         m_retiredRegistrations.insert(registrationId);
-        const auto found = m_registrations.find(stampEntityId);
-        if (found == m_registrations.end() || found->second.m_registrationId != registrationId)
+        const auto found = m_imageRegistrations.GetRegistrations().find(stampEntityId);
+        if (found == m_imageRegistrations.GetRegistrations().end() || found->second.m_registrationId != registrationId)
         {
             return;
         }
         m_dirtyStamps[stampEntityId] |= DirtyAll;
-        m_registrations.erase(found);
+        m_imageRegistrations.Remove(stampEntityId);
         m_diagnostics.erase(stampEntityId);
         m_surfaceDiagnostics.erase(stampEntityId);
         m_existenceDiagnostics.erase(stampEntityId);
@@ -1491,7 +1489,7 @@ namespace TerrainCompositor
                 }
             }
         };
-        collectClaims(m_registrations);
+        collectClaims(m_imageRegistrations.GetRegistrations());
         collectClaims(m_meshCutoutRegistrations);
         collectClaims(m_meshHeightRegistrations);
         AZStd::unordered_map<AZStd::string, AZStd::string> collisions;
@@ -1548,7 +1546,7 @@ namespace TerrainCompositor
         float collisionGridSpacing = 0.0f;
         AzFramework::Terrain::TerrainDataRequestBus::BroadcastResult(
             collisionGridSpacing, &AzFramework::Terrain::TerrainDataRequests::GetTerrainHeightQueryResolution);
-        for (const auto& [id, registration] : m_registrations)
+        for (const auto& [id, registration] : m_imageRegistrations.GetRegistrations())
         {
             PreparedHeightmapStamp prepared;
             const auto validation = PrepareHeightmapStamp(registration, AZ::NonUniformScaleRequestBus::HasHandlers(id), prepared);
@@ -1895,7 +1893,7 @@ namespace TerrainCompositor
     AZStd::vector<HeightmapStampRegistrationData> TerrainCompositionGradientComponent::GetRegisteredStamps() const
     {
         if (!m_controlThread.Check()) return {};
-        return Internal::RegistrationValues(m_registrations);
+        return Internal::RegistrationValues(m_imageRegistrations.GetRegistrations());
     }
 
     AZStd::vector<TerrainMeshCutoutRegistrationData> TerrainCompositionGradientComponent::GetRegisteredMeshCutouts() const
@@ -1915,7 +1913,7 @@ namespace TerrainCompositor
         if (!m_controlThread.Check() || stableOrderKey.empty())
             return 0;
         size_t count = 0;
-        for (const auto& [id, registration] : m_registrations)
+        for (const auto& [id, registration] : m_imageRegistrations.GetRegistrations())
         {
             (void)id;
             count += registration.m_configuration.GetRuntimeOrderKey() == stableOrderKey;

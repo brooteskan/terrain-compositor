@@ -1,7 +1,7 @@
 #include <AzTest/AzTest.h>
 #include <TerrainCompositor/Components/HeightmapStampConfig.h>
 #include "ComponentConfiguration.h"
-#include "CompositionRegistrationState.h"
+#include <TerrainCompositor/Internal/CompositionRegistrationState.h>
 #include "PublicationState.h"
 #include <TerrainCompositor/SurfaceStampSampling.h>
 #include "StampMath.h"

@@ -1,5 +1,6 @@
 set(FILES
     InternalHelperTests.cpp
+    ImageRegistrationStateTests.cpp
     TestMain.cpp
     TerrainTestFixtures.h
     ProceduralGroundGradientComponentTests.cpp

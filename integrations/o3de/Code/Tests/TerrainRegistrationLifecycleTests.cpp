@@ -728,6 +728,39 @@ namespace TerrainCompositor
         EXPECT_FLOAT_EQ(retained->m_samples[0], 0.8f);
     }
 
+    TEST_F(TerrainImageRegistrationTests, RetargetingTheLastImageRoleRetiresItsRevisionHistory)
+    {
+        auto first = MakeRecord(m_stamp);
+        first.m_heightmap = { HeightmapDataStatus::Loading, 20, {}, { AZ::Uuid::CreateRandom(), 1 } };
+        ASSERT_TRUE(Register(first));
+        auto second = MakeRecord(m_peer);
+        second.m_heightmap = first.m_heightmap;
+        second.m_heightmap.m_revision = 1;
+        first.m_heightmap = {};
+        ++first.m_updateRevision;
+        ASSERT_TRUE(Register(first));
+        ASSERT_TRUE(Register(second));
+        for (const auto& current : Records())
+        {
+            if (current.m_stampEntityId == m_peer) { EXPECT_EQ(current.m_heightmap.m_revision, 1); }
+        }
+    }
+
+    TEST_F(TerrainImageRegistrationTests, ReactivatingTheSameCompositionObjectClearsImageRevisionHistory)
+    {
+        auto record = MakeRecord(m_stamp);
+        record.m_heightmap = { HeightmapDataStatus::Loading, 20, {}, { AZ::Uuid::CreateRandom(), 1 } };
+        ASSERT_TRUE(Register(record));
+        m_composition->EditorDeactivate(m_owner);
+        m_composition->EditorActivate(m_owner);
+        record.m_compositionSession = Session();
+        record.m_registrationId = AZ::Uuid::CreateRandom();
+        record.m_heightmap.m_revision = 1;
+        ASSERT_TRUE(Register(record));
+        ASSERT_EQ(Records().size(), 1);
+        EXPECT_EQ(Records()[0].m_heightmap.m_revision, 1);
+    }
+
     TEST_F(TerrainImageRegistrationTests, AssetRevisionPropagatesAcrossHeightSurfaceAndHoleRoles)
     {
         auto first = MakeRecord(m_stamp);

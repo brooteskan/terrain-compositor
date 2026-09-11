@@ -482,3 +482,107 @@ coordinator/asset-index work should be assessed for clearer ownership and fewer
 traversals as well as measured LOC. Image indexing must preserve revision ties,
 last-claim retirement and dirty-bit rules; cross-mesh authority still requires a
 shared source-generation contract because its two revision counters are independent.
+
+## Indexed image revision ownership (2026-09-10)
+
+Baseline: `060931b` (`Consolidate runtime provider lifecycle ownership`). The next
+architectural slice gives `Internal::ImageRegistrationState` ownership of the image
+registration records, each canonical asset's latest revision, and its dependent
+entity/role claims. The coordinator exposes only a const record view to admission,
+diagnostics and publication; insertion, retargeting, removal and session clearing
+maintain the index together. The five image roles share this authority. Cutout and
+mesh-height registration state and their independent revision counters are unchanged.
+
+An incoming image role looks up the latest snapshot by canonical snapshot asset ID.
+Publication visits the affected asset's claims rather than all registrations and all
+peer roles. Cache rebuilding and claim removal also visit only affected claims.
+Unchanged asset selections retain their existing claim links. Clearing the final
+claim erases revision history, and clearing the composition session erases both
+records and index state. Retained immutable query/image snapshots are unaffected.
+
+Equal-revision snapshots may have different statuses or data pointers. Incoming
+ties retain their own payloads. If an older incoming snapshot encounters conflicting
+ties, the owner falls back to the existing registration-map/role order to choose
+the first maximum. This preserves behavior across rehash and removal instead of
+introducing a new tie-break rule. Ordinary updates use the cached representative.
+All assigned claims finish an update at their asset's latest revision, while tied
+payloads can remain distinct. The coordinator retains admission, lease tombstones,
+dirty-bit classification, geometry preparation, diagnostics and publication.
+
+The existing shared scan and role metadata move from `Code/Source` to
+`Code/Include/TerrainCompositor/Internal/CompositionRegistrationState.h`, alongside
+the new owner, so the coordinator can hold it by value without changing public
+constructors or introducing a heap-owned implementation. The scan remains the
+production mesh algorithm and the comparison reference for image tests. Its existing
+implementation is unchanged. Moving it accounts for 95 lines changing categories;
+that movement is not counted as a net code reduction.
+
+Before replacement, **68 characterization cases passed** using the existing scan
+and original coordinator. These include 11 new state cases and two new coordinator
+cases for retargeting the last image role and reactivating the same component.
+The temporary test adapter delegated to the production scan and was removed when
+the fixture switched to the indexed owner; the characterization assertions remain.
+Three further tests exercise exact index membership during 1,000 mixed operations,
+equivalence to the production scan (including iteration order and dirty bits),
+conflicting ties across rehash/removal, and traversal cost with unrelated records.
+The mixed-operation test uses the Google Test shuffle seed for reproducible runs.
+
+The traversal check updates seven dependent claims with **32 and 2,048 unrelated
+registrations**. Both cases visit **14 claims** (seven during fan-out and seven
+during cache rebuilding), with **zero fallback registration visits**. These are
+instrumented logical visits, not elapsed-time benchmarks. Conflicting ties can still
+require full-map lookup, and repeated source revisions can require multiple passes
+over dependent claims. The index adds per-asset snapshot/claim storage; no memory
+reduction or end-to-end speedup is claimed.
+
+Public component declarations, reflection, UUIDs, serialized configuration and
+services are unchanged. An exact normalized comparison confirms the coordinator
+differs only in image-state access and mutation: query, preparation, publication,
+admission and retirement logic match the baseline. Its private C++ layout changes;
+consumers must rebuild. Shaders and engine patches are unchanged.
+
+Reproduce measurement with `python tools/MeasureLoc.py --revision 060931b --json`
+and `python tools/MeasureLoc.py --worktree --json`. Logs, XML, compatibility checks
+and measurements are under `D:/TG/TGProject/build/tc-image-index-session`.
+Verification uses the same generated VC projects/dependencies as the prior slices,
+with standalone sources and the maintained CMake lists. Fresh CMake generation and
+a live editor scene smoke test were not performed.
+
+All five targets built. All **71 focused registration/index cases passed**, including
+all 68 pre-replacement cases and the three additional index tests. The full runtime
+suite ran **239 cases: 236 passed and the same three known cutout-cache failures
+remained**. All 46 editor cases passed. No tests were removed or newly disabled;
+the existing disabled case remains. D3D11 matched 142,560 classifications, engine
+override generation/rejection checks passed, and `git diff --check` passed.
+
+The 100 shuffled runtime iterations ran 156 cases each: **15,300 passes and 300
+occurrences of the same known failures**, with each failure set matching baseline.
+The mixed-operation comparison covers 100,000 operations across shuffle seeds
+173-272. The shuffled editor run passed **4,600 cases** across those same 100 seeds.
+
+```powershell
+& "$bin/AzTestRunner.exe" "$bin/TerrainCompositor.Tests.dll" AzRunUnitTests '--gtest_filter=ImageRegistrationStateTests.*:*ImageRegistrationTests*:*CompositionRegistrationStateTests*:*TerrainRegistrationLifecycleTests*'
+& "$bin/AzTestRunner.exe" "$bin/TerrainCompositor.Tests.dll" AzRunUnitTests '--gtest_filter=*LifecycleTests*:*ImageRegistrationTests*:*CompositionRegistrationStateTests*:*PublicationFootprintsTests*:*TerrainHeightProviderNotificationsTests*:ImageRegistrationStateTests.*' --gtest_shuffle --gtest_random_seed=173 --gtest_repeat=100
+```
+
+| Repository category | Before `060931b` | After | Change |
+| --- | ---: | ---: | ---: |
+| Production C++ | 12,938 | 12,841 | -97 |
+| Include headers | 3,321 | 3,603 | +282 |
+| **First-party C++** | **16,259** | **16,444** | **+185** |
+| Tests, including file lists | 5,554 | 5,956 | +402 |
+| Shaders/assets | 966 | 966 | 0 |
+| Engine patches/overrides | 939 | 939 | 0 |
+| Build/tooling | 536 | 536 | 0 |
+| Documentation | 3,498 | 3,602 | +104 |
+| License/notice | 28 | 28 | 0 |
+| **Total repository text** | **27,780** | **28,471** | **+691** |
+
+This step deliberately adds **185 first-party C++ lines** to remove unrelated
+revision traversals and keep index lifetime under one owner. The coordinator itself
+shrinks by only two lines. Cumulative first-party C++ reduction is now **963 lines
+(5.53%)** from the initial extraction and **565 lines (3.32%)** from post-cleanup;
+the 50% goal remains unproven. The next ownership opportunity is the repeated
+admission/retirement and diagnostic lifecycle around the three typed registration
+stores. Cross-mesh revision authority still needs a source-generation contract;
+the three cutout-cache preparation failures remain a separate behavioral fix.
