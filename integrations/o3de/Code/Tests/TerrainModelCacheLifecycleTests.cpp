@@ -247,6 +247,52 @@ namespace TerrainCompositor
         EXPECT_EQ(this->Current().m_status, TypeParam::Status::Error);
     }
 
+    TYPED_TEST(TerrainModelCacheLifecycleTests, FailureBeforeQueuedReadyRetiresItAndLaterReloadRecovers)
+    {
+        this->Acquire();
+        this->SendFailure();
+        this->Drain();
+        EXPECT_EQ(this->Count(TypeParam::Status::Loading), 0);
+        EXPECT_EQ(this->Count(TypeParam::Prepared), 0);
+        EXPECT_EQ(this->Count(TypeParam::Status::Error), 1);
+        EXPECT_EQ(this->Current().m_status, TypeParam::Status::Error);
+        const auto failedRevision = this->Current().m_revision;
+
+        AZ::Data::AssetBus::Event(this->m_id, &AZ::Data::AssetEvents::OnAssetReloaded, this->m_model);
+        this->Drain();
+        EXPECT_EQ(this->Count(TypeParam::Status::Loading), 1);
+        EXPECT_EQ(this->Count(TypeParam::Prepared), 1);
+        EXPECT_EQ(this->Current().m_status, TypeParam::Prepared);
+        EXPECT_GT(this->Current().m_revision, failedRevision);
+    }
+
+    TYPED_TEST(TerrainModelCacheLifecycleTests, WorkerReloadFailureRetiresQueuedPreparationAndLaterReadyRecovers)
+    {
+        this->Acquire();
+        AZ::SystemTickBus::ExecuteQueuedEvents();
+        ASSERT_GT(AZ::SystemTickBus::QueuedEventCount(), 0);
+        this->m_events.clear();
+        AZStd::thread worker([this]
+        {
+            AZ::Data::AssetBus::Event(this->m_id, &AZ::Data::AssetEvents::OnAssetReloadError, this->m_model);
+        });
+        worker.join();
+        EXPECT_TRUE(this->m_events.empty());
+        EXPECT_EQ(this->Current().m_status, TypeParam::Status::Loading);
+        this->Drain();
+        EXPECT_EQ(this->Count(TypeParam::Prepared), 0);
+        EXPECT_EQ(this->Count(TypeParam::Status::Error), 1);
+        EXPECT_EQ(this->Current().m_status, TypeParam::Status::Error);
+        const auto failedRevision = this->Current().m_revision;
+
+        this->SendReady();
+        this->Drain();
+        EXPECT_EQ(this->Count(TypeParam::Status::Loading), 1);
+        EXPECT_EQ(this->Count(TypeParam::Prepared), 1);
+        EXPECT_EQ(this->Current().m_status, TypeParam::Prepared);
+        EXPECT_GT(this->Current().m_revision, failedRevision);
+    }
+
     TYPED_TEST(TerrainModelCacheLifecycleTests, PreReloadRetiresOldPreparationAndLaterReadyRecovers)
     {
         this->Acquire();

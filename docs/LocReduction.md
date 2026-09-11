@@ -754,3 +754,71 @@ The next behavioral slice can address the three characterized cutout preparation
 retirement failures separately. Broader geometry preparation and immutable
 publication ownership remain architectural candidates; cross-mesh revision
 canonicalization still requires a shared source-generation contract.
+
+## Cutout preparation retirement fix (2026-09-10)
+
+Baseline: `a2ca9b8` (`Remove obsolete lifecycle wrappers and scan suppressions`).
+This is the separate behavioral fix for the three previously reported cutout-cache
+failures. It changes only `TerrainMeshCutoutDataCache.cpp` in production.
+
+Each accepted cutout preparation now receives a ticket owned by its source. The
+control thread assigns it before publishing Loading, so subscriber reentrancy
+cannot make an older preparation current again. Completion must match both the
+source lifecycle generation and its latest preparation ticket, as well as the
+existing active-source and model-identity checks. Stale valid and invalid geometry
+results are discarded before assigning a revision or notifying subscribers.
+
+Load and reload failures now advance the atomic lifecycle generation immediately
+on the callback thread. Both previously queued ready callbacks and pending job
+completions become obsolete before the queued Error publication. Subscribers are
+still notified only on the control thread, and later ready/reload callbacks can
+prepare the model again. The fix adds one private 64-bit counter per cached source;
+it does not introduce shared revision authority between the two mesh caches.
+
+Added two typed regression definitions (four cases) for failure before a queued
+ready callback followed by reload recovery, and worker-thread reload failure after
+preparation followed by ready recovery. The deterministic fixture uses in-memory
+models and synchronous preparation with the real queued publication path; the
+reload-error case sends the asset event from a worker. Both new cutout cases failed
+before the fix, alongside the three original failures; all mesh-height cases passed.
+After replacement, all **26 cache lifecycle cases passed unchanged**.
+
+All five standalone-source targets built using the existing generated VC projects
+and installed dependencies. The full runtime suite passed **258/258 cases**, including
+all three former failures and the four added cases. The one previously disabled
+case remains disabled; no existing test was edited or removed. Editor passed
+**46/46 cases**. Across 100 shuffled seeds (173-272), runtime passed **17,500 cases**
+and editor passed **4,600 cases**, with zero failures in every iteration. D3D11
+hardware matched **142,560 classifications with zero mismatches**. Engine override
+generation/repetition/hash-rejection checks and `git diff --check` passed.
+Fresh CMake generation and a live Editor scene smoke test were not performed.
+
+Source comparison confirms unchanged geometry extraction/build algorithms,
+publication payloads, validation/status messages and revision assignment outside
+the new rejection guards. All public headers, reflected/serialized contracts, the
+mesh-height cache, shared model source, shaders and engine patches are unchanged.
+`TerrainMeshCutouts.md` now documents the failure/recovery contract.
+
+Measure with `python tools/MeasureLoc.py --revision a2ca9b8 --json` and
+`python tools/MeasureLoc.py --worktree --json`. Logs, before/after XML, source audits
+and per-file counts are under
+`D:/wzmono/terrain-compositor/build/cutout-retirement-session`.
+
+| Repository category | Before `a2ca9b8` | After | Change |
+| --- | ---: | ---: | ---: |
+| Production C++ | 12,698 | 12,704 | +6 |
+| Include headers | 3,763 | 3,763 | 0 |
+| **First-party C++** | **16,461** | **16,467** | **+6** |
+| Tests, including file lists | 6,063 | 6,109 | +46 |
+| Shaders/assets | 966 | 966 | 0 |
+| Engine patches/overrides | 939 | 939 | 0 |
+| Build/tooling | 537 | 537 | 0 |
+| Documentation | 3,770 | 3,844 | +74 |
+| License/notice | 28 | 28 | 0 |
+| **Total repository text** | **28,764** | **28,890** | **+126** |
+
+This behavioral fix adds six C++ lines. Cumulative first-party C++ reduction is
+**940 lines (5.40%)** from initial extraction and **542 lines (3.19%)** from
+post-cleanup. The 50% target and a safe reduction ceiling remain unproven. Geometry
+preparation and immutable publication ownership remain the next architectural
+candidates; cross-mesh revision authority still needs a source-generation contract.

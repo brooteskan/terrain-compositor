@@ -76,10 +76,12 @@ namespace TerrainCompositor
                 return;
             }
             m_model = model;
+            // Retire older preparations before Loading subscribers can reenter.
+            const AZ::u64 preparationTicket = ++m_latestPreparationTicket;
             Publish(TerrainMeshCutoutDataStatus::Loading);
             const auto weak = m_weakSelf;
             AZ::Job* job = AZ::CreateJobFunction(
-                [weak, generation, model]() mutable
+                [weak, generation, preparationTicket, model]() mutable
                 {
                     AZStd::vector<AZ::Vector3> positions;
                     AZStd::vector<AZ::u32> indices;
@@ -91,9 +93,10 @@ namespace TerrainCompositor
                         validation = BuildTerrainMeshCutoutData(positions, indices, *data);
                     }
                     AZ::SystemTickBus::QueueFunction(
-                        [weak, generation, model, data, validation]()
+                        [weak, generation, preparationTicket, model, data, validation]()
                         {
                             if (auto source = weak.lock(); source && source->m_active && source->m_generation == generation &&
+                                source->m_latestPreparationTicket == preparationTicket &&
                                 source->m_model.GetId() == model.GetId())
                             {
                                 if (validation == TerrainMeshCutoutValidation::Valid)
@@ -114,8 +117,11 @@ namespace TerrainCompositor
 
         void QueueFailure()
         {
-            QueueStatus(TerrainMeshCutoutDataStatus::Error, m_generation);
+            // Retire queued ready callbacks and completions before the control thread publishes the error.
+            QueueStatus(TerrainMeshCutoutDataStatus::Error, ++m_generation);
         }
+
+        AZ::u64 m_latestPreparationTicket = 0;
     };
 
     TerrainMeshCutoutDataCache::TerrainMeshCutoutDataCache()

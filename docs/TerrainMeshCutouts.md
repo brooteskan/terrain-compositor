@@ -4,6 +4,12 @@
 
 At runtime the component hides the same uniquely matched Atom Mesh instance whose transform places the cutout. This keeps an imported cutter visible and selectable while authoring without rendering it in play mode. Other hierarchy meshes remain visible because matching is by model asset ID; zero or multiple matches fail open with an actionable status.
 
+Model preparation is asynchronous. Only the latest accepted preparation in the
+current asset lifecycle may publish. A load or reload failure retires older ready
+callbacks and pending results so they cannot overwrite the error state. Subscribers
+receive changes on the control thread; a later ready or reload event can prepare
+the model again. Previously acquired immutable snapshots remain valid for their readers.
+
 ## Rendering contract
 
 The composition control thread publishes immutable, revisioned cutout snapshots partitioned by Atom scene. `TerrainMeshCutoutFeatureProcessor` flattens each changed snapshot into one set of read-only GPU buffers. No upload, allocation, mutable bus call, or GPU readback occurs on an unchanged revision.
