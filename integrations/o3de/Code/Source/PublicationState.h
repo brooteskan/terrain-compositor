@@ -15,6 +15,8 @@ namespace TerrainCompositor::Internal
         Bounds m_gapRendering;
         Bounds m_gapQueries;
 
+        PublicationFootprints() = default;
+
         template<class State>
         explicit PublicationFootprints(const State& state)
         {

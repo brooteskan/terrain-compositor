@@ -12,6 +12,7 @@
 #include <LmbrCentral/Shape/ShapeComponentBus.h>
 #include <TerrainCompositor/HeightmapControlThread.h>
 #include <TerrainCompositor/Internal/CompositionRegistrations.h>
+#include <TerrainCompositor/Internal/PreparedComposition.h>
 #include <TerrainCompositor/HeightmapStampSampling.h>
 #include <TerrainCompositor/SurfaceCompositionConfig.h>
 #include <TerrainCompositor/SurfaceStampSampling.h>
@@ -84,12 +85,7 @@ namespace TerrainCompositor
     private:
         friend class TerrainRenderGeometryBatchTests;
         template<class> friend class TerrainRegistrationLifecycleTests;
-        using PreparedHeightContributorList = AZStd::vector<PreparedHeightContributor>;
-        using PreparedSurfaceStampList = AZStd::vector<PreparedSurfaceStamp>;
-        using PreparedExistenceContributorList = AZStd::vector<PreparedTerrainExistenceContributor>;
-        using PreparedMeshHeightGapList = AZStd::vector<PreparedTerrainMeshHeightGap>;
-
-        struct QueryState
+        struct QueryState : Internal::PreparedComposition
         {
             TerrainCompositionAddress m_address;
             AZ::Uuid m_session{};
@@ -97,15 +93,6 @@ namespace TerrainCompositor
             AZ::EntityId m_ownerEntityId{};
             AZ::EntityId m_sourceEntityId{};
             AZ::EntityId m_regionEntityId{};
-            AZ::Aabb m_regionBounds = AZ::Aabb::CreateNull();
-            HeightmapRegionMapping m_regionMapping;
-            PreparedHeightContributorList m_heightContributors;
-            PreparedSurfacePalette m_surfacePalette;
-            PreparedSurfaceStampList m_surfaceStamps;
-            PreparedExistenceContributorList m_existenceContributors;
-            //! Includes render-only gaps so old ownership and render publication
-            //! remain correlated with this exact composition revision.
-            PreparedMeshHeightGapList m_meshHeightGaps;
             std::weak_ptr<TerrainMeshCutoutRenderChannel> m_renderChannel;
         };
         using QueryStatePtr = std::shared_ptr<const QueryState>;

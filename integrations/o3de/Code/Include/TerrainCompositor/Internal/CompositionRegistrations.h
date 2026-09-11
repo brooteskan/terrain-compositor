@@ -11,6 +11,29 @@ namespace TerrainCompositor::Internal
     enum class RegistrationAdmission { Reject, Replay, Apply };
     enum class RegistrationDiagnostic { Height, Surface, Existence, Cutout, MeshHeight, Count };
 
+    struct PreparedRegistrationDiagnostic
+    {
+        template<class Registration>
+        PreparedRegistrationDiagnostic(RegistrationDiagnostic channel, AZ::EntityId id, const Registration& registration,
+            AZStd::string reason, const char* format)
+            : m_channel(channel), m_entityId(id), m_format(format)
+        {
+            if (registration.m_configuration.GetRuntimeOrderKey().empty() && !registration.m_identityPending)
+            {
+                if constexpr (requires { registration.m_heightmap; })
+                    reason = "Ordering identity is unresolved/invalid. Resolve prefab aliases, or assign and persist a unique runtime key.";
+                else
+                    reason = "Ordering identity is unresolved/invalid. Resolve prefab aliases or assign a unique runtime key.";
+            }
+            m_reason = AZStd::move(reason);
+        }
+
+        RegistrationDiagnostic m_channel;
+        AZ::EntityId m_entityId;
+        AZStd::string m_reason;
+        const char* m_format;
+    };
+
     // Control-thread registration state. Query workers retain separate immutable publications.
     class CompositionRegistrations
     {
@@ -82,17 +105,9 @@ namespace TerrainCompositor::Internal
             return true;
         }
 
-        template<class Registration>
-        void RecordDiagnostic(RegistrationDiagnostic channel, AZ::EntityId id, const Registration& registration,
-            AZStd::string reason, const char* format, AZStd::vector<AZStd::string>& pending)
+        void RecordDiagnostic(PreparedRegistrationDiagnostic diagnostic, AZStd::vector<AZStd::string>& pending)
         {
-            if (registration.m_configuration.GetRuntimeOrderKey().empty() && !registration.m_identityPending)
-            {
-                if constexpr (requires { registration.m_heightmap; })
-                    reason = "Ordering identity is unresolved/invalid. Resolve prefab aliases, or assign and persist a unique runtime key.";
-                else
-                    reason = "Ordering identity is unresolved/invalid. Resolve prefab aliases or assign a unique runtime key.";
-            }
+            auto& [channel, id, reason, format] = diagnostic;
             auto& history = m_diagnostics[static_cast<size_t>(channel)];
             const auto prior = history.find(id);
             if (prior == history.end() || prior->second != reason)

@@ -822,3 +822,123 @@ This behavioral fix adds six C++ lines. Cumulative first-party C++ reduction is
 post-cleanup. The 50% target and a safe reduction ceiling remain unproven. Geometry
 preparation and immutable publication ownership remain the next architectural
 candidates; cross-mesh revision authority still needs a source-generation contract.
+
+## Composition preparation and publication ownership (2026-09-10)
+
+Baseline: `84fcafd` (`Retire stale cutout preparations on replacement and failure`).
+This bounded slice separates deterministic candidate preparation from the
+coordinator's bus access, diagnostic history, reconstruction cache and publication.
+
+`PrepareComposition` reads admitted registrations and explicit configuration,
+region, session, grid-spacing and non-uniform-scale inputs. Its value-owned result
+contains the prepared query geometry, render cutouts, candidate footprints,
+ordering collisions and normalized registration diagnostics. It calls no buses,
+interfaces, caches or publishers, and does not mutate registrations or history.
+`PreparedComposition` supplies the geometry fields of the private query state;
+moving those fields into a replacement does not copy contributor lists. These
+three new files total **286 lines**, all included in the measurements below.
+
+The coordinator captures environment inputs, consumes diagnostics through the
+existing registry history, attaches cached reconstruction, handles unavailable or
+rejecting render publication, and atomically exchanges immutable query ownership.
+All invalidation/exchange code from old-footprint derivation onward is unchanged.
+Render rejection still retains the previous CPU pointer and pending dirty work.
+Diagnostic recovery/removal history and palette/collision/role warning order are
+preserved, including collision claim traversal order independently of blend order.
+
+Role geometry remains explicit: image height and surface contributions require
+positive strength, while image masks do not; zero-strength mesh stamps may retain
+gaps; cutout render geometry is copied before collision-cell padding; mesh gaps
+retain distinct logical/render and conservative query bounds. Candidate footprints
+are still collected before sorting, and previous footprints from the sorted
+publication. Those traversals intentionally retain different first-claim behavior.
+
+Actual bookkeeping changes and costs:
+
+- One captured non-uniform-scale probe per image registration replaces three bus
+  probes. This introduces an image-input traversal and a temporary set; accepted
+  height contributors are traversed afterward to attach reconstruction.
+- Geometry preparation emits diagnostic values; one coordinator loop now updates
+  the registry's five history channels. This adds a temporary diagnostic vector
+  and its consumption traversal instead of mutating history inside role loops.
+- Collision suppression reads the already-built claim map. Ordered collision
+  values preserve diagnostic order before rebuilding the coordinator's history.
+- Missing-registry fallback filters the owned gap and existence lists directly.
+  The duplicate gap vector, suppressed-entity set, preliminary `any_of` and separate
+  suppression-collection pass are removed. With a registry, its by-value Publish
+  argument still copies the gap list once. Without one, both lists are filtered
+  even when no coupled gap is present; no end-to-end speedup is claimed.
+- Scene-channel acquisition and render publication share one scene lookup.
+
+This is an ownership separation with **79 additional first-party C++ lines**, not
+a LOC reduction. New candidate diagnostic/collision data and input capture have
+temporary allocation/traversal costs; no overall memory improvement is claimed.
+The three role preparation loops and old/new footprint traversals remain.
+
+| Focused C++ scope | Before | After | Change |
+| --- | ---: | ---: | ---: |
+| Coordinator implementation | 1,851 | 1,640 | -211 |
+| Coordinator header | 241 | 228 | -13 |
+| Registration owner header | 172 | 187 | +15 |
+| Publication footprint helper | 46 | 48 | +2 |
+| New preparation implementation, declaration and geometry header | 0 | 286 | +286 |
+| **Complete focused scope** | **2,310** | **2,389** | **+79** |
+
+`PublishStamps()` itself changes from **397 to 211 physical lines**, counting its
+signature, braces, blanks and comments, but excluding the following separator.
+The coordinator's other 25 removed lines are the cutout data diagnostic helper
+retained verbatim in preparation. Function-size reduction alone overstates savings.
+
+Added six tests / 213 lines. Three characterization cases passed against the
+original production implementation: render rejection/retry with retained dirty
+work, reconstruction reuse/retention, and invalid cross-role ordering collisions
+with warning recovery. Three more exercise deterministic preparation with captured
+scale and no publication/history effects, image zero-strength role differences,
+cutout render versus padded collision coverage, and zero-strength mixed render/query
+gaps with missing-registry suppression and subsequent publication recovery.
+
+All five standalone-source targets built. Runtime passed **264/264 cases**, editor
+**46/46**; the one previously disabled runtime test remains. All existing test names
+are retained. Across 100 shuffled seeds (173-272), runtime passed **19,000 cases**
+and editor **4,600**, with zero failures in every iteration. Runtime shuffle uses
+the documented lifecycle/state filter plus image-index, publication-footprint,
+retained-render and preparation suites. D3D11 hardware matched **142,560 boundary
+classifications with zero mismatches**. Engine override generation, repetition and
+both hash-rejection checks passed, as did `git diff --check`.
+
+Source audits verify unchanged public component/configuration declarations,
+reflection/serialization, coordinator code outside the extraction boundary, stream
+sorting, diagnostic normalization/history and the complete invalidation/exchange
+suffix. The private query record now derives its geometry fields from an internal
+value type; its C++ layout changes and consumers must rebuild. Component UUIDs,
+serialized layouts, shaders, engine patches and public component methods are intact.
+
+Builds reuse the generated VC projects and installed dependencies described above,
+with regeneration disabled. The generated static unity input includes the new
+preparation source directly from this checkout; the maintained CMake list includes
+all three new files. No sources were copied into TG. Fresh CMake generation and a
+live Editor scene smoke test were not performed. Logs, XML, audits and per-file
+measurements are under `build/composition-preparation-session` (ignored).
+
+Reproduce measurements with `python tools/MeasureLoc.py --revision 84fcafd --json`
+and `python tools/MeasureLoc.py --worktree --json`. Scope includes every helper,
+test, maintained build input and this report; ignored build output is excluded.
+
+| Repository category | Before `84fcafd` | After | Change |
+| --- | ---: | ---: | ---: |
+| Production C++ | 12,704 | 12,760 | +56 |
+| Include headers | 3,763 | 3,786 | +23 |
+| **First-party C++** | **16,467** | **16,546** | **+79** |
+| Tests, including file lists | 6,109 | 6,322 | +213 |
+| Shaders/assets | 966 | 966 | 0 |
+| Engine patches/overrides | 939 | 939 | 0 |
+| Build/tooling | 537 | 540 | +3 |
+| Documentation | 3,844 | 3,964 | +120 |
+| License/notice | 28 | 28 | 0 |
+| **Total repository text** | **28,890** | **29,305** | **+415** |
+
+Cumulative first-party C++ reduction is **861 lines (4.95%)** from initial extraction
+and **463 lines (2.72%)** from post-cleanup. The 50% target and safe reduction ceiling
+remain unproven. Invalidation planning is a possible later boundary; extracting it
+should preserve old/new region contexts and first-claim behavior. Cross-mesh revision
+authority still requires the separately deferred source-generation contract.

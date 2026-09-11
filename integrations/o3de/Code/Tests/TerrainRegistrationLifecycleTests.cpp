@@ -11,6 +11,7 @@
 #include <TerrainCompositor/TerrainMeshCutoutRegistration.h>
 #include <TerrainCompositor/TerrainMeshHeightStampRegistration.h>
 #include "TerrainTestFixtures.h"
+#include "CompositionPreparation.h"
 #include <type_traits>
 
 namespace TerrainCompositor
@@ -178,6 +179,12 @@ namespace TerrainCompositor
         void Republish() { m_composition->PublishStamps(); }
         AZ::u64 PublishedRevision() const { return m_composition->GetQueryState()->m_revision; }
         auto& DirtyStamps() { return m_composition->m_dirtyStamps; }
+        auto QueryState() const { return m_composition->GetQueryState(); }
+        auto Prepare(float gridSpacing = 0.0f, const AZStd::unordered_set<AZ::EntityId>& nonUniformScale = {}) const
+        {
+            return Internal::PrepareComposition(m_composition->m_registrations, m_configuration,
+                AZ::Aabb::CreateFromMinMaxValues(-100, -100, 0, 100, 100, 100), Session(), gridSpacing, nonUniformScale);
+        }
 
         static AZStd::vector<Record> RecordsAt(const TerrainCompositionAddress& address)
         {
@@ -789,6 +796,212 @@ namespace TerrainCompositor
         EXPECT_FLOAT_EQ(Sample(), 0.25f);
         Unregister(second);
         EXPECT_FLOAT_EQ(Sample(), 0.8f);
+    }
+
+    TEST_F(TerrainImageRegistrationTests, RejectedRenderPublicationRetainsQueryAndDirtyWorkUntilRetry)
+    {
+        ASSERT_EQ(AZ::Interface<TerrainMeshCutoutRenderRegistry>::Get(), nullptr);
+        TerrainMeshCutoutRenderRegistry registry;
+        auto record = ContributingImage(m_stamp, 0.8f);
+        ASSERT_TRUE(Register(record));
+        const auto retained = QueryState();
+        FootprintChanges().clear();
+        Diagnostics().clear();
+        ASSERT_TRUE(registry.Publish(nullptr, Session(), {}, {}, retained->m_revision + 100));
+        record.m_worldTransform.SetTranslation(AZ::Vector3(30.0f, 0.0f, 0.0f));
+        ++record.m_updateRevision;
+        ASSERT_TRUE(Register(record));
+        EXPECT_EQ(QueryState(), retained);
+        EXPECT_TRUE(FootprintChanges().empty());
+        EXPECT_TRUE(DirtyStamps().contains(m_stamp));
+        ASSERT_EQ(Diagnostics().size(), 1);
+        EXPECT_NE(Diagnostics()[0].find("render publication rejected stale generation"), AZStd::string::npos);
+        registry.Remove(Session());
+        Republish();
+        EXPECT_NE(QueryState(), retained);
+        EXPECT_TRUE(DirtyStamps().empty());
+        ASSERT_EQ(FootprintChanges().size(), 1);
+        EXPECT_EQ(FootprintChanges()[0].m_previousBounds, retained->m_heightContributors[0].GetWorldBounds());
+        EXPECT_NE(FootprintChanges()[0].m_currentBounds, FootprintChanges()[0].m_previousBounds);
+    }
+
+    TEST_F(TerrainImageRegistrationTests, ReconstructionIsReusedAndRetainedAcrossConfigurationChanges)
+    {
+        auto record = ContributingImage(m_stamp, 0.8f);
+        record.m_configuration.m_samplingMode = HeightmapSamplingMode::SmoothCubic;
+        record.m_configuration.m_reconstructionRadius = 2.0f;
+        ASSERT_TRUE(Register(record));
+        const auto retained = QueryState();
+        const auto reconstruction = retained->m_heightContributors[0].m_image.m_reconstruction;
+        ASSERT_TRUE(reconstruction);
+        Republish();
+        EXPECT_EQ(QueryState()->m_heightContributors[0].m_image.m_reconstruction, reconstruction);
+        record.m_configuration.m_samplingMode = HeightmapSamplingMode::Bilinear;
+        ++record.m_updateRevision;
+        ASSERT_TRUE(Register(record));
+        EXPECT_FALSE(QueryState()->m_heightContributors[0].m_image.m_reconstruction);
+        EXPECT_EQ(retained->m_heightContributors[0].m_image.m_reconstruction, reconstruction);
+        EXPECT_FLOAT_EQ(reconstruction->m_samples[0], 0.8f);
+    }
+
+    TEST_F(TerrainImageRegistrationTests, InvalidMeshClaimSuppressesImageAndCollisionWarningRecoversAfterRemoval)
+    {
+        const auto image = ContributingImage(m_stamp, 0.8f);
+        ASSERT_TRUE(Register(image));
+        TerrainMeshCutoutRegistrationData cutout;
+        cutout.m_cutoutEntityId = m_peer;
+        cutout.m_contextId = m_address.first;
+        cutout.m_compositionSession = Session();
+        cutout.m_registrationId = AZ::Uuid::CreateRandom();
+        cutout.m_updateRevision = 1;
+        cutout.m_configuration.m_targetCompositionEntityId = m_owner;
+        cutout.m_configuration.m_orderingId = image.m_configuration.m_orderingId;
+        const auto publish = [&]
+        {
+            bool accepted = false;
+            TerrainCompositionRequestBus::EventResult(accepted, m_address, &TerrainCompositionRequests::RegisterMeshCutout, cutout);
+            EXPECT_TRUE(accepted);
+        };
+        Diagnostics().clear();
+        publish();
+        EXPECT_FLOAT_EQ(Sample(), 0.25f);
+        const auto warnings = Diagnostics();
+        ASSERT_EQ(warnings.size(), 2);
+        EXPECT_NE(warnings[0].find("ALL claimants suppressed"), AZStd::string::npos);
+        Diagnostics().clear();
+        Republish();
+        EXPECT_TRUE(Diagnostics().empty());
+        TerrainCompositionRequestBus::Event(m_address, &TerrainCompositionRequests::UnregisterMeshCutout,
+            m_peer, cutout.m_registrationId, Session());
+        EXPECT_FLOAT_EQ(Sample(), 0.8f);
+        cutout.m_registrationId = AZ::Uuid::CreateRandom();
+        publish();
+        EXPECT_EQ(Diagnostics(), warnings);
+    }
+
+    TEST_F(TerrainImageRegistrationTests, PreparationUsesCapturedScaleAndLeavesPublicationAndDiagnosticsUntouched)
+    {
+        auto record = ContributingImage(m_stamp, 0.8f);
+        auto surface = AZStd::make_shared<HeightmapData>(TestSupport::MakeImage(1, 1, { 0.0f }));
+        surface->m_rawSamples = { 0 };
+        surface->m_assetId = { AZ::Uuid::CreateRandom(), 1 };
+        record.m_surfaceIdA = { HeightmapDataStatus::Ready, 1, surface, surface->m_assetId };
+        record.m_configuration.m_surfaceMaps.m_surfaceIdAAsset = AZ::Data::Asset<AZ::RPI::StreamingImageAsset>(
+            surface->m_assetId, azrtti_typeid<AZ::RPI::StreamingImageAsset>());
+        record.m_holeMask = record.m_heightmap;
+        record.m_configuration.m_holeMask.m_maskAsset = AZ::Data::Asset<AZ::RPI::StreamingImageAsset>(
+            record.m_heightmap.m_assetId, azrtti_typeid<AZ::RPI::StreamingImageAsset>());
+        record.m_configuration.m_samplingMode = HeightmapSamplingMode::SmoothCubic;
+        record.m_configuration.m_reconstructionRadius = 2.0f;
+        ASSERT_TRUE(Register(record));
+        const auto published = QueryState();
+        const auto diagnostics = Diagnostics();
+        const auto dirty = DirtyStamps();
+        const auto ready = Prepare();
+        ASSERT_EQ(ready.m_query.m_heightContributors.size(), 1);
+        EXPECT_EQ(ready.m_query.m_surfaceStamps.size(), 1);
+        EXPECT_EQ(ready.m_query.m_existenceContributors.size(), 1);
+        EXPECT_FALSE(ready.m_query.m_heightContributors[0].m_image.m_reconstruction);
+        const auto invalid = Prepare(0.0f, { m_stamp });
+        EXPECT_TRUE(invalid.m_query.m_heightContributors.empty());
+        EXPECT_TRUE(invalid.m_query.m_surfaceStamps.empty());
+        EXPECT_TRUE(invalid.m_query.m_existenceContributors.empty());
+        ASSERT_EQ(invalid.m_diagnostics.size(), 3);
+        for (const auto& diagnostic : invalid.m_diagnostics)
+            EXPECT_EQ(diagnostic.m_reason, GetHeightmapStampValidationMessage(HeightmapStampValidation::NonUniformScale));
+        EXPECT_EQ(QueryState(), published);
+        EXPECT_EQ(Diagnostics(), diagnostics);
+        EXPECT_EQ(DirtyStamps(), dirty);
+        EXPECT_EQ(Prepare().m_footprints.m_height, ready.m_footprints.m_height);
+        EXPECT_FLOAT_EQ(record.m_heightmap.m_data->m_samples[0], 0.8f);
+        record.m_configuration.m_strength = 0.0f;
+        ++record.m_updateRevision;
+        ASSERT_TRUE(Register(record));
+        const auto zeroStrength = Prepare();
+        EXPECT_TRUE(zeroStrength.m_query.m_heightContributors.empty());
+        EXPECT_TRUE(zeroStrength.m_query.m_surfaceStamps.empty());
+        EXPECT_EQ(zeroStrength.m_query.m_existenceContributors.size(), 1);
+    }
+
+    using TerrainCutoutPreparationTests = TerrainRegistrationLifecycleTests<RegistrationTestSupport::Cutout>;
+
+    TEST_F(TerrainCutoutPreparationTests, PreparationKeepsRenderMarginsSeparateFromPaddedCollisionCoverage)
+    {
+        auto record = MakeRecord(m_stamp);
+        const AZStd::vector<AZ::Vector3> vertices{ { -1, -1, -1 }, { 1, -1, -1 }, { 1, 1, -1 }, { -1, 1, -1 },
+            { -1, -1, 1 }, { 1, -1, 1 }, { 1, 1, 1 }, { -1, 1, 1 } };
+        const AZStd::vector<AZ::u32> indices{ 0, 2, 1, 0, 3, 2, 4, 5, 6, 4, 6, 7, 0, 1, 5, 0, 5, 4,
+            3, 7, 6, 3, 6, 2, 0, 4, 7, 0, 7, 3, 1, 2, 6, 1, 6, 5 };
+        auto data = AZStd::make_shared<TerrainMeshCutoutData>();
+        ASSERT_EQ(BuildTerrainMeshCutoutData(vertices, indices, *data), TerrainMeshCutoutValidation::Valid);
+        record.m_mesh.m_status = TerrainMeshCutoutDataStatus::Ready;
+        record.m_mesh.m_data = data;
+        record.m_configuration.m_renderMargin = 0.1f;
+        record.m_configuration.m_collisionMargin = 0.2f;
+        ASSERT_TRUE(Register(record));
+        const auto prepared = Prepare(2.0f);
+        const auto unpadded = Prepare();
+        ASSERT_EQ(prepared.m_renderCutouts.size(), 1);
+        ASSERT_EQ(prepared.m_query.m_existenceContributors.size(), 1);
+        EXPECT_EQ(prepared.m_renderCutouts[0].m_collisionWorldBounds, unpadded.m_renderCutouts[0].m_collisionWorldBounds);
+        EXPECT_NE(prepared.m_footprints.m_cutouts.at(m_stamp), unpadded.m_footprints.m_cutouts.at(m_stamp));
+        EXPECT_EQ(prepared.m_footprints.m_existence.at(m_stamp), prepared.m_footprints.m_cutouts.at(m_stamp));
+        EXPECT_TRUE(prepared.m_query.m_heightContributors.empty());
+        EXPECT_EQ(data->m_localBounds, AZ::Aabb::CreateFromMinMaxValues(-1, -1, -1, 1, 1, 1));
+    }
+
+    using TerrainMeshPreparationTests = TerrainRegistrationLifecycleTests<RegistrationTestSupport::MeshHeight>;
+
+    TEST_F(TerrainMeshPreparationTests, ZeroStrengthGapsKeepRoleCoverageAndMissingRegistrySuppressesOnlyCoupledGaps)
+    {
+        ASSERT_EQ(AZ::Interface<TerrainMeshCutoutRenderRegistry>::Get(), nullptr);
+        auto record = MakeRecord(m_stamp);
+        AZStd::vector<AZ::Vector3> vertices;
+        AZStd::vector<AZ::u32> indices;
+        for (AZ::u32 y = 0; y < 4; ++y)
+            for (AZ::u32 x = 0; x < 4; ++x)
+                vertices.emplace_back(float(x), float(y), 2.0f);
+        for (AZ::u32 y = 0; y < 3; ++y)
+            for (AZ::u32 x = 0; x < 3; ++x)
+            {
+                if (x == 1 && y == 1)
+                    continue;
+                const AZ::u32 a = y * 4 + x;
+                indices.insert(indices.end(), { a, a + 1, a + 5, a, a + 5, a + 4 });
+            }
+        auto data = AZStd::make_shared<TerrainMeshHeightData>();
+        ASSERT_EQ(BuildTerrainMeshHeightData(vertices, indices, *data), TerrainMeshHeightValidation::Valid);
+        record.m_mesh.m_status = TerrainMeshHeightDataStatus::Ready;
+        record.m_mesh.m_data = data;
+        record.m_configuration.m_featherWidth = 0.0f;
+        record.m_configuration.m_strength = 0.0f;
+        record.m_configuration.m_uncoveredAreaPolicy = TerrainMeshHeightUncoveredAreaPolicy::CutOutTerrain;
+        ASSERT_TRUE(Register(record));
+        const auto candidate = Prepare(2.0f);
+        ASSERT_EQ(candidate.m_query.m_meshHeightGaps.size(), 1);
+        EXPECT_TRUE(candidate.m_query.m_heightContributors.empty());
+        EXPECT_EQ(candidate.m_query.m_existenceContributors.size(), 1);
+        EXPECT_EQ(candidate.m_query.m_meshHeightGaps[0].m_compositionSession, Session());
+        EXPECT_NE(candidate.m_footprints.m_gapRendering.at(m_stamp), candidate.m_footprints.m_gapQueries.at(m_stamp));
+        EXPECT_TRUE(QueryState()->m_meshHeightGaps.empty());
+        EXPECT_TRUE(QueryState()->m_existenceContributors.empty());
+        auto queryOnly = record;
+        queryOnly.m_stampEntityId = m_peer;
+        queryOnly.m_registrationId = AZ::Uuid::CreateRandom();
+        queryOnly.m_configuration.AssignNewPersistentOrderingIdentity();
+        queryOnly.m_configuration.m_affectTerrainRendering = false;
+        ASSERT_TRUE(Register(queryOnly));
+        ASSERT_EQ(QueryState()->m_meshHeightGaps.size(), 1);
+        EXPECT_EQ(QueryState()->m_meshHeightGaps[0].m_entityId, m_peer);
+        EXPECT_EQ(QueryState()->m_existenceContributors.size(), 1);
+        const auto retained = QueryState();
+        TerrainMeshCutoutRenderRegistry registry;
+        Republish();
+        EXPECT_EQ(QueryState()->m_meshHeightGaps.size(), 2);
+        EXPECT_EQ(QueryState()->m_existenceContributors.size(), 2);
+        EXPECT_EQ(retained->m_meshHeightGaps.size(), 1);
+        const auto render = registry.AcquireSceneChannel(nullptr)->m_snapshot.load();
+        EXPECT_EQ(render->m_meshHeightGaps.size(), 2);
     }
 
     TEST_F(TerrainImageRegistrationTests, SharedImageFailureRemovesAllContributionsAndReadyRevisionRestoresThem)
