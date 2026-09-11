@@ -1,7 +1,6 @@
 #pragma once
 
-#include <AzCore/Component/TickBus.h>
-#include <AzCore/std/smart_ptr/unique_ptr.h>
+#include "EditorPreviewStatus.h"
 #include <AzFramework/Entity/EntityDebugDisplayBus.h>
 #include <AzToolsFramework/ToolsComponents/EditorComponentBase.h>
 #include <TerrainCompositor/Components/HeightmapStampComponent.h>
@@ -12,7 +11,6 @@ namespace TerrainCompositor
     class EditorHeightmapStampComponent final
         : public AzToolsFramework::Components::EditorComponentBase
         , private AzFramework::EntityDebugDisplayEventBus::Handler
-        , private AZ::TickBus::Handler
     {
     public:
         using BaseClass = AzToolsFramework::Components::EditorComponentBase;
@@ -38,15 +36,13 @@ namespace TerrainCompositor
         void SetExportOrderKey(const AZStd::string& key);
 
     private:
+        template<class> friend class TerrainEditorPreviewLifecycleTests;
         AZ::u32 OnConfigurationChanged();
-        AZStd::string GetStatusText() const { return m_status; }
-        void OnTick(float deltaTime, AZ::ScriptTimePoint time) override;
+        AZStd::string GetStatusText() const { return m_preview.GetStatus(); }
         void DisplayEntityViewport(const AzFramework::ViewportInfo& viewportInfo,
             AzFramework::DebugDisplayRequests& debugDisplay) override;
 
         HeightmapStampConfig m_configuration;
-        AZStd::unique_ptr<HeightmapStampComponent> m_preview;
-        AZStd::string m_status = "Inactive: no stamp contribution.";
-        float m_statusElapsed = 0.0f;
+        EditorPreview<HeightmapStampComponent> m_preview{ *this, "Inactive: no stamp contribution." };
     };
 } // namespace TerrainCompositor

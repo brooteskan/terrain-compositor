@@ -312,3 +312,75 @@ Next: consolidate editor/provider lifecycle ownership where measurement supports
 a net reduction. The historical asset-index proposal above remains deferred until
 it demonstrates net code reduction or a separate traversal-performance benefit.
 Keep the three known cutout preparation-retirement failures in a focused fix.
+
+## Editor preview lifecycle consolidation (2026-09-10)
+
+Baseline: `6ed0b2e`. The initial estimate was 25-50 net C++ lines for the three
+stamp editors. Inspection found that the existing status helper also serves the
+composition, height-provider and surface-provider editors. Including all six
+allows the helper to become the single owner of runtime previews, cached status,
+the polling clock and tick subscriptions. The complete reduction is **52 lines**.
+
+| Scope | Before | After | Change |
+| --- | ---: | ---: | ---: |
+| Six editor implementations | 1,172 | 1,114 | -58 |
+| Six editor headers, including test friends | 288 | 267 | -21 |
+| Shared preview helper | 66 | 93 | +27 |
+| **Complete changed C++ scope** | **1,526** | **1,474** | **-52** |
+| All production C++ | 13,106 | 13,054 | -52 |
+| All include headers | 3,214 | 3,214 | 0 |
+| **First-party C++** | **16,320** | **16,268** | **-52 (0.32%)** |
+| Tests, including the new file list | 4,615 | 5,037 | +422 |
+| Build/tooling | 525 | 535 | +10 |
+| Documentation | 3,328 | 3,400 | +72 |
+| **Total repository text** | **26,721** | **27,173** | **+452** |
+
+`EditorPreviewStatus.h` now defines `EditorPreview`, replacing its free functions.
+The owner creates the runtime component during activation, refreshes it in place,
+polls selected entities every 0.25 seconds and releases both the tick subscription
+and runtime preview on teardown. A preparation callback keeps composition quality
+baseline capture before runtime activation. The editor adapters retain serialized
+configuration, reflection, service declarations, export rules and viewport drawing.
+
+All **46 characterization cases passed against the original code** and the same
+46 passed after replacement. Coverage includes worker-thread construction/config
+loading without preview creation, selected-only polling and exact refresh timing,
+change-only property notifications, immediate configuration refresh, repeated
+teardown, reactivation, queued ticks after destruction, inactive status restoration,
+runtime export, baked identity guards, and composition quality baseline restoration.
+
+Public declaration blocks, reflection, services, configuration read/write, export
+and underlying-type methods match the baseline. Viewport drawing matches after
+substituting the cached-status accessor. Component UUIDs and serialized fields and
+versions are unchanged. Private editor layouts changed; editor consumers must
+rebuild. Runtime sources, include headers, shaders and engine overrides are unchanged.
+
+All five targets built: `TerrainCompositor.Static`, `TerrainCompositor`,
+`TerrainCompositor.Editor`, `TerrainCompositor.Tests`, and the new
+`TerrainCompositor.Editor.Tests`. Editor shuffled verification passed **4,600 cases**
+over 100 iterations, seeds 173-272. Runtime verification ran **189 cases: 186 passed
+and the same three known cutout-cache cases failed**; the existing disabled case
+remains. Its 100 shuffled iterations ran 106 cases each: 10,300 passes and 300
+occurrences of those same failures. Failure sets match baseline and every iteration.
+D3D11 matched all 142,560 classifications. Engine override checks and
+`git diff --check` passed. No live editor scene smoke test was performed.
+
+Records are in `D:/TG/TGProject/build/tc-editor-preview-session`, including baseline
+and final XML, shuffled logs, compatibility checks and per-file LOC reports.
+The new host-tools test target compiles the six actual editor implementations.
+Verification reused generated VC projects as described above; its test project
+uses the existing editor/test SDK and dependency settings and references standalone
+sources directly. Fresh CMake generation was not rerun against TG's submodule path;
+a fresh consumer must select this standalone Gem checkout.
+
+```powershell
+python tools/MeasureLoc.py --revision 6ed0b2e --json
+python tools/MeasureLoc.py --worktree --json
+& "$bin/AzTestRunner.exe" "$bin/TerrainCompositor.Editor.Tests.dll" AzRunUnitTests
+& "$bin/AzTestRunner.exe" "$bin/TerrainCompositor.Editor.Tests.dll" AzRunUnitTests --gtest_shuffle --gtest_random_seed=173 --gtest_repeat=100
+```
+
+First-party C++ is now 1,139 lines (6.54%) below the initial extraction and 741
+lines (4.36%) below post-cleanup. Tests and documentation increase total repository
+text. This slice consolidates editor preview ownership; runtime provider lifecycle
+consolidation remains a separate candidate that needs its own net-LOC estimate.

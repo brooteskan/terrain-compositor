@@ -1,6 +1,5 @@
 #include "EditorTerrainMeshHeightStampComponent.h"
 #include "../ComponentConfiguration.h"
-#include "EditorPreviewStatus.h"
 
 #include <AzCore/Math/Color.h>
 #include <AzCore/Serialization/EditContext.h>
@@ -60,18 +59,14 @@ namespace TerrainCompositor
     void EditorTerrainMeshHeightStampComponent::Activate()
     {
         BaseClass::Activate();
-        m_preview = AZStd::make_unique<TerrainMeshHeightStampComponent>(m_configuration);
-        ActivateEditorPreview(*m_preview, GetEntityId(), m_status, m_statusElapsed);
+        m_preview.Activate(m_configuration);
         AzFramework::EntityDebugDisplayEventBus::Handler::BusConnect(GetEntityId());
-        AZ::TickBus::Handler::BusConnect();
     }
 
     void EditorTerrainMeshHeightStampComponent::Deactivate()
     {
-        AZ::TickBus::Handler::BusDisconnect();
         AzFramework::EntityDebugDisplayEventBus::Handler::BusDisconnect();
-        StopEditorPreview(m_preview, GetEntityId());
-        m_status = "Inactive: no terrain mesh height contribution.";
+        m_preview.Deactivate();
         BaseClass::Deactivate();
     }
 
@@ -116,13 +111,8 @@ namespace TerrainCompositor
 
     AZ::u32 EditorTerrainMeshHeightStampComponent::OnConfigurationChanged()
     {
-        RefreshEditorPreview(m_preview.get(), m_configuration, m_status);
+        m_preview.Refresh(m_configuration);
         return AZ::Edit::PropertyRefreshLevels::AttributesAndValues;
-    }
-
-    void EditorTerrainMeshHeightStampComponent::OnTick(float deltaTime, [[maybe_unused]] AZ::ScriptTimePoint time)
-    {
-        PollEditorPreviewStatus(*this, m_preview.get(), deltaTime, m_statusElapsed, m_status);
     }
 
     void EditorTerrainMeshHeightStampComponent::DisplayEntityViewport(
@@ -175,7 +165,7 @@ namespace TerrainCompositor
                 TerrainMeshHeightStampPlacementValidation::Valid ||
             !prepared.m_data)
         {
-            display.DrawTextLabel(registration.m_worldTransform.GetTranslation(), 1.0f, m_status.c_str());
+            display.DrawTextLabel(registration.m_worldTransform.GetTranslation(), 1.0f, m_preview.GetStatus().c_str());
             return;
         }
 

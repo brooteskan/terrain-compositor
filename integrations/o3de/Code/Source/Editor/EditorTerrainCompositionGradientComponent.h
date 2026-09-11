@@ -1,6 +1,6 @@
 #pragma once
 
-#include <AzCore/std/smart_ptr/unique_ptr.h>
+#include "EditorPreviewStatus.h"
 #include <AzToolsFramework/ToolsComponents/EditorComponentBase.h>
 #include <AzFramework/Entity/EntityDebugDisplayBus.h>
 #include <TerrainCompositor/Components/TerrainCompositionGradientComponent.h>
@@ -10,7 +10,6 @@ namespace TerrainCompositor
     class EditorTerrainCompositionGradientComponent final
         : public AzToolsFramework::Components::EditorComponentBase
         , private AzFramework::EntityDebugDisplayEventBus::Handler
-        , private AZ::TickBus::Handler
     {
     public:
         using BaseClass = AzToolsFramework::Components::EditorComponentBase;
@@ -32,15 +31,13 @@ namespace TerrainCompositor
         /* jscpd:ignore-end */
 
     private:
+        template<class> friend class TerrainEditorPreviewLifecycleTests;
         AZ::u32 OnConfigurationChanged();
-        AZStd::string GetStatusText() const { return m_status; }
-        void OnTick(float deltaTime, AZ::ScriptTimePoint time) override;
+        AZStd::string GetStatusText() const { return m_preview.GetStatus(); }
         void DisplayEntityViewport(const AzFramework::ViewportInfo& viewportInfo,
             AzFramework::DebugDisplayRequests& debugDisplay) override;
 
         TerrainCompositionConfig m_configuration;
-        AZStd::unique_ptr<TerrainCompositionGradientComponent> m_preview;
-        AZStd::string m_status = "Inactive: no composed gradient.";
-        float m_statusElapsed = 0.0f;
+        EditorPreview<TerrainCompositionGradientComponent> m_preview{ *this, "Inactive: no composed gradient." };
     };
 } // namespace TerrainCompositor

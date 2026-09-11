@@ -1,6 +1,5 @@
 #include "EditorTerrainCompositionSurfaceProviderComponent.h"
 #include "../ComponentConfiguration.h"
-#include "EditorPreviewStatus.h"
 
 #include <AzCore/Serialization/EditContext.h>
 #include <AzCore/Serialization/SerializeContext.h>
@@ -55,16 +54,12 @@ namespace TerrainCompositor
     void EditorTerrainCompositionSurfaceProviderComponent::Activate()
     {
         BaseClass::Activate();
-        m_preview = AZStd::make_unique<TerrainCompositionSurfaceProviderComponent>(m_configuration);
-        ActivateEditorPreview(*m_preview, GetEntityId(), m_status, m_statusElapsed);
-        AZ::TickBus::Handler::BusConnect();
+        m_preview.Activate(m_configuration);
     }
 
     void EditorTerrainCompositionSurfaceProviderComponent::Deactivate()
     {
-        AZ::TickBus::Handler::BusDisconnect();
-        StopEditorPreview(m_preview, GetEntityId());
-        m_status = "Inactive: no terrain surface provider.";
+        m_preview.Deactivate();
         BaseClass::Deactivate();
     }
 
@@ -94,13 +89,8 @@ namespace TerrainCompositor
 
     AZ::u32 EditorTerrainCompositionSurfaceProviderComponent::OnConfigurationChanged()
     {
-        RefreshEditorPreview(m_preview.get(), m_configuration, m_status);
+        m_preview.Refresh(m_configuration);
         return AZ::Edit::PropertyRefreshLevels::AttributesAndValues;
     }
 
-    void EditorTerrainCompositionSurfaceProviderComponent::OnTick(
-        float deltaTime, [[maybe_unused]] AZ::ScriptTimePoint time)
-    {
-        PollEditorPreviewStatus(*this, m_preview.get(), deltaTime, m_statusElapsed, m_status);
-    }
 } // namespace TerrainCompositor

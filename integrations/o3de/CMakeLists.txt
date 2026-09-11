@@ -131,6 +131,16 @@ if(PAL_TRAIT_BUILD_TESTS_SUPPORTED)
     endif()
 
     ly_add_googletest(NAME Gem::${gem_name}.Tests LABELS REQUIRES_tiaf)
+    if(PAL_TRAIT_BUILD_HOST_TOOLS)
+        ly_add_target(
+            NAME ${gem_name}.Editor.Tests ${PAL_TRAIT_TEST_TARGET_TYPE}
+            NAMESPACE Gem
+            FILES_CMAKE Code/Tests/terrain_compositor_editor_tests_files.cmake
+            INCLUDE_DIRECTORIES PRIVATE Code/Include Code/Source ${LY_ROOT_FOLDER}/Gems/Terrain/Code/Source
+            BUILD_DEPENDENCIES PRIVATE AZ::AzTest AZ::AzToolsFramework Gem::${gem_name}.Static
+        )
+        ly_add_googletest(NAME Gem::${gem_name}.Editor.Tests LABELS REQUIRES_tiaf)
+    endif()
     add_test(NAME Gem::${gem_name}.EngineOverrides
         COMMAND "${CMAKE_COMMAND}"
             "-DTC_ENGINE_TERRAIN_ROOT=${tc_terrain_source_root}"
