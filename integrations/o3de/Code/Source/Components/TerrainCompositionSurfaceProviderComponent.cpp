@@ -1,5 +1,4 @@
 #include <TerrainCompositor/Components/TerrainCompositionSurfaceProviderComponent.h>
-#include "../ComponentConfiguration.h"
 
 #include "TerrainCompositionQueryHelpers.h"
 
@@ -80,117 +79,49 @@ namespace TerrainCompositor
 
     void TerrainCompositionSurfaceProviderComponent::Activate()
     {
-        StartProvider(GetEntityId());
+        m_binding.Start(GetEntityId());
     }
 
     void TerrainCompositionSurfaceProviderComponent::Deactivate()
     {
-        StopProvider();
+        m_binding.Stop();
     }
 
     void TerrainCompositionSurfaceProviderComponent::EditorActivate(AZ::EntityId entityId)
     {
-        StartProvider(entityId);
+        m_binding.Start(entityId);
     }
 
     void TerrainCompositionSurfaceProviderComponent::EditorDeactivate([[maybe_unused]] AZ::EntityId entityId)
     {
-        StopProvider();
+        m_binding.Stop();
     }
 
-    void TerrainCompositionSurfaceProviderComponent::StartProvider(AZ::EntityId terrainRegionEntityId)
+    void TerrainCompositionSurfaceProviderComponent::ConnectProvider()
     {
-        if (!m_binding.PrepareToStart())
-        {
-            return;
-        }
-        StopProvider();
-        m_binding.Activate(terrainRegionEntityId, m_configuration.m_compositionEntityId);
-        Terrain::TerrainAreaSurfaceRequestBus::Handler::BusConnect(terrainRegionEntityId);
-        AZ::SystemTickBus::Handler::BusConnect();
-        RefreshArea();
+        Terrain::TerrainAreaSurfaceRequestBus::Handler::BusConnect(m_binding.GetTerrainRegionEntityId());
     }
 
-    void TerrainCompositionSurfaceProviderComponent::StopProvider()
+    void TerrainCompositionSurfaceProviderComponent::DisconnectProvider()
     {
-        if (!m_binding.BeginStop())
-        {
-            return;
-        }
-        // Shared-dispatch disconnect drains all terrain surface queries before query routing changes.
         Terrain::TerrainAreaSurfaceRequestBus::Handler::BusDisconnect();
-        AZ::SystemTickBus::Handler::BusDisconnect();
-        RefreshArea();
-        m_binding.Clear();
-    }
-
-    void TerrainCompositionSurfaceProviderComponent::RestartProvider()
-    {
-        if (m_binding.IsActive())
-        {
-            const AZ::EntityId terrainRegionEntityId = m_binding.GetTerrainRegionEntityId();
-            StopProvider();
-            StartProvider(terrainRegionEntityId);
-        }
-    }
-
-    void TerrainCompositionSurfaceProviderComponent::RefreshArea() const
-    {
-        const AZ::EntityId terrainRegionEntityId = m_binding.GetTerrainRegionEntityId();
-        if (terrainRegionEntityId.IsValid())
-        {
-            Terrain::TerrainSystemServiceRequestBus::Broadcast(
-                &Terrain::TerrainSystemServiceRequests::RefreshArea, terrainRegionEntityId,
-                AzFramework::Terrain::TerrainDataNotifications::TerrainDataChangedMask::SurfaceData);
-        }
     }
 
     bool TerrainCompositionSurfaceProviderComponent::ReadInConfig(const AZ::ComponentConfig* baseConfig)
     {
-        if (!m_binding.CheckControlThread())
-        {
-            return false;
-        }
-        return Internal::ReadConfiguration<TerrainCompositionSurfaceProviderConfig>(baseConfig, [this](const auto& value)
-        {
-            const bool changed = value.m_compositionEntityId != m_configuration.m_compositionEntityId;
-            m_configuration = value;
-            if (changed)
-            {
-                RestartProvider();
-            }
-        });
+        return m_binding.ReadConfiguration(baseConfig, m_configuration);
     }
 
     bool TerrainCompositionSurfaceProviderComponent::WriteOutConfig(AZ::ComponentConfig* outBaseConfig) const
     {
-        if (!m_binding.CheckControlThread())
-        {
-            return false;
-        }
-        return Internal::WriteConfiguration(outBaseConfig, m_configuration);
+        return m_binding.WriteConfiguration(outBaseConfig, m_configuration);
     }
 
     AZStd::string TerrainCompositionSurfaceProviderComponent::GetStatusMessage() const
     {
-        if (!m_binding.CheckControlThread()) { return "Unavailable off the control thread."; }
-        if (!m_binding.IsActive()) { return "Inactive: no terrain surface provider."; }
-        if (!m_configuration.m_compositionEntityId.IsValid()) { return "Select a Terrain Composition entity."; }
-        const auto& compositionAddress = m_binding.GetCompositionAddress();
-        if (compositionAddress.first.IsNull()) { return "Waiting for entity context ownership."; }
-        if (!TerrainCompositionSurfaceRequestBus::HasHandlers(compositionAddress))
-        {
-            return "Terrain Composition is unavailable in this entity context.";
-        }
-        return "Ready: composition surface weights are provided to this terrain region.";
-    }
-
-    void TerrainCompositionSurfaceProviderComponent::OnSystemTick()
-    {
-        if (m_binding.HasOwningContextChanged())
-        {
-            RestartProvider();
-        }
+        return m_binding.GetStatusMessage<TerrainCompositionSurfaceRequestBus>(
+            "Inactive: no terrain surface provider.",
+            "Ready: composition surface weights are provided to this terrain region.");
     }
 
     void TerrainCompositionSurfaceProviderComponent::GetSurfaceWeights(

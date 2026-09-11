@@ -384,3 +384,101 @@ First-party C++ is now 1,139 lines (6.54%) below the initial extraction and 741
 lines (4.36%) below post-cleanup. Tests and documentation increase total repository
 text. This slice consolidates editor preview ownership; runtime provider lifecycle
 consolidation remains a separate candidate that needs its own net-LOC estimate.
+
+## Runtime provider lifecycle consolidation (2026-09-10)
+
+Baseline: `e5ad965`. `Internal/ProviderLifecycle.h` now owns start/stop/restart,
+context-change polling and the system-tick subscription, configuration retargeting,
+common status checks and area invalidation for the height and surface providers.
+This slice is accepted for removing duplicate lifecycle ownership; its net LOC
+reduction is small. All helpers and the two new test-friend declarations are counted.
+
+| Changed C++ scope | Before | After | Change |
+| --- | ---: | ---: | ---: |
+| Two component implementations | 475 | 359 | -116 |
+| Two component headers | 147 | 146 | -1 |
+| New lifecycle owner | 0 | 108 | +108 |
+| Existing binding header/implementation | 83 | 83 | 0 |
+| **Complete scope** | **705** | **696** | **-9** |
+
+The owner reuses `TerrainCompositionProviderBinding` and its control-thread and
+address rules. Both components lose their `StartProvider`, `StopProvider`,
+`RestartProvider`, `RefreshArea` and `OnSystemTick` implementations. The public
+runtime/editor entry points delegate to the owner. The components retain their
+serialized configuration, reflection, service declarations, distinct query-bus
+connections and query methods. Height alone retains dependency/terrain notifications,
+its height-bounds mutex and cache, clamping, and the final cache reset after stop.
+
+Stopping first marks the binding inactive and drains the area query bus, then
+disconnects notifications/ticks, invalidates the old region, clears routing and
+resets height bounds. Starting binds routing before connecting the role-specific
+buses and refreshing the region. Changed targets and context ownership use the
+same restart path; unchanged targets do not restart. Configuration can still be
+loaded on a worker before activation establishes control-thread ownership.
+
+The public component declarations, configuration/reflection bodies, UUIDs,
+serialized fields/versions, service contracts and status strings match the baseline.
+Query and notification implementations match after replacing calls to the shared
+refresh method. The existing binding API and implementation are unchanged. Private
+provider C++ layouts change because tick ownership moves into the new member;
+consumers must rebuild. No performance improvement is claimed.
+
+Added 34 characterization cases across both providers. They passed against the
+original implementations before replacement. Coverage includes runtime/editor
+activation, repeated start/stop, invalid and retargeted configuration, late/changed/
+lost contexts, rejected worker calls and worker construction, scalar/batched routing,
+height chunk boundaries, queued ticks after destruction, refresh ordering/masks,
+height settings and dependency notifications, and queries in flight during stop,
+retargeting, region changes and context changes. Concurrent tests hold an actual
+shared-dispatch area query while the control thread changes lifecycle state and
+verify completion waits for the query and every height chunk retains its old route.
+
+Measurements and validation artifacts are under
+`D:/TG/TGProject/build/tc-provider-lifecycle-session`. As in the previous slices,
+builds reuse generated VC projects/dependencies and compile standalone sources
+directly. The maintained CMake lists include the new header and test implementation;
+the reused test unity input also references the standalone test source. Fresh CMake
+generation and a live editor scene smoke test were not performed.
+
+```powershell
+python tools/MeasureLoc.py --revision e5ad965 --json
+python tools/MeasureLoc.py --worktree --json
+& "$bin/AzTestRunner.exe" "$bin/TerrainCompositor.Tests.dll" AzRunUnitTests '--gtest_filter=*TerrainProviderLifecycleTests*:*TerrainHeightProviderNotificationsTests*'
+& "$bin/AzTestRunner.exe" "$bin/TerrainCompositor.Tests.dll" AzRunUnitTests '--gtest_filter=*LifecycleTests*:*ImageRegistrationTests*:*CompositionRegistrationStateTests*:*PublicationFootprintsTests*:*TerrainHeightProviderNotificationsTests*' --gtest_shuffle --gtest_random_seed=173 --gtest_repeat=100
+```
+
+All five targets built: `TerrainCompositor.Static`, `TerrainCompositor`,
+`TerrainCompositor.Editor`, `TerrainCompositor.Tests`, and
+`TerrainCompositor.Editor.Tests`. All 34 provider cases passed unchanged after
+replacement. The full runtime suite ran **223 cases: 220 passed and the same
+three known cutout-cache cases failed**. The 46 editor cases passed. No tests
+were removed or newly disabled; the one existing disabled case remains.
+
+D3D11 hardware matched all 142,560 classifications. Engine override generation
+and rejection checks and the public-interface/serialization comparison passed.
+
+Shuffled runtime verification ran 140 cases for 100 iterations, seeds 173-272:
+13,700 passes and 300 occurrences of the same three known failures. Failure sets
+match baseline and every iteration. The 100 shuffled editor iterations passed
+all 4,600 cases. `git diff --check` passed.
+
+| Repository category | Before `e5ad965` | After | Change |
+| --- | ---: | ---: | ---: |
+| Production C++ | 13,054 | 12,938 | -116 |
+| Include headers (including the new owner) | 3,214 | 3,321 | +107 |
+| **First-party C++** | **16,268** | **16,259** | **-9** |
+| Tests, including file lists | 5,037 | 5,554 | +517 |
+| Shaders/assets | 966 | 966 | 0 |
+| Engine patches/overrides | 939 | 939 | 0 |
+| Build/tooling | 535 | 536 | +1 |
+| Documentation | 3,400 | 3,498 | +98 |
+| License/notice | 28 | 28 | 0 |
+| **Total repository text** | **27,173** | **27,780** | **+607** |
+
+Cumulative first-party C++ reduction is **1,148 lines (6.60%)** from the initial
+extraction and **750 lines (4.41%)** from post-cleanup. Tests and documentation
+grow the repository. A safe 50% reduction ceiling is still unproven. The remaining
+coordinator/asset-index work should be assessed for clearer ownership and fewer
+traversals as well as measured LOC. Image indexing must preserve revision ties,
+last-claim retirement and dirty-bit rules; cross-mesh authority still requires a
+shared source-generation contract because its two revision counters are independent.

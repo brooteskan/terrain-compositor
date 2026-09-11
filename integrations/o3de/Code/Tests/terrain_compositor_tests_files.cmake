@@ -11,4 +11,5 @@ set(FILES
     TerrainRegistrationLifecycleTests.cpp
     TerrainModelCacheLifecycleTests.cpp
     TerrainMeshPlacementLifecycleTests.cpp
+    TerrainProviderLifecycleTests.cpp
 )

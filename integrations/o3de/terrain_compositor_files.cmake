@@ -2,6 +2,7 @@ set(FILES
     Code/Include/TerrainCompositor/Internal/AssetSubscription.h
     Code/Include/TerrainCompositor/Internal/RegistrationClient.h
     Code/Include/TerrainCompositor/Internal/MeshPlacementLifecycle.h
+    Code/Include/TerrainCompositor/Internal/ProviderLifecycle.h
     Code/Include/TerrainCompositor/Components/HeightmapStampComponent.h
     Code/Include/TerrainCompositor/Components/HeightmapStampConfig.h
     Code/Include/TerrainCompositor/Components/ProceduralGroundGradientComponent.h

@@ -1,13 +1,12 @@
 #pragma once
 
 #include <AzCore/Component/Component.h>
-#include <AzCore/Component/TickBus.h>
 #include <AzCore/std/parallel/shared_mutex.h>
 #include <AzFramework/Components/EditorEntityEvents.h>
 #include <AzFramework/Terrain/TerrainDataRequestBus.h>
 #include <TerrainSystem/TerrainSystemBus.h>
 #include <LmbrCentral/Dependency/DependencyNotificationBus.h>
-#include <TerrainCompositor/TerrainCompositionProviderBinding.h>
+#include <TerrainCompositor/Internal/ProviderLifecycle.h>
 #include <TerrainCompositor/TerrainCompositionBus.h>
 #include <TerrainCompositor/TerrainCompositorTypeIds.h>
 
@@ -30,7 +29,6 @@ namespace TerrainCompositor
         , private Terrain::TerrainAreaHeightRequestBus::Handler
         , private LmbrCentral::DependencyNotificationBus::Handler
         , private AzFramework::Terrain::TerrainDataNotificationBus::Handler
-        , private AZ::SystemTickBus::Handler
     {
     public:
         AZ_COMPONENT_DECL(TerrainCompositionHeightProviderComponent);
@@ -55,13 +53,13 @@ namespace TerrainCompositor
         AZStd::string GetStatusMessage() const;
 
     private:
-        void StartProvider(AZ::EntityId terrainRegionEntityId);
-        void StopProvider();
-        void RestartProvider();
-        void RefreshArea() const;
+        template<class> friend class TerrainProviderLifecycleTests;
+        friend class Internal::ProviderLifecycle<TerrainCompositionHeightProviderComponent>;
+        void ConnectProvider();
+        void DisconnectProvider();
+        void ClearProvider();
         /* jscpd:ignore-end */
         void RefreshHeightBounds();
-        void OnSystemTick() override;
         void OnCompositionChanged() override;
         void OnCompositionRegionChanged(const AZ::Aabb& dirtyRegion) override;
         void OnTerrainDataChanged(const AZ::Aabb& dirtyRegion, TerrainDataChangedMask dataChangedMask) override;
@@ -69,7 +67,9 @@ namespace TerrainCompositor
         void GetHeight(const AZ::Vector3& inPosition, AZ::Vector3& outPosition, bool& terrainExists) override;
         void GetHeights(AZStd::span<AZ::Vector3> inOutPositionList, AZStd::span<bool> terrainExistsList) override;
 
-        TerrainCompositionProviderBinding m_binding;
+        Internal::ProviderLifecycle<TerrainCompositionHeightProviderComponent> m_binding{ *this,
+            AzFramework::Terrain::TerrainDataNotifications::TerrainDataChangedMask::HeightData |
+            AzFramework::Terrain::TerrainDataNotifications::TerrainDataChangedMask::SurfaceData };
         TerrainCompositionHeightProviderConfig m_configuration;
         mutable AZStd::shared_mutex m_heightBoundsMutex;
         AzFramework::Terrain::FloatRange m_heightBounds = AzFramework::Terrain::FloatRange::CreateNull();
