@@ -1,15 +1,13 @@
 #pragma once
 
-#include <AzCore/Component/TickBus.h>
-#include <TerrainCompositor/HeightmapControlThread.h>
-#include <TerrainCompositor/TerrainCompositionBus.h>
+#include <TerrainCompositor/Internal/RegistrationClient.h>
 #include <TerrainCompositor/TerrainMeshHeightDataCache.h>
 
 namespace TerrainCompositor
 {
     class TerrainMeshHeightStampRegistration final
-        : private TerrainCompositionNotificationBus::Handler
-        , private AZ::SystemTickBus::Handler
+        : private Internal::RegistrationClient<TerrainMeshHeightStampRegistrationData, &TerrainMeshHeightStampRegistrationData::m_stampEntityId,
+              &TerrainCompositionRequests::RegisterMeshHeightStamp, &TerrainCompositionRequests::UnregisterMeshHeightStamp>
     {
     public:
         TerrainMeshHeightStampRegistration() = default;
@@ -42,20 +40,10 @@ namespace TerrainCompositor
         TerrainMeshHeightStampRegistrationData GetRegistrationData() const;
 
     private:
-        void DisconnectTarget();
-        void UpdateMeshAsset();
-        void OnCompositionAvailable(const AZ::Uuid& expectedSession) override;
-        void OnCompositionUnavailable(const AZ::Uuid& session) override;
-        void OnSystemTick() override;
+        void UpdateAssets() override;
+        void ResetAssets() override { m_meshAsset.Reset(); }
+        bool NeedsAssetRetry() const override { return m_meshAsset.NeedsRetry(); }
 
-        TerrainMeshHeightStampRegistrationData m_registration;
-        HeightmapControlThread m_controlThread;
-        TerrainCompositionAddress m_address;
-        TerrainMeshHeightDataCache::Handle m_meshSource;
-        TerrainMeshHeightDataCache::ChangedEvent::Handler m_meshChanged;
-        AZ::Data::AssetId m_selectedAssetId;
-        AZ::u64 m_assetGeneration = 0;
-        bool m_active = false;
-        bool m_registered = false;
+        Internal::AssetSubscription<TerrainMeshHeightDataCache> m_meshAsset;
     };
 } // namespace TerrainCompositor

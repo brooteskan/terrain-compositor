@@ -130,6 +130,9 @@ namespace TerrainCompositor
                 if (entry.m_renderGeometryQuery.m_getTerrainExists)
                 {
                     replacement->m_renderGeometryQueries.push_back(entry.m_renderGeometryQuery);
+                    auto& query = replacement->m_renderGeometryQueries.back();
+                    query.m_compositionSession = session;
+                    query.m_compositionRevision = entry.m_compositionRevision;
                 }
             }
         }

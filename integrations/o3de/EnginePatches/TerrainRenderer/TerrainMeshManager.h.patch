@@ -1,0 +1,88 @@
+--- a/TerrainRenderer/TerrainMeshManager.h
++++ b/TerrainRenderer/TerrainMeshManager.h
+@@ -9,6 +9,7 @@
+ #pragma once
+ 
+ #include <AzCore/base.h>
++#include <TerrainCompositor/TerrainMeshCutoutRenderRegistry.h>
+ #include <AzCore/Math/Aabb.h>
+ #include <AzCore/Outcome/Outcome.h>
+ #include <AzCore/std/containers/vector.h>
+@@ -91,7 +92,7 @@
+         : private AzFramework::Terrain::TerrainDataNotificationBus::Handler
+     {
+     private:
+-        
++
+         using MaterialInstance = AZ::Data::Instance<AZ::RPI::Material>;
+ 
+     public:
+@@ -117,6 +118,7 @@
+     private:
+ 
+         using HeightDataType = uint16_t;
++        friend class TerrainSectorPreparationTests;
+         using NormalDataType = int8_t;
+         using NormalXYDataType = AZStd::pair<NormalDataType, NormalDataType>;
+ 
+@@ -153,7 +155,7 @@
+             };
+ 
+             AZStd::array<MeshGroup, 5> m_meshGroups; // 0 is the primary, 1-4 are the quadrants.
+-            
++
+         };
+ 
+         struct Sector
+@@ -213,6 +215,9 @@
+ 
+         struct SectorDataRequest
+         {
++            TerrainCompositor::TerrainMeshCutoutRenderSnapshotPtr m_renderSnapshot;
++            // Optional statistics owned by this synchronous request's caller.
++            TerrainCompositor::TerrainRenderQueryStatistics* m_queryStatistics = nullptr;
+             AZ::Vector2 m_worldStartPosition;
+             float m_vertexSpacing;
+             int16_t m_samplesX;
+@@ -237,6 +242,14 @@
+         {
+             HeightDataType m_height;
+             NormalXYDataType m_normal;
++        };
++
++        // Tightly packed R32G32B32 data for ray tracing buffer uploads.
++        struct RtVertex
++        {
++            float x;
++            float y;
++            float z;
+         };
+
+         struct CandidateSector
+@@ -273,13 +286,23 @@
+         AZ::RHI::StreamBufferView CreateStreamBufferView(AZ::Data::Instance<AZ::RPI::Buffer>& buffer, uint32_t offset = 0);
+ 
+         void CreateCommonBuffers();
+-        void UpdateSectorBuffers(Sector& sector, const AZStd::span<const HeightNormalVertex> heightsNormals);
+-        void UpdateSectorLodBuffers(Sector& sector,
++        void PrepareSectorRayTracingData(
++            AZStd::span<const HeightNormalVertex> heightsNormals,
++            AZStd::vector<RtVertex>& positions,
++            AZStd::vector<RtVertex>& normals) const;
++        void UpdateSectorBuffers(
++            Sector& sector,
++            AZStd::span<const HeightNormalVertex> heightsNormals,
++            AZStd::span<const RtVertex> rtPositions,
++            AZStd::span<const RtVertex> rtNormals);
++        void PrepareSectorLodData(
+             const AZStd::span<const HeightNormalVertex> originalHeightsNormals,
+-            const AZStd::span<const HeightNormalVertex> lodHeightsNormals);
++            const AZStd::span<const HeightNormalVertex> lodHeightsNormals,
++            AZStd::vector<HeightNormalVertex>& clodHeightNormals) const;
+         void GatherMeshData(SectorDataRequest request, AZStd::vector<HeightNormalVertex>& meshHeightsNormals, AZ::Aabb& meshAabb, bool& terrainExistsAnywhere);
+ 
+         void CheckLodGridsForUpdate(AZ::Vector3 newPosition);
++        AZStd::vector<AZStd::vector<Sector*>> CollectUpdatedSectors(AZ::Vector3 newPosition);
+         void ProcessSectorUpdates(AZStd::vector<AZStd::vector<Sector*>>& sectorUpdates);
+ 
+         AZ::Data::Instance<AZ::RPI::Buffer> CreateMeshBufferInstance(

@@ -78,60 +78,33 @@ namespace TerrainCompositor
     {
     }
 
-    void TerrainCompositionHeightProviderComponent::Activate() { StartProvider(GetEntityId()); }
-    void TerrainCompositionHeightProviderComponent::Deactivate() { StopProvider(); }
-    void TerrainCompositionHeightProviderComponent::EditorActivate(AZ::EntityId entityId) { StartProvider(entityId); }
-    void TerrainCompositionHeightProviderComponent::EditorDeactivate([[maybe_unused]] AZ::EntityId entityId) { StopProvider(); }
+    void TerrainCompositionHeightProviderComponent::Activate() { m_binding.Start(GetEntityId()); }
+    void TerrainCompositionHeightProviderComponent::Deactivate() { m_binding.Stop(); }
+    void TerrainCompositionHeightProviderComponent::EditorActivate(AZ::EntityId entityId) { m_binding.Start(entityId); }
+    void TerrainCompositionHeightProviderComponent::EditorDeactivate([[maybe_unused]] AZ::EntityId entityId) { m_binding.Stop(); }
 
-    void TerrainCompositionHeightProviderComponent::StartProvider(AZ::EntityId terrainRegionEntityId)
+    void TerrainCompositionHeightProviderComponent::ConnectProvider()
     {
-        if (!m_binding.PrepareToStart()) { return; }
-        StopProvider();
-        m_binding.Activate(terrainRegionEntityId, m_configuration.m_compositionEntityId);
         RefreshHeightBounds();
         if (m_configuration.m_compositionEntityId.IsValid())
         {
             LmbrCentral::DependencyNotificationBus::Handler::BusConnect(m_configuration.m_compositionEntityId);
         }
         AzFramework::Terrain::TerrainDataNotificationBus::Handler::BusConnect();
-        Terrain::TerrainAreaHeightRequestBus::Handler::BusConnect(terrainRegionEntityId);
-        AZ::SystemTickBus::Handler::BusConnect();
-        RefreshArea();
+        Terrain::TerrainAreaHeightRequestBus::Handler::BusConnect(m_binding.GetTerrainRegionEntityId());
     }
 
-    void TerrainCompositionHeightProviderComponent::StopProvider()
+    void TerrainCompositionHeightProviderComponent::DisconnectProvider()
     {
-        if (!m_binding.BeginStop()) { return; }
         Terrain::TerrainAreaHeightRequestBus::Handler::BusDisconnect();
         LmbrCentral::DependencyNotificationBus::Handler::BusDisconnect();
         AzFramework::Terrain::TerrainDataNotificationBus::Handler::BusDisconnect();
-        AZ::SystemTickBus::Handler::BusDisconnect();
-        RefreshArea();
-        m_binding.Clear();
+    }
+
+    void TerrainCompositionHeightProviderComponent::ClearProvider()
+    {
         AZStd::unique_lock lock(m_heightBoundsMutex);
         m_heightBounds = AzFramework::Terrain::FloatRange::CreateNull();
-    }
-
-    void TerrainCompositionHeightProviderComponent::RestartProvider()
-    {
-        if (m_binding.IsActive())
-        {
-            const auto region = m_binding.GetTerrainRegionEntityId();
-            StopProvider();
-            StartProvider(region);
-        }
-    }
-
-    void TerrainCompositionHeightProviderComponent::RefreshArea() const
-    {
-        const AZ::EntityId terrainRegionEntityId = m_binding.GetTerrainRegionEntityId();
-        if (terrainRegionEntityId.IsValid())
-        {
-            Terrain::TerrainSystemServiceRequestBus::Broadcast(
-                &Terrain::TerrainSystemServiceRequests::RefreshArea, terrainRegionEntityId,
-                AzFramework::Terrain::TerrainDataNotifications::TerrainDataChangedMask::HeightData |
-                AzFramework::Terrain::TerrainDataNotifications::TerrainDataChangedMask::SurfaceData);
-        }
     }
 
     void TerrainCompositionHeightProviderComponent::RefreshHeightBounds()
@@ -145,50 +118,24 @@ namespace TerrainCompositor
 
     bool TerrainCompositionHeightProviderComponent::ReadInConfig(const AZ::ComponentConfig* baseConfig)
     {
-        if (!m_binding.CheckControlThread()) { return false; }
-        if (const auto* configuration = azrtti_cast<const TerrainCompositionHeightProviderConfig*>(baseConfig))
-        {
-            const bool changed = configuration->m_compositionEntityId != m_configuration.m_compositionEntityId;
-            m_configuration = *configuration;
-            if (changed) { RestartProvider(); }
-            return true;
-        }
-        return false;
+        return m_binding.ReadConfiguration(baseConfig, m_configuration);
     }
 
     bool TerrainCompositionHeightProviderComponent::WriteOutConfig(AZ::ComponentConfig* outBaseConfig) const
     {
-        if (!m_binding.CheckControlThread()) { return false; }
-        if (auto* configuration = azrtti_cast<TerrainCompositionHeightProviderConfig*>(outBaseConfig))
-        {
-            *configuration = m_configuration;
-            return true;
-        }
-        return false;
+        return m_binding.WriteConfiguration(outBaseConfig, m_configuration);
     }
 
     AZStd::string TerrainCompositionHeightProviderComponent::GetStatusMessage() const
     {
-        if (!m_binding.CheckControlThread()) { return "Unavailable off the control thread."; }
-        if (!m_binding.IsActive()) { return "Inactive: no terrain height provider."; }
-        if (!m_configuration.m_compositionEntityId.IsValid()) { return "Select a Terrain Composition entity."; }
-        const auto& compositionAddress = m_binding.GetCompositionAddress();
-        if (compositionAddress.first.IsNull()) { return "Waiting for entity context ownership."; }
-        if (!TerrainCompositionHeightRequestBus::HasHandlers(compositionAddress))
-        {
-            return "Terrain Composition is unavailable in this entity context.";
-        }
-        return "Ready: composition height and terrain existence are provided to this terrain region.";
-    }
-
-    void TerrainCompositionHeightProviderComponent::OnSystemTick()
-    {
-        if (m_binding.HasOwningContextChanged()) { RestartProvider(); }
+        return m_binding.GetStatusMessage<TerrainCompositionHeightRequestBus>(
+            "Inactive: no terrain height provider.",
+            "Ready: composition height and terrain existence are provided to this terrain region.");
     }
 
     void TerrainCompositionHeightProviderComponent::OnCompositionChanged()
     {
-        RefreshArea();
+        m_binding.RefreshArea();
     }
 
     void TerrainCompositionHeightProviderComponent::OnCompositionRegionChanged(const AZ::Aabb& dirtyRegion)
@@ -201,7 +148,7 @@ namespace TerrainCompositor
         }
         else
         {
-            RefreshArea();
+            m_binding.RefreshArea();
         }
     }
 
@@ -211,7 +158,7 @@ namespace TerrainCompositor
         if ((dataChangedMask & TerrainDataChangedMask::Settings) == TerrainDataChangedMask::Settings)
         {
             RefreshHeightBounds();
-            RefreshArea();
+            m_binding.RefreshArea();
         }
     }
 

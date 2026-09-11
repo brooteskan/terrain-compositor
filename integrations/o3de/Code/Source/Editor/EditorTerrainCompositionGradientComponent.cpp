@@ -1,5 +1,5 @@
 #include "EditorTerrainCompositionGradientComponent.h"
-#include "EditorPreviewStatus.h"
+#include "../ComponentConfiguration.h"
 
 #include <AzCore/Serialization/EditContext.h>
 #include <AzCore/Serialization/SerializeContext.h>
@@ -116,26 +116,18 @@ namespace TerrainCompositor
     void EditorTerrainCompositionGradientComponent::Activate()
     {
         BaseClass::Activate();
-        m_preview = AZStd::make_unique<TerrainCompositionGradientComponent>(m_configuration);
-        const TerrainQualityBaseline baseline = CaptureTerrainQualityBaseline(GetEntityId());
-        m_preview->SetTerrainQualityBaseline(baseline);
-        m_preview->EditorActivate(GetEntityId());
-        m_status = m_preview->GetStatusMessage();
-        m_statusElapsed = 0.0f;
+        m_preview.Activate(m_configuration, [this](auto& preview)
+        {
+            const TerrainQualityBaseline baseline = CaptureTerrainQualityBaseline(GetEntityId());
+            preview.SetTerrainQualityBaseline(baseline);
+        });
         AzFramework::EntityDebugDisplayEventBus::Handler::BusConnect(GetEntityId());
-        AZ::TickBus::Handler::BusConnect();
     }
 
     void EditorTerrainCompositionGradientComponent::Deactivate()
     {
-        AZ::TickBus::Handler::BusDisconnect();
         AzFramework::EntityDebugDisplayEventBus::Handler::BusDisconnect();
-        if (m_preview)
-        {
-            m_preview->EditorDeactivate(GetEntityId());
-            m_preview.reset();
-        }
-        m_status = "Inactive: no composed gradient.";
+        m_preview.Deactivate();
         BaseClass::Deactivate();
     }
 
@@ -150,39 +142,22 @@ namespace TerrainCompositor
 
     bool EditorTerrainCompositionGradientComponent::ReadInConfig(const AZ::ComponentConfig* configuration)
     {
-        if (const auto* composition = azrtti_cast<const TerrainCompositionConfig*>(configuration))
+        return Internal::ReadConfiguration<TerrainCompositionConfig>(configuration, [this](const auto& value)
         {
-            m_configuration = *composition;
+            m_configuration = value;
             OnConfigurationChanged();
-            return true;
-        }
-        return false;
+        });
     }
 
     bool EditorTerrainCompositionGradientComponent::WriteOutConfig(AZ::ComponentConfig* configuration) const
     {
-        if (auto* composition = azrtti_cast<TerrainCompositionConfig*>(configuration))
-        {
-            *composition = m_configuration;
-            return true;
-        }
-        return false;
+        return Internal::WriteConfiguration(configuration, m_configuration);
     }
 
     AZ::u32 EditorTerrainCompositionGradientComponent::OnConfigurationChanged()
     {
-        if (m_preview)
-        {
-            // Publish one replacement source/region state without tearing down the composition session.
-            m_preview->ReadInConfig(&m_configuration);
-            m_status = m_preview->GetStatusMessage();
-        }
+        m_preview.Refresh(m_configuration);
         return AZ::Edit::PropertyRefreshLevels::AttributesAndValues;
-    }
-
-    void EditorTerrainCompositionGradientComponent::OnTick(float deltaTime, [[maybe_unused]] AZ::ScriptTimePoint time)
-    {
-        PollEditorPreviewStatus(*this, m_preview.get(), deltaTime, m_statusElapsed, m_status);
     }
 
     void EditorTerrainCompositionGradientComponent::DisplayEntityViewport(

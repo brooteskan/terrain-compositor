@@ -5,13 +5,14 @@
 #include <AzCore/Component/EntityBus.h>
 #include <AzCore/Component/TickBus.h>
 #include <AzCore/std/containers/unordered_map.h>
-#include <AzCore/std/containers/unordered_set.h>
 #include <AzCore/std/smart_ptr/weak_ptr.h>
 #include <AzFramework/Components/EditorEntityEvents.h>
 #include <GradientSignal/Ebuses/GradientRequestBus.h>
 #include <LmbrCentral/Dependency/DependencyMonitor.h>
 #include <LmbrCentral/Shape/ShapeComponentBus.h>
 #include <TerrainCompositor/HeightmapControlThread.h>
+#include <TerrainCompositor/Internal/CompositionRegistrations.h>
+#include <TerrainCompositor/Internal/PreparedComposition.h>
 #include <TerrainCompositor/HeightmapStampSampling.h>
 #include <TerrainCompositor/SurfaceCompositionConfig.h>
 #include <TerrainCompositor/SurfaceStampSampling.h>
@@ -19,11 +20,16 @@
 #include <TerrainCompositor/TerrainExistenceBus.h>
 #include <TerrainCompositor/TerrainExistenceSampling.h>
 #include <TerrainCompositor/TerrainMeshCutoutRenderRegistry.h>
-#include <TerrainCompositor/TerrainInvalidation.h>
+#include <TerrainCompositor/Internal/PendingCompositionInvalidation.h>
 #include <TerrainCompositor/TerrainQuality.h>
 #include <atomic>
 #include <memory>
 #include <mutex>
+
+namespace TerrainCompositor::Internal
+{
+    struct PublicationFootprints;
+}
 
 namespace TerrainCompositor
 {
@@ -83,12 +89,8 @@ namespace TerrainCompositor
 
     private:
         friend class TerrainRenderGeometryBatchTests;
-        using PreparedHeightContributorList = AZStd::vector<PreparedHeightContributor>;
-        using PreparedSurfaceStampList = AZStd::vector<PreparedSurfaceStamp>;
-        using PreparedExistenceContributorList = AZStd::vector<PreparedTerrainExistenceContributor>;
-        using PreparedMeshHeightGapList = AZStd::vector<PreparedTerrainMeshHeightGap>;
-
-        struct QueryState
+        template<class> friend class TerrainRegistrationLifecycleTests;
+        struct QueryState : Internal::PreparedComposition
         {
             TerrainCompositionAddress m_address;
             AZ::Uuid m_session{};
@@ -96,15 +98,6 @@ namespace TerrainCompositor
             AZ::EntityId m_ownerEntityId{};
             AZ::EntityId m_sourceEntityId{};
             AZ::EntityId m_regionEntityId{};
-            AZ::Aabb m_regionBounds = AZ::Aabb::CreateNull();
-            HeightmapRegionMapping m_regionMapping;
-            PreparedHeightContributorList m_heightContributors;
-            PreparedSurfacePalette m_surfacePalette;
-            PreparedSurfaceStampList m_surfaceStamps;
-            PreparedExistenceContributorList m_existenceContributors;
-            //! Includes render-only gaps so old ownership and render publication
-            //! remain correlated with this exact composition revision.
-            PreparedMeshHeightGapList m_meshHeightGaps;
             std::weak_ptr<TerrainMeshCutoutRenderChannel> m_renderChannel;
         };
         using QueryStatePtr = std::shared_ptr<const QueryState>;
@@ -129,16 +122,17 @@ namespace TerrainCompositor
         };
 
         void StartComposition(AZ::EntityId entityId);
-        void StopComposition();
         AZ::u32 OnConfigurationChanged();
         void ConnectDependencies();
         void RefreshRegionBounds();
         void QueueHeightRegionChange(const QueryState& state);
         void QueueSurfaceRegionChange(const QueryState& state);
-        void QueueHeightFootprintChange(const HeightmapStampFootprintChange& change);
         void QueueSurfaceFootprintChange(const QueryState& state, const AZ::Aabb& footprint);
         void CollectSourceChanges();
         void PublishStamps();
+        void CommitPublication(QueryStatePtr previous, std::shared_ptr<QueryState> replacement,
+            Internal::PublicationFootprints currentFootprints, AZStd::vector<PreparedTerrainMeshCutout> renderCutouts,
+            float collisionGridSpacing);
         HeightmapReconstructionDataPtr AcquireHeightmapReconstruction(
             const HeightmapDataPtr& source, HeightmapSamplingMode mode, float radius);
         void OnSystemTick() override;
@@ -180,6 +174,11 @@ namespace TerrainCompositor
             AZStd::span<const AZ::Vector3> positions,
             AZStd::span<AzFramework::SurfaceData::SurfaceTagWeightList> outSurfaceWeights) const override;
 
+        template<class Registration, class Classify>
+        bool RegisterAndPublish(const Registration& registration, Classify classify);
+        template<class Registration>
+        void UnregisterAndPublish(AZ::EntityId entityId, const AZ::Uuid& registrationId, const AZ::Uuid& compositionSession);
+
         bool RegisterStamp(const HeightmapStampRegistrationData& registration) override;
         bool RegisterMeshCutout(const TerrainMeshCutoutRegistrationData& registration) override;
         bool RegisterMeshHeightStamp(const TerrainMeshHeightStampRegistrationData& registration) override;
@@ -213,25 +212,15 @@ namespace TerrainCompositor
         AZ::u64 m_revision = 0;
         bool m_active = false;
         unsigned m_configurationUpdateDepth = 0;
-        AZStd::unordered_map<AZ::EntityId, HeightmapStampRegistrationData> m_registrations;
-        AZStd::unordered_map<AZ::EntityId, TerrainMeshCutoutRegistrationData> m_meshCutoutRegistrations;
-        AZStd::unordered_map<AZ::EntityId, TerrainMeshHeightStampRegistrationData> m_meshHeightRegistrations;
-        AZStd::unordered_set<AZ::Uuid> m_retiredRegistrations;
+        Internal::CompositionRegistrations m_registrations;
         AZStd::unordered_map<AZStd::string, AZStd::string> m_collisions;
-        AZStd::unordered_map<AZ::EntityId, AZStd::string> m_diagnostics;
-        AZStd::unordered_map<AZ::EntityId, AZStd::string> m_surfaceDiagnostics;
-        AZStd::unordered_map<AZ::EntityId, AZStd::string> m_existenceDiagnostics;
-        AZStd::unordered_map<AZ::EntityId, AZStd::string> m_meshCutoutDiagnostics;
-        AZStd::unordered_map<AZ::EntityId, AZStd::string> m_meshHeightDiagnostics;
         AZStd::vector<ReconstructionCacheEntry> m_reconstructionCache;
         AZStd::vector<AZStd::string> m_pendingDiagnostics;
-        AZStd::vector<HeightmapStampFootprintChange> m_pendingChanges;
         AZStd::unordered_map<AZ::EntityId, AZ::u8> m_dirtyStamps;
         // Previous published contributors provide removal coverage. Pending
         // value-owned work retains it until dispatch, without invalid-to-invalid
         // edits repeatedly dirtying an already removed footprint.
-        TerrainInvalidation m_pendingHeightTerrain;
-        TerrainInvalidation m_pendingSurfaceTerrain;
+        Internal::PendingCompositionInvalidation m_pendingInvalidation;
         std::shared_ptr<SourceChanges> m_sourceChanges;
         bool m_sourceWasSampleable = false;
         LmbrCentral::DependencyMonitor m_sourceMonitor;

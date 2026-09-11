@@ -1,4 +1,5 @@
 #include <TerrainCompositor/TerrainInvalidation.h>
+#include "StampMath.h"
 
 #include <algorithm>
 #include <cmath>
@@ -44,16 +45,6 @@ namespace TerrainCompositor
             return AreaXY(combined) <= coveredArea * MaxMergeAreaRatio;
         }
 
-        float RoundOutward(double value, bool lower)
-        {
-            float result = static_cast<float>(value);
-            if ((lower && double(result) > value) || (!lower && double(result) < value))
-            {
-                result = std::nextafter(result, lower ? -std::numeric_limits<float>::infinity()
-                                                     : std::numeric_limits<float>::infinity());
-            }
-            return result;
-        }
     } // namespace
 
     void TerrainInvalidation::AddFootprint(
@@ -156,8 +147,8 @@ namespace TerrainCompositor
                 continue; // A remote footprint is no notification, never a null/global notification.
             }
             const auto bounds = AZ::Aabb::CreateFromMinMax(
-                AZ::Vector3(RoundOutward(minX, true), RoundOutward(minY, true), limits.GetMin().GetZ()),
-                AZ::Vector3(RoundOutward(maxX, false), RoundOutward(maxY, false), limits.GetMax().GetZ()));
+                AZ::Vector3(Internal::RoundOutward(minX, true), Internal::RoundOutward(minY, true), limits.GetMin().GetZ()),
+                AZ::Vector3(Internal::RoundOutward(maxX, false), Internal::RoundOutward(maxY, false), limits.GetMax().GetZ()));
             expanded.Add({ region.m_entityId, limits, bounds.GetClamped(limits), false });
         }
         AZStd::vector<AZ::Aabb> result;

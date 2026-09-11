@@ -1,0 +1,10 @@
+set(FILES
+    TestMain.cpp
+    TerrainEditorPreviewLifecycleTests.cpp
+    ../Source/Editor/EditorHeightmapStampComponent.cpp
+    ../Source/Editor/EditorTerrainMeshCutoutComponent.cpp
+    ../Source/Editor/EditorTerrainMeshHeightStampComponent.cpp
+    ../Source/Editor/EditorTerrainCompositionGradientComponent.cpp
+    ../Source/Editor/EditorTerrainCompositionHeightProviderComponent.cpp
+    ../Source/Editor/EditorTerrainCompositionSurfaceProviderComponent.cpp
+)

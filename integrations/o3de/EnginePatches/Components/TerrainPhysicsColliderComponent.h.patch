@@ -1,0 +1,39 @@
+diff --git a/Components/TerrainPhysicsColliderComponent.h b/Components/TerrainPhysicsColliderComponent.h
+index d0b710a..3afb631 100644
+--- a/Components/TerrainPhysicsColliderComponent.h
++++ b/Components/TerrainPhysicsColliderComponent.h
+@@ -6,6 +6,9 @@
+  *
+  */
+ 
++// Project-owned integration copy of O3DE TerrainPhysicsColliderComponent.h
++// from engine revision 061180bf24f1666eb30315b35da292eb14f4659c.
++
+ #pragma once
+ 
+ #include <AzCore/Component/Component.h>
+@@ -17,6 +20,7 @@
+ #include <AzFramework/Terrain/TerrainDataRequestBus.h>
+ #include <SurfaceData/SurfaceTag.h>
+ #include <TerrainSystem/TerrainSystemBus.h>
++#include <TerrainCompositor/TerrainMeshCutoutRenderRegistry.h>
+ 
+ #include <LmbrCentral/Shape/ShapeComponentBus.h>
+ 
+@@ -139,6 +143,8 @@ namespace Terrain
+         void BuildSurfaceTagToMaterialIndexLookup();
+ 
+     private:
++        friend class TerrainPhysicsColliderGapTests;
++
+         // The default material will always be the first material in the material list.
+         static inline constexpr uint8_t DefaultMaterialIndex = 0;
+ 
+@@ -146,6 +152,7 @@ namespace Terrain
+         AZStd::atomic_bool m_terrainDataActive = false;
+         AzFramework::Terrain::TerrainQueryRegion m_heightfieldRegion;
+         AZStd::unordered_map<SurfaceData::SurfaceTag, uint8_t> m_surfaceTagToMaterialIndexLookup;
++        TerrainCompositor::TerrainMeshCutoutRenderChannelPtr m_gapChannel;
+ 
+         // Protect state reads from happening in parallel with state writes.
+         mutable AZStd::shared_mutex m_stateMutex;

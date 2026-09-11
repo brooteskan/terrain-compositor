@@ -1,7 +1,6 @@
 #pragma once
 
-#include <AzCore/Component/TickBus.h>
-#include <AzCore/std/smart_ptr/unique_ptr.h>
+#include "EditorPreviewStatus.h"
 #include <AzFramework/Entity/EntityDebugDisplayBus.h>
 #include <AzToolsFramework/ToolsComponents/EditorComponentBase.h>
 #include <TerrainCompositor/Components/TerrainMeshHeightStampComponent.h>
@@ -11,7 +10,6 @@ namespace TerrainCompositor
     class EditorTerrainMeshHeightStampComponent final
         : public AzToolsFramework::Components::EditorComponentBase
         , private AzFramework::EntityDebugDisplayEventBus::Handler
-        , private AZ::TickBus::Handler
     {
     public:
         using BaseClass = AzToolsFramework::Components::EditorComponentBase;
@@ -37,18 +35,16 @@ namespace TerrainCompositor
         void SetExportData(const AZStd::string& key);
 
     private:
+        template<class> friend class TerrainEditorPreviewLifecycleTests;
         AZ::u32 OnConfigurationChanged();
         AZStd::string GetStatusText() const
         {
-            return m_status;
+            return m_preview.GetStatus();
         }
-        void OnTick(float deltaTime, AZ::ScriptTimePoint time) override;
         void DisplayEntityViewport(
             const AzFramework::ViewportInfo& viewportInfo, AzFramework::DebugDisplayRequests& debugDisplay) override;
 
         TerrainMeshHeightStampConfig m_configuration;
-        AZStd::unique_ptr<TerrainMeshHeightStampComponent> m_preview;
-        AZStd::string m_status = "Inactive: no terrain mesh height contribution.";
-        float m_statusElapsed = 0.0f;
+        EditorPreview<TerrainMeshHeightStampComponent> m_preview{ *this, "Inactive: no terrain mesh height contribution." };
     };
 } // namespace TerrainCompositor

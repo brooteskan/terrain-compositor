@@ -1,0 +1,93 @@
+diff --git a/Components/TerrainPhysicsColliderComponent.cpp b/Components/TerrainPhysicsColliderComponent.cpp
+index 3758c1d..9b09f42 100644
+--- a/Components/TerrainPhysicsColliderComponent.cpp
++++ b/Components/TerrainPhysicsColliderComponent.cpp
+@@ -6,6 +6,9 @@
+  *
+  */
+ 
++// Project-owned integration copy of O3DE TerrainPhysicsColliderComponent.cpp
++// from engine revision 061180bf24f1666eb30315b35da292eb14f4659c.
++
+ 
+ #include <Components/TerrainPhysicsColliderComponent.h>
+ 
+@@ -24,6 +27,8 @@
+ 
+ #include <AzFramework/Terrain/TerrainDataRequestBus.h>
+ #include <AzFramework/Physics/HeightfieldProviderBus.h>
++#include <Atom/RPI.Public/Scene.h>
++#include <TerrainCompositor/TerrainMeshCutoutRenderRegistry.h>
+ 
+ AZ_DECLARE_BUDGET(Terrain);
+ 
+@@ -138,6 +143,10 @@ namespace Terrain
+         BuildSurfaceTagToMaterialIndexLookup();
+ 
+         const auto entityId = GetEntityId();
++        if (auto* registry = AZ::Interface<TerrainCompositor::TerrainMeshCutoutRenderRegistry>::Get())
++        {
++            m_gapChannel = registry->AcquireSceneChannel(AZ::RPI::Scene::GetSceneForEntityId(entityId));
++        }
+         LmbrCentral::ShapeComponentNotificationsBus::Handler::BusConnect(entityId);
+         Physics::HeightfieldProviderRequestsBus::Handler::BusConnect(entityId);
+         AzFramework::Terrain::TerrainDataNotificationBus::Handler::BusConnect();
+@@ -469,16 +478,24 @@ namespace Terrain
+         // Grab a local copy of the surface tag to material lookup to ensure that modifications on other threads
+         // don't affect us while we're in the middle of the query.
+         AZStd::unordered_map<SurfaceData::SurfaceTag, uint8_t> surfaceTagToMaterialIndexLookup;
++        TerrainCompositor::TerrainMeshCutoutRenderSnapshotPtr gapSnapshot;
++        TerrainCompositor::TerrainMeshHeightGapActivationPtr gapActivation;
+         {
+             AZStd::shared_lock lock(m_stateMutex);
+             surfaceTagToMaterialIndexLookup = m_surfaceTagToMaterialIndexLookup;
++            if (m_gapChannel)
++            {
++                gapSnapshot = m_gapChannel->m_snapshot.load(std::memory_order_acquire);
++                gapActivation = m_gapChannel->m_activation.load(std::memory_order_acquire);
++            }
+         }
+ 
+         // Everything is copied by value into the lambda because this is an async callback, so anything referenced by it needs to
+         // continue to exist after the outer function completes.
+         auto perPositionCallback =
+             [startColumn, startRow, updateHeightsMaterialsCallback, surfaceTagToMaterialIndexLookup, worldCenterZ,
+-            worldHeightBoundsMin, worldHeightBoundsMax]
++            worldHeightBoundsMin, worldHeightBoundsMax, queryStart = AZ::Vector2(queryRegion.m_startPoint), gridResolution,
++            gapSnapshot = AZStd::move(gapSnapshot), gapActivation = AZStd::move(gapActivation)]
+             (size_t xIndex, size_t yIndex, const AzFramework::SurfaceData::SurfacePoint& surfacePoint, bool terrainExists)
+         {
+             float height = surfacePoint.m_position.GetZ();
+@@ -490,6 +507,14 @@ namespace Terrain
+                 terrainExists = false;
+             }
+ 
++            if (gapSnapshot)
++            {
++                const AZ::Vector2 worldCellMinimum = queryStart +
++                    AZ::Vector2(aznumeric_cast<float>(xIndex), aznumeric_cast<float>(yIndex)) * gridResolution;
++                terrainExists = terrainExists && !TerrainCompositor::IsTerrainHeightfieldCellRemoved(
++                    *gapSnapshot, gapActivation, worldCellMinimum, gridResolution);
++            }
++
+             // Find the best surface tag at this point.
+             // We want the MaxSurfaceWeight. The ProcessSurfacePoints callback has surface weights sorted.
+             // So, we pick the value at the front of the list.
+@@ -642,7 +667,7 @@ namespace Terrain
+     AZStd::vector<AZ::Data::Asset<Physics::MaterialAsset>> TerrainPhysicsColliderComponent::GetMaterialList() const
+     {
+         AZStd::shared_lock lock(m_stateMutex);
+-        
++
+         AZStd::vector<AZ::Data::Asset<Physics::MaterialAsset>> materialList;
+         materialList.reserve(m_configuration.m_surfaceMaterialMappings.size() + 1); // +1 for default material asset
+ 
+@@ -663,7 +688,7 @@ namespace Terrain
+ 
+     AZStd::vector<float> TerrainPhysicsColliderComponent::GetHeights() const
+     {
+-        AZStd::vector<float> heights; 
++        AZStd::vector<float> heights;
+         GenerateHeightsInBounds(heights);
+ 
+         return heights;

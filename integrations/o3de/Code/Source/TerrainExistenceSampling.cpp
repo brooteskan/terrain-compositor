@@ -1,4 +1,5 @@
 #include <TerrainCompositor/TerrainExistenceSampling.h>
+#include "StampMath.h"
 #include <TerrainCompositor/TerrainMeshHeightMapping.h>
 
 #include <AzCore/std/containers/array.h>
@@ -33,16 +34,6 @@ namespace TerrainCompositor
             const double top = image.m_samples[row0 + x0] * (1.0 - tx) + image.m_samples[row0 + x1] * tx;
             const double bottom = image.m_samples[row1 + x0] * (1.0 - tx) + image.m_samples[row1 + x1] * tx;
             return top * (1.0 - ty) + bottom * ty;
-        }
-
-        float RoundGapBound(double value, bool lower)
-        {
-            float result = static_cast<float>(value);
-            if ((lower && result > value) || (!lower && result < value))
-            {
-                result = std::nextafter(result, lower ? -std::numeric_limits<float>::infinity() : std::numeric_limits<float>::infinity());
-            }
-            return result;
         }
 
         bool HeightfieldCellLess(const TerrainHeightfieldCellAddress& left, const TerrainHeightfieldCellAddress& right)
@@ -216,11 +207,11 @@ namespace TerrainCompositor
             for (const TerrainHeightfieldCellAddress& cell : prepared->m_cells)
             {
                 const AZ::Vector3 minimum(
-                    RoundGapBound(double(cell.m_x) * spacing, true),
-                    RoundGapBound(double(cell.m_y) * spacing, true), 0.0f);
+                    Internal::RoundOutward(double(cell.m_x) * spacing, true),
+                    Internal::RoundOutward(double(cell.m_y) * spacing, true), 0.0f);
                 const AZ::Vector3 maximum(
-                    RoundGapBound(double(cell.m_x + 1) * spacing, false),
-                    RoundGapBound(double(cell.m_y + 1) * spacing, false), 0.0f);
+                    Internal::RoundOutward(double(cell.m_x + 1) * spacing, false),
+                    Internal::RoundOutward(double(cell.m_y + 1) * spacing, false), 0.0f);
                 prepared->m_worldBounds.AddPoint(minimum);
                 prepared->m_worldBounds.AddPoint(maximum);
             }
@@ -423,8 +414,8 @@ namespace TerrainCompositor
         gap.m_affectTerrainRendering = preparedHeight.m_affectTerrainRendering;
         gap.m_affectTerrainCollisionQueries = preparedHeight.m_affectTerrainCollisionQueries;
         gap.m_worldBounds = AZ::Aabb::CreateFromMinMax(
-            AZ::Vector3(RoundGapBound(minimumX, true), RoundGapBound(minimumY, true), 0.0f),
-            AZ::Vector3(RoundGapBound(maximumX, false), RoundGapBound(maximumY, false), 0.0f));
+            AZ::Vector3(Internal::RoundOutward(minimumX, true), Internal::RoundOutward(minimumY, true), 0.0f),
+            AZ::Vector3(Internal::RoundOutward(maximumX, false), Internal::RoundOutward(maximumY, false), 0.0f));
         gap.m_collisionWorldBounds = gap.m_worldBounds;
         AZ::Aabb collisionRegion = terrainRegionBounds;
         if (!collisionRegion.IsValid() && std::isfinite(worldHeightfieldGridSpacing) && worldHeightfieldGridSpacing > 0.0f)

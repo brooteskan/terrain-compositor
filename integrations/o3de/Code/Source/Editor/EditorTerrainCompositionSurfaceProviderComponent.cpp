@@ -1,5 +1,5 @@
 #include "EditorTerrainCompositionSurfaceProviderComponent.h"
-#include "EditorPreviewStatus.h"
+#include "../ComponentConfiguration.h"
 
 #include <AzCore/Serialization/EditContext.h>
 #include <AzCore/Serialization/SerializeContext.h>
@@ -54,22 +54,12 @@ namespace TerrainCompositor
     void EditorTerrainCompositionSurfaceProviderComponent::Activate()
     {
         BaseClass::Activate();
-        m_preview = AZStd::make_unique<TerrainCompositionSurfaceProviderComponent>(m_configuration);
-        m_preview->EditorActivate(GetEntityId());
-        m_status = m_preview->GetStatusMessage();
-        m_statusElapsed = 0.0f;
-        AZ::TickBus::Handler::BusConnect();
+        m_preview.Activate(m_configuration);
     }
 
     void EditorTerrainCompositionSurfaceProviderComponent::Deactivate()
     {
-        AZ::TickBus::Handler::BusDisconnect();
-        if (m_preview)
-        {
-            m_preview->EditorDeactivate(GetEntityId());
-            m_preview.reset();
-        }
-        m_status = "Inactive: no terrain surface provider.";
+        m_preview.Deactivate();
         BaseClass::Deactivate();
     }
 
@@ -85,38 +75,22 @@ namespace TerrainCompositor
 
     bool EditorTerrainCompositionSurfaceProviderComponent::ReadInConfig(const AZ::ComponentConfig* configuration)
     {
-        if (const auto* provider = azrtti_cast<const TerrainCompositionSurfaceProviderConfig*>(configuration))
+        return Internal::ReadConfiguration<TerrainCompositionSurfaceProviderConfig>(configuration, [this](const auto& value)
         {
-            m_configuration = *provider;
+            m_configuration = value;
             OnConfigurationChanged();
-            return true;
-        }
-        return false;
+        });
     }
 
     bool EditorTerrainCompositionSurfaceProviderComponent::WriteOutConfig(AZ::ComponentConfig* configuration) const
     {
-        if (auto* provider = azrtti_cast<TerrainCompositionSurfaceProviderConfig*>(configuration))
-        {
-            *provider = m_configuration;
-            return true;
-        }
-        return false;
+        return Internal::WriteConfiguration(configuration, m_configuration);
     }
 
     AZ::u32 EditorTerrainCompositionSurfaceProviderComponent::OnConfigurationChanged()
     {
-        if (m_preview)
-        {
-            m_preview->ReadInConfig(&m_configuration);
-            m_status = m_preview->GetStatusMessage();
-        }
+        m_preview.Refresh(m_configuration);
         return AZ::Edit::PropertyRefreshLevels::AttributesAndValues;
     }
 
-    void EditorTerrainCompositionSurfaceProviderComponent::OnTick(
-        float deltaTime, [[maybe_unused]] AZ::ScriptTimePoint time)
-    {
-        PollEditorPreviewStatus(*this, m_preview.get(), deltaTime, m_statusElapsed, m_status);
-    }
 } // namespace TerrainCompositor

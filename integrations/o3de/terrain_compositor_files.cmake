@@ -1,4 +1,13 @@
 set(FILES
+    Code/Include/TerrainCompositor/Internal/PendingCompositionInvalidation.h
+    Code/Source/CompositionInvalidation.h
+    Code/Include/TerrainCompositor/Internal/PreparedComposition.h
+    Code/Source/CompositionPreparation.h
+    Code/Source/CompositionPreparation.cpp
+    Code/Include/TerrainCompositor/Internal/AssetSubscription.h
+    Code/Include/TerrainCompositor/Internal/RegistrationClient.h
+    Code/Include/TerrainCompositor/Internal/MeshPlacementLifecycle.h
+    Code/Include/TerrainCompositor/Internal/ProviderLifecycle.h
     Code/Include/TerrainCompositor/Components/HeightmapStampComponent.h
     Code/Include/TerrainCompositor/Components/HeightmapStampConfig.h
     Code/Include/TerrainCompositor/Components/ProceduralGroundGradientComponent.h
@@ -30,6 +39,7 @@ set(FILES
     Code/Include/TerrainCompositor/TerrainMeshCutoutFeatureProcessor.h
     Code/Include/TerrainCompositor/TerrainMeshCutoutRegistration.h
     Code/Include/TerrainCompositor/TerrainMeshCutoutRenderRegistry.h
+    Code/Include/TerrainCompositor/TerrainRenderQuery.h
     Code/Include/TerrainCompositor/TerrainMeshCutoutSampling.h
     Code/Include/TerrainCompositor/TerrainMeshHeightData.h
     Code/Include/TerrainCompositor/TerrainMeshHeightDataCache.h
@@ -40,6 +50,14 @@ set(FILES
     Code/Include/TerrainCompositor/TerrainMeshHeightStampSampling.h
     Code/Include/TerrainCompositor/TerrainModelGeometry.h
     Code/Include/TerrainCompositor/TerrainQuality.h
+    Code/Source/ComponentConfiguration.h
+    Code/Source/PublicationState.h
+    Code/Include/TerrainCompositor/Internal/CompositionRegistrationState.h
+    Code/Include/TerrainCompositor/Internal/CompositionRegistrations.h
+    Code/Source/ModelAssetSource.h
+    Code/Source/MeshPlacementLifecycle.cpp
+    Code/Source/StampMath.h
+    Code/Source/Components/MeshPlacementHelpers.h
     Code/Source/Components/HeightmapStampComponent.cpp
     Code/Source/Components/HeightmapStampConfig.cpp
     Code/Source/Components/ProceduralGroundGradientComponent.cpp
@@ -78,4 +96,3 @@ set(FILES
     Code/Source/TerrainModelGeometry.cpp
     Code/Source/TerrainQuality.cpp
 )
-

@@ -1,4 +1,5 @@
 #include <TerrainCompositor/Components/ProceduralGroundGradientComponent.h>
+#include "../ComponentConfiguration.h"
 
 #include <Atom/RPI.Public/RPISystemInterface.h>
 #include <Atom/RPI.Public/Scene.h>
@@ -363,23 +364,16 @@ namespace TerrainCompositor
 
     bool ProceduralGroundGradientComponent::ReadInConfig(const AZ::ComponentConfig* baseConfig)
     {
-        if (const auto* configuration = azrtti_cast<const ProceduralGroundGradientConfig*>(baseConfig))
+        return Internal::ReadConfiguration<ProceduralGroundGradientConfig>(baseConfig, [this](const auto& value)
         {
-            m_configuration = *configuration;
+            m_configuration = value;
             OnConfigurationChanged();
-            return true;
-        }
-        return false;
+        });
     }
 
     bool ProceduralGroundGradientComponent::WriteOutConfig(AZ::ComponentConfig* outBaseConfig) const
     {
-        if (auto* configuration = azrtti_cast<ProceduralGroundGradientConfig*>(outBaseConfig))
-        {
-            *configuration = m_configuration;
-            return true;
-        }
-        return false;
+        return Internal::WriteConfiguration(outBaseConfig, m_configuration);
     }
 
     float ProceduralGroundGradientComponent::EvaluatePosition(

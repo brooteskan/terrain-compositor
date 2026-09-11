@@ -1,4 +1,5 @@
 #include <TerrainCompositor/StampPlacement.h>
+#include "StampMath.h"
 
 #include <algorithm>
 #include <cmath>
@@ -10,17 +11,6 @@ namespace TerrainCompositor
     {
         constexpr double RotationTolerance = 1.0e-4;
 
-        // Outward rounding keeps the broad-phase AABB conservative at rotated image edges.
-        float RoundBound(double value, bool lower)
-        {
-            float result = static_cast<float>(value);
-            if ((lower && result > value) || (!lower && result < value))
-            {
-                result = std::nextafter(result, lower ? -std::numeric_limits<float>::infinity()
-                                                     : std::numeric_limits<float>::infinity());
-            }
-            return result;
-        }
     } // namespace
 
     HeightmapStampValidation PrepareStampPlacement(
@@ -104,10 +94,10 @@ namespace TerrainCompositor
             return HeightmapStampValidation::Bounds;
         }
         prepared.m_worldBounds = AZ::Aabb::CreateFromMinMax(
-            AZ::Vector3(RoundBound(prepared.m_centerX - extentX, true),
-                RoundBound(prepared.m_centerY - extentY, true), 0.0f),
-            AZ::Vector3(RoundBound(prepared.m_centerX + extentX, false),
-                RoundBound(prepared.m_centerY + extentY, false), 0.0f));
+            AZ::Vector3(Internal::RoundOutward(prepared.m_centerX - extentX, true),
+                Internal::RoundOutward(prepared.m_centerY - extentY, true), 0.0f),
+            AZ::Vector3(Internal::RoundOutward(prepared.m_centerX + extentX, false),
+                Internal::RoundOutward(prepared.m_centerY + extentY, false), 0.0f));
         result = AZStd::move(prepared);
         return HeightmapStampValidation::Valid;
     }

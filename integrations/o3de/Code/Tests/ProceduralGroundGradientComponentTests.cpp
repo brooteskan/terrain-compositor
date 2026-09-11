@@ -3,44 +3,15 @@
 #include <TerrainCompositor/Components/ProceduralGroundGradientComponent.h>
 #include <TerrainCompositor/TerrainExistenceSampling.h>
 #include <TerrainCompositor/TerrainInvalidation.h>
+#include "TerrainTestFixtures.h"
 
 namespace TerrainCompositor
 {
     namespace
     {
-        HeightmapDataPtr MakeMask(float value)
-        {
-            auto data = AZStd::make_shared<HeightmapData>();
-            data->m_width = 1;
-            data->m_height = 1;
-            data->m_samples = { value };
-            return data;
-        }
-
-        PreparedTerrainExistenceStamp MakePreparedMask(float value, TerrainExistenceOperation operation)
-        {
-            PreparedTerrainExistenceStamp stamp;
-            stamp.m_placement.m_worldBounds = AZ::Aabb::CreateFromMinMax(
-                AZ::Vector3(-1.0f, -1.0f, 0.0f), AZ::Vector3(1.0f, 1.0f, 0.0f));
-            stamp.m_mask = MakeMask(value);
-            stamp.m_placement.m_cosYaw = 1.0;
-            stamp.m_placement.m_inverseScale = 1.0;
-            stamp.m_placement.m_halfWidth = 1.0;
-            stamp.m_placement.m_halfDepth = 1.0;
-            stamp.m_threshold = 0.5f;
-            stamp.m_operation = operation;
-            return stamp;
-        }
-
-        class ConstantGradient final : public GradientSignal::GradientRequestBus::Handler
-        {
-        public:
-            explicit ConstantGradient(AZ::EntityId id, float value) : m_value(value) { BusConnect(id); }
-            ~ConstantGradient() override { BusDisconnect(); }
-            float GetValue(const GradientSignal::GradientSampleParams&) const override { return m_value; }
-        private:
-            float m_value;
-        };
+        using TestSupport::MakeMask;
+        using TestSupport::MakePreparedMask;
+        using TestSupport::ConstantGradient;
 
         class BatchHoleGradient final : public GradientSignal::GradientRequestBus::Handler
         {

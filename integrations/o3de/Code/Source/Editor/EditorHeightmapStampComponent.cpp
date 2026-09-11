@@ -1,5 +1,5 @@
 #include "EditorHeightmapStampComponent.h"
-#include "EditorPreviewStatus.h"
+#include "../ComponentConfiguration.h"
 
 #include <AzCore/Component/NonUniformScaleBus.h>
 #include <AzCore/Math/Color.h>
@@ -51,25 +51,14 @@ namespace TerrainCompositor
     void EditorHeightmapStampComponent::Activate()
     {
         BaseClass::Activate();
-        // Construct on the activation thread, not the asynchronous deserialization thread.
-        m_preview = AZStd::make_unique<HeightmapStampComponent>(m_configuration);
-        m_preview->EditorActivate(GetEntityId());
-        m_status = m_preview->GetStatusMessage();
-        m_statusElapsed = 0.0f;
+        m_preview.Activate(m_configuration);
         AzFramework::EntityDebugDisplayEventBus::Handler::BusConnect(GetEntityId());
-        AZ::TickBus::Handler::BusConnect();
     }
 
     void EditorHeightmapStampComponent::Deactivate()
     {
-        AZ::TickBus::Handler::BusDisconnect();
         AzFramework::EntityDebugDisplayEventBus::Handler::BusDisconnect();
-        if (m_preview)
-        {
-            m_preview->EditorDeactivate(GetEntityId());
-            m_preview.reset();
-        }
-        m_status = "Inactive: no stamp contribution.";
+        m_preview.Deactivate();
         BaseClass::Deactivate();
     }
 
@@ -97,40 +86,22 @@ namespace TerrainCompositor
 
     bool EditorHeightmapStampComponent::ReadInConfig(const AZ::ComponentConfig* configuration)
     {
-        if (const auto* stamp = azrtti_cast<const HeightmapStampConfig*>(configuration))
+        return Internal::ReadConfiguration<HeightmapStampConfig>(configuration, [this](const auto& value)
         {
-            m_configuration = *stamp;
+            m_configuration = value;
             OnConfigurationChanged();
-            return true;
-        }
-        return false;
+        });
     }
 
     bool EditorHeightmapStampComponent::WriteOutConfig(AZ::ComponentConfig* configuration) const
     {
-        if (auto* stamp = azrtti_cast<HeightmapStampConfig*>(configuration))
-        {
-            *stamp = m_configuration;
-            return true;
-        }
-        return false;
+        return Internal::WriteConfiguration(configuration, m_configuration);
     }
 
     AZ::u32 EditorHeightmapStampComponent::OnConfigurationChanged()
     {
-        // Normal inspector/prefab/undo serialization owns dirty tracking. No preview state is serialized.
-        // Keep the existing lease and let the runtime path publish before bounded invalidation.
-        if (m_preview)
-        {
-            m_preview->SetStampConfiguration(m_configuration);
-            m_status = m_preview->GetStatusMessage();
-        }
+        m_preview.Refresh(m_configuration);
         return AZ::Edit::PropertyRefreshLevels::AttributesAndValues;
-    }
-
-    void EditorHeightmapStampComponent::OnTick(float deltaTime, [[maybe_unused]] AZ::ScriptTimePoint time)
-    {
-        PollEditorPreviewStatus(*this, m_preview.get(), deltaTime, m_statusElapsed, m_status);
     }
 
     void EditorHeightmapStampComponent::DisplayEntityViewport(

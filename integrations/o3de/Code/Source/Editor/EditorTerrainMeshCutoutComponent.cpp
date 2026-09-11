@@ -1,5 +1,5 @@
 #include "EditorTerrainMeshCutoutComponent.h"
-#include "EditorPreviewStatus.h"
+#include "../ComponentConfiguration.h"
 
 #include <AzCore/Component/NonUniformScaleBus.h>
 #include <AzCore/Math/Color.h>
@@ -50,24 +50,14 @@ namespace TerrainCompositor
     void EditorTerrainMeshCutoutComponent::Activate()
     {
         BaseClass::Activate();
-        m_preview = AZStd::make_unique<TerrainMeshCutoutComponent>(m_configuration);
-        m_preview->EditorActivate(GetEntityId());
-        m_status = m_preview->GetStatusMessage();
-        m_statusElapsed = 0.0f;
+        m_preview.Activate(m_configuration);
         AzFramework::EntityDebugDisplayEventBus::Handler::BusConnect(GetEntityId());
-        AZ::TickBus::Handler::BusConnect();
     }
 
     void EditorTerrainMeshCutoutComponent::Deactivate()
     {
-        AZ::TickBus::Handler::BusDisconnect();
         AzFramework::EntityDebugDisplayEventBus::Handler::BusDisconnect();
-        if (m_preview)
-        {
-            m_preview->EditorDeactivate(GetEntityId());
-            m_preview.reset();
-        }
-        m_status = "Inactive: no mesh cutout contribution.";
+        m_preview.Deactivate();
         BaseClass::Deactivate();
     }
 
@@ -96,38 +86,22 @@ namespace TerrainCompositor
 
     bool EditorTerrainMeshCutoutComponent::ReadInConfig(const AZ::ComponentConfig* configuration)
     {
-        if (const auto* cutout = azrtti_cast<const TerrainMeshCutoutConfig*>(configuration))
+        return Internal::ReadConfiguration<TerrainMeshCutoutConfig>(configuration, [this](const auto& value)
         {
-            m_configuration = *cutout;
+            m_configuration = value;
             OnConfigurationChanged();
-            return true;
-        }
-        return false;
+        });
     }
 
     bool EditorTerrainMeshCutoutComponent::WriteOutConfig(AZ::ComponentConfig* configuration) const
     {
-        if (auto* cutout = azrtti_cast<TerrainMeshCutoutConfig*>(configuration))
-        {
-            *cutout = m_configuration;
-            return true;
-        }
-        return false;
+        return Internal::WriteConfiguration(configuration, m_configuration);
     }
 
     AZ::u32 EditorTerrainMeshCutoutComponent::OnConfigurationChanged()
     {
-        if (m_preview)
-        {
-            m_preview->SetCutoutConfiguration(m_configuration);
-            m_status = m_preview->GetStatusMessage();
-        }
+        m_preview.Refresh(m_configuration);
         return AZ::Edit::PropertyRefreshLevels::AttributesAndValues;
-    }
-
-    void EditorTerrainMeshCutoutComponent::OnTick(float deltaTime, [[maybe_unused]] AZ::ScriptTimePoint time)
-    {
-        PollEditorPreviewStatus(*this, m_preview.get(), deltaTime, m_statusElapsed, m_status);
     }
 
     void EditorTerrainMeshCutoutComponent::DisplayEntityViewport(
@@ -153,7 +127,7 @@ namespace TerrainCompositor
             : AZ::Vector3::CreateZero();
         if (found == registrations.end())
         {
-            display.DrawTextLabel(labelPosition, 1.0f, m_status.c_str());
+            display.DrawTextLabel(labelPosition, 1.0f, m_preview.GetStatus().c_str());
             return;
         }
         PreparedTerrainMeshCutout cutout;

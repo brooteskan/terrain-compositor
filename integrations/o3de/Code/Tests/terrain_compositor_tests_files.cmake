@@ -1,9 +1,18 @@
 set(FILES
+    InternalHelperTests.cpp
+    ImageRegistrationStateTests.cpp
+    MeshRegistrationStateTests.cpp
+    RegistrationStateReference.h
     TestMain.cpp
+    TerrainTestFixtures.h
     ProceduralGroundGradientComponentTests.cpp
     HeightmapReconstructionTests.cpp
     TerrainMeshCutoutTests.cpp
     TerrainMeshHeightStampTests.cpp
     TerrainMeshHeightGapGpuTests.cpp
     TerrainQualityTests.cpp
+    TerrainRegistrationLifecycleTests.cpp
+    TerrainModelCacheLifecycleTests.cpp
+    TerrainMeshPlacementLifecycleTests.cpp
+    TerrainProviderLifecycleTests.cpp
 )

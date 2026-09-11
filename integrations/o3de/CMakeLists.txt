@@ -1,74 +1,49 @@
 o3de_gem_setup("TerrainCompositor")
 
-# These integration copies are based on O3DE revision
-# 061180bf24f1666eb30315b35da292eb14f4659c. They keep render topology,
-# per-scene gap resources, terrain raycasts, and heightfield collision aligned
-# without requiring edits in the external engine checkout.
-set(tc_terrain_mesh_manager_original "${LY_ROOT_FOLDER}/Gems/Terrain/Code/Source/TerrainRenderer/TerrainMeshManager.cpp")
-set(tc_terrain_mesh_manager_override "${CMAKE_CURRENT_SOURCE_DIR}/EngineOverrides/TerrainRenderer/TerrainMeshManager.cpp")
-set(tc_terrain_feature_processor_original "${LY_ROOT_FOLDER}/Gems/Terrain/Code/Source/TerrainRenderer/TerrainFeatureProcessor.cpp")
-set(tc_terrain_feature_processor_override "${CMAKE_CURRENT_SOURCE_DIR}/EngineOverrides/TerrainRenderer/TerrainFeatureProcessor.cpp")
-set(tc_terrain_raycast_original "${LY_ROOT_FOLDER}/Gems/Terrain/Code/Source/TerrainRaycast/TerrainRaycastContext.cpp")
-set(tc_terrain_raycast_override "${CMAKE_CURRENT_SOURCE_DIR}/EngineOverrides/TerrainRaycast/TerrainRaycastContext.cpp")
-set(tc_terrain_physics_collider_original "${LY_ROOT_FOLDER}/Gems/Terrain/Code/Source/Components/TerrainPhysicsColliderComponent.cpp")
-set(tc_terrain_physics_collider_override "${CMAKE_CURRENT_SOURCE_DIR}/EngineOverrides/Components/TerrainPhysicsColliderComponent.cpp")
+include(EngineOverrides.cmake)
+set(tc_terrain_source_root "${LY_ROOT_FOLDER}/Gems/Terrain/Code/Source")
+set(tc_generated_overrides "${CMAKE_CURRENT_BINARY_DIR}/EngineOverrides")
+tc_prepare_engine_overrides("${tc_terrain_source_root}" "${tc_generated_overrides}")
 
-if(TARGET Terrain.Static)
-    get_target_property(tc_terrain_static_sources Terrain.Static SOURCES)
-    set(tc_terrain_static_filtered_sources)
-    set(tc_terrain_mesh_manager_removed FALSE)
-    set(tc_terrain_feature_processor_removed FALSE)
-    set(tc_terrain_raycast_removed FALSE)
-    set(tc_terrain_physics_collider_removed FALSE)
-    foreach(tc_terrain_source IN LISTS tc_terrain_static_sources)
-        get_filename_component(
-            tc_terrain_source_absolute "${tc_terrain_source}" ABSOLUTE
-            BASE_DIR "${LY_ROOT_FOLDER}/Gems/Terrain/Code")
-        if(tc_terrain_source_absolute STREQUAL tc_terrain_mesh_manager_original)
-            set(tc_terrain_mesh_manager_removed TRUE)
-        elseif(tc_terrain_source_absolute STREQUAL tc_terrain_feature_processor_original)
-            set(tc_terrain_feature_processor_removed TRUE)
-        elseif(tc_terrain_source_absolute STREQUAL tc_terrain_raycast_original)
-            set(tc_terrain_raycast_removed TRUE)
-        elseif(tc_terrain_source_absolute STREQUAL tc_terrain_physics_collider_original)
-            set(tc_terrain_physics_collider_removed TRUE)
-        else()
-            list(APPEND tc_terrain_static_filtered_sources "${tc_terrain_source}")
+if(NOT TARGET Terrain.Static)
+    message(FATAL_ERROR "TerrainCompositor requires the Terrain.Static target")
+endif()
+set(tc_override_sources
+    TerrainRenderer/TerrainMeshManager.cpp
+    TerrainRenderer/TerrainFeatureProcessor.cpp
+    TerrainRaycast/TerrainRaycastContext.cpp
+    Components/TerrainPhysicsColliderComponent.cpp)
+get_target_property(tc_terrain_sources Terrain.Static SOURCES)
+foreach(relative IN LISTS tc_override_sources)
+    set(original "${tc_terrain_source_root}/${relative}")
+    set(replacement "${tc_generated_overrides}/${relative}")
+    set(found FALSE)
+    foreach(source IN LISTS tc_terrain_sources)
+        get_filename_component(absolute "${source}" ABSOLUTE BASE_DIR "${LY_ROOT_FOLDER}/Gems/Terrain/Code")
+        if(absolute STREQUAL original)
+            list(REMOVE_ITEM tc_terrain_sources "${source}")
+            set(found TRUE)
         endif()
     endforeach()
-    if(NOT tc_terrain_mesh_manager_removed OR NOT tc_terrain_feature_processor_removed OR
-       NOT tc_terrain_raycast_removed OR NOT tc_terrain_physics_collider_removed)
-        message(FATAL_ERROR "Could not locate all required upstream terrain integration sources in Terrain.Static")
+    if(NOT found)
+        message(FATAL_ERROR "Could not locate ${original} in Terrain.Static")
     endif()
-
-    set_property(TARGET Terrain.Static PROPERTY SOURCES "${tc_terrain_static_filtered_sources}")
-    set_source_files_properties("${tc_terrain_mesh_manager_original}" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON HEADER_FILE_ONLY ON)
-    set_source_files_properties("${tc_terrain_mesh_manager_override}" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
-    target_sources(Terrain.Static PRIVATE "${tc_terrain_mesh_manager_override}")
-    set_source_files_properties("${tc_terrain_feature_processor_original}" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON HEADER_FILE_ONLY ON)
-    set_source_files_properties("${tc_terrain_feature_processor_override}" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
-    target_sources(Terrain.Static PRIVATE "${tc_terrain_feature_processor_override}")
-    set_source_files_properties("${tc_terrain_raycast_original}" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON HEADER_FILE_ONLY ON)
-    set_source_files_properties("${tc_terrain_raycast_override}" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
-    target_sources(Terrain.Static PRIVATE "${tc_terrain_raycast_override}")
-    set_source_files_properties("${tc_terrain_physics_collider_original}" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON HEADER_FILE_ONLY ON)
-    set_source_files_properties("${tc_terrain_physics_collider_override}" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
-    target_sources(Terrain.Static PRIVATE "${tc_terrain_physics_collider_override}")
-    target_include_directories(
-        Terrain.Static BEFORE PUBLIC
-        "${CMAKE_CURRENT_SOURCE_DIR}/EngineOverrides"
-        "${CMAKE_CURRENT_SOURCE_DIR}/Code/Include")
-else()
-    message(FATAL_ERROR "TerrainCompositor requires the Terrain.Static target before applying its render-query integration")
-endif()
+    set_source_files_properties("${original}" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON HEADER_FILE_ONLY ON)
+    set_source_files_properties("${replacement}" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
+    list(APPEND tc_terrain_sources "${replacement}")
+endforeach()
+set_property(TARGET Terrain.Static PROPERTY SOURCES "${tc_terrain_sources}")
+target_include_directories(Terrain.Static BEFORE PUBLIC
+    "${tc_generated_overrides}" "${CMAKE_CURRENT_SOURCE_DIR}/EngineOverrides" "${CMAKE_CURRENT_SOURCE_DIR}/Code/Include")
 
 ly_add_target(
     NAME ${gem_name}.Static STATIC
     NAMESPACE Gem
     FILES_CMAKE terrain_compositor_files.cmake
     INCLUDE_DIRECTORIES
-        PUBLIC Code/Include ${LY_ROOT_FOLDER}/Gems/Terrain/Code/Source
-        PRIVATE EngineOverrides
+        PUBLIC Code/Include
+        PRIVATE "${tc_generated_overrides}" EngineOverrides
+        PUBLIC ${LY_ROOT_FOLDER}/Gems/Terrain/Code/Source
     BUILD_DEPENDENCIES
         PRIVATE
             AZ::AzGameFramework
@@ -103,7 +78,7 @@ if(PAL_TRAIT_BUILD_HOST_TOOLS)
         NAMESPACE Gem
         FILES_CMAKE terrain_compositor_editor_files.cmake
         INCLUDE_DIRECTORIES
-            PRIVATE Code/Include Code/Source EngineOverrides ${LY_ROOT_FOLDER}/Gems/Terrain/Code/Source
+            PRIVATE Code/Include Code/Source "${tc_generated_overrides}" EngineOverrides ${LY_ROOT_FOLDER}/Gems/Terrain/Code/Source
         BUILD_DEPENDENCIES PRIVATE Gem::${gem_name}.Static AZ::AzToolsFramework
     )
     ly_add_source_properties(
@@ -133,6 +108,7 @@ if(PAL_TRAIT_BUILD_TESTS_SUPPORTED)
             PRIVATE
                 Code/Include
                 Code/Source
+                "${tc_generated_overrides}"
                 EngineOverrides
                 ${LY_ROOT_FOLDER}/Gems/Terrain/Code/Source
                 ${LY_ROOT_FOLDER}/Gems/Terrain/Code/Mocks
@@ -155,4 +131,19 @@ if(PAL_TRAIT_BUILD_TESTS_SUPPORTED)
     endif()
 
     ly_add_googletest(NAME Gem::${gem_name}.Tests LABELS REQUIRES_tiaf)
+    if(PAL_TRAIT_BUILD_HOST_TOOLS)
+        ly_add_target(
+            NAME ${gem_name}.Editor.Tests ${PAL_TRAIT_TEST_TARGET_TYPE}
+            NAMESPACE Gem
+            FILES_CMAKE Code/Tests/terrain_compositor_editor_tests_files.cmake
+            INCLUDE_DIRECTORIES PRIVATE Code/Include Code/Source ${LY_ROOT_FOLDER}/Gems/Terrain/Code/Source
+            BUILD_DEPENDENCIES PRIVATE AZ::AzTest AZ::AzToolsFramework Gem::${gem_name}.Static
+        )
+        ly_add_googletest(NAME Gem::${gem_name}.Editor.Tests LABELS REQUIRES_tiaf)
+    endif()
+    add_test(NAME Gem::${gem_name}.EngineOverrides
+        COMMAND "${CMAKE_COMMAND}"
+            "-DTC_ENGINE_TERRAIN_ROOT=${tc_terrain_source_root}"
+            "-DTC_TEST_ROOT=${CMAKE_CURRENT_BINARY_DIR}/EngineOverrideTests"
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/Code/Tests/EngineOverridesTests.cmake")
 endif()

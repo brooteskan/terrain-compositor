@@ -1,10 +1,9 @@
 #pragma once
 
 #include <AzCore/Component/Component.h>
-#include <AzCore/Component/TickBus.h>
 #include <AzFramework/Components/EditorEntityEvents.h>
 #include <Terrain/Ebuses/TerrainAreaSurfaceRequestBus.h>
-#include <TerrainCompositor/TerrainCompositionProviderBinding.h>
+#include <TerrainCompositor/Internal/ProviderLifecycle.h>
 #include <TerrainCompositor/TerrainCompositionBus.h>
 #include <TerrainCompositor/TerrainCompositorTypeIds.h>
 
@@ -27,7 +26,6 @@ namespace TerrainCompositor
         : public AZ::Component
         , public AzFramework::EditorEntityEvents
         , private Terrain::TerrainAreaSurfaceRequestBus::Handler
-        , private AZ::SystemTickBus::Handler
     {
     public:
         AZ_COMPONENT_DECL(TerrainCompositionSurfaceProviderComponent);
@@ -39,7 +37,6 @@ namespace TerrainCompositor
         static void GetDependentServices(AZ::ComponentDescriptor::DependencyArrayType& services);
 
         // Intentional O3DE terrain-provider adapter interface; the height and surface buses require distinct components.
-        /* jscpd:ignore-start */
         TerrainCompositionSurfaceProviderComponent() = default;
         explicit TerrainCompositionSurfaceProviderComponent(const TerrainCompositionSurfaceProviderConfig& configuration);
 
@@ -52,19 +49,19 @@ namespace TerrainCompositor
         AZStd::string GetStatusMessage() const;
 
     private:
-        void StartProvider(AZ::EntityId terrainRegionEntityId);
-        void StopProvider();
-        void RestartProvider();
-        void RefreshArea() const;
-        /* jscpd:ignore-end */
-        void OnSystemTick() override;
+        template<class> friend class TerrainProviderLifecycleTests;
+        friend class Internal::ProviderLifecycle<TerrainCompositionSurfaceProviderComponent>;
+        void ConnectProvider();
+        void DisconnectProvider();
+        void ClearProvider() {}
 
         void GetSurfaceWeights(const AZ::Vector3& position,
             AzFramework::SurfaceData::SurfaceTagWeightList& outSurfaceWeights) const override;
         void GetSurfaceWeightsFromList(AZStd::span<const AZ::Vector3> positions,
             AZStd::span<AzFramework::SurfaceData::SurfaceTagWeightList> outSurfaceWeights) const override;
 
-        TerrainCompositionProviderBinding m_binding;
+        Internal::ProviderLifecycle<TerrainCompositionSurfaceProviderComponent> m_binding{ *this,
+            AzFramework::Terrain::TerrainDataNotifications::TerrainDataChangedMask::SurfaceData };
         TerrainCompositionSurfaceProviderConfig m_configuration;
     };
 } // namespace TerrainCompositor

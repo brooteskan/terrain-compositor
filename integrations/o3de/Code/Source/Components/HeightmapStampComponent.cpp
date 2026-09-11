@@ -1,4 +1,5 @@
 #include <TerrainCompositor/Components/HeightmapStampComponent.h>
+#include "../ComponentConfiguration.h"
 
 #include <AzCore/Serialization/EditContext.h>
 #include <AzCore/Serialization/SerializeContext.h>
@@ -62,11 +63,6 @@ namespace TerrainCompositor
         StartStamp(GetEntityId());
     }
 
-    void HeightmapStampComponent::Deactivate()
-    {
-        StopStamp();
-    }
-
     void HeightmapStampComponent::EditorActivate(AZ::EntityId entityId)
     {
         // GenericComponentWrapper calls this instead of Activate; the wrapped component has no editor entity.
@@ -75,7 +71,7 @@ namespace TerrainCompositor
 
     void HeightmapStampComponent::EditorDeactivate([[maybe_unused]] AZ::EntityId entityId)
     {
-        StopStamp();
+        Deactivate();
     }
 
     void HeightmapStampComponent::StartStamp(AZ::EntityId entityId, bool editor)
@@ -85,7 +81,7 @@ namespace TerrainCompositor
             m_controlThread.BindForActivation();
         }
         if (!m_controlThread.Check()) { return; }
-        StopStamp();
+        Deactivate();
         m_activeEntityId = entityId;
         m_editor = editor;
         if (editor)
@@ -104,7 +100,7 @@ namespace TerrainCompositor
         m_registration.Activate(entityId, configuration, world, available, pending);
     }
 
-    void HeightmapStampComponent::StopStamp()
+    void HeightmapStampComponent::Deactivate()
     {
         if (!m_activeEntityId.IsValid()) { return; }
         if (!m_controlThread.Check()) { return; }
@@ -135,23 +131,16 @@ namespace TerrainCompositor
     bool HeightmapStampComponent::ReadInConfig(const AZ::ComponentConfig* baseConfig)
     {
         if (!m_controlThread.Check()) { return false; }
-        if (const auto* configuration = azrtti_cast<const HeightmapStampConfig*>(baseConfig))
+        return Internal::ReadConfiguration<HeightmapStampConfig>(baseConfig, [this](const auto& value)
         {
-            SetStampConfiguration(*configuration);
-            return true;
-        }
-        return false;
+            SetStampConfiguration(value);
+        });
     }
 
     bool HeightmapStampComponent::WriteOutConfig(AZ::ComponentConfig* outBaseConfig) const
     {
         if (!m_controlThread.Check()) { return false; }
-        if (auto* configuration = azrtti_cast<HeightmapStampConfig*>(outBaseConfig))
-        {
-            *configuration = m_configuration;
-            return true;
-        }
-        return false;
+        return Internal::WriteConfiguration(outBaseConfig, m_configuration);
     }
 
     AZ::u32 HeightmapStampComponent::OnConfigurationChanged()
