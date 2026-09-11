@@ -47,6 +47,7 @@ set(FILES
     Code/Source/ComponentConfiguration.h
     Code/Source/PublicationState.h
     Code/Include/TerrainCompositor/Internal/CompositionRegistrationState.h
+    Code/Include/TerrainCompositor/Internal/CompositionRegistrations.h
     Code/Source/ModelAssetSource.h
     Code/Source/MeshPlacementLifecycle.cpp
     Code/Source/StampMath.h

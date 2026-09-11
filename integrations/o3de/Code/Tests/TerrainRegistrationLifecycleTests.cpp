@@ -176,6 +176,8 @@ namespace TerrainCompositor
         auto& Diagnostics() { return m_composition->m_pendingDiagnostics; }
         auto& FootprintChanges() { return m_composition->m_pendingChanges; }
         void Republish() { m_composition->PublishStamps(); }
+        AZ::u64 PublishedRevision() const { return m_composition->GetQueryState()->m_revision; }
+        auto& DirtyStamps() { return m_composition->m_dirtyStamps; }
 
         static AZStd::vector<Record> RecordsAt(const TerrainCompositionAddress& address)
         {
@@ -592,6 +594,111 @@ namespace TerrainCompositor
         record.m_registrationId = AZ::Uuid::CreateRandom();
         ASSERT_TRUE(this->Register(record));
         EXPECT_EQ(this->Diagnostics(), initial);
+    }
+
+    TYPED_TEST(TerrainRegistrationLifecycleTests, EveryRemovalRoleRetiresUnknownLeasesAcrossRegistrationTypes)
+    {
+        for (const auto remove : { RegistrationTestSupport::Image::Unregister,
+                 RegistrationTestSupport::Cutout::Unregister, RegistrationTestSupport::MeshHeight::Unregister })
+        {
+            auto record = this->MakeRecord(this->m_stamp);
+            const auto revision = this->PublishedRevision();
+            TerrainCompositionRequestBus::Event(
+                this->m_address, remove, AZ::EntityId{}, record.m_registrationId, record.m_compositionSession);
+            EXPECT_EQ(this->PublishedRevision(), revision);
+            EXPECT_FALSE(this->Register(record));
+            record.m_registrationId = AZ::Uuid::CreateRandom();
+            ASSERT_TRUE(this->Register(record));
+            this->Unregister(record);
+        }
+    }
+
+    TYPED_TEST(TerrainRegistrationLifecycleTests, WrongSessionAndNullLeaseRemovalDoNotRetireOrPublish)
+    {
+        for (const auto remove : { RegistrationTestSupport::Image::Unregister,
+                 RegistrationTestSupport::Cutout::Unregister, RegistrationTestSupport::MeshHeight::Unregister })
+        {
+            auto record = this->MakeRecord(this->m_stamp);
+            const auto revision = this->PublishedRevision();
+            TerrainCompositionRequestBus::Event(
+                this->m_address, remove, this->m_stamp, record.m_registrationId, AZ::Uuid::CreateRandom());
+            TerrainCompositionRequestBus::Event(
+                this->m_address, remove, this->m_stamp, AZ::Uuid{}, record.m_compositionSession);
+            EXPECT_EQ(this->PublishedRevision(), revision);
+            ASSERT_TRUE(this->Register(record));
+            this->Unregister(record);
+        }
+    }
+
+    TYPED_TEST(TerrainRegistrationLifecycleTests, ReplayAndRejectionLeavePendingDirtyStateUnpublished)
+    {
+        auto record = this->MakeRecord(this->m_stamp);
+        record.m_updateRevision = 4;
+        ASSERT_TRUE(this->Register(record));
+        this->Diagnostics().clear();
+        this->DirtyStamps()[this->m_peer] = Internal::DirtyAll;
+        const auto revision = this->PublishedRevision();
+        auto replay = record;
+        replay.m_configuration.m_priority += 10;
+        EXPECT_TRUE(this->Register(replay));
+        --replay.m_updateRevision;
+        EXPECT_FALSE(this->Register(replay));
+        EXPECT_EQ(this->PublishedRevision(), revision);
+        EXPECT_EQ(this->DirtyStamps().at(this->m_peer), Internal::DirtyAll);
+        EXPECT_TRUE(this->Diagnostics().empty());
+        ++record.m_updateRevision;
+        ASSERT_TRUE(this->Register(record));
+        EXPECT_GT(this->PublishedRevision(), revision);
+        EXPECT_TRUE(this->DirtyStamps().empty());
+    }
+
+    TYPED_TEST(TerrainRegistrationLifecycleTests, StaleLeaseRemovalPreservesReplacementWarningHistory)
+    {
+        auto record = this->MakeRecord(this->m_stamp);
+        record.m_configuration.m_orderingId = {};
+        record.m_configuration.m_stableOrderKey.clear();
+        this->Diagnostics().clear();
+        ASSERT_TRUE(this->Register(record));
+        const auto warnings = this->Diagnostics();
+        ASSERT_FALSE(warnings.empty());
+        this->Unregister(record);
+        auto replacement = record;
+        replacement.m_registrationId = AZ::Uuid::CreateRandom();
+        ASSERT_TRUE(this->Register(replacement));
+        this->Diagnostics().clear();
+        const auto revision = this->PublishedRevision();
+        this->Unregister(record);
+        EXPECT_EQ(this->PublishedRevision(), revision);
+        ASSERT_EQ(this->Records().size(), 1);
+        EXPECT_EQ(this->Records()[0].m_registrationId, replacement.m_registrationId);
+        this->Republish();
+        EXPECT_TRUE(this->Diagnostics().empty());
+        this->Unregister(replacement);
+        replacement.m_registrationId = AZ::Uuid::CreateRandom();
+        ASSERT_TRUE(this->Register(replacement));
+        EXPECT_EQ(this->Diagnostics(), warnings);
+    }
+
+    TYPED_TEST(TerrainRegistrationLifecycleTests, SameObjectReactivationClearsLeaseAndDiagnosticHistory)
+    {
+        auto record = this->MakeRecord(this->m_stamp);
+        record.m_configuration.m_orderingId = {};
+        record.m_configuration.m_stableOrderKey.clear();
+        this->Diagnostics().clear();
+        ASSERT_TRUE(this->Register(record));
+        const auto warnings = this->Diagnostics();
+        ASSERT_FALSE(warnings.empty());
+        auto retired = this->MakeRecord(this->m_peer);
+        this->Unregister(retired);
+        this->m_composition->EditorDeactivate(this->m_owner);
+        this->m_composition->EditorActivate(this->m_owner);
+        ASSERT_NE(this->Session(), record.m_compositionSession);
+        EXPECT_TRUE(this->Records().empty());
+        record.m_compositionSession = retired.m_compositionSession = this->Session();
+        this->Diagnostics().clear();
+        ASSERT_TRUE(this->Register(record));
+        EXPECT_EQ(this->Diagnostics(), warnings);
+        ASSERT_TRUE(this->Register(retired));
     }
 
     class TerrainImageRegistrationTests : public TerrainRegistrationLifecycleTests<RegistrationTestSupport::Image>

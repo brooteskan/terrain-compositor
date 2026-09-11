@@ -586,3 +586,84 @@ the 50% goal remains unproven. The next ownership opportunity is the repeated
 admission/retirement and diagnostic lifecycle around the three typed registration
 stores. Cross-mesh revision authority still needs a source-generation contract;
 the three cutout-cache preparation failures remain a separate behavioral fix.
+
+## Registration admission, retirement and diagnostic ownership (2026-09-10)
+
+Baseline: `5d4a276` (`Index composition image revision ownership`). The next slice
+introduces `Internal::CompositionRegistrations`, a control-thread owner for the
+image index, two typed mesh stores, shared lease tombstones and five diagnostic
+histories. The coordinator has const typed record views for preparation, queries
+and ordering. Registration, removal and session clearing now maintain records and
+their associated history through one owner.
+
+The existing admission algorithm moves out of the query helper into this owner.
+It still checks context ownership, target, session, lease and update revision before
+applying the unchanged image/mesh transformations. The coordinator's six bus
+overrides use one registration/publication transition and one removal/publication
+transition. Replay and rejection never publish pending dirty work. Successful
+admission publishes only when dirty work exists; actual removal retains the same
+role-specific dirty mask and publication behavior.
+
+Removal records a shared tombstone even for an unknown entity or an unmatched
+lease. Wrong-session and null-lease removals do nothing. Only the matching live
+claim loses its record and diagnostic history; a stale lease cannot remove a
+replacement or make its warning repeat. The five diagnostic channels retain their
+separate warning/recovery histories and exact text. Session clearing retires all
+records, index state, tombstones and warning histories together. Collision history,
+pending notification queues and immutable publication remain in the coordinator.
+
+Added 15 characterization cases (five shared cases across all three roles) for
+cross-role unknown-lease retirement, invalid removal, pending dirty state during
+replay/rejection, stale-lease warning history and reactivation of the same object.
+All **86 focused cases passed before replacement and unchanged after it**. Existing
+image index, mixed-operation, role-specific revision and publication cases remain.
+No tests were removed or newly disabled.
+
+Public component declarations and all bus override signatures are unchanged.
+Normalized comparison confirms that all coordinator code outside registration
+mutation/clearing and moved diagnostic bookkeeping matches after record-accessor
+substitution. Reflection, services, status text, queries, geometry preparation,
+publication, invalidation and ordering are preserved. The moved admission and
+warning-update bodies match the original algorithms. Image indexing, mesh revision
+scans, shaders and engine patches are unchanged. The private coordinator layout
+changes; consumers must rebuild.
+
+All five runtime/editor/test targets built using the existing generated VC projects
+and dependencies, directly referencing standalone sources. The maintained file list
+includes the new owner header. Fresh CMake generation and a live Editor scene smoke
+test were not performed. The full runtime suite ran **254 cases: 251 passed and
+the same three known cutout-cache failures remained**; the existing disabled case
+remains. All 46 editor cases passed. D3D11 matched all 142,560 classifications;
+engine override generation/repetition/rejection checks and `git diff --check` passed.
+
+The 100 shuffled runtime iterations ran 171 cases each: **16,800 passes and 300
+occurrences of the same known failures**, with the failure-name set checked in every
+iteration. The editor shuffle passed **4,600 cases**. Both runs use seeds 173-272.
+Logs, XML, source audits and per-file counts are under
+`D:/TG/TGProject/build/tc-registration-owner-session`.
+
+Reproduce measurement with `python tools/MeasureLoc.py --revision 5d4a276 --json`
+and `python tools/MeasureLoc.py --worktree --json`. Counts include the new 172-line
+owner and all existing helpers. The coordinator shrinks from 1,938 to 1,856 lines;
+the complete first-party C++ scope grows by **49 lines**. This is an ownership
+improvement, with no additional traversal, speed or memory reduction claimed.
+
+| Repository category | Before `5d4a276` | After | Change |
+| --- | ---: | ---: | ---: |
+| Production C++ | 12,841 | 12,722 | -119 |
+| Include headers | 3,603 | 3,771 | +168 |
+| **First-party C++** | **16,444** | **16,493** | **+49** |
+| Tests, including file lists | 5,956 | 6,063 | +107 |
+| Shaders/assets | 966 | 966 | 0 |
+| Engine patches/overrides | 939 | 939 | 0 |
+| Build/tooling | 536 | 537 | +1 |
+| Documentation | 3,602 | 3,683 | +81 |
+| License/notice | 28 | 28 | 0 |
+| **Total repository text** | **28,471** | **28,709** | **+238** |
+
+Cumulative first-party reduction is **914 lines (5.25%)** from the initial
+extraction and **516 lines (3.03%)** from post-cleanup. The 50% goal remains
+unproven. A subsequent bounded pass can audit obsolete wrappers and comments across
+the consolidated owners and their adapters. Cross-mesh revision authority still
+requires its source-generation contract, and the three cutout-cache failures remain
+a separate behavioral fix.

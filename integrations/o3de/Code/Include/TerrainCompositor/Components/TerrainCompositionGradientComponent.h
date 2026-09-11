@@ -5,14 +5,13 @@
 #include <AzCore/Component/EntityBus.h>
 #include <AzCore/Component/TickBus.h>
 #include <AzCore/std/containers/unordered_map.h>
-#include <AzCore/std/containers/unordered_set.h>
 #include <AzCore/std/smart_ptr/weak_ptr.h>
 #include <AzFramework/Components/EditorEntityEvents.h>
 #include <GradientSignal/Ebuses/GradientRequestBus.h>
 #include <LmbrCentral/Dependency/DependencyMonitor.h>
 #include <LmbrCentral/Shape/ShapeComponentBus.h>
 #include <TerrainCompositor/HeightmapControlThread.h>
-#include <TerrainCompositor/Internal/CompositionRegistrationState.h>
+#include <TerrainCompositor/Internal/CompositionRegistrations.h>
 #include <TerrainCompositor/HeightmapStampSampling.h>
 #include <TerrainCompositor/SurfaceCompositionConfig.h>
 #include <TerrainCompositor/SurfaceStampSampling.h>
@@ -182,6 +181,11 @@ namespace TerrainCompositor
             AZStd::span<const AZ::Vector3> positions,
             AZStd::span<AzFramework::SurfaceData::SurfaceTagWeightList> outSurfaceWeights) const override;
 
+        template<class Registration, class Classify>
+        bool RegisterAndPublish(const Registration& registration, Classify classify);
+        template<class Registration>
+        void UnregisterAndPublish(AZ::EntityId entityId, const AZ::Uuid& registrationId, const AZ::Uuid& compositionSession);
+
         bool RegisterStamp(const HeightmapStampRegistrationData& registration) override;
         bool RegisterMeshCutout(const TerrainMeshCutoutRegistrationData& registration) override;
         bool RegisterMeshHeightStamp(const TerrainMeshHeightStampRegistrationData& registration) override;
@@ -215,16 +219,8 @@ namespace TerrainCompositor
         AZ::u64 m_revision = 0;
         bool m_active = false;
         unsigned m_configurationUpdateDepth = 0;
-        Internal::ImageRegistrationState m_imageRegistrations;
-        AZStd::unordered_map<AZ::EntityId, TerrainMeshCutoutRegistrationData> m_meshCutoutRegistrations;
-        AZStd::unordered_map<AZ::EntityId, TerrainMeshHeightStampRegistrationData> m_meshHeightRegistrations;
-        AZStd::unordered_set<AZ::Uuid> m_retiredRegistrations;
+        Internal::CompositionRegistrations m_registrations;
         AZStd::unordered_map<AZStd::string, AZStd::string> m_collisions;
-        AZStd::unordered_map<AZ::EntityId, AZStd::string> m_diagnostics;
-        AZStd::unordered_map<AZ::EntityId, AZStd::string> m_surfaceDiagnostics;
-        AZStd::unordered_map<AZ::EntityId, AZStd::string> m_existenceDiagnostics;
-        AZStd::unordered_map<AZ::EntityId, AZStd::string> m_meshCutoutDiagnostics;
-        AZStd::unordered_map<AZ::EntityId, AZStd::string> m_meshHeightDiagnostics;
         AZStd::vector<ReconstructionCacheEntry> m_reconstructionCache;
         AZStd::vector<AZStd::string> m_pendingDiagnostics;
         AZStd::vector<HeightmapStampFootprintChange> m_pendingChanges;
