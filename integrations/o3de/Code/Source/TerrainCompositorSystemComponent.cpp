@@ -33,8 +33,10 @@ namespace TerrainCompositor
     }
 
     void TerrainCompositorSystemComponent::GetRequiredServices(
-        [[maybe_unused]] AZ::ComponentDescriptor::DependencyArrayType& required)
+        AZ::ComponentDescriptor::DependencyArrayType& required)
     {
+        // The feature processor factory must outlive our registration.
+        required.push_back(AZ_CRC_CE("RPISystem"));
     }
 
     void TerrainCompositorSystemComponent::GetDependentServices(
