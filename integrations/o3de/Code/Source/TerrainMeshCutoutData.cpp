@@ -2,6 +2,7 @@
 
 #include <AzCore/Casting/numeric_cast.h>
 #include <AzCore/std/algorithm.h>
+#include <AzCore/std/sort.h>
 #include <AzCore/std/containers/unordered_map.h>
 #include <cmath>
 #include <cstring>

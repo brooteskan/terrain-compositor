@@ -29,6 +29,110 @@ namespace Terrain
     {
     protected:
         using Vertex = TerrainMeshManager::HeightNormalVertex;
+        static void CheckRenderQueryPreparation()
+        {
+            using namespace TerrainCompositor;
+            using Requests = AzFramework::Terrain::TerrainDataRequests;
+            ::testing::NiceMock<UnitTest::MockTerrainDataRequests> terrain;
+            auto snapshot = std::make_shared<TerrainMeshCutoutRenderSnapshot>();
+            TerrainRenderGeometryQuery query;
+            query.m_regionBounds = AZ::Aabb::CreateFromMinMax({ 0, 0, -1 }, { 4, 4, 1 });
+            query.m_getHeight = [](const AZ::Vector3& p) { return 30.0f * p.GetX() - 20.0f * p.GetY(); };
+            query.m_getTerrainExists = [](const AZ::Vector3& p) { return p.GetZ() < 0 && !(p.GetX() == 1 && p.GetY() == 1); };
+            query.m_getGeometry = [query](auto points, auto heights, auto exists)
+            {
+                for (size_t i = 0; i < points.size(); ++i)
+                {
+                    exists[i] = query.m_getTerrainExists(points[i]);
+                    heights[i] = query.m_getHeight(points[i]);
+                }
+            };
+            snapshot->m_renderGeometryQueries.push_back(query);
+            bool reference = false;
+            size_t ordinaryCalls = 0;
+            Requests::Sampler requestedSampler = Requests::Sampler::EXACT;
+            ON_CALL(terrain, QueryRegion).WillByDefault([&](const auto& region, auto mask, auto callback, auto sampler)
+            {
+                ++ordinaryCalls;
+                EXPECT_EQ(mask, Requests::TerrainDataMask::Heights);
+                EXPECT_EQ(sampler, requestedSampler);
+                const size_t count = region.m_numPointsX * region.m_numPointsY;
+                AZStd::vector<AZ::Vector3> points(count);
+                AZStd::vector<float> heights(count);
+                auto exists = std::make_unique<bool[]>(count);
+                for (size_t y = 0; y < region.m_numPointsY; ++y)
+                    for (size_t x = 0; x < region.m_numPointsX; ++x)
+                    {
+                        size_t i = y * region.m_numPointsX + x;
+                        points[i] = region.m_startPoint + AZ::Vector3(float(x) * region.m_stepSize.GetX(), float(y) * region.m_stepSize.GetY(), 0);
+                        points[i].SetZ(x % 3 == 0 ? 1000.0f : -1000.0f);
+                        heights[i] = points[i].GetZ();
+                        exists[i] = false; // Ordinary collision fallback must be replaced only within XY ownership.
+                    }
+                if (reference) ApplyTerrainRenderGeometry(*snapshot, points, heights, { exists.get(), count });
+                for (size_t y = 0; y < region.m_numPointsY; ++y)
+                    for (size_t x = 0; x < region.m_numPointsX; ++x)
+                    {
+                        size_t i = y * region.m_numPointsX + x;
+                        AzFramework::SurfaceData::SurfacePoint surface;
+                        surface.m_position = points[i];
+                        surface.m_position.SetZ(heights[i]);
+                        callback(x, y, surface, exists[i]);
+                    }
+            });
+            TerrainMeshManager manager;
+            manager.m_worldHeightBounds = { -50, 50 };
+            manager.m_gridSize = 4;
+            manager.m_gridVerts1D = 5;
+            manager.m_gridVerts2D = 25;
+            for (uint16_t i = 0; i < 25; ++i) manager.m_vertexOrder.push_back(24 - i);
+            for (auto sampler : { Requests::Sampler::EXACT, Requests::Sampler::CLAMP, Requests::Sampler::BILINEAR })
+            {
+                requestedSampler = sampler;
+                AZStd::vector<Vertex> expected[2], actual[2];
+                for (int lod = 0; lod < 2; ++lod)
+                {
+                    TerrainMeshManager::SectorDataRequest request;
+                    request.m_worldStartPosition = AZ::Vector2::CreateZero();
+                    request.m_vertexSpacing = lod ? 2.0f : 1.0f;
+                    request.m_samplesX = request.m_samplesY = lod ? 3 : 5;
+                    request.m_samplerType = sampler;
+                    request.m_useVertexOrderRemap = lod == 0;
+                    AZ::Aabb expectedBounds = AZ::Aabb::CreateNull(), actualBounds = AZ::Aabb::CreateNull();
+                    bool expectedExists = false, actualExists = false;
+                    // Initialize hole normals: GatherMeshData deliberately writes only their sentinel height.
+                    expected[lod].resize(request.m_samplesX * request.m_samplesY, Vertex{});
+                    actual[lod] = expected[lod];
+                    reference = true;
+                    manager.GatherMeshData(request, expected[lod], expectedBounds, expectedExists);
+                    reference = false;
+                    request.m_renderSnapshot = snapshot;
+                    TerrainRenderQueryStatistics statistics;
+                    request.m_queryStatistics = &statistics;
+                    manager.GatherMeshData(request, actual[lod], actualBounds, actualExists);
+                    EXPECT_EQ(actualExists, expectedExists);
+                    EXPECT_EQ(actualBounds, expectedBounds);
+                    ASSERT_EQ(actual[lod].size(), expected[lod].size());
+                    for (size_t i = 0; i < actual[lod].size(); ++i)
+                    {
+                        EXPECT_EQ(actual[lod][i].m_height, expected[lod][i].m_height);
+                        EXPECT_EQ(actual[lod][i].m_normal, expected[lod][i].m_normal);
+                    }
+                    EXPECT_EQ(statistics.m_ordinarySamples, size_t((request.m_samplesX + 2) * (request.m_samplesY + 2)));
+                    EXPECT_GT(statistics.m_retainedSamples, 0);
+                }
+                AZStd::vector<Vertex> expectedClod, actualClod;
+                manager.PrepareSectorLodData(expected[0], expected[1], expectedClod);
+                manager.PrepareSectorLodData(actual[0], actual[1], actualClod);
+                ASSERT_EQ(actualClod.size(), expectedClod.size());
+                for (size_t i = 0; i < actualClod.size(); ++i)
+                {
+                    EXPECT_EQ(actualClod[i].m_height, expectedClod[i].m_height);
+                    EXPECT_EQ(actualClod[i].m_normal, expectedClod[i].m_normal);
+                }
+            }
+            EXPECT_EQ(ordinaryCalls, 12); // One unchanged QueryRegion per reference/candidate and LOD.
+        }
         static void CheckSectorGridCrossing(bool crossX, bool crossY)
         {
             // GeometryView enumerates devices even when no GPU resources are
@@ -171,6 +275,10 @@ namespace Terrain
     TEST_F(TerrainSectorPreparationTests, ClodPreservesInterpolationRemappingAndHoleFallback)
     {
         CheckClodPreparation();
+    }
+    TEST_F(TerrainSectorPreparationTests, RenderOwnershipPreservesClampedHeightsNormalsClodAndPackedVertices)
+    {
+        CheckRenderQueryPreparation();
     }
     TEST_F(TerrainSectorPreparationTests, CrossingZeroXPreservesOverlappingSectorBuffers)
     {
@@ -562,6 +670,7 @@ namespace TerrainCompositor
                 ++m_batchHeights;
                 for (size_t i = 0; i < positions.size(); ++i)
                     out[i] = Height(positions[i]);
+                if (m_onHeights) m_onHeights();
             }
             bool GetTerrainExists(const AZ::Vector3& p) const override
             {
@@ -579,6 +688,7 @@ namespace TerrainCompositor
                 return m_cyclic;
             }
             bool m_cyclic = false;
+            AZStd::function<void()> m_onHeights;
             mutable size_t m_scalarHeights = 0, m_scalarExists = 0, m_batchHeights = 0, m_batchExists = 0;
         };
         const AZStd::vector<AZ::Vector3> CubePositions{ { -1.0f, -1.0f, -1.0f }, { 1.0f, -1.0f, -1.0f }, { 1.0f, 1.0f, -1.0f },
@@ -1083,6 +1193,266 @@ namespace TerrainCompositor
         EXPECT_FLOAT_EQ(heights[0], -100.0f);
         EXPECT_TRUE(exists[0]);
         EXPECT_TRUE(channel->m_snapshot.load()->m_renderGeometryQueries.empty());
+    }
+
+    TEST_F(TerrainRenderGeometryBatchTests, OwnershipPlanMatchesLegacyOverlayAtBatchAndInclusiveRegionBoundaries)
+    {
+        for (size_t count : { 0, 1, 255, 256, 257 })
+        {
+            for (int routing = 0; routing < 5; ++routing)
+            {
+                SCOPED_TRACE(::testing::Message() << count << " samples, routing " << routing);
+                auto publication = std::make_shared<TerrainMeshCutoutRenderSnapshot>();
+                AZStd::vector<int> calls;
+                const auto makeOwner = [&calls](int id, float minX, float maxX)
+                {
+                    TerrainRenderGeometryQuery query;
+                    query.m_regionBounds = AZ::Aabb::CreateFromMinMax({ minX, -1, -1 }, { maxX, 1, 1 });
+                    query.m_getHeight = [&calls, id](const AZ::Vector3& p) { calls.push_back(id * 10 + 1); return p.GetX() + id; };
+                    query.m_getTerrainExists = [&calls, id](const AZ::Vector3& p) { calls.push_back(id * 10 + 2); return p.GetZ() < 0; };
+                    query.m_getGeometry = [&calls, id](auto points, auto heights, auto exists)
+                    {
+                        calls.push_back(id * 1000 + static_cast<int>(points.size()));
+                        for (size_t i = 0; i < points.size(); ++i) { heights[i] = points[i].GetX() + id; exists[i] = points[i].GetZ() < 0; }
+                    };
+                    return query;
+                };
+                publication->m_renderGeometryQueries = { makeOwner(1, -2, 1), makeOwner(2, 0, 3) };
+                if (routing == 1) publication->m_renderGeometryQueries[0].m_getGeometry = {}; // Scalar-only owner.
+                if (routing == 2) publication->m_renderGeometryQueries[0].m_getTerrainExists = {}; // Split and partially owned.
+                if (routing == 3) publication->m_renderGeometryQueries.clear();
+                AZStd::vector<AZ::Vector3> points(count);
+                AZStd::vector<float> expected(count, 17), actual(count, 17);
+                auto expectedExists = std::make_unique<bool[]>(count), actualExists = std::make_unique<bool[]>(count);
+                for (size_t i = 0; i < count; ++i)
+                    points[i] = AZ::Vector3(float(int(i % 8) - 3), i % 2 ? 1.0f : -1.0f, i % 3 ? -1000.0f : 1000.0f);
+                if (routing == 4)
+                    for (size_t i = 0; i < count; ++i)
+                    {
+                        TryGetTerrainRenderGeometryExists(*publication, points[i], expectedExists[i]);
+                        TryGetTerrainRenderGeometryHeight(*publication, points[i], expected[i]);
+                    }
+                else ApplyTerrainRenderGeometry(*publication, points, expected, { expectedExists.get(), count });
+                const auto expectedCalls = calls;
+                calls.clear();
+                TerrainRenderQueryStatistics statistics;
+                TerrainRenderQueryRequest request;
+                request.m_positions = points;
+                request.m_allowBatch = routing != 4;
+                const auto plan = ResolveTerrainRenderQuery(publication, request, &statistics);
+                EXPECT_TRUE(calls.empty()); // Resolution must never probe live sources.
+                EXPECT_EQ(plan.m_publication, publication);
+                EXPECT_TRUE(plan.RequiresOrdinaryResults());
+                ExecuteTerrainRenderQuery(plan, actual, { actualExists.get(), count }, &statistics);
+                EXPECT_EQ(actual, expected);
+                EXPECT_EQ(calls, expectedCalls);
+                for (size_t i = 0; i < count; ++i) EXPECT_EQ(actualExists[i], expectedExists[i]);
+                EXPECT_EQ(statistics.m_independentSamples, 0);
+                EXPECT_EQ(statistics.m_fallbackSamples[static_cast<size_t>(TerrainRenderFallback::PreservedPolicy)], count);
+            }
+        }
+    }
+
+    TEST_F(TerrainRenderGeometryBatchTests, CompositionPlanDeclaresLiveOrdinaryZDependenciesAndCountsActualSourceCalls)
+    {
+        const AZ::EntityId sourceId(98'006);
+        CountingRenderSource source(sourceId);
+        for (size_t count : { 0, 1, 255, 256, 257 })
+        {
+            auto publication = std::make_shared<TerrainMeshCutoutRenderSnapshot>();
+            publication->m_renderGeometryQueries.push_back(MakeQuery(sourceId));
+            AZStd::vector<AZ::Vector3> points(count, AZ::Vector3(0, 0, -1000));
+            AZStd::vector<float> heights(count);
+            auto exists = std::make_unique<bool[]>(count);
+            TerrainRenderQueryRequest request;
+            request.m_positions = points;
+            TerrainRenderQueryStatistics statistics;
+            const auto plan = ResolveTerrainRenderQuery(publication, request, &statistics);
+            ExecuteTerrainRenderQuery(plan, heights, { exists.get(), count }, &statistics);
+            EXPECT_EQ(statistics.m_heightOwned, count);
+            EXPECT_EQ(statistics.m_existenceOwned, count);
+            EXPECT_EQ(statistics.m_batchSamples, count);
+            EXPECT_EQ(statistics.m_batchCallbacks, count ? 1 : 0);
+            EXPECT_EQ(statistics.m_heightSourceCalls, count ? 1 : 0);
+            EXPECT_EQ(statistics.m_existenceSourceCalls, count ? 1 : 0);
+            EXPECT_EQ(statistics.m_hierarchySourceCalls, count ? 2 : 0);
+            EXPECT_EQ(statistics.m_independentSamples, 0);
+            for (auto reason : { TerrainRenderFallback::LiveSource, TerrainRenderFallback::InputZ, TerrainRenderFallback::OrdinaryDependency })
+                EXPECT_EQ(statistics.m_fallbackSamples[static_cast<size_t>(reason)], count);
+            for (size_t i = 0; i < count; ++i) { EXPECT_FLOAT_EQ(heights[i], 0); EXPECT_TRUE(exists[i]); }
+        }
+    }
+
+    TEST_F(TerrainRenderGeometryBatchTests, UnsupportedCapabilitiesKeepOrdinaryOverlayAndMismatchDoesNotCallSources)
+    {
+        const AZ::EntityId sourceId(98'007);
+        CountingRenderSource source(sourceId);
+        auto publication = std::make_shared<TerrainMeshCutoutRenderSnapshot>();
+        publication->m_renderGeometryQueries.push_back(MakeQuery(sourceId));
+        AZ::Vector3 points[] = { { 0, 0, 1000 }, { 0, 0, -1000 } };
+        float heights[] = { 17, 17 };
+        bool exists[] = { true, false };
+        for (int unsupported = 0; unsupported < 5; ++unsupported)
+        {
+            auto& capability = publication->m_renderGeometryQueries[0].m_capability;
+            capability.m_maxSamples = unsupported == 0 ? 1 : 2;
+            TerrainRenderQueryRequest request;
+            request.m_positions = points;
+            if (unsupported == 1) request.m_coordinates = TerrainRenderCoordinates::Unknown;
+            if (unsupported == 2) request.m_sampler = static_cast<AzFramework::Terrain::TerrainDataRequests::Sampler>(99);
+            if (unsupported == 3) request.m_grid = TerrainRenderGrid::Regular; // Missing dimensions/spacing.
+            if (unsupported == 4)
+            {
+                request.m_grid = static_cast<TerrainRenderGrid>(99);
+                request.m_gridWidth = 2; request.m_gridHeight = 1; request.m_gridSpacing = AZ::Vector2(1.0f);
+            }
+            const auto plan = ResolveTerrainRenderQuery(publication, request);
+            EXPECT_NE(plan.m_firstRun.m_fallbackReasons & TerrainRenderFallbackBit(TerrainRenderFallback::UnsupportedRequest), 0);
+            ExecuteTerrainRenderQuery(plan, heights, exists);
+            EXPECT_FALSE(exists[0]); EXPECT_TRUE(exists[1]);
+        }
+        TerrainRenderQueryRequest request;
+        request.m_positions = points;
+        const auto plan = ResolveTerrainRenderQuery(publication, request);
+        const auto calls = source.m_batchHeights;
+        AZ_TEST_START_TRACE_SUPPRESSION;
+        ExecuteTerrainRenderQuery(plan, AZStd::span<float>(heights, 1), exists);
+        ExecuteTerrainRenderQuery(plan, heights, AZStd::span<bool>(exists, 1));
+        AZ_TEST_STOP_TRACE_SUPPRESSION(2);
+        EXPECT_EQ(source.m_batchHeights, calls);
+    }
+
+    TEST_F(TerrainRenderGeometryBatchTests, IndependenceRequiresEveryExplicitGuaranteeEvenForOneBulkOwner)
+    {
+        auto publication = std::make_shared<TerrainMeshCutoutRenderSnapshot>();
+        auto query = MakeQuery(AZ::EntityId(0));
+        auto& capability = query.m_capability;
+        capability.m_height = capability.m_existence = { TerrainRenderSource::RetainedAvailable, TerrainRenderInputZ::Independent, false };
+        publication->m_renderGeometryQueries.push_back(query);
+        AZ::Vector3 point(0, 0, -1000);
+        TerrainRenderQueryRequest request;
+        request.m_positions = { &point, 1 };
+        for (auto source : { TerrainRenderSource::Unknown, TerrainRenderSource::Live, TerrainRenderSource::Unavailable, TerrainRenderSource::RetainedAvailable })
+        {
+            publication->m_renderGeometryQueries[0].m_capability.m_existence.m_source = source;
+            TerrainRenderQueryStatistics statistics;
+            const auto plan = ResolveTerrainRenderQuery(publication, request, &statistics);
+            EXPECT_TRUE(plan.RequiresOrdinaryResults()); // No query elimination in this architectural slice.
+            EXPECT_TRUE(plan.m_firstRun.m_batch);
+            EXPECT_EQ(statistics.m_independentSamples, source == TerrainRenderSource::RetainedAvailable ? 1 : 0);
+        }
+        publication->m_renderGeometryQueries[0].m_capability.m_declared = false;
+        const auto plan = ResolveTerrainRenderQuery(publication, request);
+        EXPECT_NE(plan.m_firstRun.m_fallbackReasons & TerrainRenderFallbackBit(TerrainRenderFallback::LegacyContract), 0);
+    }
+
+    TEST_F(TerrainRenderGeometryBatchTests, RetainedPlanSurvivesReentrantPublicationReplacementAndRemoval)
+    {
+        TerrainMeshCutoutRenderRegistry registry;
+        const void* scene = reinterpret_cast<const void*>(uintptr_t(72));
+        const auto session = AZ::Uuid::CreateRandom();
+        const auto channel = registry.AcquireSceneChannel(scene);
+        auto query = MakeQuery(AZ::EntityId(0), {}, {}, -100.0);
+        const auto original = query.m_getGeometry;
+        query.m_getGeometry = [&](auto positions, auto heights, auto exists)
+        {
+            registry.Publish(scene, session, {}, MakeQuery(AZ::EntityId(0), {}, {}, 200.0), 2);
+            registry.Remove(session);
+            original(positions, heights, exists);
+        };
+        registry.Publish(scene, session, {}, query, 1);
+        AZ::Vector3 point(0, 0, -1000);
+        TerrainRenderQueryRequest request;
+        request.m_positions = { &point, 1 };
+        const auto plan = ResolveTerrainRenderQuery(channel->m_snapshot.load(), request);
+        EXPECT_EQ(plan.m_firstRun.m_height->m_compositionSession, session);
+        EXPECT_EQ(plan.m_firstRun.m_existence->m_compositionRevision, 1);
+        float height = 17; bool exists = false;
+        ExecuteTerrainRenderQuery(plan, { &height, 1 }, { &exists, 1 });
+        EXPECT_FLOAT_EQ(height, -100);
+        EXPECT_TRUE(exists);
+        EXPECT_TRUE(channel->m_snapshot.load()->m_renderGeometryQueries.empty());
+        EXPECT_EQ(plan.m_publication->m_renderGeometryQueries.size(), 1);
+    }
+
+    TEST_F(TerrainRenderGeometryBatchTests, LiveSourceDisappearanceAndReentrancyPreserveFallbackAndDiagnosticScope)
+    {
+        const AZ::EntityId sourceId(98'008);
+        CountingRenderSource source(sourceId);
+        auto publication = std::make_shared<TerrainMeshCutoutRenderSnapshot>();
+        publication->m_renderGeometryQueries.push_back(MakeQuery(sourceId));
+        AZ::Vector3 point(0, 0, -1000);
+        TerrainRenderQueryRequest request;
+        request.m_positions = { &point, 1 };
+        const auto plan = ResolveTerrainRenderQuery(publication, request);
+        float height = 17; bool exists = false;
+        TerrainRenderQueryStatistics outer, nested;
+        AZStd::vector<float> nestedHeights;
+        source.m_onHeights = [&]
+        {
+            float nestedHeight = 17; bool nestedExists = false;
+            ExecuteTerrainRenderQuery(plan, { &nestedHeight, 1 }, { &nestedExists, 1 }, &nested);
+            nestedHeights.push_back(nestedHeight);
+            source.TerrainExistenceSourceRequestBus::Handler::BusDisconnect();
+        };
+        ExecuteTerrainRenderQuery(plan, { &height, 1 }, { &exists, 1 }, &outer);
+        EXPECT_FLOAT_EQ(height, 0); EXPECT_TRUE(exists);
+        EXPECT_EQ(outer.m_heightSourceCalls, 1);
+        EXPECT_EQ(outer.m_existenceSourceCalls, 0); // Source disappeared after the height callback.
+        // EBus marks use reentrant after the second dispatch enters the bus.
+        // The deepest query fails closed for height; its caller keeps its sampled height.
+        EXPECT_EQ(nestedHeights, (AZStd::vector<float>{ -100.0f, 0.0f }));
+        EXPECT_EQ(nested.m_heightSourceCalls, 1);
+        EXPECT_EQ(nested.m_heightSourceFallbackSamples, 1);
+        source.GradientSignal::GradientRequestBus::Handler::BusDisconnect();
+        outer = {};
+        ExecuteTerrainRenderQuery(plan, { &height, 1 }, { &exists, 1 }, &outer);
+        EXPECT_FLOAT_EQ(height, -100); EXPECT_TRUE(exists);
+        EXPECT_EQ(outer.m_heightSourceCalls, 0);
+        EXPECT_EQ(outer.m_existenceSourceCalls, 0);
+    }
+
+    TEST_F(TerrainRenderGeometryBatchTests, DISABLED_ProfileOwnershipPlanAgainstLegacyOverlay)
+    {
+        AZStd::unique_ptr<AZ::ComponentDescriptor> descriptor(ProceduralGroundGradientComponent::CreateDescriptor());
+        AZ::Entity entity("Ownership plan benchmark");
+        entity.CreateComponent<ProceduralGroundGradientComponent>();
+        entity.Init(); entity.Activate();
+        auto publication = std::make_shared<TerrainMeshCutoutRenderSnapshot>();
+        publication->m_renderGeometryQueries.push_back(MakeQuery(entity.GetId()));
+        AZStd::vector<AZ::Vector3> points;
+        for (int size : { 131, 67 })
+            for (int y = 0; y < size; ++y)
+                for (int x = 0; x < size; ++x)
+                    points.emplace_back(float(x - 1) * (size == 131 ? 0.5f : 1.0f), float(y - 1) * (size == 131 ? 0.5f : 1.0f), -1000.0f);
+        AZStd::vector<float> heights(points.size());
+        auto exists = std::make_unique<bool[]>(points.size());
+        for (int sectors : { 10, 20, 30 })
+        {
+            AZStd::vector<double> legacyTimes, planTimes;
+            for (int iteration = 0; iteration < 11; ++iteration)
+                for (int phase = 0; phase < 2; ++phase)
+                {
+                    const bool planned = (iteration + phase) % 2 == 0;
+                    auto start = std::chrono::steady_clock::now();
+                    for (int sector = 0; sector < sectors; ++sector)
+                        for (auto range : { AZStd::pair<size_t, size_t>{ 0, 131 * 131 }, { 131 * 131, 67 * 67 } })
+                        {
+                            TerrainRenderQueryRequest request;
+                            request.m_positions = AZStd::span<const AZ::Vector3>(points).subspan(range.first, range.second);
+                            auto output = AZStd::span<float>(heights).subspan(range.first, range.second);
+                            AZStd::span<bool> existence(exists.get() + range.first, range.second);
+                            if (planned) ExecuteTerrainRenderQuery(ResolveTerrainRenderQuery(publication, request), output, existence);
+                            else ApplyTerrainRenderGeometry(*publication, request.m_positions, output, existence);
+                        }
+                    const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
+                    if (iteration > 1) (planned ? planTimes : legacyTimes).push_back(ms);
+                }
+            AZStd::sort(legacyTimes.begin(), legacyTimes.end()); AZStd::sort(planTimes.begin(), planTimes.end());
+            std::printf("%d sectors (regular+CLOD): legacy %.3f ms; ownership plan %.3f ms; ratio %.3f\n",
+                sectors, legacyTimes[4], planTimes[4], planTimes[4] / legacyTimes[4]);
+        }
+        entity.Deactivate();
     }
 
     TEST_F(TerrainRenderGeometryBatchTests, DISABLED_ProfileRetainedSectorQueries)

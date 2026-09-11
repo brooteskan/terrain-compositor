@@ -25,6 +25,17 @@ namespace TerrainCompositor
 {
     namespace
     {
+        // Set by the diagnostic adapter in this module, restored across reentrant
+        // queries. No shared atomics or per-sample logging on terrain workers.
+        thread_local TerrainRenderQueryStatistics* s_renderQueryStatistics = nullptr;
+        struct RenderQueryStatisticsScope
+        {
+            TerrainRenderQueryStatistics* m_previous;
+            explicit RenderQueryStatisticsScope(TerrainRenderQueryStatistics* statistics)
+                : m_previous(s_renderQueryStatistics) { s_renderQueryStatistics = statistics; }
+            ~RenderQueryStatisticsScope() { s_renderQueryStatistics = m_previous; }
+        };
+
         using Internal::DirtyHeight;
         using Internal::DirtySurface;
         using Internal::DirtyExistence;
@@ -955,6 +966,7 @@ namespace TerrainCompositor
             return false;
         }
         bool cyclic = false;
+        if (s_renderQueryStatistics) ++s_renderQueryStatistics->m_hierarchySourceCalls;
         GradientSignal::GradientRequestBus::EventResult(
             cyclic, state.m_sourceEntityId, &GradientSignal::GradientRequestBus::Events::IsEntityInHierarchy, state.m_ownerEntityId);
         return !cyclic;
@@ -965,11 +977,13 @@ namespace TerrainCompositor
         if (GradientSignal::GradientRequestBus::HasReentrantEBusUseThisThread() ||
             !GradientSignal::GradientRequestBus::HasHandlers(state.m_sourceEntityId) || !CanSampleSource(state))
         {
+            if (s_renderQueryStatistics) ++s_renderQueryStatistics->m_heightSourceFallbackSamples;
             return 0.0f; // Preserve the existing unavailable/cyclic-source fallback,
                          // including stamp suppression.
         }
         float value = 0.0f;
         const GradientSignal::GradientSampleParams sampleParams(position);
+        if (s_renderQueryStatistics) ++s_renderQueryStatistics->m_heightSourceCalls;
         GradientSignal::GradientRequestBus::EventResult(
             value, state.m_sourceEntityId, &GradientSignal::GradientRequestBus::Events::GetValue, sampleParams);
         return ComposeHeightContributors(
@@ -989,6 +1003,17 @@ namespace TerrainCompositor
     {
         TerrainRenderGeometryQuery query;
         query.m_regionBounds = state->m_regionBounds;
+        query.m_capability.m_declared = true;
+        query.m_capability.m_coordinates = TerrainRenderCoordinates::WorldXYOrdinarySurfaceZ;
+        query.m_capability.m_acceptsExplicitPositions = query.m_capability.m_acceptsRegularGrid = true;
+        // These callbacks overlay the positions returned by each ordinary sampler;
+        // they do not reproduce that sampler's terrain-grid interpolation themselves.
+        query.m_capability.m_exact = query.m_capability.m_clamp = query.m_capability.m_bilinear = true;
+        const bool validSourceIdentity = state->m_sourceEntityId.IsValid() && state->m_sourceEntityId != state->m_ownerEntityId &&
+            state->m_sourceEntityId != state->m_regionEntityId;
+        query.m_capability.m_height = query.m_capability.m_existence =
+            { validSourceIdentity ? TerrainRenderSource::Live : TerrainRenderSource::Unavailable, TerrainRenderInputZ::OrdinarySurface, true };
+        query.m_capability.m_height.m_sourceEntityId = query.m_capability.m_existence.m_sourceEntityId = state->m_sourceEntityId;
         query.m_getHeight = [state](const AZ::Vector3& position)
         {
             return float(state->m_regionMapping.m_minZ + double(GetNormalizedHeight(*state, position)) * state->m_regionMapping.m_range);
@@ -999,9 +1024,11 @@ namespace TerrainCompositor
             if (!TerrainExistenceSourceRequestBus::HasReentrantEBusUseThisThread() &&
                 TerrainExistenceSourceRequestBus::HasHandlers(state->m_sourceEntityId) && CanSampleSource(*state))
             {
+                if (s_renderQueryStatistics) ++s_renderQueryStatistics->m_existenceSourceCalls;
                 TerrainExistenceSourceRequestBus::EventResult(
                     baseExists, state->m_sourceEntityId, &TerrainExistenceSourceRequestBus::Events::GetTerrainExists, position);
             }
+            else if (s_renderQueryStatistics) ++s_renderQueryStatistics->m_existenceSourceFallbackSamples;
             return ComposeTerrainRenderGeometryExists(position, baseExists, state->m_existenceContributors);
         };
         query.m_getGeometry = [state](AZStd::span<const AZ::Vector3> positions, AZStd::span<float> heights, AZStd::span<bool> exists)
@@ -1015,16 +1042,20 @@ namespace TerrainCompositor
                 GradientSignal::GradientRequestBus::HasHandlers(state->m_sourceEntityId) && CanSampleSource(*state);
             if (sampleHeights)
             {
+                if (s_renderQueryStatistics) ++s_renderQueryStatistics->m_heightSourceCalls;
                 GradientSignal::GradientRequestBus::Event(
                     state->m_sourceEntityId, &GradientSignal::GradientRequestBus::Events::GetValues, positions, heights);
             }
+            else if (s_renderQueryStatistics) s_renderQueryStatistics->m_heightSourceFallbackSamples += positions.size();
             AZStd::fill(exists.begin(), exists.end(), true);
             if (!TerrainExistenceSourceRequestBus::HasReentrantEBusUseThisThread() &&
                 TerrainExistenceSourceRequestBus::HasHandlers(state->m_sourceEntityId) && CanSampleSource(*state))
             {
+                if (s_renderQueryStatistics) ++s_renderQueryStatistics->m_existenceSourceCalls;
                 TerrainExistenceSourceRequestBus::Event(
                     state->m_sourceEntityId, &TerrainExistenceSourceRequestBus::Events::GetTerrainExistsFromList, positions, exists);
             }
+            else if (s_renderQueryStatistics) s_renderQueryStatistics->m_existenceSourceFallbackSamples += positions.size();
             for (size_t index = 0; index < positions.size(); ++index)
             {
                 // Match the scalar unavailable/cyclic-source fallback: suppress
@@ -1037,6 +1068,15 @@ namespace TerrainCompositor
                 heights[index] = float(state->m_regionMapping.m_minZ + double(heights[index]) * state->m_regionMapping.m_range);
                 exists[index] = ComposeTerrainRenderGeometryExists(positions[index], exists[index], state->m_existenceContributors);
             }
+        };
+        query.m_execute = [height = query.m_getHeight, existence = query.m_getTerrainExists, geometry = query.m_getGeometry](
+            TerrainRenderDispatch dispatch, AZStd::span<const AZ::Vector3> positions, AZStd::span<float> heights,
+            AZStd::span<bool> exists, TerrainRenderQueryStatistics* statistics)
+        {
+            RenderQueryStatisticsScope scope(statistics);
+            if (dispatch == TerrainRenderDispatch::Geometry) geometry(positions, heights, exists);
+            else if (dispatch == TerrainRenderDispatch::Existence) exists[0] = existence(positions[0]);
+            else heights[0] = height(positions[0]);
         };
         return query;
     }

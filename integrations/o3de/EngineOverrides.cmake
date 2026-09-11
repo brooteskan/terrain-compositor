@@ -3,8 +3,8 @@
 function(tc_prepare_engine_overrides upstream_root output_root)
     find_package(Git REQUIRED)
     set(overrides
-        "TerrainRenderer/TerrainMeshManager.h|19260ae06c587e2173df0ca5671a9f061d3b50a75a4e2c794b335885a1691f9b|e8008a2c90698b09354d4a45ecdecf53da9b2aa5997d9c15d3b1405603d0c7d0"
-        "TerrainRenderer/TerrainMeshManager.cpp|0cd52bf650755c4c479a842fc31c41645808ee0e9a9fc7253326b57d457b83eb|89480768b6cbdb8a310ea96c7893198d2501456e9600ba1836bac8688f3a10eb"
+        "TerrainRenderer/TerrainMeshManager.h|19260ae06c587e2173df0ca5671a9f061d3b50a75a4e2c794b335885a1691f9b|de7db29d6ac3180012d00fc33dcfa7f0d3003b350872de709150894f614e3d99"
+        "TerrainRenderer/TerrainMeshManager.cpp|0cd52bf650755c4c479a842fc31c41645808ee0e9a9fc7253326b57d457b83eb|70fbbf3c7d0418f1c53a3282102920cef61153b5725277b9987fbb83353db182"
         "TerrainRenderer/TerrainFeatureProcessor.cpp|1d1ea74a882de2c48864179f56234c2c39dd9ca1e88f7902f5ccb27598fdaf5c|a1ad4f30805cd5617b77d45cb5aa682d31828afe302a8f07f520be00351570e1"
         "TerrainRaycast/TerrainRaycastContext.cpp|67bbd8e633136e9bbd2676bdcb19a76f735912559b85b6ebc3c173df881a2d92|ca0ac838425cbda646d9921df6077914a4a3c7ca71ac30364864499a1c7b5fc5"
         "Components/TerrainPhysicsColliderComponent.h|178852bddc0df6a499428bfded053475d9629b5a4b5448e7591e10e08a41ece5|a6f17d8784e66398b1c2cd4d7031222abb03ad6da01cf8a7f0ac04833e5614d3"

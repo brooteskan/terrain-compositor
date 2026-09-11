@@ -33,6 +33,13 @@ Start with ranks 1 and 2. Ranks 3-5 are conditional follow-ups, not prerequisite
 
 ### 1. Render-query ownership and batch execution
 
+**Implemented boundary.** Section 1 of issue #2 now has an explicit request,
+capability, retained ownership plan, and executor in the actual scalar and batch
+render paths. See [the render-query contract](TerrainRenderQueries.md) for the
+preserved execution policy, source dependencies, fallback reasons, diagnostics,
+and differential verification. Ordinary-query elimination remains subsequent
+work; the discussion below records the motivation and constraints for that work.
+
 **Current responsibility and scope.** `I/TerrainMeshCutoutRenderRegistry.h:20-151` defines retained scalar/batch callbacks, first-match height/existence ownership and ordinary-result overlay. `S/TerrainMeshCutoutRenderRegistry.cpp::RebuildSnapshot` aggregates callbacks. Coordinator queries at `S/Components/TerrainCompositionGradientComponent.cpp:945-1265` create callbacks and implement normalized-height, terrain-height and surface batches; include its component header and `S/Components/TerrainCompositionQueryHelpers.h`. `P/TerrainMeshManager.cpp.patch::GatherMeshData` executes ordinary `QueryRegion` before applying retained geometry; `SectorDataRequest` is in the corresponding header patch.
 
 **Architectural change.** Separate ownership resolution from execution with a small plan that retains its snapshot and describes supported runs/channels and required ordinary fallback. Give batch kernels explicit query purpose and retained state. The first extraction keeps ordinary-query-then-overlay behavior while making its decision inputs observable. Consolidate repeated normalized-height batch mechanics only where source checks, callback timing and output semantics match.
