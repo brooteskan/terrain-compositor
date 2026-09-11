@@ -1356,3 +1356,91 @@ This slice adds seven production lines to remove one dependent-claim pass per
 advanced asset; no code moves between categories. First-party C++ is 821 lines
 (4.72%) below initial extraction and 423 (2.49%) below post-cleanup. This is a
 traversal reduction, not a LOC reduction; the 50% target remains unproven.
+
+## Skip rebuilds for additions matching the cached snapshot (2026-09-10)
+
+Baseline: `5d96dea` (`Maintain registration tie state during revision fan-out`).
+`UpdateClaims` now omits the destination from the touched-asset list when a newly
+added role claim matches its cached revision and complete payload. This applies
+to new registrations, additional image roles, and the destination of a retarget.
+The existing comparison includes mesh validation and every diagnostic field.
+The production change adds six lines, with no new state, containers or layouts.
+
+The claim is still appended. Its existing representative and conflicting-tie flag
+remain valid because another identical maximum cannot change either. A previously
+queued touch is retained: an earlier image role may have changed or removed a
+claim on the same asset. In-place changes and the old side of retargets still
+schedule rebuilding, so removal can clear a tie or lower an unassigned maximum.
+Assets without a cache and differing revisions or payloads keep their prior path.
+
+Reconciliation still runs before classification and insertion, allowing stale
+inputs to use the same fast path once resolved. Equal-revision conflicting payloads
+remain distinct; stale inputs still follow the original map-order tie fallback.
+Image unassigned snapshots remain local. Mesh unassigned snapshots still reconcile
+without fan-out, including revision zero and decreasing maxima. Source-role order,
+classification, accumulated dirty masks, caller snapshots and independent mesh
+revision domains are preserved. All production code outside the destination-touch
+predicate, including removal, fan-out and the scan reference, is unchanged.
+
+Bulk measurements seed one registration, then add the stated number of records.
+Images claim all five roles, using either one shared asset or five distinct assets.
+Each case runs at revisions zero and nine; revision-nine cases alternate identical
+and stale caller inputs. Both mesh specializations run assigned and unassigned IDs.
+
+| Added records / owner | Before dependent-claim visits | After | Original scan record visits |
+| --- | ---: | ---: | ---: |
+| 32 / image, shared or distinct assets | 2,800 | 0 | 5,440 |
+| 2,048 / image, shared or distinct assets | 10,501,120 | 0 | 20,992,000 |
+| 32 / either mesh, assigned | 560 | 0 | 1,088 |
+| 2,048 / either mesh, assigned | 2,100,224 | 0 | 4,198,400 |
+| 32 / either mesh, unassigned | 560 | 0 | 528 |
+| 2,048 / either mesh, unassigned | 2,100,224 | 0 | 2,098,176 |
+
+All measured matching insertions have zero fallback visits. These are logical
+traversal counts, excluding the seed; counters include claim searches, fan-out and
+rebuilding. Hash probes, payload/diagnostic comparisons, role checks, allocations
+and elapsed time are not measured. New claims still consume storage, and conflict
+fallback remains possible. No end-to-end speedup or memory reduction is claimed.
+
+The four added cases compare full snapshots and dirty maps with the retained scan,
+check exact claim membership, and exercise matching additions alongside ties,
+new roles, swaps, pending rebuilds, removals and fresh revision history. Expanded
+mesh checks cover inserted versus replaced differing payloads, matching additions
+that retain a tie, retarget traversal, representative presence and exact tie flags.
+Before optimization, the four added cases failed exclusively on traversal counts;
+their behavioral checks and all existing focused cases passed.
+
+All five targets built. Focused checks passed 41/41, runtime 301/301 and editor
+46/46; all prior names and the one already-disabled runtime case remain. Across
+shuffle seeds 173-272, runtime passed 21,300 cases and editor 4,600, with no failures.
+The three differential tests covered 300,000 mixed operations against the scan.
+D3D11 hardware matched 142,560 boundary classifications with zero mismatches.
+Engine override generation/repetition/hash-rejection checks and source audit passed.
+
+Builds reuse the five existing standalone-source VC projects and installed
+dependencies with regeneration disabled. Fresh CMake generation and a live Editor
+scene smoke test are outside this run. No generated unity edits or copied sources
+are needed. Logs, XML, audit and counts are in ignored `build/matching-insertion-session`.
+Reproduce LOC with `python tools/MeasureLoc.py --revision 5d96dea --json` and
+`python tools/MeasureLoc.py --worktree --json`. The earlier focused command includes
+the bulk cases; the shuffled runtime command excludes `*BulkMatchingInsertions*`
+while retaining all three 1,000-operation differential cases for 100 seeds.
+
+| Repository category | Before `5d96dea` | After | Change |
+| --- | ---: | ---: | ---: |
+| Production C++ | 12,784 | 12,784 | 0 |
+| Include headers | 3,802 | 3,808 | +6 |
+| **First-party C++** | **16,586** | **16,592** | **+6** |
+| Tests, including reference and file lists | 7,385 | 7,536 | +151 |
+| **C++ plus tests/file lists** | **23,971** | **24,128** | **+157** |
+| Shaders/assets | 966 | 966 | 0 |
+| Engine patches/overrides | 939 | 939 | 0 |
+| Build/tooling | 542 | 542 | 0 |
+| Documentation | 4,378 | 4,466 | +88 |
+| License/notice | 28 | 28 | 0 |
+| **Total repository text** | **30,824** | **31,069** | **+245** |
+
+This slice adds six production lines and 151 test lines to remove dependent
+traversals; no code moves between categories. First-party C++ remains 815 lines
+(4.68%) below initial extraction and 417 (2.45%) below post-cleanup. The 50% target
+and a safe reduction ceiling remain unproven.

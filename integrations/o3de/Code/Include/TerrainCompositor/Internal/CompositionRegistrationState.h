@@ -180,7 +180,13 @@ namespace TerrainCompositor::Internal
                 }
                 const bool hadClaim = previous && (oldAsset.IsValid() || AssetRoles[role].m_reconcileUnassigned);
                 const bool hasClaim = current && (newAsset.IsValid() || AssetRoles[role].m_reconcileUnassigned);
-                for (const auto& [asset, claimed] : { AZStd::pair{ oldAsset, hadClaim }, AZStd::pair{ newAsset, hasClaim } })
+                const auto cached = m_assets.find(newAsset);
+                // A matching addition preserves the representative and any tie; earlier touches must still rebuild.
+                const bool matchingAddition = hasClaim && (!hadClaim || oldAsset != newAsset) && cached != m_assets.end() &&
+                    cached->second.m_latest.m_revision == (current->*member).m_revision &&
+                    PayloadsEqual(cached->second.m_latest, current->*member);
+                for (const auto& [asset, claimed] :
+                    { AZStd::pair{ oldAsset, hadClaim }, AZStd::pair{ newAsset, hasClaim && !matchingAddition } })
                 {
                     if (claimed && AZStd::find(touched.begin(), touched.end(), asset) == touched.end())
                     {

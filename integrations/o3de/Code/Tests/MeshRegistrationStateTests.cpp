@@ -112,6 +112,7 @@ namespace TerrainCompositor::Internal
                 ASSERT_FALSE(asset.m_claims.empty());
                 claims += asset.m_claims.size();
                 AZ::u64 maximum = 0;
+                bool conflicting = false, representativePresent = false;
                 for (const auto& claim : asset.m_claims)
                 {
                     const auto found = m_state.m_records.find(claim.m_entityId);
@@ -120,9 +121,17 @@ namespace TerrainCompositor::Internal
                     EXPECT_EQ(found->second.m_mesh.m_assetId, id);
                     maximum = AZStd::max(maximum, found->second.m_mesh.m_revision);
                     if (id.IsValid()) { EXPECT_EQ(found->second.m_mesh.m_revision, asset.m_latest.m_revision); }
+                    if (found->second.m_mesh.m_revision == asset.m_latest.m_revision)
+                    {
+                        const bool same = State::PayloadsEqual(found->second.m_mesh, asset.m_latest);
+                        representativePresent |= same;
+                        conflicting |= !same;
+                    }
                 }
                 EXPECT_EQ(asset.m_latest.m_assetId, id);
                 EXPECT_EQ(asset.m_latest.m_revision, maximum);
+                EXPECT_TRUE(representativePresent);
+                EXPECT_EQ(asset.m_conflictingTie, conflicting);
             }
             EXPECT_EQ(claims, m_state.m_records.size());
         }
@@ -261,26 +270,34 @@ namespace TerrainCompositor::Internal
         using Snapshot = typename TestFixture::Snapshot;
         const auto check = [&](auto edit)
         {
-            this->m_state.Clear();
-            const auto first = this->MakeSnapshot(this->m_asset, 9);
-            auto second = first;
-            edit(second);
-            this->Apply(this->Make(1, first));
-            this->Apply(this->Make(2, first));
-            this->Apply(this->Make(2, second));
-            const auto expected = this->m_state.GetRegistrations().begin()->second.m_mesh;
-            RegistrationTraversal traversal;
-            this->m_state.Apply(this->Make(3, this->MakeSnapshot(this->m_asset, 1)), this->m_dirty,
-                [](const auto*, const auto&) { return AZ::u8{ 0 }; }, &traversal);
-            EXPECT_GT(traversal.m_fallbackRegistrationsVisited, 0);
-            this->ExpectSnapshot(this->Get(3), expected);
-            ASSERT_TRUE(this->m_state.Remove(AZ::EntityId(3)));
-            this->Apply(this->Make(2, first));
-            traversal = {};
-            this->m_state.Apply(this->Make(3, this->MakeSnapshot(this->m_asset, 1)), this->m_dirty,
-                [](const auto*, const auto&) { return AZ::u8{ 0 }; }, &traversal);
-            EXPECT_EQ(traversal.m_fallbackRegistrationsVisited, 0);
-            this->ExpectSnapshot(this->Get(3), first);
+            for (bool insertion : { false, true })
+            {
+                this->m_state.Clear();
+                const auto first = this->MakeSnapshot(this->m_asset, 9);
+                auto second = first;
+                edit(second);
+                this->Apply(this->Make(1, first));
+                if (!insertion) { this->Apply(this->Make(2, first)); }
+                this->Apply(this->Make(2, second));
+                RegistrationTraversal matching;
+                this->m_state.Apply(this->Make(4, first), this->m_dirty,
+                    [](const auto*, const auto&) { return AZ::u8{ 0 }; }, &matching);
+                EXPECT_EQ(matching.m_claimsVisited, 0);
+                const auto expected = this->m_state.GetRegistrations().begin()->second.m_mesh;
+                RegistrationTraversal traversal;
+                this->m_state.Apply(this->Make(3, this->MakeSnapshot(this->m_asset, 1)), this->m_dirty,
+                    [](const auto*, const auto&) { return AZ::u8{ 0 }; }, &traversal);
+                EXPECT_GT(traversal.m_fallbackRegistrationsVisited, 0);
+                this->ExpectSnapshot(this->Get(3), expected);
+                ASSERT_TRUE(this->m_state.Remove(AZ::EntityId(3)));
+                ASSERT_TRUE(this->m_state.Remove(AZ::EntityId(4)));
+                this->Apply(this->Make(2, first));
+                traversal = {};
+                this->m_state.Apply(this->Make(3, this->MakeSnapshot(this->m_asset, 1)), this->m_dirty,
+                    [](const auto*, const auto&) { return AZ::u8{ 0 }; }, &traversal);
+                EXPECT_EQ(traversal.m_fallbackRegistrationsVisited, 0);
+                this->ExpectSnapshot(this->Get(3), first);
+            }
         };
         check([](auto& s) { s.m_status = TestFixture::Status::Error; });
         check([](auto& s) { s.m_data.reset(); });
@@ -342,7 +359,12 @@ namespace TerrainCompositor::Internal
             this->ExpectIndexConsistent();
             auto retargeted = high;
             retargeted.m_assetId = this->m_otherAsset;
-            this->Apply(this->Make(1, retargeted));
+            this->Apply(this->Make(4, retargeted));
+            RegistrationTraversal traversal;
+            this->m_state.Apply(this->Make(1, retargeted), this->m_dirty,
+                [](const auto*, const auto&) { return AZ::u8{ 0 }; }, &traversal);
+            EXPECT_EQ(traversal.m_claimsVisited, 2); // Search/remnant rebuild of the old asset only.
+            this->ExpectIndexConsistent();
             EXPECT_TRUE(this->m_state.Remove(AZ::EntityId(2)));
             this->Apply(this->Make(3, low));
             this->ExpectSnapshot(this->Get(3), low);
@@ -420,6 +442,45 @@ namespace TerrainCompositor::Internal
             }
             this->ExpectDirty(expectedDirty);
             this->ExpectIndexConsistent();
+        }
+    }
+
+    TYPED_TEST(MeshRegistrationStateTests, BulkMatchingInsertionsVisitNoDependentClaims)
+    {
+        for (size_t count : { 32, 2048 })
+        for (bool unassigned : { false, true })
+        for (AZ::u64 revision : { 0, 9 })
+        {
+            this->m_state.Clear();
+            this->m_dirty.clear();
+            AZStd::unordered_map<AZ::EntityId, typename TestFixture::Record> reference;
+            AZStd::unordered_map<AZ::EntityId, AZ::u8> expectedDirty;
+            const auto classify = [](const auto* old, const auto&) { EXPECT_EQ(old, nullptr); return DirtySurface; };
+            const auto snapshot = this->MakeSnapshot(unassigned ? AZ::Data::AssetId{} : this->m_asset, revision);
+            const auto first = this->Make(1, snapshot);
+            this->m_state.Apply(first, this->m_dirty, classify);
+            ApplyRegistrationState(first, first.*TypeParam::Entity, reference, expectedDirty, TypeParam::Roles, classify);
+            RegistrationTraversal traversal;
+            size_t scans = 0;
+            for (AZ::u64 id = 2; id <= count + 1; ++id)
+            {
+                auto added = this->Make(id, snapshot);
+                if (revision && id % 2 == 0) { added.m_mesh.m_revision = 0; }
+                this->m_state.Apply(added, this->m_dirty, classify, &traversal);
+                ApplyRegistrationState(added, added.*TypeParam::Entity, reference, expectedDirty, TypeParam::Roles, classify, &scans);
+                EXPECT_EQ(added.m_mesh.m_revision, revision && id % 2 == 0 ? 0 : revision);
+            }
+            EXPECT_EQ(traversal.m_claimsVisited, 0);
+            EXPECT_EQ(traversal.m_fallbackRegistrationsVisited, 0);
+            EXPECT_EQ(scans, unassigned ? count * (count + 1) / 2 : count * (count + 2));
+            this->ExpectDirty(expectedDirty);
+            ASSERT_EQ(this->m_state.GetRegistrations().size(), reference.size());
+            for (const auto& [id, expected] : reference)
+                this->ExpectSnapshot(this->m_state.GetRegistrations().at(id).m_mesh, expected.m_mesh);
+            this->ExpectIndexConsistent();
+            this->RecordProperty(AZStd::string::format("bulk_%zu_%s_rev%llu", count, unassigned ? "unassigned" : "assigned", revision).c_str(),
+                AZStd::string::format("claims=%zu fallback=%zu scan=%zu", traversal.m_claimsVisited,
+                    traversal.m_fallbackRegistrationsVisited, scans).c_str());
         }
     }
 
