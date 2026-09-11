@@ -164,6 +164,13 @@ namespace TerrainCompositor::Internal
                 const auto member = AssetRoles[role].m_snapshot;
                 const AssetId oldAsset = previous ? (previous->*member).m_assetId : AssetId{};
                 const AssetId newAsset = current ? (current->*member).m_assetId : AssetId{};
+                // Reconciled, unchanged snapshots cannot alter claim membership or revision authority.
+                if (previous && current && oldAsset == newAsset &&
+                    (previous->*member).m_revision == (current->*member).m_revision &&
+                    PayloadsEqual(previous->*member, current->*member))
+                {
+                    continue;
+                }
                 const bool hadClaim = previous && (oldAsset.IsValid() || AssetRoles[role].m_reconcileUnassigned);
                 const bool hasClaim = current && (newAsset.IsValid() || AssetRoles[role].m_reconcileUnassigned);
                 for (const auto& [asset, claimed] : { AZStd::pair{ oldAsset, hadClaim }, AZStd::pair{ newAsset, hasClaim } })

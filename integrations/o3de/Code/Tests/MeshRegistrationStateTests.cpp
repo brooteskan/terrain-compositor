@@ -266,6 +266,7 @@ namespace TerrainCompositor::Internal
             auto second = first;
             edit(second);
             this->Apply(this->Make(1, first));
+            this->Apply(this->Make(2, first));
             this->Apply(this->Make(2, second));
             const auto expected = this->m_state.GetRegistrations().begin()->second.m_mesh;
             RegistrationTraversal traversal;
@@ -273,6 +274,13 @@ namespace TerrainCompositor::Internal
                 [](const auto*, const auto&) { return AZ::u8{ 0 }; }, &traversal);
             EXPECT_GT(traversal.m_fallbackRegistrationsVisited, 0);
             this->ExpectSnapshot(this->Get(3), expected);
+            ASSERT_TRUE(this->m_state.Remove(AZ::EntityId(3)));
+            this->Apply(this->Make(2, first));
+            traversal = {};
+            this->m_state.Apply(this->Make(3, this->MakeSnapshot(this->m_asset, 1)), this->m_dirty,
+                [](const auto*, const auto&) { return AZ::u8{ 0 }; }, &traversal);
+            EXPECT_EQ(traversal.m_fallbackRegistrationsVisited, 0);
+            this->ExpectSnapshot(this->Get(3), first);
         };
         check([](auto& s) { s.m_status = TestFixture::Status::Error; });
         check([](auto& s) { s.m_data.reset(); });
@@ -304,6 +312,7 @@ namespace TerrainCompositor::Internal
                 case 4: d.m_relatedTriangleIndex = 5; break;
                 }
                 this->Apply(this->Make(1, first));
+                this->Apply(this->Make(2, first));
                 this->Apply(this->Make(2, second));
                 const auto expected = this->m_state.GetRegistrations().begin()->second.m_mesh;
                 RegistrationTraversal traversal;
@@ -312,6 +321,32 @@ namespace TerrainCompositor::Internal
                 EXPECT_GT(traversal.m_fallbackRegistrationsVisited, 0);
                 this->ExpectSnapshot(this->Get(3), expected);
             }
+        }
+    }
+
+    TYPED_TEST(MeshRegistrationStateTests, IdenticalPayloadStillTracksRevisionChangesAndRetargeting)
+    {
+        for (bool unassigned : { false, true })
+        {
+            this->m_state.Clear();
+            const auto asset = unassigned ? AZ::Data::AssetId{} : this->m_asset;
+            const auto low = this->MakeSnapshot(asset, 1, TestFixture::Status::Loading);
+            this->Apply(this->Make(1, low));
+            this->Apply(this->Make(2, low));
+            auto high = low;
+            high.m_revision = 9;
+            this->Apply(this->Make(1, high));
+            this->ExpectSnapshot(this->Get(2), unassigned ? low : high);
+            this->Apply(this->Make(2, low));
+            this->ExpectSnapshot(this->Get(2), high);
+            this->ExpectIndexConsistent();
+            auto retargeted = high;
+            retargeted.m_assetId = this->m_otherAsset;
+            this->Apply(this->Make(1, retargeted));
+            EXPECT_TRUE(this->m_state.Remove(AZ::EntityId(2)));
+            this->Apply(this->Make(3, low));
+            this->ExpectSnapshot(this->Get(3), low);
+            this->ExpectIndexConsistent();
         }
     }
 
@@ -414,7 +449,11 @@ namespace TerrainCompositor::Internal
                 this->m_dirty.clear();
                 AZStd::unordered_map<AZ::EntityId, typename TestFixture::Record> reference;
                 AZStd::unordered_map<AZ::EntityId, AZ::u8> expectedDirty;
-                const auto classify = [](const auto*, const auto&) { return AZ::u8{ 0 }; };
+                const auto classify = [](const auto* old, const auto& current)
+                {
+                    return old && old->m_configuration.m_priority != current.m_configuration.m_priority
+                        ? TypeParam::Roles[0].m_dirty : AZ::u8{ 0 };
+                };
                 const auto seed = [&](const auto& record)
                 {
                     this->Apply(record);
@@ -427,12 +466,13 @@ namespace TerrainCompositor::Internal
                 for (AZ::u64 i = 1; i <= 7; ++i) { seed(this->Make(i, old)); }
                 for (bool placement : { false, true })
                 {
-                    const auto record = this->Make(1, placement ? old : this->MakeSnapshot(asset, 2));
+                    auto record = this->Make(1, placement ? old : this->MakeSnapshot(asset, 2));
+                    record.m_configuration.m_priority = placement ? 7 : 0;
                     RegistrationTraversal traversal;
                     size_t scans = 0;
                     ApplyRegistrationState(record, record.*TypeParam::Entity, reference, expectedDirty, TypeParam::Roles, classify, &scans);
                     this->m_state.Apply(record, this->m_dirty, classify, &traversal);
-                    EXPECT_EQ(traversal.m_claimsVisited, unassigned || placement ? 7 : 14);
+                    EXPECT_EQ(traversal.m_claimsVisited, placement ? 0 : (unassigned ? 7 : 14));
                     EXPECT_EQ(traversal.m_fallbackRegistrationsVisited, 0);
                     EXPECT_EQ(scans, (unassigned ? 1 : 2) * (unrelated + 7));
                     this->ExpectDirty(expectedDirty);

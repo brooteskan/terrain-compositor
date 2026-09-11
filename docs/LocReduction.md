@@ -1180,3 +1180,95 @@ below post-cleanup. This slice grows total code; its first-party decrease includ
 moving the reference into tests. The 50% target and a safe reduction ceiling remain
 unproven. Shared cross-mesh revision authority still requires a source-generation
 contract; conflicting-tie fallback and composition/publication traversals remain.
+
+## Skip unchanged snapshot index maintenance (2026-09-10)
+
+Baseline: `de2c96e` (`Index mesh registrations by canonical asset`). A seven-line
+guard in `UpdateClaims` skips a role only when an existing record and its reconciled
+replacement have equal asset IDs, revisions and full snapshot payloads. It reuses
+the existing payload comparison, including mesh validation and diagnostic details.
+Unchanged roles no longer add their assets to the maximum-rebuilding list.
+
+Reconciliation and classification still run before this check, so a stale placement
+input can resolve to the stored snapshot and take the same fast path. Placement
+configuration is still stored, classification runs once, and direct dirty bits
+accumulate normally. The check is per role: a changed image role still marks its
+asset even when other roles remain unchanged. Revision changes, payload changes,
+retargeting, insertion and removal retain the existing maintenance paths.
+
+No fields, containers, ownership paths or C++ layouts change. The production header
+matches baseline exactly after removing the guard; the registry, scan reference,
+reconciliation, classifier calls, fan-out, removal/clear, publication, shaders and
+engine patches are unchanged. Conflicting equal-revision inputs still use the same
+map-order fallback. This slice preserves the preceding slice's dirty-mask and
+cross-entity invalidation-order boundary; it does not redefine that ordering.
+
+Before the guard, 31 of 35 focused cases passed. The four failures were exclusively
+the new traversal expectations: placement still visited seven dependent claims,
+and changing one of five independent image assets visited twelve. Behavioral
+checks already passed, including replacing each equal-revision payload field on an
+existing mesh claim, resolving the resulting tie, restoring the original payload,
+and revision-only/retarget changes with otherwise identical payloads.
+
+| Measured operation | Before indexed claim visits | After indexed claim visits |
+| --- | ---: | ---: |
+| Image placement, current or stale snapshots; seven claims | 7 | 0 |
+| Cutout or mesh-height stale placement; assigned or unassigned, seven claims | 7 | 0 |
+| Assigned image or mesh revision update; seven claims | 14 | 14 |
+| Unassigned mesh revision update; seven claims | 7 | 7 |
+| Change one of five image assets, each with two claims | 12 | 4 |
+
+Placement checks use both 32 and 2,048 unrelated registrations. They record zero
+claim and fallback visits in the focused XML; mesh reference scans still visit
+78/4,110 assigned records or 39/2,055 unassigned records respectively. A mesh claim
+that actually adopts a different snapshot during reconciliation still rebuilds
+its asset, even if the originating component edit only changed placement.
+
+Counts measure logical claim visits, not elapsed time, map probes, role checks or
+diagnostic-detail comparisons. The fast path adds one snapshot comparison per
+unchanged role and removes dependent-claim traversal plus representative copying.
+There is no claim of zero total work, elimination of tie fallback, or an end-to-end
+speedup. Asset revision updates retain the preceding two-pass fan-out/rebuild cost.
+
+Three new runtime cases and expanded existing checks cover all five image roles,
+per-asset partial changes, classification/caller preservation, changed equal-revision
+mesh payloads, revision-only changes and retarget retirement. Existing differential
+tests compare registrations and dirty masks to the retained original scan, while
+index invariants verify membership, representatives and tie state.
+
+Builds reuse the five generated standalone-source VC projects and installed
+dependencies with regeneration disabled. No generated unity edits, copied sources
+or maintained file-list changes were needed. Fresh CMake generation and a live
+Editor scene smoke test were not performed. Logs, XML, audits and per-file counts
+are under `build/unchanged-snapshot-session` (ignored).
+
+Reproduce measurements with `python tools/MeasureLoc.py --revision de2c96e --json`
+and `python tools/MeasureLoc.py --worktree --json`. Scope includes all production
+helpers, tests, the retained reference and this report; ignored outputs are excluded.
+
+All five targets built. Focused checks passed 35/35, runtime 296/296, and editor
+46/46; all existing names and the one already-disabled runtime case remain.
+Across shuffle seeds 173-272, runtime passed 21,100 cases and editor 4,600, with
+zero failures. The three scan comparisons cover 300,000 mixed operations. D3D11
+hardware matched 142,560 boundary classifications with zero mismatches. Engine
+override generation/repetition/hash-rejection checks, source audit and
+`git diff --check` passed. The preceding section's shuffle command is unchanged.
+
+| Repository category | Before `de2c96e` | After | Change |
+| --- | ---: | ---: | ---: |
+| Production C++ | 12,784 | 12,784 | 0 |
+| Include headers | 3,788 | 3,795 | +7 |
+| **First-party C++** | **16,572** | **16,579** | **+7** |
+| Tests, including reference and file lists | 7,234 | 7,338 | +104 |
+| **C++ plus tests/file lists** | **23,806** | **23,917** | **+111** |
+| Shaders/assets | 966 | 966 | 0 |
+| Engine patches/overrides | 939 | 939 | 0 |
+| Build/tooling | 542 | 542 | 0 |
+| Documentation | 4,202 | 4,294 | +92 |
+| License/notice | 28 | 28 | 0 |
+| **Total repository text** | **30,483** | **30,686** | **+203** |
+
+This slice adds seven production lines and 104 test lines to eliminate known
+unnecessary traversals; no code was moved between categories. First-party C++ is
+828 lines (4.76%) below initial extraction and 430 (2.53%) below post-cleanup.
+The 50% target and safe reduction ceiling remain unproven.
