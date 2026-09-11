@@ -11,7 +11,8 @@ A request describes world XY positions with **ordinary terrain surface Z**, the
 ordinary sampler (exact, clamp, or bilinear), explicit positions or a regular grid
 (start, spacing, width, height), and whether bulk callbacks are enabled. Positions
 are borrowed for synchronous resolution and execution; their storage and XY must
-remain unchanged. Owning cross-frame sector inputs is separate work in section 2.
+remain unchanged. [Owned sector requests](TerrainSectorPreparation.md) retain the
+publication and own preparation inputs; cross-frame scheduling remains deferred.
 
 `ResolveTerrainRenderQuery` retains the exact render publication. It selects the
 first matching height callback and the first matching existence callback

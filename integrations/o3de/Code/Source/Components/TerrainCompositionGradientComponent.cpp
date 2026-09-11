@@ -367,6 +367,7 @@ namespace TerrainCompositor
         GradientSignal::GradientRequestBus::Handler::BusDisconnect();
         AZ::SystemTickBus::Handler::BusDisconnect();
         AZ::TickBus::Handler::BusDisconnect();
+        if (m_sourceChanges) m_sourceChanges->m_preparationDependency->Retire();
         m_sourceChanges.reset();
         m_sourceMonitor.Reset();
         LmbrCentral::ShapeComponentNotificationsBus::Handler::BusDisconnect();
@@ -541,6 +542,7 @@ namespace TerrainCompositor
                 // Publish only after the entire source/region transition, never an
                 // interim new-reference/old-bounds combination.
                 ++m_configurationUpdateDepth;
+                if (m_sourceChanges) m_sourceChanges->m_preparationDependency->Retire();
                 m_sourceChanges.reset();
                 m_sourceMonitor.Reset();
                 LmbrCentral::ShapeComponentNotificationsBus::Handler::BusDisconnect();
@@ -593,6 +595,9 @@ namespace TerrainCompositor
                 }
                 if (auto changes = inbox.lock())
                 {
+                    // Reject prepared meshes immediately, even before the next tick
+                    // drains this mailbox and refreshes ordinary terrain.
+                    changes->m_preparationDependency->Invalidate();
                     // Never call gradients, terrain, or dependency buses under this
                     // mailbox lock.
                     std::lock_guard lock(changes->m_mutex);
@@ -1003,6 +1008,7 @@ namespace TerrainCompositor
     {
         TerrainRenderGeometryQuery query;
         query.m_regionBounds = state->m_regionBounds;
+        query.m_preparationDependency = state->m_preparationDependency;
         query.m_capability.m_declared = true;
         query.m_capability.m_coordinates = TerrainRenderCoordinates::WorldXYOrdinarySurfaceZ;
         query.m_capability.m_acceptsExplicitPositions = query.m_capability.m_acceptsRegularGrid = true;
@@ -1384,6 +1390,7 @@ namespace TerrainCompositor
         replacement->m_session = m_session;
         replacement->m_revision = ++m_revision;
         replacement->m_ownerEntityId = m_address.second;
+        replacement->m_preparationDependency = m_sourceChanges ? m_sourceChanges->m_preparationDependency : nullptr;
         replacement->m_sourceEntityId = m_configuration.m_proceduralSourceEntityId;
         replacement->m_regionEntityId = m_configuration.m_targetTerrainRegionEntityId;
         float collisionGridSpacing = 0.0f;

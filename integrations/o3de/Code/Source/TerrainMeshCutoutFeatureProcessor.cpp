@@ -45,7 +45,7 @@ namespace TerrainCompositor
     {
         DisableSceneNotification();
         if (auto* registry = AZ::Interface<TerrainMeshCutoutRenderRegistry>::Get())
-            registry->ClearGapActivation(GetParentScene());
+            registry->RemoveScene(GetParentScene(), false);
         if (m_gapBoundMaterial)
         {
             const auto count = m_gapBoundMaterial->FindPropertyIndex(AZ::Name("settings.meshHeightGapCount"));

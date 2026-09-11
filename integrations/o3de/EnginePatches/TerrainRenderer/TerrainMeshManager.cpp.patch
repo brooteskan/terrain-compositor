@@ -51,7 +51,22 @@
      namespace
      {
          [[maybe_unused]] static const char* TerrainMeshManagerName = "TerrainMeshManager";
-@@ -81,13 +106,15 @@
+@@ -67,11 +92,14 @@
+ 
+     TerrainMeshManager::~TerrainMeshManager()
+     {
++        m_preparationLifetime->Retire();
+         AzFramework::Terrain::TerrainDataNotificationBus::Handler::BusDisconnect();
+     }
+ 
+     void TerrainMeshManager::Initialize(AZ::RPI::Scene& parentScene)
+     {
++        m_preparationLifetime->Retire();
++        m_preparationLifetime = std::make_shared<TerrainCompositor::TerrainPreparationDependency>();
+         m_parentScene = &parentScene;
+ 
+         AzFramework::Terrain::TerrainDataNotificationBus::Handler::BusConnect();
+@@ -81,19 +109,22 @@
              [this](const AZ::Name&, AZ::RPI::ShaderOptionValue) { m_rebuildDrawPackets = true; }
          };
          AZ::RPI::ShaderSystemInterface::Get()->Connect(m_handleGlobalShaderOptionUpdate);
@@ -69,7 +84,31 @@
  
          m_isInitialized = true;
      }
-@@ -230,9 +257,17 @@
+ 
+     void TerrainMeshManager::SetConfiguration(const MeshConfiguration& config)
+     {
++        if (m_config != config) m_preparationLifetime->Invalidate();
+         bool requireRebuild = m_config.CheckWouldRequireRebuild(config);
+ 
+         m_config = config;
+@@ -160,6 +191,7 @@
+ 
+     void TerrainMeshManager::ClearSectorBuffers()
+     {
++        m_preparationLifetime->Invalidate();
+         // RemoveRayTracedMeshes() needs to be called first since it uses pointers into the sector data stored in m_sectorLods.
+         RemoveRayTracedMeshes();
+         m_candidateSectors.clear();
+@@ -169,6 +201,8 @@
+ 
+     void TerrainMeshManager::Reset()
+     {
++        m_preparationLifetime->Retire();
++        m_preparationLifetime = std::make_shared<TerrainCompositor::TerrainPreparationDependency>();
+         if (m_meshMovedFlag.IsValid())
+         {
+             m_parentScene->GetViewTagBitRegistry().ReleaseTag(m_meshMovedFlag);
+@@ -230,9 +264,17 @@
  
      void TerrainMeshManager::CheckLodGridsForUpdate(AZ::Vector3 newPosition)
      {
@@ -88,7 +127,7 @@
  
          for (uint32_t lodLevel = 0; lodLevel < m_sectorLods.size(); ++lodLevel)
          {
-@@ -264,8 +299,16 @@
+@@ -264,8 +306,16 @@
              {
                  lodGrid.m_startCoord = newStartCoord;
  
@@ -107,8 +146,11 @@
  
                  for (uint32_t xOffset = 0; xOffset < m_1dSectorCount; ++xOffset)
                  {
-@@ -285,19 +328,13 @@
+@@ -283,21 +333,16 @@
+ 
+                         if (sector.m_worldCoord != worldCoord)
                          {
++                            ++sector.m_preparationSerial;
                              sector.m_worldCoord = worldCoord;
                              sectorsToUpdate.at(lodLevel).push_back(&sector);
 -                            anySectorsUpdated = true;
@@ -128,7 +170,7 @@
      }
  
      AZ::RHI::StreamBufferView TerrainMeshManager::CreateStreamBufferView(AZ::Data::Instance<AZ::RPI::Buffer>& buffer, uint32_t offset)
-@@ -479,7 +516,7 @@
+@@ -479,7 +524,7 @@
  
          const uint8_t lodCount = aznumeric_cast<uint8_t>(AZStd::ceilf(log2f(AZStd::GetMax(1.0f, m_config.m_renderDistance / m_config.m_firstLodDistance)) + 1.0f));
          m_sectorLods.reserve(lodCount);
@@ -137,15 +179,26 @@
          // Create all the sectors with uninitialized SRGs. The SRGs will be updated later by CheckLodGridsForUpdate().
          m_indexBufferView =
          {
-@@ -845,59 +882,59 @@
+@@ -699,6 +744,9 @@
+     {
+         if ((dataChangedMask & (TerrainDataChangedMask::HeightData | TerrainDataChangedMask::Settings)) != TerrainDataChangedMask::None)
+         {
++            // Includes ordinary height/existence and procedural terrain refreshes.
++            // Conservatively invalidate all pending sectors, including their normal/CLOD halos.
++            m_preparationLifetime->Invalidate();
+             AzFramework::Terrain::FloatRange heightBounds = AzFramework::Terrain::FloatRange::CreateNull();
+             AzFramework::Terrain::TerrainDataRequestBus::BroadcastResult(
+                 heightBounds, &AzFramework::Terrain::TerrainDataRequests::GetTerrainHeightBounds);
+@@ -845,59 +893,60 @@
          m_dummyLodHeightsNormalsBuffer = CreateMeshBufferInstance(sizeof(HeightNormalVertex), m_gridVerts2D, nullptr);
      }
  
 -    void TerrainMeshManager::UpdateSectorBuffers(Sector& sector, const AZStd::span<const HeightNormalVertex> heightsNormals)
 +    void TerrainMeshManager::PrepareSectorRayTracingData(
++        const SectorPreparationSettings& settings,
 +        AZStd::span<const HeightNormalVertex> heightsNormals,
 +        AZStd::vector<RtVertex>& rtPositions,
-+        AZStd::vector<RtVertex>& rtNormals) const
++        AZStd::vector<RtVertex>& rtNormals)
 +    {
 +        AZ_PROFILE_SCOPE(AzRender, "Terrain::PrepareSectorRayTracingData");
 +        // While heightsNormals is in the exact format the terrain shader expects for optimum efficiency, for
@@ -155,7 +208,7 @@
 +        rtPositions.resize_no_construct(heightsNormals.size());
 +        rtNormals.resize_no_construct(heightsNormals.size());
 +
-+        AZ_Assert(heightsNormals.size() == m_gridVerts2D, "Unexpected number of vertices.");
++        AZ_Assert(heightsNormals.size() == settings.m_gridVerts2D, "Unexpected number of vertices.");
 +
 +        constexpr float maxHeight = static_cast<float>(AZStd::numeric_limits<HeightDataType>::max());
 +        constexpr float maxNormal = static_cast<float>(AZStd::numeric_limits<NormalDataType>::max());
@@ -163,8 +216,8 @@
 +        for (uint32_t i = 0; i < heightsNormals.size(); ++i)
 +        {
 +            const HeightNormalVertex& heightNormal = heightsNormals[i];
-+            XYPosition xyPosition = m_xyPositions.at(i);
-+            float xyPositionMax = static_cast<float>(m_gridSize);
++            XYPosition xyPosition = settings.m_xyPositions.at(i);
++            float xyPositionMax = static_cast<float>(settings.m_gridSize);
 +
 +            rtPositions.at(i) = {
 +                xyPosition.m_posx / xyPositionMax,
@@ -246,7 +299,7 @@
  
              // If the mesh is currently visible, it must be removed and re-added to update its data.
              for (RtSector::MeshGroup& meshGroup : sector.m_rtData->m_meshGroups)
-@@ -911,16 +948,16 @@
+@@ -911,25 +960,26 @@
                      m_rayTracingFeatureProcessor->AddMesh(meshGroup.m_id, meshGroup.m_mesh, meshGroup.m_submeshVector);
                  }
              }
@@ -259,28 +312,63 @@
 +    }
 +
 +    void TerrainMeshManager::PrepareSectorLodData(
++        const SectorPreparationSettings& settings,
          const AZStd::span<const HeightNormalVertex> originalHeightsNormals,
 -        const AZStd::span<const HeightNormalVertex> lodHeightsNormals)
 -    {
 +        const AZStd::span<const HeightNormalVertex> lodHeightsNormals,
-+        AZStd::vector<HeightNormalVertex>& clodHeightNormals) const
++        AZStd::vector<HeightNormalVertex>& clodHeightNormals)
 +    {
 +        AZ_PROFILE_SCOPE(AzRender, "Terrain::PrepareSectorLodData");
          // Store the height and normal information for the next lod level in each vertex for continuous LOD.
 -        AZStd::vector<HeightNormalVertex> clodHeightNormals;
-         clodHeightNormals.resize_no_construct(m_gridVerts2D);
+-        clodHeightNormals.resize_no_construct(m_gridVerts2D);
+-
+-        const uint16_t lodGridVerts1D = (m_gridVerts1D >> 1) + 1;
+-
+-        for (uint16_t yPos = 0; yPos < m_gridVerts1D; ++yPos)
+-        {
+-            for (uint16_t xPos = 0; xPos < m_gridVerts1D; ++xPos)
+-            {
+-                uint16_t index = yPos * m_gridVerts1D + xPos;
++        clodHeightNormals.resize_no_construct(settings.m_gridVerts2D);
++
++        const uint16_t lodGridVerts1D = (settings.m_gridVerts1D >> 1) + 1;
++
++        for (uint16_t yPos = 0; yPos < settings.m_gridVerts1D; ++yPos)
++        {
++            for (uint16_t xPos = 0; xPos < settings.m_gridVerts1D; ++xPos)
++            {
++                uint16_t index = yPos * settings.m_gridVerts1D + xPos;
+                 uint16_t lodIndex1 = (yPos / 2) * lodGridVerts1D + (xPos / 2);
+                 uint16_t lodIndex2 = lodIndex1;
  
-         const uint16_t lodGridVerts1D = (m_gridVerts1D >> 1) + 1;
-@@ -966,11 +1003,16 @@
+@@ -944,7 +994,7 @@
+                     lodIndex2 += lodGridVerts1D;
+                 }
+ 
+-                const uint16_t zOrderIndex = m_vertexOrder.at(index);
++                const uint16_t zOrderIndex = settings.m_vertexOrder.at(index);
+ 
+                 if (lodHeightsNormals[lodIndex1].m_height == NoTerrainVertexHeight || lodHeightsNormals[lodIndex2].m_height == NoTerrainVertexHeight)
+                 {
+@@ -966,11 +1016,19 @@
              }
          }
  
 -        sector.m_lodHeightsNormalsBuffer->UpdateData(clodHeightNormals.data(), clodHeightNormals.size() * sizeof(HeightNormalVertex), 0);
-     }
- 
-     void TerrainMeshManager::GatherMeshData(SectorDataRequest request, AZStd::vector<HeightNormalVertex>& meshHeightsNormals, AZ::Aabb& meshAabb, bool& terrainExistsAnywhere)
-     {
+-    }
+-
+-    void TerrainMeshManager::GatherMeshData(SectorDataRequest request, AZStd::vector<HeightNormalVertex>& meshHeightsNormals, AZ::Aabb& meshAabb, bool& terrainExistsAnywhere)
+-    {
++    }
++
++    bool TerrainMeshManager::GatherMeshData(SectorDataRequest request, AZStd::vector<HeightNormalVertex>& meshHeightsNormals, AZ::Aabb& meshAabb, bool& terrainExistsAnywhere)
++    {
 +        AZ_PROFILE_SCOPE(AzRender, "Terrain::GatherMeshData");
++        const auto& settings = *request.m_settings;
++        terrainExistsAnywhere = false;
++        meshAabb.SetNull();
 +        auto* queryStatistics = request.m_queryStatistics;
 +        TerrainCompositor::TerrainRenderQueryTimer preparationTimer(
 +            queryStatistics ? &queryStatistics->m_preparationMicroseconds : nullptr);
@@ -289,15 +377,19 @@
          const AZ::Vector2 stepSize(request.m_vertexSpacing);
  
          const uint16_t querySamplesX = request.m_samplesX + 2; // extra row / column on each side for normals.
-@@ -983,24 +1025,84 @@
+@@ -981,34 +1039,93 @@
+         AZStd::vector<float> heights;
+         heights.resize_no_construct(querySamplesCount);
  
-         meshHeightsNormals.resize_no_construct(outputSamplesCount);
- 
+-        meshHeightsNormals.resize_no_construct(outputSamplesCount);
+-
 -        auto perPositionCallback = [this, &heights, querySamplesX, &terrainExistsAnywhere]
 -        (size_t xIndex, size_t yIndex, const AzFramework::SurfaceData::SurfacePoint& surfacePoint, bool terrainExists)
 -        {
++        meshHeightsNormals.resize(outputSamplesCount, HeightNormalVertex{});
++
 +        const auto renderSnapshot = request.m_renderSnapshot;
-+        const bool batchQueries = r_terrainBatchRenderQueries && renderSnapshot && !renderSnapshot->m_renderGeometryQueries.empty();
++        const bool batchQueries = settings.m_batchQueries && renderSnapshot && !renderSnapshot->m_renderGeometryQueries.empty();
 +        AZStd::vector<AZ::Vector3> positions;
 +        std::unique_ptr<bool[]> exists;
 +        size_t receivedSamples = 0;
@@ -308,9 +400,10 @@
 +        }
 +
 +        auto perPositionCallback =
-+            [this, &heights, &positions, &exists, &receivedSamples, querySamplesX, &terrainExistsAnywhere, renderSnapshot, batchQueries, renderRequest, queryStatistics](
++            [&settings, &heights, &positions, &exists, &receivedSamples, querySamplesX, &terrainExistsAnywhere, renderSnapshot, batchQueries, renderRequest, queryStatistics](
 +                size_t xIndex, size_t yIndex, const AzFramework::SurfaceData::SurfacePoint& surfacePoint, bool terrainExists)
 +        {
++            ++receivedSamples;
 +            if (queryStatistics) ++queryStatistics->m_ordinarySamples;
              static constexpr float HeightDoesNotExistValue = -1.0f;
 -            const float height = surfacePoint.m_position.GetZ() - m_worldHeightBounds.m_min;
@@ -324,7 +417,6 @@
 +                positions[index] = surfacePoint.m_position;
 +                heights[index] = worldHeight;
 +                exists[index] = terrainExists;
-+                ++receivedSamples;
 +                return;
 +            }
 +            if (queryStatistics || (renderSnapshot && !renderSnapshot->m_renderGeometryQueries.empty()))
@@ -335,7 +427,7 @@
 +                const auto plan = TerrainCompositor::ResolveTerrainRenderQuery(renderSnapshot, scalarRequest, queryStatistics);
 +                TerrainCompositor::ExecuteTerrainRenderQuery(plan, { &worldHeight, 1 }, { &renderTerrainExists, 1 }, queryStatistics);
 +            }
-+            const float height = AZ::GetClamp(worldHeight, m_worldHeightBounds.m_min, m_worldHeightBounds.m_max) - m_worldHeightBounds.m_min;
++            const float height = AZ::GetClamp(worldHeight, settings.m_worldHeightBounds.m_min, settings.m_worldHeightBounds.m_max) - settings.m_worldHeightBounds.m_min;
 +            heights.at(yIndex * querySamplesX + xIndex) = renderTerrainExists ? height : HeightDoesNotExistValue;
 +            terrainExistsAnywhere = terrainExistsAnywhere || renderTerrainExists;
          };
@@ -358,15 +450,14 @@
 +                perPositionCallback,
 +                request.m_samplerType);
 +        }
++        if (receivedSamples != querySamplesCount)
++        {
++            terrainExistsAnywhere = false;
++            return false; // Failure is distinct from a complete query returning no terrain.
++        }
 +        if (batchQueries)
 +        {
 +            AZ_PROFILE_SCOPE(AzRender, "Terrain::GatherMeshData::RetainedGeometryBatch");
-+            // A disappearing terrain provider must not turn uninitialized query
-+            // storage into geometry during shutdown. QueryRegion is synchronous.
-+            if (receivedSamples != querySamplesCount)
-+            {
-+                return;
-+            }
 +            renderRequest.m_positions = positions;
 +            renderRequest.m_grid = TerrainCompositor::TerrainRenderGrid::Regular;
 +            renderRequest.m_gridStart = request.m_worldStartPosition - stepSize;
@@ -378,7 +469,7 @@
 +            for (size_t index = 0; index < querySamplesCount; ++index)
 +            {
 +                heights[index] = exists[index]
-+                    ? AZ::GetClamp(heights[index], m_worldHeightBounds.m_min, m_worldHeightBounds.m_max) - m_worldHeightBounds.m_min
++                    ? AZ::GetClamp(heights[index], settings.m_worldHeightBounds.m_min, settings.m_worldHeightBounds.m_max) - settings.m_worldHeightBounds.m_min
 +                    : -1.0f;
 +                terrainExistsAnywhere = terrainExistsAnywhere || exists[index];
 +            }
@@ -386,7 +477,229 @@
  
          if (!terrainExistsAnywhere)
          {
-@@ -1120,7 +1222,26 @@
+             // No height data, so just return
+-            return;
+-        }
+-
+-        float zExtents = (m_worldHeightBounds.m_max - m_worldHeightBounds.m_min);
++            return true;
++        }
++
++        float zExtents = (settings.m_worldHeightBounds.m_max - settings.m_worldHeightBounds.m_min);
+         const float rcpWorldZ = 1.0f / zExtents;
+         const float vertexSpacing2 = request.m_vertexSpacing * 2.0f;
+ 
+@@ -1030,7 +1147,7 @@
+                 const uint16_t queryCoord = queryY * querySamplesX + queryX;
+ 
+                 uint16_t coord = y * request.m_samplesX + x;
+-                coord = request.m_useVertexOrderRemap ? m_vertexOrder.at(coord) : coord;
++                coord = request.m_useVertexOrderRemap ? settings.m_vertexOrder.at(coord) : coord;
+ 
+                 const float height = heights.at(queryCoord);
+                 if (height < 0.0f)
+@@ -1112,104 +1229,283 @@
+         {
+             float width = (request.m_samplesX - 1) * request.m_vertexSpacing;
+             float height = (request.m_samplesY - 1) * request.m_vertexSpacing;
+-            AZ::Vector3 aabbMin = AZ::Vector3(request.m_worldStartPosition.GetX(), request.m_worldStartPosition.GetY(), m_worldHeightBounds.m_min + minHeight);
+-            AZ::Vector3 aabbMax = AZ::Vector3(aabbMin.GetX() + width, aabbMin.GetY() + height, m_worldHeightBounds.m_min + maxHeight);
++            AZ::Vector3 aabbMin = AZ::Vector3(request.m_worldStartPosition.GetX(), request.m_worldStartPosition.GetY(), settings.m_worldHeightBounds.m_min + minHeight);
++            AZ::Vector3 aabbMax = AZ::Vector3(aabbMin.GetX() + width, aabbMin.GetY() + height, settings.m_worldHeightBounds.m_min + maxHeight);
+             meshAabb.Set(aabbMin, aabbMax);
+         }
++        return true;
++    }
++
++    std::shared_ptr<const TerrainMeshManager::SectorPreparationSettings> TerrainMeshManager::CapturePreparationSettings() const
++    {
++        auto settings = std::make_shared<SectorPreparationSettings>();
++        settings->m_worldHeightBounds = m_worldHeightBounds;
++        settings->m_vertexOrder = m_vertexOrder;
++        settings->m_xyPositions = m_xyPositions;
++        settings->m_gridSize = m_gridSize;
++        settings->m_gridVerts1D = m_gridVerts1D;
++        settings->m_gridVerts2D = m_gridVerts2D;
++        settings->m_batchQueries = r_terrainBatchRenderQueries;
++        settings->m_clodEnabled = m_config.m_clodEnabled;
++        return settings;
++    }
++
++    TerrainMeshManager::SectorPreparationRequest TerrainMeshManager::CaptureSectorRequest(
++        uint32_t lodLevel, size_t slot, std::shared_ptr<const SectorPreparationSettings> settings,
++        TerrainCompositor::TerrainMeshCutoutRenderChannelPtr channel, bool collectStatistics,
++        TerrainCompositor::TerrainMeshCutoutRenderSnapshotPtr snapshot)
++    {
++        SectorPreparationRequest request;
++        auto& sector = m_sectorLods.at(lodLevel).m_sectors.at(slot);
++        const float gridMeters = (settings->m_gridSize * m_sampleSpacing) * (1 << lodLevel);
++        request.m_data.m_settings = AZStd::move(settings);
++        request.m_channel = AZStd::move(channel);
++        request.m_data.m_renderSnapshot = AZStd::move(snapshot);
++        request.m_dependencies.push_back({ m_preparationLifetime, m_preparationLifetime->Capture() });
++        if (request.m_data.m_renderSnapshot)
++            for (const auto& query : request.m_data.m_renderSnapshot->m_renderGeometryQueries)
++                if (query.m_preparationDependency)
++                    request.m_dependencies.push_back({ query.m_preparationDependency, query.m_preparationDependency->Capture() });
++        request.m_destinationIdentity = sector.m_destinationIdentity;
++        request.m_serial = ++sector.m_preparationSerial;
++        request.m_lodLevel = lodLevel;
++        request.m_slot = slot;
++        request.m_worldCoord = sector.m_worldCoord;
++        request.m_rayTracing = bool(sector.m_rtData);
++        request.m_collectStatistics = collectStatistics;
++        request.m_data.m_samplesX = request.m_data.m_samplesY = request.m_data.m_settings->m_gridVerts1D;
++        request.m_data.m_worldStartPosition = request.m_worldCoord.ToVector2() * gridMeters;
++        request.m_data.m_vertexSpacing = gridMeters / request.m_data.m_settings->m_gridSize;
++        request.m_data.m_useVertexOrderRemap = true;
++        request.m_objectData.m_xyTranslation = { request.m_worldCoord.m_x * gridMeters, request.m_worldCoord.m_y * gridMeters };
++        request.m_objectData.m_xyScale = gridMeters * (aznumeric_cast<float>(AZStd::numeric_limits<uint8_t>::max()) /
++            request.m_data.m_settings->m_gridSize);
++        request.m_objectData.m_lodLevel = lodLevel;
++        request.m_objectData.m_rcpLodLevel = 1.0f / (lodLevel + 1);
++        const auto& heightBounds = request.m_data.m_settings->m_worldHeightBounds;
++        const AZ::Vector3 minimum(request.m_data.m_worldStartPosition.GetX(), request.m_data.m_worldStartPosition.GetY(), heightBounds.m_min);
++        const auto bounds = AZ::Aabb::CreateFromMinMax(minimum,
++            minimum + AZ::Vector3(gridMeters, gridMeters, heightBounds.m_max - heightBounds.m_min));
++        // This synchronous query is captured after the invalidation tickets so a
++        // source change during even an empty-area query invalidates its completion.
++        AzFramework::Terrain::TerrainDataRequestBus::BroadcastResult(
++            request.m_hasTerrain, &AzFramework::Terrain::TerrainDataRequests::TerrainAreaExistsInBounds, bounds);
++        return request;
++    }
++
++    TerrainMeshManager::PreparedSectorResult TerrainMeshManager::PrepareSector(SectorPreparationRequest request)
++    {
++        AZ_PROFILE_SCOPE(AzRender, "Terrain::PrepareSectorWorker");
++        PreparedSectorResult result;
++        result.m_request = AZStd::move(request);
++        const auto& owned = result.m_request;
++        const auto prepare = [&]()
++        {
++            TerrainCompositor::TerrainRenderQueryTimer timer(owned.m_collectStatistics ? &result.m_preparationMicroseconds : nullptr);
++            if (owned.m_cancelled->load(std::memory_order_acquire))
++            {
++                result.m_status = SectorPreparationStatus::Cancelled;
++                return;
++            }
++            if (owned.m_collectStatistics)
++                result.m_queryStatistics = std::make_unique<TerrainCompositor::TerrainRenderQueryStatistics>();
++            if (!owned.m_hasTerrain)
++            {
++                result.m_status = SectorPreparationStatus::Empty;
++                return;
++            }
++            const auto& settings = *owned.m_data.m_settings;
++            auto data = owned.m_data;
++            // Only this synchronous kernel borrows its result's statistics storage.
++            data.m_queryStatistics = result.m_queryStatistics.get();
++            if (!GatherMeshData(data, result.m_heights, result.m_aabb, result.m_hasData)) return;
++            if (settings.m_clodEnabled && result.m_hasData)
++            {
++                const uint16_t nextGridSize = settings.m_gridSize >> 1;
++                data.m_samplesX = data.m_samplesY = nextGridSize + 1;
++                data.m_vertexSpacing *= 2.0f;
++                data.m_useVertexOrderRemap = false;
++                AZ::Aabb unusedAabb = AZ::Aabb::CreateNull();
++                bool exists = false;
++                AZStd::vector<HeightNormalVertex> lodHeights;
++                if (!GatherMeshData(data, lodHeights, unusedAabb, exists)) return;
++                if (!exists)
++                {
++                    const HeightNormalVertex noTerrain{ NoTerrainVertexHeight, { 0, 0 } };
++                    AZStd::fill(lodHeights.begin(), lodHeights.end(), noTerrain);
++                }
++                PrepareSectorLodData(settings, result.m_heights, lodHeights, result.m_lodHeights);
++            }
++            if (owned.m_rayTracing && result.m_hasData)
++                PrepareSectorRayTracingData(settings, result.m_heights, result.m_rtPositions, result.m_rtNormals);
++            result.m_status = owned.m_cancelled->load(std::memory_order_acquire) ? SectorPreparationStatus::Cancelled :
++                result.m_hasData ? SectorPreparationStatus::Ready : SectorPreparationStatus::Empty;
++        };
++        prepare();
++        return result;
++    }
++
++    bool TerrainMeshManager::AcceptPreparedSectors(
++        AZStd::span<const std::shared_ptr<PreparedSectorResult>> results,
++        const AZStd::function<void(Sector&, const PreparedSectorResult&)>& commit,
++        SectorCommitStatistics* statistics)
++    {
++        AZ_PROFILE_SCOPE(AzRender, "Terrain::AcceptPreparedSectors");
++        TerrainCompositor::TerrainRenderQueryTimer acceptanceTimer(statistics ? &statistics->m_acceptanceMicroseconds : nullptr);
++        if (results.empty()) return true;
++        const auto& first = results.front()->m_request;
++        std::unique_lock<std::mutex> publicationLock;
++        if (first.m_channel)
++        {
++            AZ_PROFILE_SCOPE(AzRender, "Terrain::WaitForSectorPublication");
++            TerrainCompositor::TerrainRenderQueryTimer waitTimer(statistics ? &statistics->m_publicationWaitMicroseconds : nullptr);
++            publicationLock = std::unique_lock<std::mutex>(first.m_channel->m_publicationMutex);
++            if (!first.m_channel->m_active ||
++                first.m_channel->m_snapshot.load(std::memory_order_acquire) != first.m_data.m_renderSnapshot) return false;
++        }
++        AZStd::vector<TerrainCompositor::TerrainPreparationDependencyTicket> dependencies;
++        for (const auto& result : results)
++            dependencies.insert(dependencies.end(), result->m_request.m_dependencies.begin(), result->m_request.m_dependencies.end());
++        TerrainCompositor::TerrainPreparationAdmission admission(dependencies);
++        if (!admission.IsValid()) return false;
++        // Validate the entire synchronous batch before any GPU or SRG mutation.
++        // The publication and dependency locks remain held through every upload.
++        for (size_t index = 0; index < results.size(); ++index)
++        {
++            const auto& result = *results[index];
++            const auto& request = result.m_request;
++            if (result.m_status == SectorPreparationStatus::Failed || result.m_status == SectorPreparationStatus::Cancelled ||
++                !request.m_cancelled || request.m_cancelled->load(std::memory_order_acquire) ||
++                request.m_channel != first.m_channel || request.m_data.m_renderSnapshot != first.m_data.m_renderSnapshot ||
++                request.m_dependencies.empty() || request.m_dependencies.front().m_dependency != m_preparationLifetime ||
++                !request.m_data.m_settings || request.m_lodLevel >= m_sectorLods.size() ||
++                request.m_slot >= m_sectorLods[request.m_lodLevel].m_sectors.size()) return false;
++            const auto& sector = m_sectorLods[request.m_lodLevel].m_sectors[request.m_slot];
++            if (sector.m_destinationIdentity != request.m_destinationIdentity || sector.m_preparationSerial != request.m_serial ||
++                sector.m_worldCoord != request.m_worldCoord || bool(sector.m_rtData) != request.m_rayTracing) return false;
++            for (size_t previous = 0; previous < index; ++previous)
++                if (results[previous]->m_request.m_destinationIdentity == request.m_destinationIdentity) return false;
++            const auto& settings = *request.m_data.m_settings;
++            if (result.m_status == SectorPreparationStatus::Ready)
++            {
++                if (!result.m_hasData || result.m_heights.size() != settings.m_gridVerts2D ||
++                    (settings.m_clodEnabled && result.m_lodHeights.size() != settings.m_gridVerts2D) ||
++                    (request.m_rayTracing && (result.m_rtPositions.size() != settings.m_gridVerts2D ||
++                        result.m_rtNormals.size() != settings.m_gridVerts2D))) return false;
++            }
++            else if (result.m_hasData) return false;
++        }
++        AZ_PROFILE_SCOPE(AzRender, "Terrain::CommitSectorUploads");
++        TerrainCompositor::TerrainRenderQueryTimer commitTimer(statistics ? &statistics->m_commitMicroseconds : nullptr);
++        // Acceptance consumes the leases. Cancellation after this point is too late.
++        for (const auto& result : results)
++            ++m_sectorLods[result->m_request.m_lodLevel].m_sectors[result->m_request.m_slot].m_preparationSerial;
++        for (const auto& result : results)
++            commit(m_sectorLods[result->m_request.m_lodLevel].m_sectors[result->m_request.m_slot], *result);
++        return true;
++    }
++
++    void TerrainMeshManager::CommitSectorResources(Sector& sector, const PreparedSectorResult& result)
++    {
++        sector.m_hasData = result.m_hasData;
++        sector.m_aabb = result.m_aabb;
++        if (result.m_hasData)
++        {
++            UpdateSectorBuffers(sector, result.m_heights, result.m_rtPositions, result.m_rtNormals);
++            if (result.m_request.m_data.m_settings->m_clodEnabled)
++                sector.m_lodHeightsNormalsBuffer->UpdateData(
++                    result.m_lodHeights.data(), result.m_lodHeights.size() * sizeof(HeightNormalVertex), 0);
++        }
++        CreateAabbQuadrants(sector.m_aabb, sector.m_quadrantAabbs);
++        sector.m_srg->SetConstant(m_patchDataIndex, result.m_request.m_objectData);
++        if (!sector.m_isQueuedForSrgCompile)
++        {
++            sector.m_isQueuedForSrgCompile = true;
++            m_sectorsThatNeedSrgCompiled.push_back(&sector);
++        }
++        m_candidateSectors.clear();
+     }
  
      void TerrainMeshManager::ProcessSectorUpdates(AZStd::vector<AZStd::vector<Sector*>>& sectorUpdates)
      {
@@ -395,50 +708,37 @@
 +        using TimingClock = std::chrono::steady_clock;
 +        const auto updateStart = logTiming ? TimingClock::now() : TimingClock::time_point{};
          AZ::JobCompletion jobCompletion;
+-
 +        TerrainCompositor::TerrainMeshCutoutRenderChannelPtr channel;
-+        if (auto* registry = AZ::Interface<TerrainCompositor::TerrainMeshCutoutRenderRegistry>::Get()) channel = registry->AcquireSceneChannel(m_parentScene);
-+        const auto snapshot = channel ? channel->m_snapshot.load(std::memory_order_acquire) : TerrainCompositor::TerrainMeshCutoutRenderSnapshotPtr{};
-+        struct PendingSector
-+        {
-+            Sector* m_sector = nullptr;
-+            AZStd::vector<HeightNormalVertex> m_heights;
-+            AZStd::vector<HeightNormalVertex> m_lodHeights;
-+            AZStd::vector<RtVertex> m_rtPositions;
-+            AZStd::vector<RtVertex> m_rtNormals;
-+            AZ::Aabb m_aabb = AZ::Aabb::CreateNull();
-+            bool m_hasData = false;
-+            std::unique_ptr<TerrainCompositor::TerrainRenderQueryStatistics> m_queryStatistics;
-+        };
-+        AZStd::vector<std::shared_ptr<PendingSector>> pending;
- 
++        if (auto* registry = AZ::Interface<TerrainCompositor::TerrainMeshCutoutRenderRegistry>::Get())
++            channel = registry->AcquireSceneChannel(m_parentScene);
++        const auto settings = CapturePreparationSettings();
++        const auto snapshot = channel ? channel->m_snapshot.load(std::memory_order_acquire) : nullptr;
++        AZStd::vector<std::shared_ptr<PreparedSectorResult>> pending;
          for (uint32_t lodLevel = 0; lodLevel < sectorUpdates.size(); ++lodLevel)
-         {
-@@ -1134,31 +1255,33 @@
-             {
-                 const float gridMeters = (m_gridSize * m_sampleSpacing) * (1 << lodLevel);
- 
+-        {
+-            auto& sectors = sectorUpdates.at(lodLevel);
+-            if (sectors.empty())
+-            {
+-                continue;
+-            }
+-
+-            for (Sector* sector : sectors)
+-            {
+-                const float gridMeters = (m_gridSize * m_sampleSpacing) * (1 << lodLevel);
+-
 -                const auto jobLambda = [this, sector, gridMeters]() -> void
 -                {
 -                    AZStd::vector<HeightNormalVertex> meshHeightsNormals;
-+                auto result = std::make_shared<PendingSector>();
-+                result->m_sector = sector;
-+                if (logTiming) result->m_queryStatistics = std::make_unique<TerrainCompositor::TerrainRenderQueryStatistics>();
-+                pending.push_back(result);
-+                const auto jobLambda = [this, sector, gridMeters, snapshot, result]() -> void
-+                {
-+                    AZ_PROFILE_SCOPE(AzRender, "Terrain::PrepareSectorWorker");
-+                    auto& meshHeightsNormals = result->m_heights;
- 
-                     {
-                         SectorDataRequest request;
-+                        request.m_renderSnapshot = snapshot;
-+                        request.m_queryStatistics = result->m_queryStatistics.get();
-                         request.m_samplesX = m_gridVerts1D;
-                         request.m_samplesY = m_gridVerts1D;
-                         request.m_worldStartPosition = sector->m_worldCoord.ToVector2() * gridMeters;
-                         request.m_vertexSpacing = gridMeters / m_gridSize;
-                         request.m_useVertexOrderRemap = true;
- 
+-
+-                    {
+-                        SectorDataRequest request;
+-                        request.m_samplesX = m_gridVerts1D;
+-                        request.m_samplesY = m_gridVerts1D;
+-                        request.m_worldStartPosition = sector->m_worldCoord.ToVector2() * gridMeters;
+-                        request.m_vertexSpacing = gridMeters / m_gridSize;
+-                        request.m_useVertexOrderRemap = true;
+-
 -                        GatherMeshData(request, meshHeightsNormals, sector->m_aabb, sector->m_hasData);
 -                        if (sector->m_hasData)
 -                        {
@@ -447,111 +747,111 @@
 -
 -                        // Create AABBs for each quadrant for cases where this LOD needs to fill in a gap in a lower LOD.
 -                        CreateAabbQuadrants(sector->m_aabb, sector->m_quadrantAabbs);
-+                        GatherMeshData(request, meshHeightsNormals, result->m_aabb, result->m_hasData);
-                     }
- 
+-                    }
+-
 -                    if (m_config.m_clodEnabled && sector->m_hasData)
-+                    if (m_config.m_clodEnabled && result->m_hasData)
-                     {
-                         SectorDataRequest request;
-+                        request.m_renderSnapshot = snapshot;
-+                        request.m_queryStatistics = result->m_queryStatistics.get();
-                         uint16_t m_gridSizeNextLod = (m_gridSize >> 1);
-                         request.m_samplesX = m_gridSizeNextLod + 1;
-                         request.m_samplesY = m_gridSizeNextLod + 1;
-@@ -1171,12 +1294,16 @@
-                         GatherMeshData(request, meshLodHeightsNormals, dummyAabb, terrainExists);
-                         if (!terrainExists)
-                         {
+-                    {
+-                        SectorDataRequest request;
+-                        uint16_t m_gridSizeNextLod = (m_gridSize >> 1);
+-                        request.m_samplesX = m_gridSizeNextLod + 1;
+-                        request.m_samplesY = m_gridSizeNextLod + 1;
+-                        request.m_worldStartPosition = sector->m_worldCoord.ToVector2() * gridMeters;
+-                        request.m_vertexSpacing = gridMeters / m_gridSizeNextLod;
+-
+-                        AZ::Aabb dummyAabb = AZ::Aabb::CreateNull(); // Don't update the sector aabb based on only the clod vertices.
+-                        bool terrainExists = false;
+-                        AZStd::vector<HeightNormalVertex> meshLodHeightsNormals;
+-                        GatherMeshData(request, meshLodHeightsNormals, dummyAabb, terrainExists);
+-                        if (!terrainExists)
+-                        {
 -                            // It's unlikely but possible for the higher lod to have data and the lower lod to not. In that case 
-+                            // It's unlikely but possible for the higher lod to have data and the lower lod to not. In that case
-                             // meshLodHeights will be empty, so fill it with values that represent "no data".
-                             HeightNormalVertex defaultValue = { NoTerrainVertexHeight, NormalXYDataType(NormalDataType(0), NormalDataType(0)) };
-                             AZStd::fill(meshLodHeightsNormals.begin(), meshLodHeightsNormals.end(), defaultValue);
-                         }
+-                            // meshLodHeights will be empty, so fill it with values that represent "no data".
+-                            HeightNormalVertex defaultValue = { NoTerrainVertexHeight, NormalXYDataType(NormalDataType(0), NormalDataType(0)) };
+-                            AZStd::fill(meshLodHeightsNormals.begin(), meshLodHeightsNormals.end(), defaultValue);
+-                        }
 -                        UpdateSectorLodBuffers(*sector, meshHeightsNormals, meshLodHeightsNormals);
-+                        PrepareSectorLodData(meshHeightsNormals, meshLodHeightsNormals, result->m_lodHeights);
-+                    }
-+                    if (result->m_hasData && sector->m_rtData)
-+                    {
-+                        PrepareSectorRayTracingData(meshHeightsNormals, result->m_rtPositions, result->m_rtNormals);
-                     }
+-                    }
++            for (const auto* sector : sectorUpdates[lodLevel])
++            {
++                const size_t slot = sector - m_sectorLods[lodLevel].m_sectors.data();
++                auto request = CaptureSectorRequest(lodLevel, slot, settings, channel, logTiming, snapshot);
++                auto result = std::make_shared<PreparedSectorResult>();
++                pending.push_back(result);
++                if (!request.m_hasTerrain)
++                {
++                    *result = PrepareSector(AZStd::move(request));
++                    continue;
++                }
++                // The job owns every input and its output. No this, Sector*, GPU
++                // resource, manager reference, or borrowed configuration crosses here.
++                auto jobLambda = [request = AZStd::move(request), result]() mutable
++                {
++                    *result = PrepareSector(AZStd::move(request));
                  };
- 
-@@ -1190,7 +1317,6 @@
-                 {
-                     m_sectorsThatNeedSrgCompiled.push_back(sector);
-                 }
+-
+-                ShaderObjectData objectSrgData;
+-                objectSrgData.m_xyTranslation = { sector->m_worldCoord.m_x * gridMeters, sector->m_worldCoord.m_y * gridMeters };
+-                objectSrgData.m_xyScale = gridMeters * (aznumeric_cast<float>(AZStd::numeric_limits<uint8_t>::max()) / m_gridSize);
+-                objectSrgData.m_lodLevel = lodLevel;
+-                objectSrgData.m_rcpLodLevel = 1.0f / (lodLevel + 1);
+-                sector->m_srg->SetConstant(m_patchDataIndex, objectSrgData);
+-                if (!sector->m_isQueuedForSrgCompile)
+-                {
+-                    m_sectorsThatNeedSrgCompiled.push_back(sector);
+-                }
 -                sector->m_hasData = false; // mark the terrain as not having data for now. Once a job runs if it actually has data it'll flip to true.
- 
-                 // Check against the area of terrain that could appear in this sector for any terrain areas. If none exist then skip updating the mesh.
-                 bool hasTerrain = false;
-@@ -1208,8 +1334,82 @@
-                 }
-             }
-         }
+-
+-                // Check against the area of terrain that could appear in this sector for any terrain areas. If none exist then skip updating the mesh.
+-                bool hasTerrain = false;
+-                AZ::Vector3 minAabb = AZ::Vector3(sector->m_worldCoord.m_x * gridMeters, sector->m_worldCoord.m_y * gridMeters, m_worldHeightBounds.m_min);
+-                AZ::Aabb sectorBounds = AZ::Aabb::CreateFromMinMax(minAabb,
+-                    minAabb + AZ::Vector3(gridMeters, gridMeters, m_worldHeightBounds.m_max - m_worldHeightBounds.m_min));
+-                AzFramework::Terrain::TerrainDataRequestBus::BroadcastResult(
+-                    hasTerrain, &AzFramework::Terrain::TerrainDataRequests::TerrainAreaExistsInBounds, sectorBounds);
+-
+-                if (hasTerrain)
+-                {
+-                    AZ::Job* executeGroupJob = aznew AZ::JobFunction<decltype(jobLambda)>(jobLambda, true, nullptr); // Auto-deletes
+-                    executeGroupJob->SetDependent(&jobCompletion);
+-                    executeGroupJob->Start();
+-                }
+-            }
+-        }
 -        jobCompletion.StartAndWaitForCompletion();
 -        m_candidateSectors.clear(); // Force recalculation of candidate sectors since AABBs could have changed.
++                AZ::Job* job = aznew AZ::JobFunction<decltype(jobLambda)>(jobLambda, true, nullptr);
++                job->SetDependent(&jobCompletion);
++                job->Start();
++            }
++        const auto waitStart = logTiming ? TimingClock::now() : TimingClock::time_point{};
 +        {
 +            AZ_PROFILE_SCOPE(AzRender, "Terrain::WaitForSectorWorkers");
 +            jobCompletion.StartAndWaitForCompletion();
 +        }
 +        const auto workersDone = logTiming ? TimingClock::now() : TimingClock::time_point{};
-+        std::unique_lock<std::mutex> publicationLock;
-+        if (channel)
-+        {
-+            publicationLock = std::unique_lock<std::mutex>(channel->m_publicationMutex);
-+            if (channel->m_snapshot.load(std::memory_order_acquire) != snapshot)
-+            {
-+                // Rare publication race: no staged data reaches GPU buffers. A full
-+                // rebuild next frame also requeues sectors whose old data was empty.
-+                m_rebuildSectors = true;
-+                return;
-+            }
-+        }
-+        const auto uploadStart = logTiming ? TimingClock::now() : TimingClock::time_point{};
-+        {
-+            AZ_PROFILE_SCOPE(AzRender, "Terrain::CommitSectorUploads");
-+            for (const auto& result : pending)
-+            {
-+                auto& sector = *result->m_sector;
-+                sector.m_hasData = result->m_hasData;
-+                sector.m_aabb = result->m_aabb;
-+                if (result->m_hasData)
-+                {
-+                    UpdateSectorBuffers(sector, result->m_heights, result->m_rtPositions, result->m_rtNormals);
-+                    if (m_config.m_clodEnabled)
-+                    {
-+                        sector.m_lodHeightsNormalsBuffer->UpdateData(
-+                            result->m_lodHeights.data(), result->m_lodHeights.size() * sizeof(HeightNormalVertex), 0);
-+                    }
-+                }
-+                CreateAabbQuadrants(sector.m_aabb, sector.m_quadrantAabbs);
-+            }
-+            m_candidateSectors.clear(); // Force recalculation of candidate sectors since AABBs could have changed.
-+        }
-+        if (publicationLock.owns_lock())
-+            publicationLock.unlock();
++        SectorCommitStatistics commitStatistics;
++        const bool batchAccepted = AcceptPreparedSectors(pending,
++            [this](Sector& sector, const PreparedSectorResult& prepared) { CommitSectorResources(sector, prepared); },
++            logTiming ? &commitStatistics : nullptr);
++        const size_t accepted = batchAccepted ? pending.size() : 0;
++        if (!batchAccepted) m_rebuildSectors = true; // Retry empty and failed requests as well.
 +        if (logTiming && !pending.empty())
 +        {
 +            const auto updateEnd = TimingClock::now();
-+            const auto ms = [](auto elapsed)
-+            {
-+                return std::chrono::duration<double, std::milli>(elapsed).count();
-+            };
-+            AZ_Printf(
-+                "TerrainSectorTiming",
-+                "sectors=%zu batch=%d total=%.3fms prepare/wait=%.3fms publication-wait=%.3fms upload=%.3fms\n",
-+                pending.size(),
-+                bool(r_terrainBatchRenderQueries),
-+                ms(updateEnd - updateStart),
-+                ms(workersDone - updateStart),
-+                ms(uploadStart - workersDone),
-+                ms(updateEnd - uploadStart));
-+            // Result-owned worker counters are read only after completion and logged
-+            // on this thread after releasing the publication lock. No per-sample logs.
++            const auto ms = [](auto elapsed) { return std::chrono::duration<double, std::milli>(elapsed).count(); };
++            double preparationUs = 0.0;
++            for (const auto& result : pending) preparationUs += result->m_preparationMicroseconds;
++            AZ_Printf("TerrainSectorTiming",
++                "sectors=%zu accepted=%zu rejected=%zu batch=%d total=%.3fms capture/dispatch=%.3fms worker-wait=%.3fms "
++                "acceptance/commit=%.3fms worker-prepare-sum=%.3fms publication-wait=%.3fms acceptance=%.3fms commit=%.3fms\n",
++                pending.size(), accepted, pending.size() - accepted, settings->m_batchQueries, ms(updateEnd - updateStart),
++                ms(waitStart - updateStart), ms(workersDone - waitStart), ms(updateEnd - workersDone), preparationUs / 1000.0,
++                commitStatistics.m_publicationWaitMicroseconds / 1000.0,
++                (commitStatistics.m_acceptanceMicroseconds - commitStatistics.m_publicationWaitMicroseconds -
++                    commitStatistics.m_commitMicroseconds) / 1000.0, commitStatistics.m_commitMicroseconds / 1000.0);
 +            for (size_t index = 0; index < pending.size(); ++index)
 +            {
++                if (!pending[index]->m_queryStatistics) continue;
 +                const auto& stats = *pending[index]->m_queryStatistics;
 +                AZStd::string fallbacks;
 +                for (size_t reason = 0; reason < stats.m_fallbackSamples.size(); ++reason)

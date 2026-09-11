@@ -14,6 +14,14 @@ namespace TerrainCompositor
     TerrainMeshCutoutRenderRegistry::~TerrainMeshCutoutRenderRegistry()
     {
         AZ::Interface<TerrainMeshCutoutRenderRegistry>::Unregister(this);
+        std::lock_guard lock(m_updateMutex);
+        for (const auto& [key, channel] : m_sceneChannels)
+        {
+            std::lock_guard publicationLock(channel->m_publicationMutex);
+            channel->m_active = false;
+            channel->m_snapshot.store({}, std::memory_order_release);
+            channel->m_activation.store({}, std::memory_order_release);
+        }
     }
 
     TerrainMeshCutoutRenderChannelPtr TerrainMeshCutoutRenderRegistry::AcquireSceneChannel(const void* sceneKey)
@@ -92,6 +100,23 @@ namespace TerrainCompositor
         std::lock_guard lock(m_updateMutex);
         const auto channel = m_sceneChannels.find(sceneKey);
         if (channel != m_sceneChannels.end()) channel->second->m_activation.store({}, std::memory_order_release);
+    }
+
+    void TerrainMeshCutoutRenderRegistry::RemoveScene(const void* sceneKey, bool removeRegistrations)
+    {
+        std::lock_guard lock(m_updateMutex);
+        const auto found = m_sceneChannels.find(sceneKey);
+        if (found != m_sceneChannels.end())
+        {
+            const auto channel = found->second;
+            std::lock_guard publicationLock(channel->m_publicationMutex);
+            channel->m_active = false;
+            channel->m_snapshot.store({}, std::memory_order_release);
+            channel->m_activation.store({}, std::memory_order_release);
+            m_sceneChannels.erase(found);
+        }
+        if (removeRegistrations)
+            AZStd::erase_if(m_byComposition, [sceneKey](const auto& entry) { return entry.second.m_sceneKey == sceneKey; });
     }
 
     void TerrainMeshCutoutRenderRegistry::RebuildSnapshot(const void* sceneKey)

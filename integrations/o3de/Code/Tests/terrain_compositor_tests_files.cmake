@@ -8,6 +8,7 @@ set(FILES
     ProceduralGroundGradientComponentTests.cpp
     HeightmapReconstructionTests.cpp
     TerrainMeshCutoutTests.cpp
+    TerrainSectorLifetimeTests.cpp
     TerrainMeshHeightStampTests.cpp
     TerrainMeshHeightGapGpuTests.cpp
     TerrainQualityTests.cpp

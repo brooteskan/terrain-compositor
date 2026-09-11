@@ -9,6 +9,7 @@
 #include <AzCore/std/function/function_template.h>
 #include <TerrainCompositor/TerrainExistenceSampling.h>
 #include <TerrainCompositor/TerrainRenderQuery.h>
+#include <TerrainCompositor/TerrainPreparationDependency.h>
 
 #include <atomic>
 #include <cmath>
@@ -27,6 +28,7 @@ namespace TerrainCompositor
         //! ordinary terrain query's surface Z, including its collision fallback.
         AZStd::function<void(AZStd::span<const AZ::Vector3>, AZStd::span<float>, AZStd::span<bool>)> m_getGeometry;
         TerrainRenderQueryCapability m_capability;
+        std::shared_ptr<TerrainPreparationDependency> m_preparationDependency;
         AZ::Uuid m_compositionSession{};
         AZ::u64 m_compositionRevision = 0;
         //! Optional diagnostic adapter, equivalent to the selected callback above.
@@ -370,6 +372,8 @@ namespace TerrainCompositor
     struct TerrainMeshCutoutRenderChannel
     {
         std::mutex m_publicationMutex;
+        // Protected by the publication mutex; a removed scene channel is never revived.
+        bool m_active = true;
         std::atomic<TerrainMeshCutoutRenderSnapshotPtr> m_snapshot{ std::make_shared<const TerrainMeshCutoutRenderSnapshot>() };
         std::atomic<TerrainMeshHeightGapActivationPtr> m_activation{ std::make_shared<const TerrainMeshHeightGapActivation>() };
     };
@@ -402,6 +406,9 @@ namespace TerrainCompositor
         bool ActivateGaps(const void* sceneKey, const TerrainMeshCutoutRenderSnapshotPtr& expected,
             AZStd::vector<PreparedTerrainMeshHeightGap> admitted);
         void ClearGapActivation(const void* sceneKey);
+        //! Retire the channel permanently. Feature-processor deactivation can
+        //! preserve component-owned registrations for reactivation of the scene.
+        void RemoveScene(const void* sceneKey, bool removeRegistrations = true);
 
     private:
         struct CompositionEntry

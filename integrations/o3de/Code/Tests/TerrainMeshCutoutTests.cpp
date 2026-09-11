@@ -93,6 +93,7 @@ namespace Terrain
                 for (int lod = 0; lod < 2; ++lod)
                 {
                     TerrainMeshManager::SectorDataRequest request;
+                    request.m_settings = manager.CapturePreparationSettings();
                     request.m_worldStartPosition = AZ::Vector2::CreateZero();
                     request.m_vertexSpacing = lod ? 2.0f : 1.0f;
                     request.m_samplesX = request.m_samplesY = lod ? 3 : 5;
@@ -122,8 +123,8 @@ namespace Terrain
                     EXPECT_GT(statistics.m_retainedSamples, 0);
                 }
                 AZStd::vector<Vertex> expectedClod, actualClod;
-                manager.PrepareSectorLodData(expected[0], expected[1], expectedClod);
-                manager.PrepareSectorLodData(actual[0], actual[1], actualClod);
+                manager.PrepareSectorLodData(*manager.CapturePreparationSettings(), expected[0], expected[1], expectedClod);
+                manager.PrepareSectorLodData(*manager.CapturePreparationSettings(), actual[0], actual[1], actualClod);
                 ASSERT_EQ(actualClod.size(), expectedClod.size());
                 for (size_t i = 0; i < actualClod.size(); ++i)
                 {
@@ -168,12 +169,25 @@ namespace Terrain
             for (const auto& position : { positivePosition, AZ::Vector3(192.0f, 192.0f, 0.0f), positivePosition })
             {
                 AZStd::vector<Vector2i> oldCoordinates;
+                AZStd::vector<std::shared_ptr<TerrainMeshManager::PreparedSectorResult>> delayed;
+                const auto settings = manager.CapturePreparationSettings();
+                for (size_t slot = 0; slot < grid.m_sectors.size(); ++slot)
+                    delayed.push_back(std::make_shared<TerrainMeshManager::PreparedSectorResult>(
+                        manager.PrepareSector(manager.CaptureSectorRequest(0, slot, settings, {}, false, {}))));
                 for (const auto& sector : grid.m_sectors)
                 {
                     oldCoordinates.push_back(sector.m_worldCoord);
                 }
                 updates = manager.CollectUpdatedSectors(position);
                 EXPECT_EQ(updates[0].size(), expectedUpdates);
+                size_t commits = 0;
+                for (const auto& result : delayed)
+                {
+                    const bool stillAssigned = result->m_request.m_worldCoord == grid.m_sectors[result->m_request.m_slot].m_worldCoord;
+                    EXPECT_EQ(manager.AcceptPreparedSectors({ &result, 1 },
+                        [&commits](auto&, const auto&) { ++commits; }), stillAssigned);
+                }
+                EXPECT_EQ(commits, 100 - expectedUpdates);
                 for (size_t oldIndex = 0; oldIndex < oldCoordinates.size(); ++oldIndex)
                 {
                     for (size_t newIndex = 0; newIndex < grid.m_sectors.size(); ++newIndex)
@@ -208,6 +222,7 @@ namespace Terrain
             query.m_getTerrainExists = [&calls](const AZ::Vector3&) { ++calls; return true; };
             snapshot->m_renderGeometryQueries.push_back(query);
             TerrainMeshManager::SectorDataRequest request;
+            request.m_settings = manager.CapturePreparationSettings();
             request.m_renderSnapshot = snapshot;
             request.m_worldStartPosition = AZ::Vector2::CreateZero();
             request.m_vertexSpacing = 1.0f;
@@ -230,7 +245,7 @@ namespace Terrain
             AZStd::vector<Vertex> original(9, Vertex{ 42, { -8, 6 } });
             AZStd::vector<Vertex> lod{ { 10, { -11, 5 } }, { 20, { 4, -2 } }, { 30, { -6, -7 } }, { 40, { 8, 9 } } };
             AZStd::vector<Vertex> prepared;
-            manager.PrepareSectorLodData(original, lod, prepared);
+            manager.PrepareSectorLodData(*manager.CapturePreparationSettings(), original, lod, prepared);
             const uint16_t expected[] = { 10, 15, 20, 20, 25, 30, 30, 35, 40 };
             ASSERT_EQ(prepared.size(), 9);
             for (size_t i = 0; i < 9; ++i)
@@ -238,7 +253,7 @@ namespace Terrain
             EXPECT_EQ(prepared[7].m_normal.first, -3); // Signed average truncates toward zero.
             EXPECT_EQ(prepared[7].m_normal.second, 1);
             lod[1].m_height = TerrainMeshManager::NoTerrainVertexHeight;
-            manager.PrepareSectorLodData(original, lod, prepared);
+            manager.PrepareSectorLodData(*manager.CapturePreparationSettings(), original, lod, prepared);
             EXPECT_EQ(prepared[7].m_height, 42);
             EXPECT_EQ(prepared[4].m_height, 42);
             EXPECT_EQ(prepared[7].m_normal, original[7].m_normal);
@@ -254,7 +269,7 @@ namespace Terrain
                                           { 32768, { 127, 0 } },
                                           { TerrainMeshManager::NoTerrainVertexHeight, { 0, -127 } } };
             AZStd::vector<TerrainMeshManager::RtVertex> positions, normals;
-            manager.PrepareSectorRayTracingData(source, positions, normals);
+            manager.PrepareSectorRayTracingData(*manager.CapturePreparationSettings(), source, positions, normals);
             ASSERT_EQ(positions.size(), 3);
             ASSERT_EQ(normals.size(), 3);
             EXPECT_EQ(sizeof(TerrainMeshManager::RtVertex), 3 * sizeof(float));
@@ -616,6 +631,26 @@ namespace TerrainCompositor
     class TerrainRenderGeometryBatchTests : public ::testing::Test
     {
     protected:
+        static void CheckImmediateSourceInvalidation()
+        {
+            TerrainCompositionGradientComponent component;
+            component.m_address.second = AZ::EntityId(99001);
+            component.m_configuration.m_proceduralSourceEntityId = AZ::EntityId(99002);
+            component.ConnectDependencies();
+            auto state = std::make_shared<TerrainCompositionGradientComponent::QueryState>();
+            state->m_preparationDependency = component.m_sourceChanges->m_preparationDependency;
+            const auto query = TerrainCompositionGradientComponent::CreateRenderGeometryQuery(state);
+            const auto dependency = query.m_preparationDependency;
+            ASSERT_NE(dependency, nullptr);
+            const auto before = dependency->Capture();
+            LmbrCentral::DependencyNotificationBus::Event(AZ::EntityId(99002),
+                &LmbrCentral::DependencyNotifications::OnCompositionChanged);
+            EXPECT_GT(dependency->Capture(), before); // No tick or terrain refresh was needed.
+            EXPECT_TRUE(component.m_sourceChanges->m_wholeRegion);
+            component.m_sourceChanges.reset();
+            TerrainPreparationAdmission admission({ { dependency, dependency->Capture() } });
+            EXPECT_FALSE(admission.IsValid());
+        }
         static TerrainRenderGeometryQuery MakeQuery(
             AZ::EntityId source,
             AZStd::vector<PreparedTerrainExistenceContributor> existence = {},
@@ -634,6 +669,11 @@ namespace TerrainCompositor
             return TerrainCompositionGradientComponent::CreateRenderGeometryQuery(state);
         }
     };
+
+    TEST_F(TerrainRenderGeometryBatchTests, SourceMailboxInvalidatesRetainedPreparationBeforeDeferredRefresh)
+    {
+        CheckImmediateSourceInvalidation();
+    }
 
     namespace
     {

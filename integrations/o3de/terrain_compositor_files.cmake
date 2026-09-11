@@ -1,4 +1,5 @@
 set(FILES
+    Code/Include/TerrainCompositor/TerrainPreparationDependency.h
     Code/Include/TerrainCompositor/Internal/PendingCompositionInvalidation.h
     Code/Source/CompositionInvalidation.h
     Code/Include/TerrainCompositor/Internal/PreparedComposition.h

@@ -99,6 +99,7 @@ namespace TerrainCompositor
             AZ::EntityId m_sourceEntityId{};
             AZ::EntityId m_regionEntityId{};
             std::weak_ptr<TerrainMeshCutoutRenderChannel> m_renderChannel;
+            std::shared_ptr<TerrainPreparationDependency> m_preparationDependency;
         };
         using QueryStatePtr = std::shared_ptr<const QueryState>;
 
@@ -116,6 +117,8 @@ namespace TerrainCompositor
         // all callbacks from the old source/session.
         struct SourceChanges
         {
+            std::shared_ptr<TerrainPreparationDependency> m_preparationDependency = std::make_shared<TerrainPreparationDependency>();
+            ~SourceChanges() { m_preparationDependency->Retire(); }
             std::mutex m_mutex;
             AZStd::vector<AZ::Aabb> m_regions;
             bool m_wholeRegion = false;
