@@ -430,7 +430,7 @@ namespace TerrainCompositor::Internal
         RegistrationTraversal traversal;
         this->m_state.Apply(this->Make(1, this->MakeSnapshot(this->m_asset, 2)), this->m_dirty,
             [](const auto*, const auto&) { return AZ::u8{ 0 }; }, &traversal);
-        EXPECT_EQ(traversal.m_claimsVisited, 2);
+        EXPECT_EQ(traversal.m_claimsVisited, 1);
         EXPECT_EQ(traversal.m_fallbackRegistrationsVisited, 0);
         traversal = {};
         EXPECT_TRUE(this->m_state.Remove(AZ::EntityId(1), &traversal));
@@ -472,7 +472,7 @@ namespace TerrainCompositor::Internal
                     size_t scans = 0;
                     ApplyRegistrationState(record, record.*TypeParam::Entity, reference, expectedDirty, TypeParam::Roles, classify, &scans);
                     this->m_state.Apply(record, this->m_dirty, classify, &traversal);
-                    EXPECT_EQ(traversal.m_claimsVisited, placement ? 0 : (unassigned ? 7 : 14));
+                    EXPECT_EQ(traversal.m_claimsVisited, placement ? 0 : 7);
                     EXPECT_EQ(traversal.m_fallbackRegistrationsVisited, 0);
                     EXPECT_EQ(scans, (unassigned ? 1 : 2) * (unrelated + 7));
                     this->ExpectDirty(expectedDirty);

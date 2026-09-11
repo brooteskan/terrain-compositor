@@ -168,6 +168,50 @@ namespace TerrainCompositor::Internal
         ExpectSnapshot(Get(2).m_holeMask, input.m_surfaceIdA);
     }
 
+    TEST_F(ImageRegistrationStateTests, AdvancingSourceRolesCollectFinalTiesWithoutASeparateRebuild)
+    {
+        const struct { AZ::u64 m_revisions[5]; size_t m_passes; bool m_tie; } cases[] = {
+            { { 3, 3, 5, 4, 2 }, 2, false }, { { 5, 3, 3, 4, 2 }, 1, false },
+            { { 3, 3, 4, 2, 5 }, 3, false }, { { 3, 5, 4, 5, 2 }, 2, true },
+            { { 5, 3, 5, 4, 2 }, 1, true }, { { 3, 3, 4, 5, 5 }, 3, true }
+        };
+        for (const auto& test : cases)
+        {
+            SCOPED_TRACE(test.m_revisions[0]);
+            m_state.Clear();
+            m_dirty.clear();
+            AZStd::unordered_map<AZ::EntityId, Record> reference;
+            AZStd::unordered_map<AZ::EntityId, AZ::u8> expectedDirty;
+            const auto classify = [](const auto*, const auto&) { return DirtySurface; };
+            const auto apply = [&](const Record& record, RegistrationTraversal* traversal = nullptr)
+            {
+                ApplyRegistrationState(record, record.m_stampEntityId, reference, expectedDirty, ImageAssetRoles, classify);
+                m_state.Apply(record, m_dirty, classify, traversal);
+                ASSERT_EQ(m_dirty.size(), expectedDirty.size());
+                for (const auto& [id, mask] : expectedDirty) { EXPECT_EQ(m_dirty.at(id), mask); }
+                for (const auto& [id, expected] : reference)
+                    for (const auto& role : ImageAssetRoles)
+                        ExpectSnapshot(m_state.GetRegistrations().at(id).*role.m_snapshot, expected.*role.m_snapshot);
+                ExpectIndexConsistent();
+            };
+            // Start with a conflicting cache; a unique higher maximum must clear that tie.
+            apply(Make(10, 0, Snapshot(m_asset, 2)));
+            apply(Make(11, 4, Snapshot(m_asset, 2, HeightmapDataStatus::Error)));
+            auto input = Make(1, 0, {});
+            for (size_t role = 0; role < AZ_ARRAY_SIZE(ImageAssetRoles); ++role)
+                input.*ImageAssetRoles[role].m_snapshot = Snapshot(m_asset, test.m_revisions[role]);
+            RegistrationTraversal traversal;
+            apply(input, &traversal);
+            EXPECT_EQ(traversal.m_claimsVisited, test.m_passes * 7);
+            EXPECT_EQ(traversal.m_fallbackRegistrationsVisited, 0);
+            for (size_t role = 0; role < AZ_ARRAY_SIZE(ImageAssetRoles); ++role)
+                EXPECT_EQ((input.*ImageAssetRoles[role].m_snapshot).m_revision, test.m_revisions[role]);
+            traversal = {};
+            apply(Make(2, 4, Snapshot(m_asset, 0)), &traversal);
+            EXPECT_EQ(traversal.m_fallbackRegistrationsVisited > 0, test.m_tie);
+        }
+    }
+
     TEST_F(ImageRegistrationStateTests, RetargetingTheLastRoleRetiresHistoryButRetargetingOneOfSeveralDoesNot)
     {
         auto record = Make(1, 0, Snapshot(m_asset, 12));
@@ -267,13 +311,16 @@ namespace TerrainCompositor::Internal
             for (const auto& role : ImageAssetRoles) { update.*role.m_snapshot = newest; }
             RegistrationTraversal traversal;
             m_state.Apply(update, m_dirty, [](const auto*, const auto&) { return AZ::u8{ 0 }; }, &traversal);
-            EXPECT_EQ(traversal.m_claimsVisited, 14);
+            EXPECT_EQ(traversal.m_claimsVisited, 7);
             EXPECT_EQ(traversal.m_fallbackRegistrationsVisited, 0);
             ExpectSnapshot(Get(1).m_heightmap, newest);
             ExpectSnapshot(Get(2).m_holeMask, newest);
             ExpectIndexConsistent();
             AZ_Printf("ImageRegistrationState", "%zu unrelated records: %zu claim visits, %zu fallback record visits.\n",
                 unrelated, traversal.m_claimsVisited, traversal.m_fallbackRegistrationsVisited);
+            RecordProperty(AZStd::string::format("assigned_revision_%zu", unrelated).c_str(),
+                AZStd::string::format("claims=%zu fallback=%zu", traversal.m_claimsVisited,
+                    traversal.m_fallbackRegistrationsVisited).c_str());
             for (bool stale : { false, true })
             {
                 auto placement = update;
@@ -329,7 +376,7 @@ namespace TerrainCompositor::Internal
             RegistrationTraversal traversal;
             ApplyRegistrationState(input, input.m_stampEntityId, reference, expectedDirty, ImageAssetRoles, classify);
             m_state.Apply(input, m_dirty, classify, &traversal);
-            EXPECT_EQ(traversal.m_claimsVisited, 4);
+            EXPECT_EQ(traversal.m_claimsVisited, 2);
             EXPECT_EQ(traversal.m_fallbackRegistrationsVisited, 0);
             EXPECT_EQ(m_dirty, expectedDirty);
             for (const auto& [id, expected] : reference)

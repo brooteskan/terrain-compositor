@@ -93,8 +93,9 @@ namespace TerrainCompositor::Internal
                 const auto found = m_assets.find(source.m_assetId);
                 if (found == m_assets.end()) { continue; }
                 auto& asset = found->second;
-                // Every assigned claim already has the latest revision. Equal-revision payloads remain distinct.
+                // Only advancing source roles propagate; equal-revision payloads remain distinct.
                 if (source.m_revision <= asset.m_latest.m_revision) { continue; }
+                asset.m_conflictingTie = false;
                 if (traversal) { traversal->m_claimsVisited += asset.m_claims.size(); }
                 for (const auto& claim : asset.m_claims)
                 {
@@ -104,8 +105,14 @@ namespace TerrainCompositor::Internal
                         target = source;
                         dirty[claim.m_entityId] |= AssetRoles[claim.m_role].m_dirty;
                     }
+                    else if (target.m_revision == source.m_revision && !PayloadsEqual(target, source))
+                    {
+                        asset.m_conflictingTie = true;
+                    }
                 }
+                // Later higher source roles replace this representative and its tie state in source order.
                 asset.m_latest = source;
+                touched.erase(AZStd::remove(touched.begin(), touched.end(), source.m_assetId), touched.end());
             }
             RebuildTouched(touched, traversal);
         }

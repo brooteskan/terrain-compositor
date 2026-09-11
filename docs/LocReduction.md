@@ -1272,3 +1272,87 @@ This slice adds seven production lines and 104 test lines to eliminate known
 unnecessary traversals; no code was moved between categories. First-party C++ is
 828 lines (4.76%) below initial extraction and 430 (2.53%) below post-cleanup.
 The 50% target and safe reduction ceiling remain unproven.
+
+## Fold assigned-asset index maintenance into fan-out (2026-09-10)
+
+Baseline: `7d72f9e` (`Skip index rebuilding for unchanged registration snapshots`).
+Assigned revision updates previously traversed dependent claims to propagate the
+snapshot, then traversed them again in `RebuildTouched`. Fan-out now collects
+conflicting equal-revision payloads in its existing loop and removes that asset
+from the pending rebuild list. The production change is confined to this loop;
+there are no new fields, containers, layouts, interfaces or revision domains.
+
+The cached revision still advances in source-role order. A higher revision in a
+later image role must not become authoritative early: that would skip its later
+propagation and change snapshots or dirty bits. Each advancing source resets and
+recollects its own tie flag. The last advancing source is the final maximum;
+lower claims now match its payload, while distinct equal-revision payloads remain.
+The source becomes the cached representative. When tied, reconciliation still
+uses the original map-order fallback, including after rehash; when untied, every
+assigned claim has the same snapshot. Propagation and dirty insertion order are
+unchanged from the baseline index.
+
+Assets without advancing assigned sources retain the existing rebuild path.
+This includes revision zero, equal-revision payload edits, removals, old assets
+after retargeting, and unassigned mesh snapshots. Cutout and mesh-height owners
+continue to have independent revision authority. Unassigned mesh claims still
+reconcile to a newer maximum without fan-out, and that maximum can decrease.
+
+| Measured operation | Before claim visits | After claim visits |
+| --- | ---: | ---: |
+| Assigned image, cutout or mesh-height revision; seven claims | 14 | 7 |
+| Image or mesh placement with unchanged reconciled snapshots | 0 | 0 |
+| Unassigned mesh revision; seven claims | 7 | 7 |
+| Change one of five image assets, each with two claims | 4 | 2 |
+| Insert one assigned mesh claim with 2,048 unrelated unassigned claims | 2 | 1 |
+| Remove that sole assigned mesh claim | 1 | 1 |
+| One input with two advancing image source roles; seven claims | 21 | 14 |
+| One input with three advancing image source roles; seven claims | 28 | 21 |
+
+Seven-claim checks use both 32 and 2,048 unrelated registrations. Counts describe
+logical claim visits, not elapsed time or all work: removing an asset from the
+pending list still examines at most ten asset IDs, and retained equal-revision
+claims require payload comparisons. No end-to-end speedup or memory saving is
+claimed. Multiple advancing source roles retain their separate propagation passes.
+
+One added image test checks six source-role sequences against the original scan,
+including intermediate ties, final ties, and clearing a pre-existing tie with a
+unique higher maximum. It also verifies stale reconciliation, index consistency,
+dirty masks and preservation of the caller's input. Existing traversal assertions
+are tightened for all three owners; placement and unassigned expectations remain.
+Before the production change, exactly seven focused tests failed, exclusively on
+the tighter traversal assertions; every behavioral check passed.
+
+All five targets built. Focused checks passed 37/37, runtime 297/297 and editor
+46/46; all existing names and the one disabled runtime case remain. Across shuffle
+seeds 173-272, runtime passed 21,200 cases and editor 4,600, with zero failures.
+The three scan comparisons covered 300,000 mixed operations. D3D11 hardware matched
+142,560 boundary classifications with zero mismatches. Engine override generation,
+repetition/hash-rejection checks, source audit and `git diff --check` passed.
+Logs, XML and per-file counts are in ignored `build/fanout-maintenance-session`.
+The five generated standalone-source VC projects reuse installed dependencies
+with regeneration disabled. Fresh CMake generation and a live Editor scene smoke
+test are outside this run; no generated unity edits or source copies are needed.
+
+Reproduce counts with `python tools/MeasureLoc.py --revision 7d72f9e --json` and
+`python tools/MeasureLoc.py --worktree --json`. The preceding section's focused
+and shuffled registration commands apply unchanged.
+
+| Repository category | Before `7d72f9e` | After | Change |
+| --- | ---: | ---: | ---: |
+| Production C++ | 12,784 | 12,784 | 0 |
+| Include headers | 3,795 | 3,802 | +7 |
+| **First-party C++** | **16,579** | **16,586** | **+7** |
+| Tests, including reference and file lists | 7,338 | 7,385 | +47 |
+| **C++ plus tests/file lists** | **23,917** | **23,971** | **+54** |
+| Shaders/assets | 966 | 966 | 0 |
+| Engine patches/overrides | 939 | 939 | 0 |
+| Build/tooling | 542 | 542 | 0 |
+| Documentation | 4,294 | 4,378 | +84 |
+| License/notice | 28 | 28 | 0 |
+| **Total repository text** | **30,686** | **30,824** | **+138** |
+
+This slice adds seven production lines to remove one dependent-claim pass per
+advanced asset; no code moves between categories. First-party C++ is 821 lines
+(4.72%) below initial extraction and 423 (2.49%) below post-cleanup. This is a
+traversal reduction, not a LOC reduction; the 50% target remains unproven.
