@@ -1058,3 +1058,125 @@ Cumulative first-party C++ reduction is **810 lines (4.65%)** from initial
 extraction and **412 lines (2.42%)** from post-cleanup. The 50% target and a safe
 reduction ceiling remain unproven. Cross-mesh revision authority still requires its
 source-generation contract; broader duplicate/comment and algorithm audits remain.
+
+## Indexed mesh registration ownership (2026-09-10)
+
+Baseline: `5335cc2` (`Extract invalidation planning and publication commit ownership`).
+The image registration owner is now a narrow `IndexedRegistrationState` template
+with three concrete aliases. Images retain their shared five-role index; cutouts
+and mesh-height stamps each own separate record and asset maps. Matching canonical
+asset IDs never share revision authority across those three instances.
+
+All accepted inserts, placement edits, asset retargets, removals and session clears
+maintain the dependent claims and cached maximum together. Reconciliation precedes
+classification, including the existing claim for the entity being replaced. The
+caller remains unchanged, and fan-out accumulates only the dependent role's dirty
+bits. Removing the final claim retires its history. Configured product selections
+do not replace canonical snapshot IDs as the index key.
+
+Mesh unassigned IDs have indexed claims for reconciliation, but never fan out.
+Their retained revisions can differ, and removing or retargeting the maximum can
+lower the cached maximum. An absent record is distinct from an unassigned claim;
+assigned insertion/removal must not touch the unassigned bucket. Image unassigned
+roles retain their prior local-only policy. Invalid IDs with different sub-IDs also
+remain distinct keys, matching the scan's exact asset-ID comparison.
+
+Equal revisions retain their payloads. An older input facing conflicting maxima
+uses the existing full-map first-maximum fallback, preserving record/role order
+through rehash and removal. Mesh comparisons include validation, model validation
+and every diagnostic field/detail as well as status and immutable data pointer.
+Ordinary stale inputs use the cached representative without that fallback.
+
+The former production scan is retained in `Tests/RegistrationStateReference.h`.
+Its 57 algorithm lines match baseline exactly after removing two optional visit
+counters. No production path calls it. The owner/registry/reference scope grows
+from 468 to 510 physical lines (+42); the production header decrease alone does
+not represent eliminated code. New tests and file-list entries are counted below.
+
+Equivalence checks compare full snapshots, classification inputs, caller values,
+record iteration order, and exact dirty masks by entity. Like the image index,
+fan-out follows dependent-claim order. Dirty-map insertion/iteration order across
+different entities can differ from the scan; AZStd's order-sensitive map equality
+is therefore not used for that assertion. Cross-entity footprint notification
+order and invalidation coalescing partition can consequently differ, while the
+same entities/channels/footprints are invalidated and each entity retains old-before-
+new processing. This is not a claim of identical dirty-map or invalidation ordering.
+
+For each mesh domain, seven dependent registrations give these logical visits:
+
+| Operation | Unrelated records | Original scan record visits | Indexed claim visits | Fallback record visits |
+| --- | ---: | ---: | ---: | ---: |
+| Assigned revision update | 32 | 78 | 14 | 0 |
+| Assigned revision update | 2,048 | 4,110 | 14 | 0 |
+| Assigned stale placement | 32 | 78 | 7 | 0 |
+| Assigned stale placement | 2,048 | 4,110 | 7 | 0 |
+| Unassigned revision update or stale placement | 32 | 39 | 7 | 0 |
+| Unassigned revision update or stale placement | 2,048 | 2,055 | 7 | 0 |
+
+Assigned fan-out visits seven claims and cache rebuilding visits seven. A stale
+placement needs only rebuilding; unassigned updates skip fan-out. An additional
+check inserts/removes an assigned registration alongside 2,048 unassigned claims:
+insertion visits two claims and removal one, with no fallback visits. Traversal
+properties are retained in the focused test XML for both mesh specializations.
+These counters include claim removal, fan-out and maximum rebuilding, not hash
+probes, diagnostic-detail comparisons, elapsed time or allocations. Conflicting
+ties can still scan the full registration map. Per-asset snapshots and claim
+vectors add memory; no end-to-end speedup or memory reduction is claimed.
+
+Before replacement, 87 characterization/index/lifecycle cases passed against the
+original mesh scan, including ten new mesh cases. The final tests add 19 runtime
+cases: 18 typed mesh-index cases and one coordinator case proving independent mesh
+domains for both assigned and unassigned IDs. Mixed-operation tests verify exact
+index membership and scan equivalence across insert, edit, retarget, remove and
+clear operations, with randomized statuses, validation, diagnostics and dirty work.
+
+Public component declarations, UUIDs, reflection, serialization, all runtime source
+implementations, shaders and engine patches are unchanged. Source audit verifies
+that admission, replay, lease tombstones, removal masks and diagnostic history
+match baseline after indexed-store substitutions. The coordinator's private C++
+layout gains the two mesh asset maps; consumers must rebuild.
+
+Builds reuse the five generated VC projects and installed dependencies with custom
+regeneration disabled. Maintained CMake inputs list both new test files, and the
+generated test unity input includes the new source directly from this checkout.
+No sources were copied into TG. Fresh CMake generation and a live Editor scene
+smoke test were not performed. Logs, XML, audits and per-file counts are under
+`build/mesh-index-session` (ignored).
+
+Reproduce counts with `python tools/MeasureLoc.py --revision 5335cc2 --json` and
+`python tools/MeasureLoc.py --worktree --json`. All helpers, the retained reference,
+tests, maintained file lists and this report are included; ignored output is not.
+
+All five targets built. Focused index/domain tests passed 33/33; runtime passed
+293/293 and editor 46/46. All existing test names remain, including the one already
+disabled runtime case. Across shuffle seeds 173-272, runtime passed 20,800 cases
+(208 per iteration) and editor 4,600, with zero failures. The three differential
+tests cover 300,000 mixed operations across those seeds. D3D11 hardware matched
+142,560 boundary classifications with zero mismatches. Engine override generation,
+repeat/hash-rejection checks, source audit and `git diff --check` passed.
+
+```powershell
+$bin = 'D:/TG/TGProject/build/windows/bin/profile'
+& "$bin/AzTestRunner.exe" "$bin/TerrainCompositor.Tests.dll" AzRunUnitTests '--gtest_filter=*MeshRegistrationStateTests*:*ImageRegistrationStateTests*:*MeshRevisionDomains*'
+& "$bin/AzTestRunner.exe" "$bin/TerrainCompositor.Tests.dll" AzRunUnitTests '--gtest_filter=*LifecycleTests*:*ImageRegistrationTests*:*CompositionRegistrationStateTests*:*PublicationFootprintsTests*:*TerrainHeightProviderNotificationsTests*:ImageRegistrationStateTests.*:*MeshRegistrationStateTests*:*CompositionInvalidationTests*' --gtest_shuffle --gtest_random_seed=173 --gtest_repeat=100
+```
+
+| Repository category | Before `5335cc2` | After | Change |
+| --- | ---: | ---: | ---: |
+| Production C++ | 12,784 | 12,784 | 0 |
+| Include headers | 3,813 | 3,788 | -25 |
+| **First-party C++** | **16,597** | **16,572** | **-25** |
+| Tests, including reference and file lists | 6,657 | 7,234 | +577 |
+| **C++ plus tests/file lists** | **23,254** | **23,806** | **+552** |
+| Shaders/assets | 966 | 966 | 0 |
+| Engine patches/overrides | 939 | 939 | 0 |
+| Build/tooling | 542 | 542 | 0 |
+| Documentation | 4,080 | 4,202 | +122 |
+| License/notice | 28 | 28 | 0 |
+| **Total repository text** | **29,809** | **30,483** | **+674** |
+
+The first-party count is 835 lines (4.80%) below initial extraction and 437 (2.57%)
+below post-cleanup. This slice grows total code; its first-party decrease includes
+moving the reference into tests. The 50% target and a safe reduction ceiling remain
+unproven. Shared cross-mesh revision authority still requires a source-generation
+contract; conflicting-tie fallback and composition/publication traversals remain.

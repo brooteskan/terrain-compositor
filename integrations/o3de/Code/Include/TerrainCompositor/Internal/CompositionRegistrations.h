@@ -44,11 +44,11 @@ namespace TerrainCompositor::Internal
             if constexpr (std::is_same_v<Registration, HeightmapStampRegistrationData>)
                 return m_images.GetRegistrations();
             else if constexpr (std::is_same_v<Registration, TerrainMeshCutoutRegistrationData>)
-                return m_cutouts;
+                return m_cutouts.GetRegistrations();
             else
             {
                 static_assert(std::is_same_v<Registration, TerrainMeshHeightStampRegistrationData>);
-                return m_meshHeights;
+                return m_meshHeights.GetRegistrations();
             }
         }
 
@@ -63,9 +63,9 @@ namespace TerrainCompositor::Internal
                 if constexpr (std::is_same_v<Registration, HeightmapStampRegistrationData>)
                     m_images.Apply(registration, dirty, classify);
                 else if constexpr (std::is_same_v<Registration, TerrainMeshCutoutRegistrationData>)
-                    ApplyRegistrationState(registration, id, m_cutouts, dirty, CutoutAssetRoles, classify);
+                    m_cutouts.Apply(registration, dirty, classify);
                 else
-                    ApplyRegistrationState(registration, id, m_meshHeights, dirty, MeshHeightAssetRoles, classify);
+                    m_meshHeights.Apply(registration, dirty, classify);
             }
             return admission;
         }
@@ -93,13 +93,13 @@ namespace TerrainCompositor::Internal
             else if constexpr (std::is_same_v<Registration, TerrainMeshCutoutRegistrationData>)
             {
                 dirty[id] |= DirtyExistence;
-                m_cutouts.erase(found);
+                m_cutouts.Remove(id);
                 ForgetDiagnostic(RegistrationDiagnostic::Cutout, id);
             }
             else
             {
                 dirty[id] |= DirtyMeshHeightAll;
-                m_meshHeights.erase(found);
+                m_meshHeights.Remove(id);
                 ForgetDiagnostic(RegistrationDiagnostic::MeshHeight, id);
             }
             return true;
@@ -121,8 +121,8 @@ namespace TerrainCompositor::Internal
         void Clear()
         {
             m_images.Clear();
-            m_cutouts.clear();
-            m_meshHeights.clear();
+            m_cutouts.Clear();
+            m_meshHeights.Clear();
             m_retired.clear();
             for (auto& history : m_diagnostics)
                 history.clear();
@@ -178,8 +178,8 @@ namespace TerrainCompositor::Internal
         }
 
         ImageRegistrationState m_images;
-        AZStd::unordered_map<AZ::EntityId, TerrainMeshCutoutRegistrationData> m_cutouts;
-        AZStd::unordered_map<AZ::EntityId, TerrainMeshHeightStampRegistrationData> m_meshHeights;
+        CutoutRegistrationState m_cutouts;
+        MeshHeightRegistrationState m_meshHeights;
         AZStd::unordered_set<AZ::Uuid> m_retired;
         AZStd::array<AZStd::unordered_map<AZ::EntityId, AZStd::string>,
             static_cast<size_t>(RegistrationDiagnostic::Count)> m_diagnostics;

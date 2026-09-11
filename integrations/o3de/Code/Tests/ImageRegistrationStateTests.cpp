@@ -1,6 +1,6 @@
 #include <AzTest/AzTest.h>
 #include <AzCore/std/smart_ptr/make_shared.h>
-#include <TerrainCompositor/Internal/CompositionRegistrationState.h>
+#include "RegistrationStateReference.h"
 
 namespace TerrainCompositor::Internal
 {
@@ -265,7 +265,7 @@ namespace TerrainCompositor::Internal
             const auto newest = Snapshot(m_asset, 2);
             auto update = Make(3, 0, newest);
             for (const auto& role : ImageAssetRoles) { update.*role.m_snapshot = newest; }
-            ImageRegistrationTraversal traversal;
+            RegistrationTraversal traversal;
             m_state.Apply(update, m_dirty, [](const auto*, const auto&) { return AZ::u8{ 0 }; }, &traversal);
             EXPECT_EQ(traversal.m_claimsVisited, 14);
             EXPECT_EQ(traversal.m_fallbackRegistrationsVisited, 0);
@@ -295,7 +295,7 @@ namespace TerrainCompositor::Internal
                 break;
             }
         }
-        ImageRegistrationTraversal traversal;
+        RegistrationTraversal traversal;
         m_state.Apply(Make(3, 0, Snapshot(m_asset, 1)), m_dirty,
             [](const auto*, const auto&) { return AZ::u8{ 0 }; }, &traversal);
         EXPECT_GT(traversal.m_fallbackRegistrationsVisited, 0);

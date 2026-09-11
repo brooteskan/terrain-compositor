@@ -2,6 +2,7 @@
 
 #include <AzCore/std/containers/unordered_map.h>
 #include <AzCore/std/containers/fixed_vector.h>
+#include <AzCore/std/containers/span.h>
 #include <AzCore/std/algorithm.h>
 #include <TerrainCompositor/TerrainCompositionBus.h>
 
@@ -21,7 +22,7 @@ namespace TerrainCompositor::Internal
         bool m_reconcileUnassigned = false;
     };
 
-    constexpr RegistrationAssetRole<HeightmapStampRegistrationData, HeightmapDataSnapshot> ImageAssetRoles[] = {
+    inline constexpr RegistrationAssetRole<HeightmapStampRegistrationData, HeightmapDataSnapshot> ImageAssetRoles[] = {
         { &HeightmapStampRegistrationData::m_heightmap, DirtyHeight },
         { &HeightmapStampRegistrationData::m_surfaceIdA, DirtySurface },
         { &HeightmapStampRegistrationData::m_surfaceIdB, DirtySurface },
@@ -29,87 +30,25 @@ namespace TerrainCompositor::Internal
         { &HeightmapStampRegistrationData::m_holeMask, DirtyExistence }
     };
     // Mesh registrations historically adopt newer unassigned snapshots, but never fan them out.
-    constexpr RegistrationAssetRole<TerrainMeshCutoutRegistrationData, TerrainMeshCutoutDataSnapshot> CutoutAssetRoles[] = {
+    inline constexpr RegistrationAssetRole<TerrainMeshCutoutRegistrationData, TerrainMeshCutoutDataSnapshot> CutoutAssetRoles[] = {
         { &TerrainMeshCutoutRegistrationData::m_mesh, DirtyExistence, true }
     };
-    constexpr RegistrationAssetRole<TerrainMeshHeightStampRegistrationData, TerrainMeshHeightDataSnapshot> MeshHeightAssetRoles[] = {
+    inline constexpr RegistrationAssetRole<TerrainMeshHeightStampRegistrationData, TerrainMeshHeightDataSnapshot> MeshHeightAssetRoles[] = {
         { &TerrainMeshHeightStampRegistrationData::m_mesh, DirtyMeshHeightAll, true }
     };
 
-    // Value-only control state: no buses, cache access, publication, or retained component references.
-    template<class Registration, class Snapshot, size_t RoleCount, class Classify>
-    void ApplyRegistrationState(
-        Registration current, AZ::EntityId entityId, AZStd::unordered_map<AZ::EntityId, Registration>& registrations,
-        AZStd::unordered_map<AZ::EntityId, AZ::u8>& affected,
-        const RegistrationAssetRole<Registration, Snapshot> (&roles)[RoleCount], Classify classify)
-    {
-        // A placement edit may arrive before its subscriber receives a peer's newer asset revision.
-        for (const auto& role : roles)
-        {
-            auto& snapshot = current.*role.m_snapshot;
-            if (!snapshot.m_assetId.IsValid() && !role.m_reconcileUnassigned)
-            {
-                continue;
-            }
-            for (const auto& [id, other] : registrations)
-            {
-                for (const auto& peerRole : roles)
-                {
-                    const auto& candidate = other.*peerRole.m_snapshot;
-                    if (candidate.m_assetId == snapshot.m_assetId && candidate.m_revision > snapshot.m_revision)
-                    {
-                        snapshot = candidate;
-                    }
-                }
-            }
-        }
-        const auto previous = registrations.find(entityId);
-        const AZ::u8 directDirty = classify(previous != registrations.end() ? &previous->second : nullptr, current);
-        registrations.insert_or_assign(entityId, current);
-        if (directDirty != 0)
-        {
-            affected[entityId] |= directDirty;
-        }
-
-        // Copy from the reconciled input, not the stored record being updated by this fan-out.
-        // Canonical asset IDs also carry loading/failure transitions across every dependent role.
-        for (const auto& role : roles)
-        {
-            const auto& source = current.*role.m_snapshot;
-            if (!source.m_assetId.IsValid())
-            {
-                continue;
-            }
-            for (auto& [id, other] : registrations)
-            {
-                for (const auto& targetRole : roles)
-                {
-                    auto& target = other.*targetRole.m_snapshot;
-                    if (target.m_assetId == source.m_assetId && target.m_revision < source.m_revision)
-                    {
-                        target = source;
-                        affected[id] |= targetRole.m_dirty;
-                    }
-                }
-            }
-        }
-    }
-}
-
-namespace TerrainCompositor::Internal
-{
-    struct ImageRegistrationTraversal
+    struct RegistrationTraversal
     {
         size_t m_claimsVisited = 0;
         size_t m_fallbackRegistrationsVisited = 0;
     };
 
-    //! Session-owned records and canonical image revisions; all mutations maintain their dependent-role index.
-    class ImageRegistrationState
+    //! Session-owned records and canonical revisions; each specialization owns an independent asset index.
+    template<class Record, class Snapshot, const auto& AssetRoles, AZ::EntityId Record::* Entity>
+    class IndexedRegistrationState
     {
-        using Record = HeightmapStampRegistrationData;
         using AssetId = AZ::Data::AssetId;
-        using TouchedAssets = AZStd::fixed_vector<AssetId, 2 * AZ_ARRAY_SIZE(ImageAssetRoles)>;
+        using TouchedAssets = AZStd::fixed_vector<AssetId, 2 * AZ_ARRAY_SIZE(AssetRoles)>;
         struct Claim
         {
             AZ::EntityId m_entityId;
@@ -117,7 +56,7 @@ namespace TerrainCompositor::Internal
         };
         struct AssetState
         {
-            HeightmapDataSnapshot m_latest;
+            Snapshot m_latest;
             AZStd::vector<Claim> m_claims;
             bool m_conflictingTie = false;
         };
@@ -126,9 +65,9 @@ namespace TerrainCompositor::Internal
 
         template<class Classify>
         void Apply(Record current, AZStd::unordered_map<AZ::EntityId, AZ::u8>& dirty, Classify classify,
-            ImageRegistrationTraversal* traversal = nullptr)
+            RegistrationTraversal* traversal = nullptr)
         {
-            for (const auto& role : ImageAssetRoles)
+            for (const auto& role : AZStd::span{ AssetRoles })
             {
                 auto& snapshot = current.*role.m_snapshot;
                 const auto asset = m_assets.find(snapshot.m_assetId);
@@ -137,7 +76,7 @@ namespace TerrainCompositor::Internal
                     snapshot = ResolveLatest(asset->second, traversal);
                 }
             }
-            const AZ::EntityId id = current.m_stampEntityId;
+            const AZ::EntityId id = current.*Entity;
             const auto previous = m_records.find(id);
             const auto* old = previous != m_records.end() ? &previous->second : nullptr;
             const AZ::u8 directDirty = classify(old, current);
@@ -147,13 +86,14 @@ namespace TerrainCompositor::Internal
             if (directDirty != 0) { dirty[id] |= directDirty; }
 
             // Retain source-role order and copy from the reconciled input, never the record being changed by fan-out.
-            for (const auto& role : ImageAssetRoles)
+            for (const auto& role : AZStd::span{ AssetRoles })
             {
                 const auto& source = current.*role.m_snapshot;
+                if (!source.m_assetId.IsValid()) { continue; }
                 const auto found = m_assets.find(source.m_assetId);
                 if (found == m_assets.end()) { continue; }
                 auto& asset = found->second;
-                // Every retained claim already has the latest revision. Equal-revision payloads remain distinct.
+                // Every assigned claim already has the latest revision. Equal-revision payloads remain distinct.
                 if (source.m_revision <= asset.m_latest.m_revision) { continue; }
                 if (traversal) { traversal->m_claimsVisited += asset.m_claims.size(); }
                 for (const auto& claim : asset.m_claims)
@@ -162,7 +102,7 @@ namespace TerrainCompositor::Internal
                     if (target.m_revision < source.m_revision)
                     {
                         target = source;
-                        dirty[claim.m_entityId] |= ImageAssetRoles[claim.m_role].m_dirty;
+                        dirty[claim.m_entityId] |= AssetRoles[claim.m_role].m_dirty;
                     }
                 }
                 asset.m_latest = source;
@@ -170,7 +110,7 @@ namespace TerrainCompositor::Internal
             RebuildTouched(touched, traversal);
         }
 
-        bool Remove(AZ::EntityId id, ImageRegistrationTraversal* traversal = nullptr)
+        bool Remove(AZ::EntityId id, RegistrationTraversal* traversal = nullptr)
         {
             const auto found = m_records.find(id);
             if (found == m_records.end()) { return false; }
@@ -189,20 +129,21 @@ namespace TerrainCompositor::Internal
 
     private:
         friend class ImageRegistrationStateTests;
+        template<class> friend class MeshRegistrationStateTests;
 
-        HeightmapDataSnapshot& SnapshotFor(const Claim& claim)
+        Snapshot& SnapshotFor(const Claim& claim)
         {
-            return m_records.at(claim.m_entityId).*ImageAssetRoles[claim.m_role].m_snapshot;
+            return m_records.at(claim.m_entityId).*AssetRoles[claim.m_role].m_snapshot;
         }
 
-        const HeightmapDataSnapshot& ResolveLatest(const AssetState& asset, ImageRegistrationTraversal* traversal) const
+        const Snapshot& ResolveLatest(const AssetState& asset, RegistrationTraversal* traversal) const
         {
             if (!asset.m_conflictingTie) { return asset.m_latest; }
             // Preserve the scan's first-maximum choice, including rehash order, for conflicting equal revisions.
             for (const auto& [id, record] : m_records)
             {
                 if (traversal) { ++traversal->m_fallbackRegistrationsVisited; }
-                for (const auto& role : ImageAssetRoles)
+                for (const auto& role : AZStd::span{ AssetRoles })
                 {
                     const auto& snapshot = record.*role.m_snapshot;
                     if (snapshot.m_assetId == asset.m_latest.m_assetId && snapshot.m_revision == asset.m_latest.m_revision)
@@ -211,27 +152,29 @@ namespace TerrainCompositor::Internal
                     }
                 }
             }
-            AZ_Assert(false, "Indexed image revision has no remaining claim.");
+            AZ_Assert(false, "Indexed revision has no remaining claim.");
             return asset.m_latest;
         }
 
         void UpdateClaims(AZ::EntityId id, const Record* previous, const Record* current, TouchedAssets& touched,
-            ImageRegistrationTraversal* traversal)
+            RegistrationTraversal* traversal)
         {
-            for (size_t role = 0; role < AZ_ARRAY_SIZE(ImageAssetRoles); ++role)
+            for (size_t role = 0; role < AZ_ARRAY_SIZE(AssetRoles); ++role)
             {
-                const auto member = ImageAssetRoles[role].m_snapshot;
+                const auto member = AssetRoles[role].m_snapshot;
                 const AssetId oldAsset = previous ? (previous->*member).m_assetId : AssetId{};
                 const AssetId newAsset = current ? (current->*member).m_assetId : AssetId{};
-                for (const auto& asset : { oldAsset, newAsset })
+                const bool hadClaim = previous && (oldAsset.IsValid() || AssetRoles[role].m_reconcileUnassigned);
+                const bool hasClaim = current && (newAsset.IsValid() || AssetRoles[role].m_reconcileUnassigned);
+                for (const auto& [asset, claimed] : { AZStd::pair{ oldAsset, hadClaim }, AZStd::pair{ newAsset, hasClaim } })
                 {
-                    if (asset.IsValid() && AZStd::find(touched.begin(), touched.end(), asset) == touched.end())
+                    if (claimed && AZStd::find(touched.begin(), touched.end(), asset) == touched.end())
                     {
                         touched.push_back(asset);
                     }
                 }
-                if (oldAsset == newAsset) { continue; }
-                if (oldAsset.IsValid())
+                if (hadClaim == hasClaim && oldAsset == newAsset) { continue; }
+                if (hadClaim)
                 {
                     auto old = m_assets.find(oldAsset);
                     auto& claims = old->second.m_claims;
@@ -240,15 +183,40 @@ namespace TerrainCompositor::Internal
                         if (traversal) { ++traversal->m_claimsVisited; }
                         return candidate.m_entityId == id && candidate.m_role == role;
                     });
-                    AZ_Assert(claim != claims.end(), "Image registration is missing its dependent-role claim.");
+                    AZ_Assert(claim != claims.end(), "Registration is missing its dependent-role claim.");
                     claims.erase(claim);
                     if (claims.empty()) { m_assets.erase(old); }
                 }
-                if (newAsset.IsValid()) { m_assets[newAsset].m_claims.push_back({ id, role }); }
+                if (hasClaim) { m_assets[newAsset].m_claims.push_back({ id, role }); }
             }
         }
 
-        void RebuildTouched(const TouchedAssets& touched, ImageRegistrationTraversal* traversal)
+        static bool PayloadsEqual(const Snapshot& left, const Snapshot& right)
+        {
+            if (left.m_status != right.m_status || left.m_data != right.m_data) { return false; }
+            if constexpr (requires { left.m_validation; })
+            {
+                if (left.m_validation != right.m_validation) { return false; }
+            }
+            if constexpr (requires { left.m_diagnostics; })
+            {
+                if (left.m_modelValidation != right.m_modelValidation) { return false; }
+                const auto& a = left.m_diagnostics;
+                const auto& b = right.m_diagnostics;
+                if (a.m_totalOffenseCount != b.m_totalOffenseCount || a.m_localBounds != b.m_localBounds ||
+                    a.m_localOrigin != b.m_localOrigin || a.m_gridSpacing != b.m_gridSpacing ||
+                    a.m_gridWidth != b.m_gridWidth || a.m_gridHeight != b.m_gridHeight) { return false; }
+                return AZStd::equal(a.m_details.begin(), a.m_details.end(), b.m_details.begin(), b.m_details.end(),
+                    [](const auto& x, const auto& y)
+                    {
+                        return x.m_validation == y.m_validation && x.m_gridX == y.m_gridX && x.m_gridY == y.m_gridY &&
+                            x.m_triangleIndex == y.m_triangleIndex && x.m_relatedTriangleIndex == y.m_relatedTriangleIndex;
+                    });
+            }
+            return true;
+        }
+
+        void RebuildTouched(const TouchedAssets& touched, RegistrationTraversal* traversal)
         {
             for (const auto& id : touched)
             {
@@ -267,7 +235,7 @@ namespace TerrainCompositor::Internal
                         asset.m_conflictingTie = false;
                     }
                     else if (snapshot.m_revision == asset.m_latest.m_revision &&
-                        (snapshot.m_status != asset.m_latest.m_status || snapshot.m_data != asset.m_latest.m_data))
+                        !PayloadsEqual(snapshot, asset.m_latest))
                     {
                         asset.m_conflictingTie = true;
                     }
@@ -278,4 +246,11 @@ namespace TerrainCompositor::Internal
         AZStd::unordered_map<AZ::EntityId, Record> m_records;
         AZStd::unordered_map<AssetId, AssetState> m_assets;
     };
+
+    using ImageRegistrationState = IndexedRegistrationState<HeightmapStampRegistrationData, HeightmapDataSnapshot,
+        ImageAssetRoles, &HeightmapStampRegistrationData::m_stampEntityId>;
+    using CutoutRegistrationState = IndexedRegistrationState<TerrainMeshCutoutRegistrationData, TerrainMeshCutoutDataSnapshot,
+        CutoutAssetRoles, &TerrainMeshCutoutRegistrationData::m_cutoutEntityId>;
+    using MeshHeightRegistrationState = IndexedRegistrationState<TerrainMeshHeightStampRegistrationData, TerrainMeshHeightDataSnapshot,
+        MeshHeightAssetRoles, &TerrainMeshHeightStampRegistrationData::m_stampEntityId>;
 }

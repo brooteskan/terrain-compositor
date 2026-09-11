@@ -761,6 +761,61 @@ namespace TerrainCompositor
         AZStd::unique_ptr<::testing::NiceMock<UnitTest::MockShapeComponentRequests>> m_shape;
     };
 
+    TEST_F(TerrainImageRegistrationTests, MeshRevisionDomainsRemainIndependentForTheSameCanonicalAsset)
+    {
+        for (bool unassigned : { false, true })
+        {
+            StopComposition();
+            StartComposition();
+            const AZ::Data::AssetId asset = unassigned ? AZ::Data::AssetId{} : AZ::Data::AssetId{ AZ::Uuid::CreateRandom(), 1 };
+            const auto image = MakeRecord(m_stamp);
+            const auto initialize = [&](auto& record)
+            {
+                record.m_contextId = image.m_contextId;
+                record.m_compositionSession = image.m_compositionSession;
+                record.m_registrationId = AZ::Uuid::CreateRandom();
+                record.m_updateRevision = 1;
+                record.m_configuration.m_targetCompositionEntityId = m_owner;
+                record.m_configuration.AssignNewPersistentOrderingIdentity();
+                record.m_mesh.m_assetId = asset;
+                record.m_mesh.m_status = decltype(record.m_mesh.m_status)::Loading;
+            };
+            TerrainMeshCutoutRegistrationData cutout;
+            initialize(cutout);
+            cutout.m_cutoutEntityId = m_stamp;
+            cutout.m_mesh.m_revision = 90;
+            TerrainMeshHeightStampRegistrationData height;
+            initialize(height);
+            height.m_stampEntityId = m_peer;
+            height.m_mesh.m_revision = 2;
+            bool accepted = false;
+            TerrainCompositionRequestBus::EventResult(accepted, m_address, &TerrainCompositionRequests::RegisterMeshCutout, cutout);
+            ASSERT_TRUE(accepted);
+            TerrainCompositionRequestBus::EventResult(accepted, m_address, &TerrainCompositionRequests::RegisterMeshHeightStamp, height);
+            ASSERT_TRUE(accepted);
+            AZStd::vector<TerrainMeshHeightStampRegistrationData> heights;
+            TerrainCompositionRequestBus::EventResult(heights, m_address, &TerrainCompositionRequests::GetRegisteredMeshHeightStamps);
+            ASSERT_EQ(heights.size(), 1);
+            EXPECT_EQ(heights[0].m_mesh.m_revision, 2);
+            height.m_mesh.m_revision = 100;
+            ++height.m_updateRevision;
+            TerrainCompositionRequestBus::EventResult(accepted, m_address, &TerrainCompositionRequests::RegisterMeshHeightStamp, height);
+            ASSERT_TRUE(accepted);
+            cutout.m_mesh.m_revision = 1;
+            ++cutout.m_updateRevision;
+            TerrainCompositionRequestBus::EventResult(accepted, m_address, &TerrainCompositionRequests::RegisterMeshCutout, cutout);
+            ASSERT_TRUE(accepted);
+            AZStd::vector<TerrainMeshCutoutRegistrationData> cutouts;
+            TerrainCompositionRequestBus::EventResult(cutouts, m_address, &TerrainCompositionRequests::GetRegisteredMeshCutouts);
+            ASSERT_EQ(cutouts.size(), 1);
+            EXPECT_EQ(cutouts[0].m_mesh.m_revision, 90);
+            heights.clear();
+            TerrainCompositionRequestBus::EventResult(heights, m_address, &TerrainCompositionRequests::GetRegisteredMeshHeightStamps);
+            ASSERT_EQ(heights.size(), 1);
+            EXPECT_EQ(heights[0].m_mesh.m_revision, 100);
+        }
+    }
+
     TEST_F(TerrainImageRegistrationTests, PublicationFootprintsRetainMovementRemovalAndRecoveryWithoutRepeatedRemoval)
     {
         auto record = ContributingImage(m_stamp, 0.8f);
