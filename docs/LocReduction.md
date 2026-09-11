@@ -942,3 +942,119 @@ and **463 lines (2.72%)** from post-cleanup. The 50% target and safe reduction c
 remain unproven. Invalidation planning is a possible later boundary; extracting it
 should preserve old/new region contexts and first-claim behavior. Cross-mesh revision
 authority still requires the separately deferred source-generation contract.
+
+## Invalidation planning and publication ownership (2026-09-10)
+
+Baseline: `72fa557` (`Separate composition preparation from publication ownership`).
+This slice extracts deterministic invalidation planning and gives normal render/CPU
+publication one consuming commit boundary. Preparation, role geometry, registration
+classification, cache behavior, tick dispatch and shutdown behavior are preserved.
+
+`PendingCompositionInvalidation` owns footprint notification metadata and both
+terrain invalidation queues. `PlanCompositionInvalidation` transforms that value
+and the dirty map using immutable previous/current query state and the explicit
+candidate footprints. It derives old footprints, marks membership changes, handles
+whole-region changes, records old/new stamp metadata and routes surface, existence,
+cutout-overlap and mesh-gap coverage. It calls no buses or publishers. Its narrow
+state template lets the component keep its private query type and tests supply
+value-only records; it takes no component pointers or callback parameters.
+
+The planner folds work into the existing pending queues in their original order.
+`TerrainInvalidation` merging is not associative: for XY rectangles A=(0,0)-(1,2),
+B=(1,0)-(2,2), C=(2,0)-(5,3), adding old B and new C to pending A preserves two
+regions under the 1.1 merge-area bound. Merging B+C before applying the result to A
+would create one larger rectangle. The new regression test preserves this concrete
+distinction. Production moves the pending value and dirty map into the planner;
+there is no intermediate operation list, pre-coalesced batch merge or replay pass.
+
+`CommitPublication` consumes the mutable candidate, candidate footprints and render
+cutouts. After existing missing-registry filtering and channel acquisition, it moves
+the candidate into `shared_ptr<const QueryState>` before a render query can retain
+it. The captured publication identity supplies its scene/session/revision. Render
+rejection returns before consuming any dirty or pending invalidation work. On
+acceptance, pure planning produces the next pending value, the atomic query pointer
+is exchanged, and pending work is installed for deferred dispatch. No external calls
+occur between planning and installing those control-thread values. Shutdown retains
+its separate empty-query publication and whole-region cleanup.
+
+The five membership comparisons retain their category order. Candidate footprints
+remain from before blend sorting, while old footprints come from the sorted query
+publication. Old-before-new regions, footprint metadata and cutout intersections
+are preserved. Query-only gaps invalidate height coverage, render-only gaps surface
+coverage, and coupled gaps retain distinct bounds for each. Surface-only dirty bits
+and palette-only changes do not create height work. Unchanged/absent membership
+does not repeatedly publish removal metadata.
+
+The owner removes three separately stored component fields in favor of one value,
+and one source/region comparison replaces the duplicated expression. The underlying
+metadata list, independent height/surface queues, dirty map, membership scans and
+footprint traversals remain necessary and remain present. No speed or memory
+reduction is claimed. The helpers add **167 lines**, including the relocated
+membership and XY-intersection algorithms. Complete first-party C++ grows **51
+lines**; the component shrink alone is not a LOC saving.
+
+| Focused C++ scope | Before | After | Change |
+| --- | ---: | ---: | ---: |
+| Coordinator implementation | 1,640 | 1,538 | -102 |
+| Coordinator header | 228 | 233 | +5 |
+| Query helpers (membership algorithm relocated) | 60 | 41 | -19 |
+| New planner and pending-value headers | 0 | 167 | +167 |
+| **Complete focused scope** | **1,928** | **1,979** | **+51** |
+
+`PublishStamps()` changes from **211 to 68 physical lines**; the new
+`CommitPublication()` is **59 lines**. Counts include signatures, braces, blanks
+and comments, excluding the following separator. Both functions and all helpers
+are included above and in the repository counts.
+
+Added ten cases / 335 net test lines. Five characterization cases passed with the
+original implementation: empty old/new region contexts, palette-only invalidation,
+rejection with accumulated terrain work and retry, chronological metadata across
+multiple publications, and registration during footprint dispatch. The five direct
+planner cases cover differing published/candidate first claims, six role-removal
+routes and repeated absence, old/new height-cutout intersections, existing-queue
+merge order and immutable caller inputs, and independent dirty channels.
+
+All five standalone-source targets built. Runtime passed **274/274 cases**, editor
+**46/46**. Existing test names are retained and the one previously disabled runtime
+test remains disabled. Across 100 shuffled seeds (173-272), runtime passed **20,000
+cases** and editor **4,600**, with zero failures in every iteration. Runtime shuffle
+uses the preceding slice's filter plus `*CompositionInvalidationTests*`. D3D11
+hardware matched **142,560 boundary classifications with zero mismatches**. Engine
+override generation/repetition/hash-rejection checks and `git diff --check` passed.
+
+Source comparison confirms unchanged preparation, diagnostics, reconstruction,
+missing-registry filtering and membership traversal order. Outside the extraction,
+coordinator code matches baseline after mechanical pending-owner substitutions,
+including query sampling, dispatch, source callbacks, shutdown and tick behavior.
+Public component/configuration declarations, reflection, UUIDs, serialization,
+shaders and engine patches are unchanged. Grouping/reordering the private pending
+fields changes component C++ layout; consumers must rebuild.
+
+Builds reuse existing generated VC projects and installed dependencies with custom
+regeneration disabled. Both new headers are listed in maintained CMake inputs and
+are compiled through their standalone source includes. No source copies or new
+generated unity edits were needed. Fresh CMake generation and a live Editor scene
+smoke test were not performed. Logs, XML, source audits and per-file measurements
+are under `build/invalidation-publication-session` (ignored).
+
+Reproduce counts with `python tools/MeasureLoc.py --revision 72fa557 --json` and
+`python tools/MeasureLoc.py --worktree --json`. Every helper, test, maintained build
+input and this report is included; ignored outputs are excluded.
+
+| Repository category | Before `72fa557` | After | Change |
+| --- | ---: | ---: | ---: |
+| Production C++ | 12,760 | 12,784 | +24 |
+| Include headers | 3,786 | 3,813 | +27 |
+| **First-party C++** | **16,546** | **16,597** | **+51** |
+| Tests, including file lists | 6,322 | 6,657 | +335 |
+| Shaders/assets | 966 | 966 | 0 |
+| Engine patches/overrides | 939 | 939 | 0 |
+| Build/tooling | 540 | 542 | +2 |
+| Documentation | 3,964 | 4,080 | +116 |
+| License/notice | 28 | 28 | 0 |
+| **Total repository text** | **29,305** | **29,809** | **+504** |
+
+Cumulative first-party C++ reduction is **810 lines (4.65%)** from initial
+extraction and **412 lines (2.42%)** from post-cleanup. The 50% target and a safe
+reduction ceiling remain unproven. Cross-mesh revision authority still requires its
+source-generation contract; broader duplicate/comment and algorithm audits remain.

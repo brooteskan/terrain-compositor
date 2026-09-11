@@ -20,11 +20,16 @@
 #include <TerrainCompositor/TerrainExistenceBus.h>
 #include <TerrainCompositor/TerrainExistenceSampling.h>
 #include <TerrainCompositor/TerrainMeshCutoutRenderRegistry.h>
-#include <TerrainCompositor/TerrainInvalidation.h>
+#include <TerrainCompositor/Internal/PendingCompositionInvalidation.h>
 #include <TerrainCompositor/TerrainQuality.h>
 #include <atomic>
 #include <memory>
 #include <mutex>
+
+namespace TerrainCompositor::Internal
+{
+    struct PublicationFootprints;
+}
 
 namespace TerrainCompositor
 {
@@ -122,10 +127,12 @@ namespace TerrainCompositor
         void RefreshRegionBounds();
         void QueueHeightRegionChange(const QueryState& state);
         void QueueSurfaceRegionChange(const QueryState& state);
-        void QueueHeightFootprintChange(const HeightmapStampFootprintChange& change);
         void QueueSurfaceFootprintChange(const QueryState& state, const AZ::Aabb& footprint);
         void CollectSourceChanges();
         void PublishStamps();
+        void CommitPublication(QueryStatePtr previous, std::shared_ptr<QueryState> replacement,
+            Internal::PublicationFootprints currentFootprints, AZStd::vector<PreparedTerrainMeshCutout> renderCutouts,
+            float collisionGridSpacing);
         HeightmapReconstructionDataPtr AcquireHeightmapReconstruction(
             const HeightmapDataPtr& source, HeightmapSamplingMode mode, float radius);
         void OnSystemTick() override;
@@ -209,13 +216,11 @@ namespace TerrainCompositor
         AZStd::unordered_map<AZStd::string, AZStd::string> m_collisions;
         AZStd::vector<ReconstructionCacheEntry> m_reconstructionCache;
         AZStd::vector<AZStd::string> m_pendingDiagnostics;
-        AZStd::vector<HeightmapStampFootprintChange> m_pendingChanges;
         AZStd::unordered_map<AZ::EntityId, AZ::u8> m_dirtyStamps;
         // Previous published contributors provide removal coverage. Pending
         // value-owned work retains it until dispatch, without invalid-to-invalid
         // edits repeatedly dirtying an already removed footprint.
-        TerrainInvalidation m_pendingHeightTerrain;
-        TerrainInvalidation m_pendingSurfaceTerrain;
+        Internal::PendingCompositionInvalidation m_pendingInvalidation;
         std::shared_ptr<SourceChanges> m_sourceChanges;
         bool m_sourceWasSampleable = false;
         LmbrCentral::DependencyMonitor m_sourceMonitor;

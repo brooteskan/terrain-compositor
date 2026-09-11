@@ -3,6 +3,8 @@
 #include "ComponentConfiguration.h"
 #include <TerrainCompositor/Internal/CompositionRegistrationState.h>
 #include "PublicationState.h"
+#include "CompositionInvalidation.h"
+#include <TerrainCompositor/Internal/PreparedComposition.h>
 #include <TerrainCompositor/SurfaceStampSampling.h>
 #include "StampMath.h"
 
@@ -101,6 +103,202 @@ namespace TerrainCompositor
         const Internal::PublicationFootprints queryOnly(state);
         EXPECT_TRUE(queryOnly.m_gapRendering.empty());
         EXPECT_EQ(queryOnly.m_gapQueries.at(gapId), large);
+    }
+
+    class CompositionInvalidationTests : public ::testing::Test
+    {
+    protected:
+        struct State : Internal::PreparedComposition
+        {
+            State() { m_regionBounds = AZ::Aabb::CreateFromMinMaxValues(-100, -100, -20, 100, 100, 80); }
+            TerrainCompositionAddress m_address{ AZ::Uuid::CreateRandom(), AZ::EntityId(9001) };
+            AZ::Uuid m_session = AZ::Uuid::CreateRandom();
+            AZ::u64 m_revision = 10;
+            AZ::EntityId m_sourceEntityId{ 9002 }, m_regionEntityId{ 9003 };
+        };
+
+        static AZ::Aabb Bounds(float x1, float y1, float x2, float y2)
+        {
+            return AZ::Aabb::CreateFromMinMaxValues(x1, y1, 0, x2, y2, 0);
+        }
+        static AZ::Aabb Expanded(const AZ::Aabb& bounds)
+        {
+            return AZ::Aabb::CreateFromMinMaxValues(bounds.GetMin().GetX() - 2, bounds.GetMin().GetY() - 2, -20,
+                bounds.GetMax().GetX() + 2, bounds.GetMax().GetY() + 2, 80);
+        }
+        static void Height(State& state, AZ::EntityId id, const AZ::Aabb& bounds)
+        {
+            PreparedHeightContributor height;
+            height.m_image.m_placement.m_stampEntityId = id;
+            height.m_image.m_placement.m_worldBounds = bounds;
+            state.m_heightContributors.push_back(height);
+        }
+        static void Cutout(State& state, AZ::EntityId id, const AZ::Aabb& bounds)
+        {
+            PreparedTerrainExistenceContributor cutout;
+            cutout.m_type = PreparedTerrainExistenceContributor::Type::MeshCutout;
+            cutout.m_meshCutout.m_entityId = id;
+            cutout.m_meshCutout.m_collisionWorldBounds = bounds;
+            state.m_existenceContributors.push_back(cutout);
+        }
+        const AZ::EntityId m_stamp{ 9010 }, m_cutout{ 9011 };
+    };
+
+    TEST_F(CompositionInvalidationTests, UsesPublishedOldAndUnsortedCandidateNewFirstClaims)
+    {
+        State previous;
+        State current = previous;
+        ++current.m_revision;
+        const auto oldFirst = Bounds(-40, -10, -30, 0);
+        const auto newFirst = Bounds(10, 0, 20, 10);
+        const auto alternate = Bounds(30, 0, 50, 20);
+        Height(previous, m_stamp, oldFirst);
+        Height(previous, m_stamp, alternate);
+        Height(current, m_stamp, newFirst);
+        Height(current, m_stamp, alternate);
+        const Internal::PublicationFootprints candidate(current);
+        AZStd::reverse(current.m_heightContributors.begin(), current.m_heightContributors.end());
+        const auto result = Internal::PlanCompositionInvalidation(previous, current, candidate,
+            { { m_stamp, Internal::DirtyHeight } }, {});
+        ASSERT_EQ(result.m_changes.size(), 1);
+        const auto& change = result.m_changes[0];
+        EXPECT_EQ(change.m_previousBounds, oldFirst);
+        EXPECT_EQ(change.m_currentBounds, newFirst);
+        EXPECT_EQ(change.m_address, current.m_address);
+        EXPECT_EQ(change.m_compositionSession, current.m_session);
+        EXPECT_EQ(change.m_snapshotRevision, current.m_revision);
+        EXPECT_EQ(change.m_previousRegionEntityId, previous.m_regionEntityId);
+        EXPECT_EQ(change.m_currentRegionBounds, current.m_regionBounds);
+        EXPECT_EQ(current.m_heightContributors[0].GetWorldBounds(), alternate);
+        EXPECT_EQ(candidate.m_height.at(m_stamp), newFirst);
+        const AZStd::vector<AZ::Aabb> expected{ Expanded(oldFirst), Expanded(newFirst) };
+        EXPECT_EQ(result.m_heightTerrain.BuildRegions(1.0f), expected);
+        EXPECT_TRUE(result.m_surfaceTerrain.IsEmpty());
+    }
+
+    TEST_F(CompositionInvalidationTests, MembershipRemovalPreservesSurfaceMaskCutoutAndGapRouting)
+    {
+        const auto logical = Bounds(10, 20, 12, 24);
+        const auto collision = Bounds(8, 18, 16, 28);
+        for (int role = 0; role < 6; ++role)
+        {
+            SCOPED_TRACE(role); // surface, mask, cutout, query gap, render gap, coupled gap
+            State previous;
+            const State current = previous;
+            if (role == 0)
+            {
+                PreparedSurfaceStamp surface;
+                surface.m_placement.m_stampEntityId = m_stamp;
+                surface.m_placement.m_worldBounds = logical;
+                previous.m_surfaceStamps.push_back(surface);
+            }
+            else if (role == 1)
+            {
+                PreparedTerrainExistenceContributor mask;
+                mask.m_imageMask.m_placement.m_stampEntityId = m_stamp;
+                mask.m_imageMask.m_placement.m_worldBounds = logical;
+                previous.m_existenceContributors.push_back(mask);
+            }
+            else if (role == 2)
+                Cutout(previous, m_stamp, collision);
+            else
+            {
+                PreparedTerrainMeshHeightGap gap;
+                gap.m_entityId = m_stamp;
+                gap.m_worldBounds = logical;
+                gap.m_collisionWorldBounds = collision;
+                gap.m_affectTerrainRendering = role != 3;
+                gap.m_affectTerrainCollisionQueries = role != 4;
+                previous.m_meshHeightGaps.push_back(gap);
+                if (gap.m_affectTerrainCollisionQueries)
+                {
+                    PreparedTerrainExistenceContributor query;
+                    query.m_type = PreparedTerrainExistenceContributor::Type::MeshHeightGap;
+                    query.m_meshHeightGap = gap;
+                    previous.m_existenceContributors.push_back(query);
+                }
+            }
+            const auto result = Internal::PlanCompositionInvalidation(previous, current,
+                Internal::PublicationFootprints(current), {}, {});
+            const AZStd::vector<AZ::Aabb> height = role == 0 || role == 4 ? AZStd::vector<AZ::Aabb>{}
+                : AZStd::vector<AZ::Aabb>{ Expanded(role == 1 ? logical : collision) };
+            const AZStd::vector<AZ::Aabb> surface = role == 3 ? AZStd::vector<AZ::Aabb>{}
+                : AZStd::vector<AZ::Aabb>{ Expanded(role == 2 ? collision : logical) };
+            EXPECT_EQ(result.m_heightTerrain.BuildRegions(1.0f), height);
+            EXPECT_EQ(result.m_surfaceTerrain.BuildRegions(1.0f), surface);
+            EXPECT_TRUE(result.m_changes.empty());
+            const auto repeated = Internal::PlanCompositionInvalidation(current, current,
+                Internal::PublicationFootprints(current), { { m_stamp, Internal::DirtyAll } }, {});
+            EXPECT_TRUE(repeated.m_heightTerrain.IsEmpty());
+            EXPECT_TRUE(repeated.m_surfaceTerrain.IsEmpty());
+            EXPECT_TRUE(repeated.m_changes.empty());
+        }
+    }
+
+    TEST_F(CompositionInvalidationTests, HeightChangesInvalidateOnlyTheirCutoutIntersectionOnEachSide)
+    {
+        State previous;
+        State current = previous;
+        Height(previous, m_stamp, Bounds(-20, -5, -10, 5));
+        Height(current, m_stamp, Bounds(10, -5, 20, 5));
+        Cutout(previous, m_cutout, Bounds(-15, -20, 20, 20));
+        Cutout(current, m_cutout, Bounds(-15, -20, 20, 20));
+        const auto result = Internal::PlanCompositionInvalidation(previous, current,
+            Internal::PublicationFootprints(current), { { m_stamp, Internal::DirtyHeight } }, {});
+        const AZStd::vector<AZ::Aabb> expected{ Expanded(Bounds(-15, -5, -10, 5)), Expanded(Bounds(10, -5, 20, 5)) };
+        EXPECT_EQ(result.m_surfaceTerrain.BuildRegions(1.0f), expected);
+        EXPECT_EQ(result.m_heightTerrain.BuildRegions(1.0f).size(), 2);
+        ASSERT_EQ(result.m_changes.size(), 1);
+        EXPECT_EQ(result.m_changes[0].m_stampEntityId, m_stamp);
+    }
+
+    TEST_F(CompositionInvalidationTests, FoldsIntoExistingQueuesWithoutRegroupingOrMutatingInputs)
+    {
+        State previous;
+        State current = previous;
+        Height(previous, m_stamp, Bounds(1, 0, 2, 2));
+        Height(current, m_stamp, Bounds(2, 0, 5, 3));
+        Internal::PendingCompositionInvalidation pending;
+        pending.m_heightTerrain.AddFootprint(previous.m_regionEntityId, previous.m_regionBounds, Bounds(0, 0, 1, 2));
+        HeightmapStampFootprintChange earlier;
+        earlier.m_snapshotRevision = 3;
+        pending.m_changes.push_back(earlier);
+        const auto retainedRegions = pending.m_heightTerrain.BuildRegions(0.01f);
+        const AZStd::unordered_map<AZ::EntityId, AZ::u8> dirty{ { m_stamp, Internal::DirtyHeight } };
+        const auto result = Internal::PlanCompositionInvalidation(previous, current,
+            Internal::PublicationFootprints(current), dirty, pending);
+        // Pending A merges with old B; their union cannot merge with new C under the 1.1 area bound.
+        // Coalescing B+C first would instead allow all three to merge into one larger rectangle.
+        const auto regions = result.m_heightTerrain.BuildRegions(0.01f);
+        ASSERT_EQ(regions.size(), 2);
+        EXPECT_FLOAT_EQ(regions[0].GetMin().GetX(), -0.02f);
+        EXPECT_FLOAT_EQ(regions[0].GetMax().GetX(), 2.02f);
+        EXPECT_FLOAT_EQ(regions[1].GetMin().GetX(), 1.98f);
+        EXPECT_FLOAT_EQ(regions[1].GetMax().GetY(), 3.02f);
+        ASSERT_EQ(result.m_changes.size(), 2);
+        EXPECT_EQ(result.m_changes[0].m_snapshotRevision, 3);
+        EXPECT_EQ(result.m_changes[1].m_snapshotRevision, current.m_revision);
+        EXPECT_EQ(pending.m_changes.size(), 1);
+        EXPECT_EQ(pending.m_heightTerrain.BuildRegions(0.01f), retainedRegions);
+        EXPECT_EQ(dirty.size(), 1);
+        EXPECT_EQ(dirty.at(m_stamp), Internal::DirtyHeight);
+    }
+
+    TEST_F(CompositionInvalidationTests, StableMembershipHonorsOnlyTheRequestedDirtyChannel)
+    {
+        State previous;
+        Height(previous, m_stamp, Bounds(-30, 0, -20, 10));
+        PreparedSurfaceStamp surface;
+        surface.m_placement.m_stampEntityId = m_stamp;
+        surface.m_placement.m_worldBounds = Bounds(10, 0, 20, 10);
+        previous.m_surfaceStamps.push_back(surface);
+        State current = previous;
+        current.m_heightContributors[0].m_image.m_placement.m_worldBounds = Bounds(30, 0, 40, 10);
+        const auto result = Internal::PlanCompositionInvalidation(previous, current,
+            Internal::PublicationFootprints(current), { { m_stamp, Internal::DirtySurface } }, {});
+        EXPECT_TRUE(result.m_changes.empty());
+        EXPECT_TRUE(result.m_heightTerrain.IsEmpty());
+        EXPECT_EQ(result.m_surfaceTerrain.BuildRegions(1.0f), AZStd::vector<AZ::Aabb>{ Expanded(surface.m_placement.m_worldBounds) });
     }
 
     TEST(CompositionRegistrationStateTests, ReconcilesBeforeClassificationAndPreservesCallerAndPendingDirtyBits)

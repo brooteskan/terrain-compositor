@@ -1,6 +1,7 @@
 #include <TerrainCompositor/Components/TerrainCompositionGradientComponent.h>
 #include "../ComponentConfiguration.h"
 #include "../CompositionPreparation.h"
+#include "../CompositionInvalidation.h"
 
 #include "TerrainCompositionQueryHelpers.h"
 
@@ -156,19 +157,6 @@ namespace TerrainCompositor
             return dirty;
         }
 
-        AZ::Aabb IntersectFootprintsXY(const AZ::Aabb& left, const AZ::Aabb& right)
-        {
-            if (!left.IsValid() || !right.IsValid())
-            {
-                return AZ::Aabb::CreateNull();
-            }
-            const AZ::Vector3 minimum(
-                AZStd::max(left.GetMin().GetX(), right.GetMin().GetX()), AZStd::max(left.GetMin().GetY(), right.GetMin().GetY()), 0.0f);
-            const AZ::Vector3 maximum(
-                AZStd::min(left.GetMax().GetX(), right.GetMax().GetX()), AZStd::min(left.GetMax().GetY(), right.GetMax().GetY()), 0.0f);
-            return minimum.GetX() <= maximum.GetX() && minimum.GetY() <= maximum.GetY() ? AZ::Aabb::CreateFromMinMax(minimum, maximum)
-                                                                                        : AZ::Aabb::CreateNull();
-        }
     } // namespace
 
     AZ_COMPONENT_IMPL(
@@ -393,7 +381,7 @@ namespace TerrainCompositor
             change.m_previousBounds = contributor.GetWorldBounds();
             change.m_previousRegionEntityId = previous->m_regionEntityId;
             change.m_previousRegionBounds = previous->m_regionBounds;
-            QueueHeightFootprintChange(change);
+            m_pendingInvalidation.AddHeightChange(change);
         }
         for (const auto& stamp : previous->m_surfaceStamps)
         {
@@ -404,14 +392,14 @@ namespace TerrainCompositor
         // during shutdown.
         QueueHeightRegionChange(*previous);
         QueueSurfaceRegionChange(*previous);
-        m_pendingHeightTerrain.MakeWholeRegions();
-        m_pendingSurfaceTerrain.MakeWholeRegions();
-        auto heightRegions = m_pendingHeightTerrain.BuildRegions(0.0f);
-        auto surfaceRegions = m_pendingSurfaceTerrain.BuildRegions(0.0f);
-        m_pendingHeightTerrain = {};
-        m_pendingSurfaceTerrain = {};
-        auto changes = AZStd::move(m_pendingChanges);
-        m_pendingChanges.clear();
+        m_pendingInvalidation.m_heightTerrain.MakeWholeRegions();
+        m_pendingInvalidation.m_surfaceTerrain.MakeWholeRegions();
+        auto heightRegions = m_pendingInvalidation.m_heightTerrain.BuildRegions(0.0f);
+        auto surfaceRegions = m_pendingInvalidation.m_surfaceTerrain.BuildRegions(0.0f);
+        m_pendingInvalidation.m_heightTerrain = {};
+        m_pendingInvalidation.m_surfaceTerrain = {};
+        auto changes = AZStd::move(m_pendingInvalidation.m_changes);
+        m_pendingInvalidation.m_changes.clear();
         m_registrations.Clear();
         m_dirtyStamps.clear();
         m_collisions.clear();
@@ -690,24 +678,17 @@ namespace TerrainCompositor
 
     void TerrainCompositionGradientComponent::QueueHeightRegionChange(const QueryState& state)
     {
-        m_pendingHeightTerrain.AddRegion(state.m_regionEntityId, state.m_regionBounds);
+        m_pendingInvalidation.m_heightTerrain.AddRegion(state.m_regionEntityId, state.m_regionBounds);
     }
 
     void TerrainCompositionGradientComponent::QueueSurfaceRegionChange(const QueryState& state)
     {
-        m_pendingSurfaceTerrain.AddRegion(state.m_regionEntityId, state.m_regionBounds);
-    }
-
-    void TerrainCompositionGradientComponent::QueueHeightFootprintChange(const HeightmapStampFootprintChange& change)
-    {
-        m_pendingChanges.push_back(change);
-        m_pendingHeightTerrain.AddFootprint(change.m_previousRegionEntityId, change.m_previousRegionBounds, change.m_previousBounds);
-        m_pendingHeightTerrain.AddFootprint(change.m_currentRegionEntityId, change.m_currentRegionBounds, change.m_currentBounds);
+        m_pendingInvalidation.m_surfaceTerrain.AddRegion(state.m_regionEntityId, state.m_regionBounds);
     }
 
     void TerrainCompositionGradientComponent::QueueSurfaceFootprintChange(const QueryState& state, const AZ::Aabb& footprint)
     {
-        m_pendingSurfaceTerrain.AddFootprint(state.m_regionEntityId, state.m_regionBounds, footprint);
+        m_pendingInvalidation.m_surfaceTerrain.AddFootprint(state.m_regionEntityId, state.m_regionBounds, footprint);
     }
 
     void TerrainCompositionGradientComponent::CollectSourceChanges()
@@ -754,8 +735,8 @@ namespace TerrainCompositor
             {
                 for (const auto& region : regions)
                 {
-                    m_pendingHeightTerrain.AddFootprint(state->m_regionEntityId, state->m_regionBounds, region);
-                    m_pendingSurfaceTerrain.AddFootprint(state->m_regionEntityId, state->m_regionBounds, region);
+                    m_pendingInvalidation.m_heightTerrain.AddFootprint(state->m_regionEntityId, state->m_regionBounds, region);
+                    m_pendingInvalidation.m_surfaceTerrain.AddFootprint(state->m_regionEntityId, state->m_regionBounds, region);
                 }
             }
         }
@@ -830,7 +811,7 @@ namespace TerrainCompositor
             {
                 if (gap.m_affectTerrainCollisionQueries && IsTerrainMeshHeightGapAdmitted(gap, oldGaps) != IsTerrainMeshHeightGapAdmitted(gap, newGaps))
                 {
-                    m_pendingHeightTerrain.AddFootprint(state->m_regionEntityId, state->m_regionBounds, gap.m_collisionWorldBounds);
+                    m_pendingInvalidation.m_heightTerrain.AddFootprint(state->m_regionEntityId, state->m_regionBounds, gap.m_collisionWorldBounds);
                     QueueSurfaceFootprintChange(*state, gap.m_collisionWorldBounds);
                 }
             }
@@ -915,7 +896,7 @@ namespace TerrainCompositor
             return;
         }
         float heightSpacing = 0.0f;
-        if (m_pendingHeightTerrain.RequiresQueryResolution())
+        if (m_pendingInvalidation.m_heightTerrain.RequiresQueryResolution())
         {
             // Settings only, outside query/update/source-mailbox locks. Never query
             // final terrain heights.
@@ -923,7 +904,7 @@ namespace TerrainCompositor
                 heightSpacing, &AzFramework::Terrain::TerrainDataRequests::GetTerrainHeightQueryResolution);
         }
         float surfaceSpacing = 0.0f;
-        if (m_pendingSurfaceTerrain.RequiresQueryResolution())
+        if (m_pendingInvalidation.m_surfaceTerrain.RequiresQueryResolution())
         {
             AzFramework::Terrain::TerrainDataRequestBus::BroadcastResult(
                 surfaceSpacing, &AzFramework::Terrain::TerrainDataRequests::GetTerrainSurfaceDataQueryResolution);
@@ -933,24 +914,24 @@ namespace TerrainCompositor
             return;
         }
         AZStd::vector<AZ::Aabb> heightRegions;
-        if (!m_pendingHeightTerrain.RequiresQueryResolution() || (std::isfinite(heightSpacing) && heightSpacing > 0.0f))
+        if (!m_pendingInvalidation.m_heightTerrain.RequiresQueryResolution() || (std::isfinite(heightSpacing) && heightSpacing > 0.0f))
         {
-            heightRegions = m_pendingHeightTerrain.BuildRegions(heightSpacing);
-            m_pendingHeightTerrain = {};
+            heightRegions = m_pendingInvalidation.m_heightTerrain.BuildRegions(heightSpacing);
+            m_pendingInvalidation.m_heightTerrain = {};
         }
         AZStd::vector<AZ::Aabb> surfaceRegions;
-        if (!m_pendingSurfaceTerrain.RequiresQueryResolution() || (std::isfinite(surfaceSpacing) && surfaceSpacing > 0.0f))
+        if (!m_pendingInvalidation.m_surfaceTerrain.RequiresQueryResolution() || (std::isfinite(surfaceSpacing) && surfaceSpacing > 0.0f))
         {
-            surfaceRegions = m_pendingSurfaceTerrain.BuildRegions(surfaceSpacing);
-            m_pendingSurfaceTerrain = {};
+            surfaceRegions = m_pendingInvalidation.m_surfaceTerrain.BuildRegions(surfaceSpacing);
+            m_pendingInvalidation.m_surfaceTerrain = {};
         }
         // Missing/invalid terrain spacing retains footprint work until the service is
         // ready. Metadata and diagnostics can still be delivered; shutdown promotes
         // retained work to whole-region cleanup.
         const auto address = m_address;
-        auto changes = AZStd::move(m_pendingChanges);
+        auto changes = AZStd::move(m_pendingInvalidation.m_changes);
         auto diagnostics = AZStd::move(m_pendingDiagnostics);
-        m_pendingChanges.clear();
+        m_pendingInvalidation.m_changes.clear();
         m_pendingDiagnostics.clear();
         // Only local copies are used after external calls: listeners can
         // retarget/deactivate components.
@@ -1377,7 +1358,6 @@ namespace TerrainCompositor
         auto prepared = Internal::PrepareComposition(
             m_registrations, m_configuration, m_regionBounds, m_session, collisionGridSpacing, nonUniformScaleEntities);
         static_cast<Internal::PreparedComposition&>(*replacement) = AZStd::move(prepared.m_query);
-        auto& currentFootprints = prepared.m_footprints;
         if (!replacement->m_surfacePalette.IsValid() && replacement->m_surfacePalette.m_error != previous->m_surfacePalette.m_error)
         {
             m_pendingDiagnostics.push_back(
@@ -1413,6 +1393,14 @@ namespace TerrainCompositor
             }
         }
 
+        CommitPublication(previous, AZStd::move(replacement), AZStd::move(prepared.m_footprints),
+            AZStd::move(prepared.m_renderCutouts), collisionGridSpacing);
+    }
+
+    void TerrainCompositionGradientComponent::CommitPublication(QueryStatePtr previous, std::shared_ptr<QueryState> replacement,
+        Internal::PublicationFootprints currentFootprints, AZStd::vector<PreparedTerrainMeshCutout> renderCutouts,
+        float collisionGridSpacing)
+    {
         auto* renderRegistry = AZ::Interface<TerrainMeshCutoutRenderRegistry>::Get();
         if (!renderRegistry)
         {
@@ -1434,129 +1422,39 @@ namespace TerrainCompositor
             });
         }
 
+        const auto* scene = renderRegistry ? AZ::RPI::Scene::GetSceneForEntityContextId(replacement->m_address.first) : nullptr;
+        if (renderRegistry)
+            replacement->m_renderChannel = renderRegistry->AcquireSceneChannel(scene);
+        // Consume the only mutable candidate before any render query can retain it.
+        const QueryStatePtr publication = AZStd::move(replacement);
         if (renderRegistry)
         {
-            const auto* scene = AZ::RPI::Scene::GetSceneForEntityContextId(m_address.first);
-            replacement->m_renderChannel = renderRegistry->AcquireSceneChannel(scene);
             if (!renderRegistry->Publish(
                     scene,
-                    m_session,
-                    AZStd::move(prepared.m_renderCutouts),
-                    CreateRenderGeometryQuery(replacement),
-                    replacement->m_revision,
-                    replacement->m_meshHeightGaps))
+                    publication->m_session,
+                    AZStd::move(renderCutouts),
+                    CreateRenderGeometryQuery(publication),
+                    publication->m_revision,
+                    publication->m_meshHeightGaps))
             {
                 m_pendingDiagnostics.push_back(
                     AZStd::string::format(
                         "Composition %s render publication rejected stale generation %llu; "
                         "CPU publication was retained.",
-                        m_address.second.ToString().c_str(),
-                        static_cast<unsigned long long>(replacement->m_revision)));
+                        publication->m_address.second.ToString().c_str(),
+                        static_cast<unsigned long long>(publication->m_revision)));
                 return;
             }
         }
 
-        const Internal::PublicationFootprints oldFootprints(*previous);
-        // Reentrant registration during dependency reconnection must not lose old/new
-        // footprint metadata.
-        auto affected = AZStd::move(m_dirtyStamps);
+        auto pending = Internal::PlanCompositionInvalidation(
+            *previous, *publication, currentFootprints, AZStd::move(m_dirtyStamps), AZStd::move(m_pendingInvalidation));
         m_dirtyStamps.clear();
-        Internal::MarkMembershipChanges(oldFootprints.m_height, currentFootprints.m_height, DirtyHeight, affected);
-        Internal::MarkMembershipChanges(oldFootprints.m_surface, currentFootprints.m_surface, DirtySurface, affected);
-        Internal::MarkMembershipChanges(oldFootprints.m_existence, currentFootprints.m_existence, DirtyExistence, affected);
-        Internal::MarkMembershipChanges(oldFootprints.m_gapQueries, currentFootprints.m_gapQueries, DirtyExistence, affected);
-        Internal::MarkMembershipChanges(oldFootprints.m_gapRendering, currentFootprints.m_gapRendering, DirtyExistence, affected);
-        // Atomic ownership exchange publishes references, mapping, keys, transforms
-        // and pixels together. Standard shared_ptr atomics need not be lock-free, but
-        // no application lock encloses external calls.
-        m_queryState.exchange(QueryStatePtr(replacement), std::memory_order_acq_rel);
+        // Readers see one immutable revision. Planning makes no external calls; dispatch stays deferred.
+        // No application lock encloses render publication or the shared_ptr ownership exchange.
+        m_queryState.exchange(publication, std::memory_order_acq_rel);
+        m_pendingInvalidation = AZStd::move(pending);
         m_publishedCollisionGridSpacing = std::isfinite(collisionGridSpacing) && collisionGridSpacing > 0.0f ? collisionGridSpacing : 0.0f;
-        if (previous->m_sourceEntityId != replacement->m_sourceEntityId || previous->m_regionEntityId != replacement->m_regionEntityId ||
-            previous->m_regionBounds != replacement->m_regionBounds)
-        {
-            // Mapping/reference changes affect the base and every stamp, including an
-            // empty stamp set. Keep old/new region contexts separate; the old shape may
-            // already be gone when we dispatch.
-            QueueHeightRegionChange(*previous);
-            QueueHeightRegionChange(*replacement);
-        }
-        if (previous->m_sourceEntityId != replacement->m_sourceEntityId || previous->m_regionEntityId != replacement->m_regionEntityId ||
-            previous->m_regionBounds != replacement->m_regionBounds ||
-            !SurfacePalettesEqual(previous->m_surfacePalette, replacement->m_surfacePalette))
-        {
-            QueueSurfaceRegionChange(*previous);
-            QueueSurfaceRegionChange(*replacement);
-        }
-        const auto visitFootprints = [&](AZ::EntityId id, auto member, auto visit)
-        {
-            using Side = AZStd::pair<const QueryState*, const Internal::PublicationFootprints*>;
-            for (const auto& [state, footprints] : { Side{ previous.get(), &oldFootprints }, Side{ replacement.get(), &currentFootprints } })
-            {
-                const auto& bounds = footprints->*member;
-                if (const auto found = bounds.find(id); found != bounds.end())
-                    visit(*state, found->second, *footprints);
-            }
-        };
-        const auto queueSurface = [this](const auto& state, const auto& bounds, const auto&)
-        {
-            QueueSurfaceFootprintChange(state, bounds);
-        };
-        const auto queueHeight = [this](const auto& state, const auto& bounds, const auto&)
-        {
-            m_pendingHeightTerrain.AddFootprint(state.m_regionEntityId, state.m_regionBounds, bounds);
-        };
-        for (const auto& [id, dirty] : affected)
-        {
-            if ((dirty & DirtyHeight) != 0)
-            {
-                HeightmapStampFootprintChange change;
-                change.m_stampEntityId = id;
-                change.m_address = m_address;
-                change.m_compositionSession = m_session;
-                change.m_snapshotRevision = replacement->m_revision;
-                if (const auto old = oldFootprints.m_height.find(id); old != oldFootprints.m_height.end())
-                {
-                    change.m_previousBounds = old->second;
-                    change.m_previousRegionEntityId = previous->m_regionEntityId;
-                    change.m_previousRegionBounds = previous->m_regionBounds;
-                }
-                if (const auto current = currentFootprints.m_height.find(id); current != currentFootprints.m_height.end())
-                {
-                    change.m_currentBounds = current->second;
-                    change.m_currentRegionEntityId = replacement->m_regionEntityId;
-                    change.m_currentRegionBounds = replacement->m_regionBounds;
-                }
-                if (change.m_previousBounds.IsValid() || change.m_currentBounds.IsValid())
-                {
-                    QueueHeightFootprintChange(change);
-                }
-                visitFootprints(id, &Internal::PublicationFootprints::m_height,
-                    [&](const auto& state, const auto& heightBounds, const auto& footprints)
-                    {
-                        if (!heightBounds.IsValid())
-                            return;
-                        for (const auto& [cutoutId, cutoutBounds] : footprints.m_cutouts)
-                        {
-                            const AZ::Aabb overlap = IntersectFootprintsXY(heightBounds, cutoutBounds);
-                            if (overlap.IsValid())
-                                QueueSurfaceFootprintChange(state, overlap);
-                        }
-                    });
-            }
-            if ((dirty & DirtySurface) != 0)
-                visitFootprints(id, &Internal::PublicationFootprints::m_surface, queueSurface);
-            if ((dirty & DirtyExistence) != 0)
-            {
-                visitFootprints(id, &Internal::PublicationFootprints::m_existence,
-                    [&](const auto& state, const auto& bounds, const auto& footprints)
-                    {
-                        queueHeight(state, bounds, footprints);
-                        queueSurface(state, bounds, footprints);
-                    });
-                visitFootprints(id, &Internal::PublicationFootprints::m_gapQueries, queueHeight);
-                visitFootprints(id, &Internal::PublicationFootprints::m_gapRendering, queueSurface);
-            }
-        }
     }
 
     HeightmapReconstructionDataPtr TerrainCompositionGradientComponent::AcquireHeightmapReconstruction(

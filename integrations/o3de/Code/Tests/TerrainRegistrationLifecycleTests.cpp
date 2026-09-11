@@ -175,11 +175,27 @@ namespace TerrainCompositor
 
         AZStd::vector<Record> Records() const { return RecordsAt(m_address); }
         auto& Diagnostics() { return m_composition->m_pendingDiagnostics; }
-        auto& FootprintChanges() { return m_composition->m_pendingChanges; }
+        auto& FootprintChanges() { return m_composition->m_pendingInvalidation.m_changes; }
         void Republish() { m_composition->PublishStamps(); }
         AZ::u64 PublishedRevision() const { return m_composition->GetQueryState()->m_revision; }
         auto& DirtyStamps() { return m_composition->m_dirtyStamps; }
         auto QueryState() const { return m_composition->GetQueryState(); }
+        auto& HeightInvalidation() { return m_composition->m_pendingInvalidation.m_heightTerrain; }
+        auto& SurfaceInvalidation() { return m_composition->m_pendingInvalidation.m_surfaceTerrain; }
+        void ClearInvalidation()
+        {
+            HeightInvalidation() = {};
+            SurfaceInvalidation() = {};
+            FootprintChanges().clear();
+        }
+        template<class Edit>
+        void EditPublishedState(Edit edit)
+        {
+            auto state = std::make_shared<TerrainCompositionGradientComponent::QueryState>(*QueryState());
+            edit(*state);
+            m_composition->m_queryState.store(state);
+        }
+        void DispatchPending() { m_composition->OnTick(0.0f, {}); }
         auto Prepare(float gridSpacing = 0.0f, const AZStd::unordered_set<AZ::EntityId>& nonUniformScale = {}) const
         {
             return Internal::PrepareComposition(m_composition->m_registrations, m_configuration,
@@ -823,6 +839,127 @@ namespace TerrainCompositor
         ASSERT_EQ(FootprintChanges().size(), 1);
         EXPECT_EQ(FootprintChanges()[0].m_previousBounds, retained->m_heightContributors[0].GetWorldBounds());
         EXPECT_NE(FootprintChanges()[0].m_currentBounds, FootprintChanges()[0].m_previousBounds);
+    }
+
+    TEST_F(TerrainImageRegistrationTests, EmptyPublicationInvalidatesOldThenNewRegionContexts)
+    {
+        ClearInvalidation();
+        const auto oldBounds = AZ::Aabb::CreateFromMinMaxValues(-50, -40, -20, 50, 40, 80);
+        const auto currentBounds = QueryState()->m_regionBounds;
+        EditPublishedState([&](auto& state)
+        {
+            state.m_regionEntityId = m_otherOwner;
+            state.m_regionBounds = oldBounds;
+        });
+        Republish();
+        const AZStd::vector<AZ::Aabb> expected{ oldBounds, currentBounds };
+        EXPECT_EQ(HeightInvalidation().BuildRegions(0.0f), expected);
+        EXPECT_EQ(SurfaceInvalidation().BuildRegions(0.0f), expected);
+        EXPECT_TRUE(FootprintChanges().empty());
+        ClearInvalidation();
+        Republish();
+        EXPECT_TRUE(HeightInvalidation().IsEmpty());
+        EXPECT_TRUE(SurfaceInvalidation().IsEmpty());
+    }
+
+    TEST_F(TerrainImageRegistrationTests, PaletteOnlyPublicationInvalidatesSurfaceWithoutHeightWork)
+    {
+        ClearInvalidation();
+        EditPublishedState([](auto& state) { state.m_surfacePalette.m_error = "Previous invalid palette"; });
+        Republish();
+        EXPECT_TRUE(HeightInvalidation().IsEmpty());
+        EXPECT_TRUE(FootprintChanges().empty());
+        EXPECT_EQ(SurfaceInvalidation().BuildRegions(0.0f), AZStd::vector<AZ::Aabb>{ QueryState()->m_regionBounds });
+    }
+
+    TEST_F(TerrainImageRegistrationTests, RejectedPublicationPreservesAccumulatedTerrainWorkAndRetryAppendsMovement)
+    {
+        TerrainMeshCutoutRenderRegistry registry;
+        auto record = ContributingImage(m_stamp, 0.8f);
+        record.m_configuration.m_footprintWidth = record.m_configuration.m_footprintDepth = 10.0f;
+        ASSERT_TRUE(Register(record));
+        ClearInvalidation();
+        const auto pendingBounds = AZ::Aabb::CreateFromMinMaxValues(-300, -300, -10, -200, -200, 10);
+        HeightInvalidation().AddRegion(m_otherOwner, pendingBounds);
+        SurfaceInvalidation().AddRegion(m_otherOwner, pendingBounds);
+        const auto retained = QueryState();
+        ASSERT_TRUE(registry.Publish(nullptr, Session(), {}, {}, retained->m_revision + 100));
+        record.m_worldTransform.SetTranslation(AZ::Vector3(30, 0, 0));
+        ++record.m_updateRevision;
+        ASSERT_TRUE(Register(record));
+        EXPECT_EQ(QueryState(), retained);
+        EXPECT_EQ(HeightInvalidation().BuildRegions(1.0f), AZStd::vector<AZ::Aabb>{ pendingBounds });
+        EXPECT_EQ(SurfaceInvalidation().BuildRegions(1.0f), AZStd::vector<AZ::Aabb>{ pendingBounds });
+        EXPECT_TRUE(FootprintChanges().empty());
+        EXPECT_NE(DirtyStamps().at(m_stamp) & Internal::DirtyHeight, 0);
+        registry.Remove(Session());
+        Republish();
+        const auto heightRegions = HeightInvalidation().BuildRegions(1.0f);
+        ASSERT_EQ(heightRegions.size(), 3);
+        EXPECT_EQ(heightRegions[0], pendingBounds);
+        EXPECT_LT(heightRegions[1].GetMax().GetX(), heightRegions[2].GetMin().GetX());
+        EXPECT_EQ(SurfaceInvalidation().BuildRegions(1.0f), AZStd::vector<AZ::Aabb>{ pendingBounds });
+        ASSERT_EQ(FootprintChanges().size(), 1);
+        EXPECT_EQ(FootprintChanges()[0].m_snapshotRevision, QueryState()->m_revision);
+        EXPECT_TRUE(DirtyStamps().empty());
+    }
+
+    TEST_F(TerrainImageRegistrationTests, MultiplePublicationsRetainChronologicalFootprintMetadata)
+    {
+        auto record = ContributingImage(m_stamp, 0.8f);
+        record.m_configuration.m_footprintWidth = record.m_configuration.m_footprintDepth = 10.0f;
+        ASSERT_TRUE(Register(record));
+        const auto retained = QueryState();
+        ClearInvalidation();
+        for (const float x : { 30.0f, 60.0f })
+        {
+            record.m_worldTransform.SetTranslation(AZ::Vector3(x, 0, 0));
+            ++record.m_updateRevision;
+            ASSERT_TRUE(Register(record));
+        }
+        ASSERT_EQ(FootprintChanges().size(), 2);
+        const auto& first = FootprintChanges()[0];
+        const auto& second = FootprintChanges()[1];
+        EXPECT_EQ(first.m_previousBounds, retained->m_heightContributors[0].GetWorldBounds());
+        EXPECT_EQ(first.m_currentBounds, second.m_previousBounds);
+        EXPECT_EQ(first.m_snapshotRevision + 1, second.m_snapshotRevision);
+        EXPECT_EQ(second.m_currentBounds, QueryState()->m_heightContributors[0].GetWorldBounds());
+        EXPECT_EQ(first.m_address, m_address);
+        EXPECT_EQ(second.m_compositionSession, Session());
+        EXPECT_EQ(HeightInvalidation().BuildRegions(1.0f).size(), 3);
+    }
+
+    TEST_F(TerrainImageRegistrationTests, PublicationDuringFootprintDispatchRetainsTheNewPendingBatch)
+    {
+        struct Listener : TerrainCompositionNotificationBus::Handler
+        {
+            ~Listener() override { BusDisconnect(); }
+            void OnStampFootprintChanged(const HeightmapStampFootprintChange& change) override { m_receive(change); }
+            AZStd::function<void(const HeightmapStampFootprintChange&)> m_receive;
+        } listener;
+        auto record = ContributingImage(m_stamp, 0.8f);
+        ASSERT_TRUE(Register(record));
+        ClearInvalidation();
+        record.m_worldTransform.SetTranslation(AZ::Vector3(30, 0, 0));
+        ++record.m_updateRevision;
+        ASSERT_TRUE(Register(record));
+        const auto firstRevision = QueryState()->m_revision;
+        int notifications = 0;
+        listener.m_receive = [&](const auto& change)
+        {
+            ++notifications;
+            EXPECT_EQ(change.m_snapshotRevision, firstRevision);
+            EXPECT_EQ(QueryState()->m_revision, firstRevision);
+            record.m_worldTransform.SetTranslation(AZ::Vector3(60, 0, 0));
+            ++record.m_updateRevision;
+            EXPECT_TRUE(Register(record));
+        };
+        listener.BusConnect(m_address);
+        DispatchPending();
+        EXPECT_EQ(notifications, 1);
+        ASSERT_EQ(FootprintChanges().size(), 1);
+        EXPECT_EQ(FootprintChanges()[0].m_snapshotRevision, QueryState()->m_revision);
+        EXPECT_GT(QueryState()->m_revision, firstRevision);
     }
 
     TEST_F(TerrainImageRegistrationTests, ReconstructionIsReusedAndRetainedAcrossConfigurationChanges)
