@@ -176,6 +176,11 @@ DefaultLevel prefab SHA-256 remained
 
 ## Prioritized follow-up and targets
 
+Architectural preparation for these optimizations is ranked in
+[Architectural refactoring for terrain optimization](ArchitectureOptimizationReadiness.md),
+tracked by [terrain-compositor #1](https://github.com/brooteskan/terrain-compositor/issues/1).
+TG #37 retains the camera-flight performance and user-testing acceptance.
+
 After correcting the grid wrapping, the remaining target is to keep sector
 work on the render thread below 4 ms per frame and eliminate route frames
 over 50 ms attributable to terrain updates. Use at least three repeated

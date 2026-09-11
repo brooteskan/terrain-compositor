@@ -42,3 +42,6 @@ C++ APIs now use the `TerrainCompositor` namespace and
 See [the O3DE integration notes](integrations/o3de/README.md) and the
 [composition contract](docs/TerrainComposition.md) for details.
 
+The [architecture refactoring plan](docs/ArchitectureOptimizationReadiness.md)
+ranks the work needed to prepare for terrain-query and sector-scheduling
+optimization, using the camera-flight investigation in TG #37.

@@ -1444,3 +1444,111 @@ This slice adds six production lines and 151 test lines to remove dependent
 traversals; no code moves between categories. First-party C++ remains 815 lines
 (4.68%) below initial extraction and 417 (2.45%) below post-cleanup. The 50% target
 and a safe reduction ceiling remain unproven.
+
+## Skip stable assigned-asset rebuilding after claim removal (2026-09-10)
+
+Baseline: `19b6d1b` (`Skip registration rebuilds for matching claim additions`).
+`UpdateClaims` now omits an old asset from rebuild scheduling when this role is
+being removed or retargeted, the asset is assigned, and its cache has no conflicting
+tie. Surviving claims already share that cached revision and payload. The last
+claim still erases the asset entry, so no revision history survives final removal.
+The three-line guard changes no registration state or ownership layout.
+
+Earlier touches are never removed. An in-place edit or a different role adding a
+conflicting payload can still require rebuilding the same asset, before or after
+the removal role. Revision fan-out continues in source-role order and consumes its
+own pending rebuild as before. Tied assets retain rebuilding so removal can clear
+their tie. Unassigned mesh assets retain rebuilding because their surviving
+revisions can differ and their maximum can decrease; unassigned images stay local.
+
+Three optional `RegistrationTraversal` counters separate claim searches, rebuild
+visits and vector shifts. The original total-visit and fallback counters retain
+their meanings. Shift counts record the tail length passed to `AZStd::move` by
+`vector::erase`; they describe moved claim entries, not elapsed time or individual
+machine instructions. Instrumentation adds eight production-header lines, so the
+complete production delta is **+11**, including the three-line guard. Only the
+optional traversal value grows; registration records and asset-state layouts do not.
+
+Bulk tests seed 32 or 2,048 old registrations plus one cached destination, then
+remove or retarget every old record. Image records use all five roles on one
+shared asset or five distinct assets. Both mesh domains cover assigned and
+unassigned IDs. Forward and reverse entity order are measured separately; image
+roles retain their original order. Retargets use stale destination snapshots to
+exercise reconciliation before classification. Seed work is excluded below.
+
+| 2,048 removals or retargets | Claim visits before | After | Rebuild visits before -> after | Vector shifts, unchanged |
+| --- | ---: | ---: | ---: | ---: |
+| Image, shared, forward | 10,490,880 | 10,240 | 10,480,640 -> 0 | 52,423,680 |
+| Image, distinct, forward | 10,490,880 | 10,240 | 10,480,640 -> 0 | 10,480,640 |
+| Image, shared, reverse | 62,894,080 | 52,413,440 | 10,480,640 -> 0 | 20,480 |
+| Image, distinct, reverse | 20,971,520 | 10,490,880 | 10,480,640 -> 0 | 0 |
+| Either mesh, assigned, forward | 2,098,176 | 2,048 | 2,096,128 -> 0 | 2,096,128 |
+| Either mesh, assigned, reverse | 4,194,304 | 2,098,176 | 2,096,128 -> 0 | 0 |
+| Either mesh, unassigned, forward | 2,098,176 | 2,098,176 | 2,096,128 -> 2,096,128 | 2,096,128 |
+| Either mesh, unassigned, reverse | 4,194,304 | 4,194,304 | 2,096,128 -> 2,096,128 | 0 |
+
+All measured fallback counts are zero. Assigned post-change visits consist only
+of claim searches. Searches and shifts are unchanged in every before/after pair;
+unassigned workloads are entirely unchanged. For 32 records, rebuild visits fall
+from 2,480 to zero for images and 496 to zero for assigned meshes. Linear searches
+and vector erasure can still make bulk removal quadratic. Hash probes, snapshot
+comparisons, allocations and elapsed time are outside these counters; no overall
+speedup, constant-time removal or memory reduction is claimed.
+
+Four new cases / 181 net test lines compare snapshots and dirty masks with the
+original scan and verify exact index membership and fresh history after final
+removal. Mixed-role cases exercise changed payloads and advancing revisions with
+removal/retarget roles in both orders, followed by tie resolution and stale input.
+Existing mesh retarget expectations now distinguish assigned and unassigned old
+assets. Before optimization, five focused cases failed exclusively on visit/rebuild
+expectations; behavioral assertions and search/shift measurements passed.
+
+All five targets built. Focused checks passed 45/45, runtime 305/305 and editor
+46/46. All earlier names and the one already-disabled runtime case remain. Shuffle
+seeds 173-272 passed 21,400 runtime cases and 4,600 editor cases; the three scan
+comparisons covered 300,000 mixed operations. D3D11 hardware matched 142,560
+boundary classifications with zero mismatches. Engine override generation,
+repetition/hash-rejection checks, source audit and `git diff --check` passed.
+
+Builds reuse the five standalone-source VC projects and installed dependencies
+with regeneration disabled. Fresh CMake generation and a live Editor scene smoke
+test are outside this run. No source copies or generated unity edits are needed.
+Logs, XML, audit and counts are under ignored `build/stable-removal-session`.
+Reproduce LOC with `python tools/MeasureLoc.py --revision 19b6d1b --json` and
+`python tools/MeasureLoc.py --worktree --json`. Focused runs include every bulk
+case; repeat the earlier shuffled filter with `-*Bulk*` appended to exclude the
+bulk measurements while retaining all three 1,000-operation differential cases.
+
+| Repository category | Before `19b6d1b` | After | Change |
+| --- | ---: | ---: | ---: |
+| Production C++ | 12,784 | 12,784 | 0 |
+| Include headers | 3,808 | 3,819 | +11 |
+| **First-party C++** | **16,592** | **16,603** | **+11** |
+| Tests, including reference and file lists | 7,536 | 7,717 | +181 |
+| **C++ plus tests/file lists** | **24,128** | **24,320** | **+192** |
+| Shaders/assets | 966 | 966 | 0 |
+| Engine patches/overrides | 939 | 939 | 0 |
+| Build/tooling | 542 | 542 | 0 |
+| Documentation | 4,466 | 4,560 | +94 |
+| License/notice | 28 | 28 | 0 |
+| **Total repository text** | **31,069** | **31,355** | **+286** |
+
+This is performance follow-through, separate from the remaining architectural
+investigations in issue #1. First-party C++ is 804 lines (4.62%) below initial
+extraction and 406 (2.39%) below post-cleanup. The ranked reduction inventory,
+revision-authority design decision, broader audits and reduction ceiling remain
+outstanding; this fast path does not complete those investigations.
+
+## Architectural refactoring for optimization (2026-09-10)
+
+The current [architecture ranking](ArchitectureOptimizationReadiness.md) replaces
+the LOC-reduction inventory and aligns compositor issue #1 with the optimization
+work in [TG #37](https://github.com/brooteskan/TG/issues/37). Query ownership and
+sector preparation/commit lifetime now lead the work. Preparation dependencies,
+source-generation authority and measured sampling/geometry kernels follow.
+LOC targets, net-deletion gates and reduction-ceiling work are retired; this log
+retains historical measurements. Acceptance concerns explicit, characterized
+boundaries that enable safe optimization and measurement. This update changes
+documentation and tracking. The 16,603-line count above is the stable-removal
+checkpoint; the later Editor startup dependency fix is documented in the
+architecture plan's startup/build checkpoint.
