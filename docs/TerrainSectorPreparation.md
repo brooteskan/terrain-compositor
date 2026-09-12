@@ -1,9 +1,17 @@
 # Sector preparation, committed coverage, and validated replacement
 
-Issues #2, #3, and #4 keep `StartAndWaitForCompletion` and the existing
+Issues #2 through #5 keep `StartAndWaitForCompletion` and the existing
 ordinary-query-then-overlay policy. Owned CPU work, opt-in procedural snapshots,
 and one acceptance boundary serve a synchronous batch. These changes make no
 performance improvement claim and do not enable cross-frame scheduling.
+
+Issue #5 places the retained publication/source set, scene channel and tickets in
+the owned request's `TerrainSectorSamplingPlan`. Capture also records both gather
+layouts and the area-existence decision. The worker assesses the complete plan
+before ordinary queries, and preparation consumes those layouts for regular and
+CLOD geometry. Acceptance reads the same plan identities and tickets. The
+[complete sampling contract](TerrainRenderQueries.md#complete-sector-sampling-plan-issue-5)
+defines whole-request eligibility, diagnostics and the remaining proof obligations.
 
 ## Requested placement and committed ownership
 
@@ -135,7 +143,10 @@ values within the batch.
 The area-existence query runs after ticket capture so even an empty-area result
 participates in invalidation.
 
-Worker lambdas capture only the request and owned result storage. `PrepareSector`,
+Worker lambdas capture the shared result storage, which already owns the complete
+request. `CreateSectorPreparationJob` keeps the closure within the pinned engine's
+512-byte `ThreadPoolAllocator` limit, with a compile-time size check and a test
+using the actual pooled job and completion path. `PrepareSector`,
 `GatherMeshData`, `PrepareSectorLodData`, and `PrepareSectorRayTracingData` are
 static functions. They have no manager, sector, scene, or GPU resource pointers.
 Regular and CLOD query plans borrow only storage within their synchronous
@@ -258,6 +269,51 @@ publication mutex stays held for every commit in a batch.
 
 Maintained renderer patches and their normalized output hashes remain the source
 of truth; generated build sources are only verification artifacts.
+
+### Issue #5 verification on 2026-09-11
+
+Based on compositor `e2cceb1bdfcdb0e702d5f944b27860b7e83a566b`, using O3DE
+`061180bf24f1666eb30315b35da292eb14f4659c` and the MSVC profile candidate at
+`D:/TG/TGProject/build/render-query-candidate`.
+
+- **364 runtime and 46 editor tests passed**, with two existing optional runtime
+  benchmarks disabled. Eleven new tests cover complete regular/CLOD halo ownership,
+  inclusive edges, split owners, unsupported contracts/layouts/samplers/counts,
+  scalar providers, masks, disappearance, stale identity/tickets, independent
+  policy/readiness, source-versus-composition proof, production callback order,
+  and allocation/execution of the complete request through the actual job pool.
+- Existing differential tests passed for clamped heights, existence, packed
+  vertices/normals, CLOD fallback/interpolation, RT positions/normals and bounds,
+  with retained/live sources, all three samplers and scalar/batch execution.
+- **142,560 D3D11 hardware boundary classifications matched**, with zero mismatches.
+- Maintained override generation, repeat generation without rewriting unchanged
+  output, and incorrect input/output hash rejection passed. Generated manager
+  SHA-256 values are `bcdf0ac4bbe1e416c21002b6f5ec98e0588adb8c094696bdd899c666af94819b`
+  (CPP) and `277fa11b87351cd91cd6661aacdfef8b70acbc2c5faf1e67beebd8b45b9abffd`
+  (header).
+- The final Editor opened DefaultLevel, confirmed all seven camera positions,
+  crossed signed boundaries, teleported and returned, captured a rendered frame,
+  and exited with code **0**. Its 2,551 complete-plan records retain ordinary
+  queries and synchronous scheduling. Fully owned built-in requests report the
+  unproven equivalence mask `0x7800` and cross-frame mask `0x447800`, including
+  the independent area/query-service lifetime blockers.
+- All **62 authored-file hashes** matched before and after verification. Batching
+  and RT remained enabled; optional timing was restored to false. TG stayed at
+  `71dabdb9fddc20936660c8f0b84df3e22495e385`; its compositor pin was not changed.
+  Temporary integration inputs were backed up and restored. The separate
+  `build/windows` reference output was preserved. Standard target builds used
+  existing engine dependencies (`BuildProjectReferences=false`), not a clean
+  build of the entire engine.
+
+The compiled-source digest is
+`a624d5cae8a9a61e3c6b7a60c2822f8e7b32076128bda2f190cb1d53683a968f`.
+The Editor retained the existing audio, console-range, missing macro/icon and
+DynamicDrawContext shutdown warning categories; no final terrain error or
+assertion failure was reported.
+
+Raw XML, build logs, override checks and verification manifests are retained under
+`build/sector-sampling-session`. These are correctness/readiness checks, not
+camera-flight performance measurements or evidence of query elimination.
 
 ### Issue #4 verification on 2026-09-11
 

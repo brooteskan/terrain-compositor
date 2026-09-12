@@ -329,6 +329,27 @@ namespace TerrainCompositor
         }
     }
 
+    TEST(TerrainProceduralSnapshotTests, NormalizedSourceCannotDeclareFinalCompositionEquivalence)
+    {
+        SnapshotTestSupport::Composition scene;
+        auto source = std::make_shared<TerrainProceduralSnapshot>(*Acquire(scene.m_sourceId));
+        source->m_height.m_ordinaryEquivalence = source->m_existence.m_ordinaryEquivalence = { true, true, true, true, true, true };
+        scene.StopSource();
+        SnapshotMasks::Provider provider(scene.m_sourceId, true);
+        provider.m_snapshot = source;
+        const auto sources = scene.Capture();
+        ASSERT_TRUE(sources->m_queries.front().m_proceduralSnapshot);
+        for (const auto& channel : { sources->m_queries.front().m_capability.m_height, sources->m_queries.front().m_capability.m_existence })
+        {
+            EXPECT_FALSE(channel.m_ordinaryEquivalence.m_coordinates);
+            EXPECT_FALSE(channel.m_ordinaryEquivalence.m_exact);
+            EXPECT_FALSE(channel.m_ordinaryEquivalence.m_clamp);
+            EXPECT_FALSE(channel.m_ordinaryEquivalence.m_bilinear);
+            EXPECT_FALSE(channel.m_ordinaryEquivalence.m_renderValue);
+            EXPECT_FALSE(channel.m_ordinaryEquivalence.m_collisionFallback);
+        }
+    }
+
     TEST(TerrainProceduralSnapshotTests, InvalidOutputSpansAndMismatchedPublicationCannotExecuteRetainedSource)
     {
         SnapshotTestSupport::Composition scene;

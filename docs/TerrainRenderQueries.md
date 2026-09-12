@@ -6,6 +6,76 @@ explicit. Issue #3 adds opt-in immutable procedural-source acquisition to the
 issue #2 ownership boundary. It does not eliminate ordinary queries or change
 synchronous sector scheduling, and makes no frame-time improvement claim.
 
+## Complete sector sampling plan (issue #5)
+
+Production capture and preparation consume `TerrainSectorSamplingPlan`. It owns
+the existing publication, source set, scene channel and invalidation tickets,
+alongside regular/CLOD layouts and the captured area-existence decision. Source
+entity/session/generation and composition identity remain in the retained source
+set; no second procedural value cache is introduced.
+
+The worker assesses both potential gathers before sampling. Each layout declares
+height **and** existence, row-major XY construction, sampler, dimensions, spacing
+and remapping, including every normal-halo row, column and corner at that gather's
+own spacing. Corners participate in the existing any-terrain decision. CLOD is
+conditional on regular data during execution, but always participates in complete
+eligibility when configured. RT decodes packed regular vertices without additional
+source samples. Captured empty areas retain the full ownership assessment.
+
+Planning uses inclusive first-match ownership for every required position.
+Scalar mode assesses one explicit position per callback; batch mode preserves
+the complete grid and contiguous ownership runs. Planning never acquires, probes
+or samples a provider. Temporary planning positions are discarded; execution
+still uses the ordinary callbacks' actual coordinates and Z and resolves those
+positions before overlay. Callback order, sizes, scalar/batch dispatch and source
+call counts therefore keep their existing meaning.
+
+`CanAvoidOrdinaryResults()` and `CanExecuteAcrossFrames()` describe whole-request
+eligibility, separately from the preserved `OrdinaryThenOverlay` and
+`Synchronous` execution policies. `TerrainRenderQueryPlan` still requires ordinary
+results. Partial height/existence ownership never becomes whole-sector eligibility.
+
+### Proofs required before changing policy
+
+Direct-XY sampler support does not establish TerrainSystem equivalence. The
+separate per-channel `TerrainRenderOrdinaryEquivalence` defaults to no proof.
+A future ordinary-query elimination path must prove:
+
+- Identical coordinates, including grid construction and float rounding, and
+  equivalent interpolation/clamping for each opted-in sampler.
+- Identical final rendered heights/existence after composition, world-height
+  clamping, image holes and unavailable-provider behavior.
+- Equivalent collision-only fallback semantics, including ordinary surface Z
+  consumed by external existence masks. Independent height alone is insufficient.
+- Complete regular/CLOD and normal-halo coverage, preserving packed vertices,
+  slopes, CLOD hole fallback, RT decode and bounds.
+
+Production adapters declare none of these equivalence proofs. The composition
+adapter clears any such declaration from a normalized procedural source, which
+cannot certify final composed output. Legacy, unsupported sampler/grid/count,
+unknown/live/unavailable sources, Z dependence, unowned points and split owners
+all retain explicit fallback reasons. Configured masks also report `ExternalMask`.
+
+Across-frame eligibility additionally requires retained area-decision and ordinary
+query-service lifetimes. The enabled path still calls ordinary `QueryRegion`;
+equivalent retained overlays do not retain that live service.
+The current `TerrainAreaExistsInBounds` result has captured invalidation tickets,
+but no promise to retain its external providers across frames. Even fully proven
+synthetic gathers therefore remain ineligible with the current area contract.
+Assessment reports missing/stale tickets, source-set/publication mismatch and
+retired/replaced scenes without recapturing tickets. This is an observation, not
+an admission lease: acceptance still revalidates under publication/dependency
+locks and rejects changes during or after preparation. Deferred execution also
+needs admission, cancellation, memory/fairness budgets and coverage policy.
+
+Result-owned `TerrainSectorSampling` diagnostics report total required samples,
+conditional CLOD samples, both-owned samples, complete eligibility and separate
+ordinary/across-frame fallback masks. Reason bits follow `TerrainRenderFallback`
+order; `PreservedPolicy` is excluded from eligibility. Existing executed-query
+counters retain their meaning; there is no per-sample logging. This additional
+planning is architectural work, not measured query elimination or a camera-flight
+speedup. Performance acceptance remains TG #37.
+
 ## Request and ownership
 
 A request describes world XY positions with **ordinary terrain surface Z**, the

@@ -41,6 +41,7 @@ set(FILES
     Code/Include/TerrainCompositor/TerrainMeshCutoutRegistration.h
     Code/Include/TerrainCompositor/TerrainMeshCutoutRenderRegistry.h
     Code/Include/TerrainCompositor/TerrainRenderQuery.h
+    Code/Include/TerrainCompositor/TerrainSectorSampling.h
     Code/Include/TerrainCompositor/TerrainProceduralSnapshot.h
     Code/Include/TerrainCompositor/TerrainMeshCutoutSampling.h
     Code/Include/TerrainCompositor/TerrainMeshHeightData.h

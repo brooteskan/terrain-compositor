@@ -1,4 +1,6 @@
 #include <AzTest/AzTest.h>
+#include <AzCore/Jobs/JobCompletion.h>
+#include <AzCore/Jobs/JobManager.h>
 #include <Atom/RHI/RHISystem.h>
 #include <Atom/RPI.Public/Shader/ShaderSystemInterface.h>
 #include <TerrainRenderer/TerrainMeshManager.h>
@@ -34,6 +36,8 @@ namespace Terrain
         void CheckProceduralSnapshotChangeDuringOrdinarySamplingRejectsResults();
         void CheckProceduralSnapshotPublicationReplacementRejectsResults();
         void CheckAcquisitionCannotRefreshAnOldSourceGenerationTicket();
+        void CheckCompletePlanPreservesGatherCoordinatesAndCallbackOrder();
+        void CheckPooledJobOwnsCompletePlanWithoutCapturingItsStorage();
 
         void CheckRequestedPlacementNeverRelabelsCommittedGeometry();
         void CheckFineCoarseGroupCannotCommitPartially();
@@ -226,7 +230,7 @@ namespace Terrain
         SupplyTerrain(terrain);
         const auto populated = Empty(0);
         auto emptyRequest = Capture(1);
-        emptyRequest.m_hasTerrain = false;
+        emptyRequest.m_samplingPlan.m_area.m_exists = false;
         const auto empty = std::make_shared<Result>(Manager::PrepareSector(AZStd::move(emptyRequest)));
         ASSERT_EQ(populated->m_status, Status::Ready);
         ASSERT_EQ(empty->m_status, Status::Empty);
@@ -234,7 +238,7 @@ namespace Terrain
         EXPECT_FALSE(Accept({ populated, empty }));
         EXPECT_EQ(m_commits, 0);
         auto replacementRequest = Capture(1);
-        replacementRequest.m_hasTerrain = false;
+        replacementRequest.m_samplingPlan.m_area.m_exists = false;
         const auto replacement = std::make_shared<Result>(Manager::PrepareSector(AZStd::move(replacementRequest)));
         EXPECT_TRUE(Accept({ populated, replacement }));
         EXPECT_EQ(m_commits, 2);
@@ -244,7 +248,7 @@ namespace Terrain
     void TerrainSectorLifetimeTests::CheckFailedOrCancelledQueriesNeverReachCommit()
     {
         auto request = Capture();
-        request.m_hasTerrain = true; // Ordinary handler disappears after area admission.
+        request.m_samplingPlan.m_area.m_exists = true; // Ordinary handler disappears after area admission.
         auto failed = std::make_shared<Result>(Manager::PrepareSector(request));
         EXPECT_EQ(failed->m_status, Status::Failed);
         EXPECT_FALSE(Accept({ failed }));
@@ -448,14 +452,16 @@ namespace Terrain
                 settings->m_batchQueries = batch;
                 request.m_data.m_settings = settings;
                 request.m_data.m_samplerType = sampler;
-                const auto captured = request.m_data.m_renderSources;
+                request.m_samplingPlan.m_batchQueries = batch;
+                request.m_samplingPlan.m_regular.m_sampler = request.m_samplingPlan.m_clod.m_sampler = sampler;
+                const auto captured = request.m_samplingPlan.m_sources;
                 ASSERT_TRUE(captured && captured->m_queries.front().m_proceduralSnapshot);
                 auto legacy = std::make_shared<TerrainCompositor::TerrainRenderQuerySources>();
-                legacy->m_publication = request.m_data.m_renderSnapshot;
+                legacy->m_publication = request.m_samplingPlan.m_publication;
                 legacy->m_queries = legacy->m_publication->m_renderGeometryQueries;
-                request.m_data.m_renderSources = legacy;
+                request.m_samplingPlan.m_sources = legacy;
                 const auto expected = Manager::PrepareSector(request);
-                request.m_data.m_renderSources = captured;
+                request.m_samplingPlan.m_sources = captured;
                 const auto actual = std::make_shared<Result>(Manager::PrepareSector(request));
                 ASSERT_EQ(actual->m_status, Status::Ready);
                 EXPECT_EQ(actual->m_status, expected.m_status);
@@ -477,6 +483,11 @@ namespace Terrain
                     EXPECT_FLOAT_EQ(actual->m_rtNormals[i].z, expected.m_rtNormals[i].z);
                 }
                 EXPECT_EQ(actual->m_queryStatistics->m_ordinarySamples, 41);
+                EXPECT_EQ(actual->m_queryStatistics->m_requiredSectorSamples, 41);
+                EXPECT_EQ(actual->m_queryStatistics->m_requiredClodSamples, 16);
+                EXPECT_EQ(actual->m_queryStatistics->m_sectorBothOwned, 41);
+                EXPECT_FALSE(actual->m_queryStatistics->m_sectorAvoidOrdinaryEligible);
+                EXPECT_FALSE(actual->m_queryStatistics->m_sectorAcrossFramesEligible);
                 EXPECT_EQ(actual->m_queryStatistics->m_heightSnapshotSamples, 41);
                 EXPECT_EQ(actual->m_queryStatistics->m_existenceSnapshotSamples, 41);
                 EXPECT_EQ(actual->m_queryStatistics->m_sources.size(), 1); // Captured once across both halos.
@@ -491,13 +502,15 @@ namespace Terrain
         TerrainCompositor::SnapshotTestSupport::Composition scene;
         m_channel = scene.Channel();
         auto request = Capture();
-        const auto publication = request.m_data.m_renderSnapshot;
-        const auto snapshot = request.m_data.m_renderSources->m_queries.front().m_proceduralSnapshot;
+        const auto publication = request.m_samplingPlan.m_publication;
+        const auto snapshot = request.m_samplingPlan.m_sources->m_queries.front().m_proceduralSnapshot;
         const auto before = Manager::PrepareSector(request);
         scene.m_config.m_amplitudeMeters = 0.0f;
         scene.m_source->ReadInConfig(&scene.m_config);
         EXPECT_EQ(scene.Publication(), publication); // No deferred composition republish is needed for rejection.
         auto after = std::make_shared<Result>(Manager::PrepareSector(request));
+        EXPECT_NE(after->m_queryStatistics->m_sectorOrdinaryFallbacks &
+            TerrainCompositor::TerrainRenderFallbackBit(TerrainCompositor::TerrainRenderFallback::StaleDependency), 0);
         ASSERT_EQ(after->m_heights.size(), before.m_heights.size());
         for (size_t i = 0; i < after->m_heights.size(); ++i) EXPECT_EQ(after->m_heights[i].m_height, before.m_heights[i].m_height);
         EXPECT_FALSE(Accept({ after }));
@@ -508,6 +521,8 @@ namespace Terrain
         auto destroyed = Capture();
         scene.m_source.reset(); // Destruction also retires the provider without an explicit Deactivate.
         auto oldOutput = std::make_shared<Result>(Manager::PrepareSector(destroyed));
+        EXPECT_NE(oldOutput->m_queryStatistics->m_sectorOrdinaryFallbacks &
+            TerrainCompositor::TerrainRenderFallbackBit(TerrainCompositor::TerrainRenderFallback::StaleDependency), 0);
         EXPECT_EQ(oldOutput->m_status, Status::Ready);
         EXPECT_FALSE(Accept({ oldOutput }));
         scene.StartSource();
@@ -712,7 +727,7 @@ namespace Terrain
         EXPECT_EQ(fine.m_state, Manager::SectorState::Failed);
         check(0xf,1);
         fineRequest = Capture();
-        fineRequest.m_hasTerrain = false;
+        fineRequest.m_samplingPlan.m_area.m_exists = false;
         auto empty = std::make_shared<Result>(Manager::PrepareSector(fineRequest));
         ASSERT_TRUE(Accept({empty}));
         EXPECT_TRUE(fine.m_committed.m_valid);
@@ -724,7 +739,7 @@ namespace Terrain
         ASSERT_TRUE(Accept({std::make_shared<Result>(Manager::PrepareSector(fineRequest))}));
         check(0x7,2);
         auto replacementEmpty = Capture();
-        replacementEmpty.m_hasTerrain = false;
+        replacementEmpty.m_samplingPlan.m_area.m_exists = false;
         ASSERT_TRUE(Accept({std::make_shared<Result>(Manager::PrepareSector(replacementEmpty))}));
         check(0x7,1);
     }
@@ -743,7 +758,7 @@ namespace Terrain
             m_manager->CaptureSectorRequest(2,0,m_manager->CapturePreparationSettings(),{},false,{})));
         ASSERT_TRUE(Accept({coarseResult}));
         auto emptyRequest = Capture();
-        emptyRequest.m_hasTerrain = false;
+        emptyRequest.m_samplingPlan.m_area.m_exists = false;
         ASSERT_TRUE(Accept({std::make_shared<Result>(Manager::PrepareSector(emptyRequest))}));
         auto coverage = m_manager->SelectSectorCoverage();
         ASSERT_EQ(coverage.size(),1);
@@ -799,7 +814,7 @@ namespace Terrain
             m_channel->m_snapshot.store(snapshot);
             ASSERT_TRUE(Accept({Empty()}));
             auto emptyRequest = Capture(1);
-            emptyRequest.m_hasTerrain = false;
+            emptyRequest.m_samplingPlan.m_area.m_exists = false;
             ASSERT_TRUE(Accept({std::make_shared<Result>(Manager::PrepareSector(emptyRequest))}));
             auto populated = Empty();
             auto empty = Empty(1);
@@ -886,7 +901,7 @@ namespace Terrain
         m_manager->UpdateCandidateSectors();
         EXPECT_FALSE(Accept({delayed})); // Duplicate completion cannot remove or re-add anything.
         auto emptyRequest = Capture();
-        emptyRequest.m_hasTerrain = false;
+        emptyRequest.m_samplingPlan.m_area.m_exists = false;
         EXPECT_CALL(rayTracing, RemoveMesh(id));
         ASSERT_TRUE(Accept({std::make_shared<Result>(Manager::PrepareSector(emptyRequest))}));
         EXPECT_TRUE(m_manager->m_rayTracedItems.empty());
@@ -896,6 +911,111 @@ namespace Terrain
         m_manager->m_rayTracingFeatureProcessor = nullptr;
     }
 
+    void TerrainSectorLifetimeTests::CheckCompletePlanPreservesGatherCoordinatesAndCallbackOrder()
+    {
+        using namespace TerrainCompositor;
+        ::testing::NiceMock<UnitTest::MockTerrainDataRequests> terrain;
+        for (bool batch : { false, true })
+        {
+            AZStd::vector<size_t> events;
+            auto snapshot = std::make_shared<TerrainMeshCutoutRenderSnapshot>();
+            TerrainRenderGeometryQuery query;
+            query.m_regionBounds = AZ::Aabb::CreateFromMinMax(AZ::Vector3(-100), AZ::Vector3(100));
+            query.m_getTerrainExists = [&](const auto& p) { events.push_back(2); EXPECT_FLOAT_EQ(p.GetZ(), -999); return true; };
+            query.m_getHeight = [&](const auto& p) { events.push_back(3); EXPECT_FLOAT_EQ(p.GetZ(), -999); return 3.0f; };
+            query.m_getGeometry = [&](auto positions, auto heights, auto exists)
+            {
+                events.push_back(100 + positions.size());
+                for (size_t i = 0; i < positions.size(); ++i)
+                {
+                    EXPECT_FLOAT_EQ(positions[i].GetZ(), -999);
+                    heights[i] = 3;
+                    exists[i] = true;
+                }
+            };
+            query.m_acquireSources = [&]()
+            {
+                events.push_back(0);
+                return std::make_shared<const TerrainRenderGeometryQuery>(query);
+            };
+            snapshot->m_renderGeometryQueries.push_back(query);
+            m_channel = std::make_shared<TerrainMeshCutoutRenderChannel>();
+            m_channel->m_snapshot.store(snapshot);
+            ON_CALL(terrain, TerrainAreaExistsInBounds).WillByDefault([&](const auto&) { events.push_back(1); return true; });
+            auto settings = std::make_shared<Manager::SectorPreparationSettings>(*m_manager->CapturePreparationSettings());
+            settings->m_batchQueries = batch;
+            auto request = m_manager->CaptureSectorRequest(0, 0, settings, m_channel, true, snapshot);
+            EXPECT_EQ(events, (AZStd::vector<size_t>{0,1})); // Acquisition and area capture only.
+            size_t gathers = 0;
+            ON_CALL(terrain, QueryRegion).WillByDefault([&](const auto& region, auto mask, auto callback, auto sampler)
+            {
+                const auto& layout = gathers++ ? request.m_samplingPlan.m_clod : request.m_samplingPlan.m_regular;
+                EXPECT_EQ(region.m_startPoint.GetX(), layout.QueryStart().GetX());
+                EXPECT_EQ(region.m_startPoint.GetY(), layout.QueryStart().GetY());
+                EXPECT_EQ(region.m_stepSize, AZ::Vector2(layout.m_spacing));
+                EXPECT_EQ(region.m_numPointsX, layout.Width());
+                EXPECT_EQ(region.m_numPointsY, layout.Height());
+                EXPECT_EQ(sampler, layout.m_sampler);
+                EXPECT_EQ(mask, Requests::TerrainDataMask::Heights);
+                events.push_back(10 + layout.Count());
+                for (size_t y = 0; y < layout.Height(); ++y)
+                    for (size_t x = 0; x < layout.Width(); ++x)
+                    {
+                        AzFramework::SurfaceData::SurfacePoint point;
+                        point.m_position = layout.Position(x,y);
+                        point.m_position.SetZ(-999); // Ordinary collision-only fallback reaches retained callbacks unchanged.
+                        callback(x, y, point, false);
+                    }
+            });
+            const auto result = Manager::PrepareSector(request);
+            EXPECT_EQ(result.m_status, Status::Ready);
+            EXPECT_EQ(gathers, 2);
+            AZStd::vector<size_t> expected{0,1};
+            for (size_t count : {25,16})
+            {
+                expected.push_back(10 + count);
+                if (batch) expected.push_back(100 + count);
+                else for (size_t i = 0; i < count; ++i) { expected.push_back(2); expected.push_back(3); }
+            }
+            EXPECT_EQ(events, expected);
+            EXPECT_EQ(result.m_queryStatistics->m_requiredSectorSamples, 41);
+            EXPECT_EQ(result.m_queryStatistics->m_ordinarySamples, 41);
+            EXPECT_EQ(result.m_queryStatistics->m_scalarCallbacks, batch ? 0 : 82);
+            EXPECT_EQ(result.m_queryStatistics->m_batchCallbacks, batch ? 2 : 0);
+        }
+    }
+
+    void TerrainSectorLifetimeTests::CheckPooledJobOwnsCompletePlanWithoutCapturingItsStorage()
+    {
+        ::testing::NiceMock<UnitTest::MockTerrainDataRequests> terrain;
+        SupplyTerrain(terrain);
+        TerrainCompositor::SnapshotTestSupport::Composition scene;
+        m_channel = scene.Channel();
+        auto result = std::make_shared<Result>();
+        result->m_request = Capture();
+        AZ::JobManagerDesc descriptor;
+        descriptor.m_workerThreads.emplace_back();
+        AZ::JobManager manager(descriptor);
+        AZ::JobContext context(manager);
+        AZ::JobCompletion completion(&context);
+        auto* job = Manager::CreateSectorPreparationJob(result, &context);
+        ASSERT_NE(job, nullptr); // Actual pool allocation, not just direct PrepareSector calls.
+        m_manager.reset(); // The job owns the plan and cannot refer to the renderer.
+        job->SetDependent(&completion);
+        job->Start();
+        completion.StartAndWaitForCompletion();
+        ASSERT_EQ(result->m_status, Status::Ready);
+        EXPECT_TRUE(result->m_request.m_samplingPlan.m_assessed);
+        EXPECT_EQ(result->m_queryStatistics->m_requiredSectorSamples, 41);
+        EXPECT_EQ(result->m_queryStatistics->m_ordinarySamples, 41);
+        EXPECT_EQ(result->m_heights.size(), 9);
+        EXPECT_EQ(result->m_lodHeights.size(), 9);
+    }
+
+    TEST_F(TerrainSectorLifetimeTests, PooledJobOwnsCompletePlanWithoutCapturingItsStorage)
+    { CheckPooledJobOwnsCompletePlanWithoutCapturingItsStorage(); }
+    TEST_F(TerrainSectorLifetimeTests, CompletePlanPreservesGatherCoordinatesAndCallbackOrder)
+    { CheckCompletePlanPreservesGatherCoordinatesAndCallbackOrder(); }
     TEST_F(TerrainSectorLifetimeTests, RayTracingUsesCommittedPlacementAndWithdrawsEmptyReplacement)
     { CheckRayTracingUsesCommittedPlacementAndWithdrawsEmptyReplacement(); }
     TEST_F(TerrainSectorLifetimeTests, RequestedPlacementNeverRelabelsCommittedGeometry) { CheckRequestedPlacementNeverRelabelsCommittedGeometry(); }

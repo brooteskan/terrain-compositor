@@ -50,12 +50,26 @@ namespace TerrainCompositor
     enum class TerrainRenderFallback : size_t
     {
         UnownedHeight, UnownedExistence, SplitOwners, LegacyContract, UnsupportedRequest,
-        UnknownSource, LiveSource, UnavailableSource, InputZ, OrdinaryDependency, PreservedPolicy, Count
+        UnknownSource, LiveSource, UnavailableSource, InputZ, OrdinaryDependency, PreservedPolicy,
+        CoordinatesUnproven, SamplerEquivalenceUnproven, RenderValueUnproven, CollisionFallbackUnproven,
+        ExternalMask, InvalidLayout, AreaDecisionMissing, AreaLifetimeUnproven,
+        MissingInvalidation, StalePublication, StaleDependency, OrdinaryQueryLifetimeUnproven, Count
     };
     constexpr AZ::u32 TerrainRenderFallbackBit(TerrainRenderFallback reason)
     {
         return AZ::u32{1} << static_cast<size_t>(reason);
     }
+
+    //! Separate from direct-XY sampler support. Opting in requires differential
+    //! proof against ordinary-query-then-overlay for this channel, including holes,
+    //! clamping and collision-only fallback. No current adapter declares this proof.
+    struct TerrainRenderOrdinaryEquivalence
+    {
+        bool m_coordinates = false;
+        bool m_exact = false, m_clamp = false, m_bilinear = false;
+        bool m_renderValue = false;
+        bool m_collisionFallback = false;
+    };
 
     struct TerrainRenderChannelCapability
     {
@@ -64,6 +78,7 @@ namespace TerrainCompositor
         bool m_requiresOrdinaryResult = true;
         AZ::EntityId m_sourceEntityId{}; //!< Informational identity; never a source-lifetime lease.
         TerrainRenderChannelSampling m_sampling;
+        TerrainRenderOrdinaryEquivalence m_ordinaryEquivalence;
     };
 
     //! Guarantees for the ownership decision, never an availability probe or a
@@ -124,6 +139,10 @@ namespace TerrainCompositor
         };
         AZStd::vector<SourceProvenance> m_sources;
         AZStd::array<size_t, static_cast<size_t>(TerrainRenderFallback::Count)> m_fallbackSamples{};
+        // Complete-request assessment, distinct from executed/partially owned samples.
+        size_t m_requiredSectorSamples = 0, m_requiredClodSamples = 0, m_sectorBothOwned = 0;
+        bool m_sectorAvoidOrdinaryEligible = false, m_sectorAcrossFramesEligible = false;
+        AZ::u32 m_sectorOrdinaryFallbacks = 0, m_sectorAcrossFramesFallbacks = 0;
         double m_resolutionMicroseconds = 0, m_executionMicroseconds = 0, m_preparationMicroseconds = 0;
     };
 

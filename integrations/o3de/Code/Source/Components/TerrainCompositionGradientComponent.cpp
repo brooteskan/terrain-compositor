@@ -1037,6 +1037,11 @@ namespace TerrainCompositor
             if (source->m_heightResult == TerrainSourceAcquisition::Acquired) query.m_capability.m_height = source->m_height;
             if (source->m_existenceResult == TerrainSourceAcquisition::Acquired) query.m_capability.m_existence = source->m_existence;
         }
+        // A normalized procedural-source promise is not a proof for the final
+        // composed/rendered channel or TerrainSystem's ordinary sampler. Stamps,
+        // image holes and collision-only fallback require a composition-level proof.
+        query.m_capability.m_height.m_ordinaryEquivalence = {};
+        query.m_capability.m_existence.m_ordinaryEquivalence = {};
         if (acquisition == TerrainSourceAcquisition::NotRequested)
         {
             query.m_acquireSources = [state, validSourceIdentity]()
