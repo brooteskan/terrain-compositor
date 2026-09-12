@@ -129,4 +129,53 @@ namespace TerrainCompositor
         EXPECT_EQ(selection.m_draws[0].m_claim, 0);
         EXPECT_EQ(selection.m_draws[0].m_quadrants, 0xf);
     }
+    TEST(TerrainSectorSchedulingTests, ReusedAdmissionKeepsExactTicketsAndRevalidatesEveryTime)
+    {
+        auto dependency = std::make_shared<TerrainPreparationDependency>();
+        auto other = std::make_shared<TerrainPreparationDependency>();
+        AZStd::vector<TerrainPreparationDependencyTicket> tickets{
+            { dependency, dependency->Capture() }, { other, other->Capture() }, { dependency, dependency->Capture() } };
+        const auto set = std::make_shared<const TerrainPreparationDependencySet>(tickets);
+        TerrainPreparationAdmissionScratch scratch;
+        EXPECT_TRUE(TerrainPreparationAdmission(set, scratch).IsValid());
+        EXPECT_TRUE(TerrainPreparationAdmission(set, scratch).IsValid());
+        dependency->Invalidate();
+        EXPECT_FALSE(TerrainPreparationAdmission(set, scratch).IsValid());
+        tickets[0].m_revision = dependency->Capture();
+        EXPECT_FALSE(set->Matches(tickets));
+        // Conflicting duplicate tickets must not collapse into the newer revision.
+        EXPECT_FALSE(TerrainPreparationAdmission(std::make_shared<const TerrainPreparationDependencySet>(tickets), scratch).IsValid());
+        tickets[2].m_revision = tickets[0].m_revision;
+        const auto current = std::make_shared<const TerrainPreparationDependencySet>(tickets);
+        EXPECT_TRUE(TerrainPreparationAdmission(current, scratch).IsValid());
+        other->Retire();
+        EXPECT_FALSE(TerrainPreparationAdmission(current, scratch).IsValid());
+    }
+
+    TEST(TerrainSectorSchedulingTests, AdmissionScratchReleasesLocksAndDoesNotRetainDependencies)
+    {
+        TerrainPreparationAdmissionScratch scratch;
+        std::weak_ptr<TerrainPreparationDependency> weak;
+        {
+            auto dependency = std::make_shared<TerrainPreparationDependency>();
+            weak = dependency;
+            auto set = std::make_shared<const TerrainPreparationDependencySet>(
+                AZStd::vector<TerrainPreparationDependencyTicket>{ { dependency, dependency->Capture() } });
+            {
+                TerrainPreparationAdmission admission(set, scratch);
+                set.reset();
+                dependency.reset();
+                EXPECT_TRUE(admission.IsValid());
+                EXPECT_FALSE(weak.expired());
+            }
+            EXPECT_TRUE(weak.expired());
+        }
+        EXPECT_FALSE(TerrainPreparationAdmission(nullptr, scratch).IsValid());
+        EXPECT_FALSE(TerrainPreparationAdmission(std::make_shared<const TerrainPreparationDependencySet>(
+            AZStd::vector<TerrainPreparationDependencyTicket>{ {} }), scratch).IsValid());
+        auto next = std::make_shared<TerrainPreparationDependency>();
+        EXPECT_TRUE(TerrainPreparationAdmission(std::make_shared<const TerrainPreparationDependencySet>(
+            AZStd::vector<TerrainPreparationDependencyTicket>{ { next, 0 } }), scratch).IsValid());
+        next->Invalidate(); // Scratch holds no locks after admission ends.
+    }
 }

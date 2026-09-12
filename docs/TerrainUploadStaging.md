@@ -76,3 +76,7 @@ Matched performance results and remaining control-thread work are recorded in
 TG's `Gem/Docs/TerrainUploadStagingProfiling.md`. Local builds, manifests, test
 logs and flight configurations are under `build/windows/terrain-control`; raw
 captures are under `user/TerrainFlightProfiling`.
+
+The subsequent [control-storage change](TerrainControlStorage.md) reuses
+dependency metadata and lock storage while preserving coverage and publication
+checks. It also separates material, SRG, draw and capture timing.

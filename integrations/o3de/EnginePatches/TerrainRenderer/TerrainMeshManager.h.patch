@@ -86,7 +86,7 @@
 +            float m_heightOrigin = 0.0f;
 +            TerrainCompositor::TerrainMeshCutoutRenderChannelPtr m_channel;
 +            TerrainCompositor::TerrainMeshCutoutRenderSnapshotPtr m_publication;
-+            AZStd::vector<TerrainCompositor::TerrainPreparationDependencyTicket> m_dependencies;
++            std::shared_ptr<const TerrainCompositor::TerrainPreparationDependencySet> m_dependencies;
 +            bool m_valid = false; // Includes authoritative empty terrain.
  
              // When drawing, either the m_rhiDrawPacket will be used, or some number of the m_rhiDrawPacketQuadrants
@@ -401,7 +401,7 @@
  
          MaterialInstance m_materialInstance;
          AZStd::vector<CachedDrawData> m_cachedDrawData; // Holds common parts of draw packets
-@@ -318,6 +565,10 @@
+@@ -318,6 +565,11 @@
          AZ::Data::Instance<AZ::RPI::Buffer> m_dummyLodHeightsNormalsBuffer;
          AZ::RHI::IndexBufferView m_indexBufferView;
  
@@ -409,10 +409,11 @@
 +        // this invalidation authority; it never owns or points back to the manager.
 +        std::shared_ptr<TerrainCompositor::TerrainPreparationDependency> m_preparationLifetime =
 +            std::make_shared<TerrainCompositor::TerrainPreparationDependency>();
++        TerrainCompositor::TerrainPreparationAdmissionScratch m_coverageAdmissionScratch;
          AZStd::vector<SectorLodGrid> m_sectorLods;
          AZStd::vector<CandidateSector> m_candidateSectors;
          AZStd::vector<Sector*> m_sectorsThatNeedSrgCompiled;
-@@ -352,6 +603,6 @@
+@@ -352,6 +604,6 @@
          AZ::RHI::Handle<uint32_t> m_meshMovedFlag;
  
          // Cached MeshFeatureProcessor

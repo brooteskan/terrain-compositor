@@ -61,6 +61,7 @@ namespace Terrain
         void CheckFailureAndCancellationRetainOnlyValidOldCoverage();
         void CheckPublicationAndSourceRetirementHideCommittedCoverage();
         void CheckCommittedOwnershipDoesNotRetainWorkerStorage();
+        void CheckSharedCoverageMetadataKeepsIndependentInvalidation();
         void CheckRayTracingUsesCommittedPlacementAndWithdrawsEmptyReplacement();
 
         using Manager = TerrainMeshManager;
@@ -1040,6 +1041,37 @@ namespace Terrain
             }
         }
     }
+
+    void TerrainSectorLifetimeTests::CheckSharedCoverageMetadataKeepsIndependentInvalidation()
+    {
+        using Dependency = TerrainCompositor::TerrainPreparationDependency;
+        auto a = Empty(0), b = Empty(1);
+        auto dependency = std::make_shared<Dependency>();
+        a->m_request.m_samplingPlan.m_dependencies.push_back({ dependency, dependency->Capture() });
+        b->m_request.m_samplingPlan.m_dependencies.push_back({ dependency, dependency->Capture() });
+        ASSERT_TRUE(Accept({ a, b }));
+        auto& sectors = m_manager->m_sectorLods[0].m_sectors;
+        EXPECT_EQ(sectors[0].m_committed.m_dependencies, sectors[1].m_committed.m_dependencies);
+        m_manager->RefreshCommittedCoverage();
+        EXPECT_TRUE(sectors[0].m_committed.m_valid);
+        dependency->Invalidate();
+        m_manager->RefreshCommittedCoverage();
+        EXPECT_FALSE(sectors[0].m_committed.m_valid);
+        EXPECT_FALSE(sectors[1].m_committed.m_valid);
+
+        a = Empty(0); b = Empty(1);
+        a->m_request.m_samplingPlan.m_dependencies.push_back({ dependency, dependency->Capture() });
+        ASSERT_TRUE(Accept({ a, b }));
+        EXPECT_NE(sectors[0].m_committed.m_dependencies, sectors[1].m_committed.m_dependencies);
+        m_manager->RefreshCommittedCoverage();
+        dependency->Retire();
+        m_manager->RefreshCommittedCoverage();
+        EXPECT_FALSE(sectors[0].m_committed.m_valid);
+        EXPECT_TRUE(sectors[1].m_committed.m_valid); // No union broadens its dependencies.
+    }
+
+    TEST_F(TerrainSectorLifetimeTests, SharedCoverageMetadataKeepsIndependentInvalidation)
+    { CheckSharedCoverageMetadataKeepsIndependentInvalidation(); }
 
     void TerrainSectorLifetimeTests::CheckCommittedOwnershipDoesNotRetainWorkerStorage()
     {

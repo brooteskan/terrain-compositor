@@ -45,6 +45,49 @@ namespace TerrainCompositor
         AZ::u64 m_revision = 0;
     };
 
+    //! Immutable lock order and exact tickets. Preparing metadata never refreshes a
+    //! revision or grants admission. Equal sets may be shared by committed sectors.
+    class TerrainPreparationDependencySet
+    {
+    public:
+        explicit TerrainPreparationDependencySet(const AZStd::vector<TerrainPreparationDependencyTicket>& tickets)
+            : m_tickets(tickets)
+        {
+            for (const auto& ticket : tickets)
+                if (ticket.m_dependency) m_dependencies.push_back(ticket.m_dependency);
+            std::sort(m_dependencies.begin(), m_dependencies.end(), [](const auto& left, const auto& right)
+            {
+                return std::less<TerrainPreparationDependency*>{}(left.get(), right.get());
+            });
+            m_dependencies.erase(std::unique(m_dependencies.begin(), m_dependencies.end()), m_dependencies.end());
+        }
+        const AZStd::vector<TerrainPreparationDependencyTicket>& GetTickets() const { return m_tickets; }
+        size_t GetHeapBytes() const
+        {
+            return m_tickets.capacity() * sizeof(TerrainPreparationDependencyTicket) +
+                m_dependencies.capacity() * sizeof(std::shared_ptr<TerrainPreparationDependency>);
+        }
+        bool Matches(const AZStd::vector<TerrainPreparationDependencyTicket>& tickets) const
+        {
+            return tickets.size() == m_tickets.size() && std::equal(tickets.begin(), tickets.end(), m_tickets.begin(),
+                [](const auto& a, const auto& b) { return a.m_dependency == b.m_dependency && a.m_revision == b.m_revision; });
+        }
+
+    private:
+        friend class TerrainPreparationAdmission;
+        AZStd::vector<TerrainPreparationDependencyTicket> m_tickets;
+        std::vector<std::shared_ptr<TerrainPreparationDependency>> m_dependencies;
+    };
+
+    //! One control owner, never concurrent admissions. Capacity survives;
+    //! no locks, source references or validation results survive an admission.
+    class TerrainPreparationAdmissionScratch
+    {
+    private:
+        friend class TerrainPreparationAdmission;
+        std::vector<std::unique_lock<std::mutex>> m_locks;
+    };
+
     //! Hold through GPU commit. No source callbacks or terrain buses may be invoked
     //! while admitted. Lock order is publication, then unique dependencies by address.
     class TerrainPreparationAdmission
@@ -64,12 +107,34 @@ namespace TerrainCompositor
                 m_valid = m_valid && ticket.m_dependency && ticket.m_dependency->m_active &&
                     ticket.m_dependency->m_revision == ticket.m_revision;
         }
+        TerrainPreparationAdmission(std::shared_ptr<const TerrainPreparationDependencySet> dependencies,
+            TerrainPreparationAdmissionScratch& scratch)
+            : m_prepared(AZStd::move(dependencies)), m_reusedLocks(&scratch.m_locks)
+        {
+            // A nested admission gets private storage; it cannot release the outer locks.
+            if (!m_reusedLocks->empty()) m_reusedLocks = &m_locks;
+            if (!m_prepared) { m_valid = false; return; }
+            m_reusedLocks->reserve(m_prepared->m_dependencies.size());
+            for (const auto& dependency : m_prepared->m_dependencies) m_reusedLocks->emplace_back(dependency->m_mutex);
+            for (const auto& ticket : m_prepared->m_tickets)
+                m_valid = m_valid && ticket.m_dependency && ticket.m_dependency->m_active &&
+                    ticket.m_dependency->m_revision == ticket.m_revision;
+        }
+        ~TerrainPreparationAdmission()
+        {
+            // Release locks before the retained set (and therefore its mutexes).
+            if (m_reusedLocks) m_reusedLocks->clear();
+        }
+        TerrainPreparationAdmission(const TerrainPreparationAdmission&) = delete;
+        TerrainPreparationAdmission& operator=(const TerrainPreparationAdmission&) = delete;
         bool IsValid() const { return m_valid; }
 
     private:
         // Keep the mutexes alive even if the caller passes temporary tickets.
         std::vector<std::shared_ptr<TerrainPreparationDependency>> m_dependencies;
         std::vector<std::unique_lock<std::mutex>> m_locks;
+        std::shared_ptr<const TerrainPreparationDependencySet> m_prepared;
+        std::vector<std::unique_lock<std::mutex>>* m_reusedLocks = nullptr;
         bool m_valid = true;
     };
 }

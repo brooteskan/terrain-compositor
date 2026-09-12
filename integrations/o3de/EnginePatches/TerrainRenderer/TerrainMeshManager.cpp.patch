@@ -23,7 +23,7 @@
  
  #include <Atom/RHI.Reflect/BufferViewDescriptor.h>
  #include <Atom/RHI.Reflect/IndexFormat.h>
-@@ -34,9 +41,45 @@
+@@ -34,9 +41,47 @@
  #include <Atom/Feature/Mesh/MeshFeatureProcessorInterface.h>
  #include <Atom/Feature/Mesh/MeshInfo.h>
  #include <Atom/Feature/RenderCommon.h>
@@ -50,6 +50,8 @@
 +        "Prepare certified retained sector groups ahead of camera boundaries with bounded workers.");
 +    AZ_CVAR(bool, r_terrainStageUploads, true, nullptr, AZ::ConsoleFunctorFlags::Null,
 +        "Stage replacement raster/CLOD/RT buffers before atomic deferred publication.");
++    AZ_CVAR(bool, r_terrainReuseControlStorage, true, nullptr, AZ::ConsoleFunctorFlags::Null,
++        "Reuse immutable dependency lock order and control-thread scratch; validation remains fresh on every call.");
 +    AZ_CVAR(bool, r_terrainSampleReuse, true, nullptr, AZ::ConsoleFunctorFlags::Null,
 +        "Reuse exact regular/CLOD raw samples within certified retained requests.");
 +    AZ_CVAR(
@@ -69,7 +71,7 @@
      namespace
      {
          [[maybe_unused]] static const char* TerrainMeshManagerName = "TerrainMeshManager";
-@@ -67,11 +110,15 @@
+@@ -67,11 +112,15 @@
  
      TerrainMeshManager::~TerrainMeshManager()
      {
@@ -85,7 +87,7 @@
          m_parentScene = &parentScene;
  
          AzFramework::Terrain::TerrainDataNotificationBus::Handler::BusConnect();
-@@ -81,19 +128,26 @@
+@@ -81,19 +130,26 @@
              [this](const AZ::Name&, AZ::RPI::ShaderOptionValue) { m_rebuildDrawPackets = true; }
          };
          AZ::RPI::ShaderSystemInterface::Get()->Connect(m_handleGlobalShaderOptionUpdate);
@@ -114,7 +116,7 @@
          bool requireRebuild = m_config.CheckWouldRequireRebuild(config);
  
          m_config = config;
-@@ -160,15 +214,31 @@
+@@ -160,15 +216,31 @@
  
      void TerrainMeshManager::ClearSectorBuffers()
      {
@@ -146,7 +148,7 @@
          if (m_meshMovedFlag.IsValid())
          {
              m_parentScene->GetViewTagBitRegistry().ReleaseTag(m_meshMovedFlag);
-@@ -188,15 +258,11 @@
+@@ -188,15 +260,11 @@
  
          for (RayTracedItem& item : m_rayTracedItems)
          {
@@ -163,7 +165,7 @@
              }
          }
          m_rayTracedItems.clear();
-@@ -228,76 +294,323 @@
+@@ -228,76 +296,326 @@
          terrainSrg->SetConstant(m_srgMeshDataIndex, meshData);
      }
  
@@ -344,7 +346,10 @@
 +            auto& sampling = result->m_request.m_samplingPlan;
 +            sampling.m_queryPolicy = TerrainCompositor::TerrainSectorQueryPolicy::RetainedOnly;
 +            sampling.m_schedulePolicy = TerrainCompositor::TerrainSectorSchedulePolicy::Deferred;
-+            sampling.Assess();
++            {
++                AZ_PROFILE_SCOPE(AzRender, "Terrain::AssessCapturedSector");
++                sampling.Assess();
++            }
 +            eligible &= sampling.CanExecuteAcrossFrames();
 +            cancellations.push_back(result->m_request.m_cancelled);
 +            pending.push_back(AZStd::move(result));
@@ -553,7 +558,7 @@
      }
  
      AZ::RHI::StreamBufferView TerrainMeshManager::CreateStreamBufferView(AZ::Data::Instance<AZ::RPI::Buffer>& buffer, uint32_t offset)
-@@ -315,15 +628,15 @@
+@@ -315,15 +633,15 @@
      {
          AZ::RHI::DrawPacketBuilder drawPacketBuilder{AZ::RHI::MultiDevice::AllDevices};
          uint32_t indexCount = m_indexBuffer->GetBufferViewDescriptor().m_elementCount;
@@ -574,7 +579,7 @@
  
          for (CachedDrawData& drawData : m_cachedDrawData)
          {
-@@ -332,7 +645,7 @@
+@@ -332,7 +650,7 @@
              AZ::RHI::DrawPacketBuilder::DrawRequest drawRequest;
              drawRequest.m_listTag = drawData.m_drawListTag;
              drawRequest.m_pipelineState = drawData.m_pipelineState;
@@ -583,7 +588,7 @@
              drawRequest.m_stencilRef = AZ::Render::StencilRefs::UseDiffuseGIPass | AZ::Render::StencilRefs::UseIBLSpecularPass;
  
              if (drawData.m_materialPipelineName != AZ::RPI::MaterialPipelineNone)
-@@ -357,13 +670,13 @@
+@@ -357,13 +675,13 @@
              if (drawSrg)
              {
                  drawRequest.m_uniqueShaderResourceGroup = drawSrg->GetRHIShaderResourceGroup();
@@ -599,7 +604,7 @@
  
          // Generate draw packets for each of the quadrants so they can be used to fill in places where the previous LOD didn't draw.
          // Due to z-ordered index buffer, no additional data is needed, just a different index offset and index count. Each quarter of
-@@ -371,12 +684,12 @@
+@@ -371,12 +689,12 @@
          uint32_t lowerLodIndexCount = indexCount / 4;
          for (uint32_t i = 0; i < 4; ++i)
          {
@@ -616,7 +621,7 @@
          }
      }
  
-@@ -386,12 +699,18 @@
+@@ -386,12 +704,18 @@
          // The position for a BLAS supports only R32G32B32_FLOAT or R16G16B16A16_FLOAT, but the normal could be octahedron - encoded with
          // various bit-sizes (N32_OCT, N16_OCT and N8_OCT). Similarily, the Index-Buffer supports 32 and 16 bit indices.
  
@@ -639,7 +644,7 @@
  
          // setup the stream and shader buffer views
          AZ::RHI::Buffer& rhiPositionsBuffer = *rtSector.m_positionsBuffer->GetRHIBuffer();
-@@ -479,7 +798,7 @@
+@@ -479,7 +803,7 @@
  
          const uint8_t lodCount = aznumeric_cast<uint8_t>(AZStd::ceilf(log2f(AZStd::GetMax(1.0f, m_config.m_renderDistance / m_config.m_firstLodDistance)) + 1.0f));
          m_sectorLods.reserve(lodCount);
@@ -648,7 +653,7 @@
          // Create all the sectors with uninitialized SRGs. The SRGs will be updated later by CheckLodGridsForUpdate().
          m_indexBufferView =
          {
-@@ -498,36 +817,36 @@
+@@ -498,36 +822,36 @@
  
              for (Sector& sector : lodGrid.m_sectors)
              {
@@ -697,23 +702,40 @@
                      BuildRtSector(sector, lodLevel);
                  }
              }
-@@ -537,12 +856,13 @@
+@@ -537,14 +861,18 @@
      void TerrainMeshManager::DrawMeshes(const AZ::RPI::FeatureProcessor::RenderPacket& process, const AZ::RPI::ViewPtr mainView)
      {
          AZ::Vector3 mainCameraPosition = mainView->GetCameraTransform().GetTranslation();
 +        RefreshCommittedCoverage();
          CheckLodGridsForUpdate(mainCameraPosition);
  
-         for (Sector* sector : m_sectorsThatNeedSrgCompiled)
-         {
+-        for (Sector* sector : m_sectorsThatNeedSrgCompiled)
+-        {
 -            sector->m_srg->Compile();
 -            sector->m_isQueuedForSrgCompile = false;
-+            sector->m_committed.m_srg->Compile();
-+            sector->m_committed.m_isQueuedForSrgCompile = false;
-         }
-         m_sectorsThatNeedSrgCompiled.clear();
+-        }
+-        m_sectorsThatNeedSrgCompiled.clear();
++        {
++            AZ_PROFILE_SCOPE(AzRender, "Terrain::SectorSrgCompile");
++            for (Sector* sector : m_sectorsThatNeedSrgCompiled)
++            {
++                sector->m_committed.m_srg->Compile();
++                sector->m_committed.m_isQueuedForSrgCompile = false;
++            }
++            m_sectorsThatNeedSrgCompiled.clear();
++        }
  
-@@ -699,6 +1019,11 @@
+         // Only update candidate sectors if the camera has moved. This could probably be relaxed further, but is a good starting point.
+         const float minMovedDistanceSq = m_sampleSpacing * m_sampleSpacing;
+@@ -559,6 +887,7 @@
+             AZ::RPI::AuxGeomFeatureProcessorInterface::GetDrawQueueForScene(m_parentScene) :
+             nullptr;
+ 
++        AZ_PROFILE_SCOPE(AzRender, "Terrain::SubmitDrawPackets");
+         // Compare view frustums against the list of candidate sectors and submit those sectors to draw.
+         for (auto& view : process.m_views)
+         {
+@@ -699,6 +1028,11 @@
      {
          if ((dataChangedMask & (TerrainDataChangedMask::HeightData | TerrainDataChangedMask::Settings)) != TerrainDataChangedMask::None)
          {
@@ -725,7 +747,7 @@
              AzFramework::Terrain::FloatRange heightBounds = AzFramework::Terrain::FloatRange::CreateNull();
              AzFramework::Terrain::TerrainDataRequestBus::BroadcastResult(
                  heightBounds, &AzFramework::Terrain::TerrainDataRequests::GetTerrainHeightBounds);
-@@ -707,32 +1032,10 @@
+@@ -707,32 +1041,10 @@
              AzFramework::Terrain::TerrainDataRequestBus::BroadcastResult(
                  queryResolution, &AzFramework::Terrain::TerrainDataRequests::GetTerrainHeightQueryResolution);
  
@@ -759,7 +781,7 @@
          }
      }
  
-@@ -845,91 +1148,84 @@
+@@ -845,91 +1157,84 @@
          m_dummyLodHeightsNormalsBuffer = CreateMeshBufferInstance(sizeof(HeightNormalVertex), m_gridVerts2D, nullptr);
      }
  
@@ -925,7 +947,7 @@
                  uint16_t lodIndex1 = (yPos / 2) * lodGridVerts1D + (xPos / 2);
                  uint16_t lodIndex2 = lodIndex1;
  
-@@ -944,7 +1240,7 @@
+@@ -944,7 +1249,7 @@
                      lodIndex2 += lodGridVerts1D;
                  }
  
@@ -934,7 +956,7 @@
  
                  if (lodHeightsNormals[lodIndex1].m_height == NoTerrainVertexHeight || lodHeightsNormals[lodIndex2].m_height == NoTerrainVertexHeight)
                  {
-@@ -966,49 +1262,165 @@
+@@ -966,49 +1271,165 @@
              }
          }
  
@@ -1130,7 +1152,7 @@
          const float rcpWorldZ = 1.0f / zExtents;
          const float vertexSpacing2 = request.m_vertexSpacing * 2.0f;
  
-@@ -1030,7 +1442,7 @@
+@@ -1030,7 +1451,7 @@
                  const uint16_t queryCoord = queryY * querySamplesX + queryX;
  
                  uint16_t coord = y * request.m_samplesX + x;
@@ -1139,7 +1161,7 @@
  
                  const float height = heights.at(queryCoord);
                  if (height < 0.0f)
-@@ -1053,7 +1465,7 @@
+@@ -1053,7 +1474,7 @@
                  {
                      minHeight = height;
                  }
@@ -1148,7 +1170,7 @@
                  {
                      maxHeight = height;
                  }
-@@ -1088,12 +1500,16 @@
+@@ -1088,12 +1509,16 @@
                  const float leftHeight = heights.at(queryCoord - 1);
                  const float rightHeight = heights.at(queryCoord + 1);
                  const float xSlope = getSlope(leftHeight, rightHeight);
@@ -1167,7 +1189,7 @@
  
                  meshHeightsNormals.at(coord).m_normal =
                  {
-@@ -1112,219 +1528,903 @@
+@@ -1112,219 +1537,932 @@
          {
              float width = (request.m_samplesX - 1) * request.m_vertexSpacing;
              float height = (request.m_samplesY - 1) * request.m_vertexSpacing;
@@ -1202,6 +1224,7 @@
 +        TerrainCompositor::TerrainMeshCutoutRenderSnapshotPtr snapshot,
 +        std::shared_ptr<const SectorCommitGroup> group, const Vector2i* predictedCoordinate)
 +    {
++        AZ_PROFILE_SCOPE(AzRender, "Terrain::CaptureSectorRequest");
 +        SectorPreparationRequest request;
 +        request.m_capturedAtUs = collectStatistics ? SectorTimestampUs() : 0.0;
 +        auto& sector = m_sectorLods.at(lodLevel).m_sectors.at(slot);
@@ -1210,7 +1233,10 @@
 +        request.m_samplingPlan.m_channel = AZStd::move(channel);
 +        request.m_samplingPlan.m_publication = AZStd::move(snapshot);
 +        request.m_samplingPlan.m_dependencies.push_back({ m_preparationLifetime, m_preparationLifetime->Capture() });
-+        request.m_samplingPlan.m_sources = TerrainCompositor::CaptureTerrainRenderQuerySources(request.m_samplingPlan.m_publication);
++        {
++            AZ_PROFILE_SCOPE(AzRender, "Terrain::CaptureSectorSources");
++            request.m_samplingPlan.m_sources = TerrainCompositor::CaptureTerrainRenderQuerySources(request.m_samplingPlan.m_publication);
++        }
 +        if (request.m_samplingPlan.m_sources)
 +            request.m_samplingPlan.m_dependencies.insert(request.m_samplingPlan.m_dependencies.end(), request.m_samplingPlan.m_sources->m_dependencies.begin(),
 +                request.m_samplingPlan.m_sources->m_dependencies.end());
@@ -1243,8 +1269,11 @@
 +            minimum + AZ::Vector3(gridMeters, gridMeters, heightBounds.m_max - heightBounds.m_min));
 +        // This synchronous query is captured after the invalidation tickets so a
 +        // source change during even an empty-area query invalidates its completion.
-+        AzFramework::Terrain::TerrainDataRequestBus::BroadcastResult(
-+            request.m_samplingPlan.m_area.m_exists, &AzFramework::Terrain::TerrainDataRequests::TerrainAreaExistsInBounds, bounds);
++        {
++            AZ_PROFILE_SCOPE(AzRender, "Terrain::CaptureSectorArea");
++            AzFramework::Terrain::TerrainDataRequestBus::BroadcastResult(
++                request.m_samplingPlan.m_area.m_exists, &AzFramework::Terrain::TerrainDataRequests::TerrainAreaExistsInBounds, bounds);
++        }
 +        auto& sampling = request.m_samplingPlan;
 +        sampling.m_area.m_bounds = bounds;
 +        sampling.m_area.m_captured = true;
@@ -1540,6 +1569,7 @@
 +    TerrainMeshManager::SectorResourceAccounting TerrainMeshManager::GetSectorResourceAccounting() const
 +    {
 +        SectorResourceAccounting accounting;
++        std::set<const TerrainCompositor::TerrainPreparationDependencySet*> countedDependencies;
 +        for (const auto& lod : m_sectorLods)
 +            for (const auto& sector : lod.m_sectors)
 +            {
@@ -1549,8 +1579,9 @@
 +                if (committed.m_rtData) gpu += bytes(committed.m_rtData->m_positionsBuffer) + bytes(committed.m_rtData->m_normalsBuffer);
 +                accounting.m_allocatedGpuBytes += gpu;
 +                if (committed.m_valid && sector.m_state != SectorState::Committed) accounting.m_retainedGpuBytes += gpu;
-+                accounting.m_committedCpuBytes += sizeof(committed) +
-+                    committed.m_dependencies.capacity() * sizeof(TerrainCompositor::TerrainPreparationDependencyTicket);
++                accounting.m_committedCpuBytes += sizeof(committed);
++                if (committed.m_dependencies && countedDependencies.insert(committed.m_dependencies.get()).second)
++                    accounting.m_committedCpuBytes += sizeof(*committed.m_dependencies) + committed.m_dependencies->GetHeapBytes();
 +                if (sector.m_state == SectorState::Preparing || sector.m_state == SectorState::Ready) ++accounting.m_pendingRequests;
 +            }
 +        return accounting;
@@ -1575,7 +1606,7 @@
 +        committed.m_valid = false;
 +        committed.m_channel.reset();
 +        committed.m_publication.reset();
-+        committed.m_dependencies.clear();
++        committed.m_dependencies.reset();
 +        m_candidateSectors.clear();
 +    }
 +
@@ -1597,8 +1628,17 @@
 +                        publicationLock = std::unique_lock<std::mutex>(committed.m_channel->m_publicationMutex);
 +                        valid = committed.m_channel->m_active && committed.m_channel->m_snapshot.load(std::memory_order_acquire) == committed.m_publication;
 +                    }
-+                    TerrainCompositor::TerrainPreparationAdmission admission(committed.m_dependencies);
-+                    valid = valid && admission.IsValid();
++                    if (r_terrainReuseControlStorage)
++                    {
++                        TerrainCompositor::TerrainPreparationAdmission admission(committed.m_dependencies, m_coverageAdmissionScratch);
++                        valid = valid && admission.IsValid();
++                    }
++                    else if (committed.m_dependencies)
++                    {
++                        TerrainCompositor::TerrainPreparationAdmission admission(committed.m_dependencies->GetTickets());
++                        valid = valid && admission.IsValid();
++                    }
++                    else valid = false;
 +                }
 +                if (!valid)
 +                {
@@ -1671,6 +1711,16 @@
 +                    &AzFramework::Terrain::TerrainDataRequests::TerrainAreaExistsInBounds, request.m_samplingPlan.m_area.m_bounds);
 +                if (exists != request.m_samplingPlan.m_area.m_exists) return reject(SectorRejection::Dependency);
 +            }
++        std::vector<std::shared_ptr<const TerrainCompositor::TerrainPreparationDependencySet>> committedDependencies;
++        committedDependencies.reserve(results.size());
++        for (const auto& result : results)
++        {
++            const auto& tickets = result->m_request.m_samplingPlan.m_dependencies;
++            const auto matching = std::find_if(committedDependencies.begin(), committedDependencies.end(),
++                [&](const auto& set) { return set->Matches(tickets); });
++            committedDependencies.push_back(matching != committedDependencies.end() ? *matching :
++                std::make_shared<const TerrainCompositor::TerrainPreparationDependencySet>(tickets));
++        }
 +        std::unique_lock<std::mutex> publicationLock;
 +        if (first.m_samplingPlan.m_channel)
 +        {
@@ -1735,6 +1785,7 @@
 +            sector.m_committed.m_valid = false;
 +            RemoveSectorRayTracedMeshes(sector);
 +        }
++        size_t committedIndex = 0;
 +        for (const auto& result : results)
 +        {
 +            auto& sector = m_sectorLods[result->m_request.m_lodLevel].m_sectors[result->m_request.m_slot];
@@ -1749,7 +1800,7 @@
 +            committed.m_heightOrigin = request.m_data.m_settings->m_worldHeightBounds.m_min;
 +            committed.m_channel = request.m_samplingPlan.m_channel;
 +            committed.m_publication = request.m_samplingPlan.m_publication;
-+            committed.m_dependencies = request.m_samplingPlan.m_dependencies;
++            committed.m_dependencies = committedDependencies[committedIndex++];
 +            committed.m_hasData = result->m_hasData;
 +            committed.m_aabb = result->m_hasData ? result->m_aabb : AZ::Aabb::CreateNull();
 +            CreateAabbQuadrants(committed.m_aabb, committed.m_quadrantAabbs);
@@ -2270,7 +2321,7 @@
          }
  
          if (m_rayTracingEnabled)
-@@ -1334,7 +2434,7 @@
+@@ -1334,7 +2472,7 @@
  
              auto getMeshGroup = [](auto& item) -> auto&
              {
@@ -2279,7 +2330,7 @@
              };
  
              AZStd::sort(newRayTraceItems.begin(), newRayTraceItems.end(),
-@@ -1349,8 +2449,9 @@
+@@ -1349,8 +2487,9 @@
  
              auto addMesh = [&](RayTracedItem& item, RtSector::MeshGroup& meshGroup)
              {
@@ -2291,7 +2342,7 @@
                  meshGroup.m_mesh.m_transform = AZ::Transform::CreateTranslation(translation);
                  meshGroup.m_isVisible = true;
                  m_rayTracingFeatureProcessor->AddMesh(meshGroup.m_id, meshGroup.m_mesh, meshGroup.m_submeshVector);
-@@ -1430,37 +2531,6 @@
+@@ -1430,37 +2569,6 @@
          }
      }
  

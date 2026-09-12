@@ -1,8 +1,6 @@
-diff --git a/TerrainRenderer/TerrainFeatureProcessor.cpp b/TerrainRenderer/TerrainFeatureProcessor.cpp
-index ac86f3b..9e3fe0d 100644
 --- a/TerrainRenderer/TerrainFeatureProcessor.cpp
 +++ b/TerrainRenderer/TerrainFeatureProcessor.cpp
-@@ -77,7 +77,7 @@ namespace Terrain
+@@ -77,7 +77,7 @@
      {
          AZ::Data::AssetBus::Handler::BusDisconnect();
          AzFramework::Terrain::TerrainDataNotificationBus::Handler::BusDisconnect();
@@ -11,7 +9,7 @@ index ac86f3b..9e3fe0d 100644
          DisableSceneNotification();
          OnTerrainDataDestroyBegin();
  
-@@ -107,7 +107,7 @@ namespace Terrain
+@@ -107,7 +107,7 @@
          }
          else
          {
@@ -20,7 +18,7 @@ index ac86f3b..9e3fe0d 100644
              PrepareMaterialData();
              m_terrainBoundsNeedUpdate = true;
          }
-@@ -122,7 +122,7 @@ namespace Terrain
+@@ -122,7 +122,7 @@
      {
          m_zBounds = {};
      }
@@ -29,7 +27,7 @@ index ac86f3b..9e3fe0d 100644
      void TerrainFeatureProcessor::OnTerrainDataChanged([[maybe_unused]] const AZ::Aabb& dirtyRegion, TerrainDataChangedMask dataChangedMask)
      {
          if ((dataChangedMask & TerrainDataChangedMask::Settings) == TerrainDataChangedMask::Settings)
-@@ -173,7 +173,7 @@ namespace Terrain
+@@ -173,7 +173,7 @@
                      // skip the rest of shader items
                      return false;
                  }
@@ -38,7 +36,7 @@ index ac86f3b..9e3fe0d 100644
              });
  
          AZ_Error(TerrainFPName, m_terrainSrg, "Terrain Srg not found on any shader in the terrain material");
-@@ -188,7 +188,7 @@ namespace Terrain
+@@ -188,7 +188,7 @@
              {
                  m_macroMaterialManager.Initialize(m_terrainSrg);
              }
@@ -47,7 +45,7 @@ index ac86f3b..9e3fe0d 100644
              if (m_detailMaterialManager.IsInitialized())
              {
                  m_detailMaterialManager.UpdateSrgIndices(m_terrainSrg);
-@@ -225,7 +225,7 @@ namespace Terrain
+@@ -225,7 +225,7 @@
      void TerrainFeatureProcessor::ProcessSurfaces(const FeatureProcessor::RenderPacket& process)
      {
          AZ_PROFILE_FUNCTION(AzRender);
@@ -56,7 +54,57 @@ index ac86f3b..9e3fe0d 100644
          if (m_zBounds.m_min == 0.0f && m_zBounds.m_max == 0.0f)
          {
              return;
-@@ -309,7 +309,7 @@ namespace Terrain
+@@ -249,16 +249,19 @@
+             {
+                 if (m_meshManager.IsInitialized())
+                 {
++                    AZ_PROFILE_SCOPE(AzRender, "Terrain::MeshUpdate");
+                     m_meshManager.Update(mainView, m_terrainSrg);
+                 }
+ 
+                 if (m_macroMaterialManager.IsInitialized())
+                 {
++                    AZ_PROFILE_SCOPE(AzRender, "Terrain::MacroMaterialUpdate");
+                     m_macroMaterialManager.Update(mainView, m_terrainSrg);
+                 }
+ 
+                 if (m_detailMaterialManager.IsInitialized())
+                 {
++                    AZ_PROFILE_SCOPE(AzRender, "Terrain::DetailMaterialUpdate");
+                     m_detailMaterialManager.Update(cameraPosition, m_terrainSrg);
+                 }
+ 
+@@ -266,6 +269,7 @@
+                 {
+                     if (m_clipmapManager.IsInitialized())
+                     {
++                        AZ_PROFILE_SCOPE(AzRender, "Terrain::ClipmapUpdate");
+                         m_clipmapManager.Update(cameraPosition, GetParentScene(), m_terrainSrg);
+                     }
+                 }
+@@ -273,6 +277,7 @@
+ 
+             if (m_meshManager.IsInitialized())
+             {
++                AZ_PROFILE_SCOPE(AzRender, "Terrain::DrawMeshes");
+                 m_meshManager.DrawMeshes(process, mainView);
+             }
+         }
+@@ -292,11 +297,13 @@
+ 
+         if (m_materialInstance)
+         {
++            AZ_PROFILE_SCOPE(AzRender, "Terrain::MaterialCompile");
+             m_materialInstance->Compile();
+         }
+ 
+         if (m_terrainSrg && m_passes.size() > 0)
+         {
++            AZ_PROFILE_SCOPE(AzRender, "Terrain::TerrainSrgCompileAndBind");
+             m_terrainSrg->Compile();
+             for (auto* pass : m_passes)
+             {
+@@ -309,7 +316,7 @@
      {
          m_detailMaterialManager.SetDetailMaterialConfiguration(config);
      }
@@ -65,7 +113,7 @@ index ac86f3b..9e3fe0d 100644
      void TerrainFeatureProcessor::SetMeshConfiguration(const MeshConfiguration& config)
      {
          m_meshManager.SetConfiguration(config);
-@@ -320,7 +320,7 @@ namespace Terrain
+@@ -320,7 +327,7 @@
      {
          m_clipmapManager.SetConfiguration(config);
      }
