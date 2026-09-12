@@ -20,6 +20,7 @@ file(COPY "${integration}/EnginePatches" DESTINATION "${TC_TEST_ROOT}/wrong-outp
 
 file(MAKE_DIRECTORY "${TC_TEST_ROOT}/wrong-query/TerrainSystem")
 foreach(relative IN ITEMS TerrainRenderer/TerrainMeshManager.h TerrainRenderer/TerrainMeshManager.cpp
+    TerrainRenderer/TerrainDetailMaterialManager.cpp
     TerrainRenderer/TerrainFeatureProcessor.cpp TerrainRaycast/TerrainRaycastContext.cpp
     Components/TerrainPhysicsColliderComponent.h Components/TerrainPhysicsColliderComponent.cpp
     TerrainSystem/TerrainSystem.cpp)

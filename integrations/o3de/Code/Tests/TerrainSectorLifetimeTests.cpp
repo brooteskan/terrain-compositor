@@ -20,6 +20,10 @@ namespace Terrain
     {
     protected:
         void CheckReorderedIndependentCompletionsCommitOnceIncludingEmpty();
+        void CheckRecoveryRejectsUncertifiedNeighborsWithoutConsumingLeases();
+        void CheckRecoveryRequiresIntermediateCoverageAndPreservesHoles();
+        void CheckRecoveryCoverageProjectionDistinguishesUnknownAndEmpty();
+        void CheckRecoveryUsesRendererDistanceFilter();
         void CheckSupersededRequestCannotCommitAtSameCoordinate();
         void CheckCoordinateRoundTripAcrossZeroRejectsPreviousLease();
         void CheckRecreatedSlotAtSameCoordinateAndSerialRejectsOldIdentity();
@@ -152,6 +156,176 @@ namespace Terrain
         size_t m_commits = 0;
         AZStd::vector<size_t> m_order;
     };
+
+    void TerrainSectorLifetimeTests::CheckRecoveryRejectsUncertifiedNeighborsWithoutConsumingLeases()
+    {
+        using namespace TerrainCompositor;
+        ::testing::NiceMock<UnitTest::MockTerrainDataRequests> terrain;
+        SupplyTerrain(terrain);
+        SnapshotTestSupport::Composition scene;
+        ASSERT_TRUE(scene.AddMeshHeight());
+        m_channel = scene.Channel();
+        const auto captureUnit = [&](size_t slot)
+        {
+            auto request = Capture(slot);
+            auto group = std::make_shared<Manager::SectorCommitGroup>();
+            group->m_expectedResults = 1;
+            group->m_boundedRecovery = true;
+            request.m_group = group;
+            request.m_samplingPlan.m_queryPolicy = TerrainSectorQueryPolicy::RetainedOnly;
+            request.m_samplingPlan.m_schedulePolicy = TerrainSectorSchedulePolicy::Deferred;
+            return request;
+        };
+        auto first = captureUnit(0), second = captureUnit(1);
+        const auto reference = Manager::PrepareSector(first);
+        auto b = std::make_shared<Result>(Manager::PrepareSector(second));
+        ASSERT_TRUE(Accept({ b }));
+        auto& neighbor = m_manager->m_sectorLods[0].m_sectors[1].m_committed;
+        ASSERT_TRUE(neighbor.m_samplingCertificate.m_proven);
+        const auto saved = neighbor.m_samplingCertificate;
+        neighbor.m_samplingCertificate.m_proven = false;
+        auto a = std::make_shared<Result>(Manager::PrepareSector(first));
+        const auto serial = m_manager->m_sectorLods[0].m_sectors[0].m_preparationSerial;
+        Manager::SectorCommitStatistics statistics;
+        EXPECT_FALSE(m_manager->AcceptPreparedSectors({ &a, 1 }, [](auto&, const auto&) { FAIL(); }, &statistics));
+        EXPECT_EQ(statistics.m_rejection, Manager::SectorRejection::Sampling);
+        EXPECT_EQ(m_manager->m_sectorLods[0].m_sectors[0].m_preparationSerial, serial);
+        EXPECT_TRUE(neighbor.m_valid);
+        neighbor.m_samplingCertificate = saved;
+        ASSERT_TRUE(Accept({ a }));
+        ASSERT_EQ(a->m_heights.size(), reference.m_heights.size());
+        ASSERT_EQ(a->m_lodHeights.size(), reference.m_lodHeights.size());
+        for (size_t i = 0; i < a->m_heights.size(); ++i)
+        {
+            EXPECT_EQ(a->m_heights[i].m_height, reference.m_heights[i].m_height);
+            EXPECT_EQ(a->m_heights[i].m_normal, reference.m_heights[i].m_normal);
+            EXPECT_EQ(a->m_lodHeights[i].m_height, reference.m_lodHeights[i].m_height);
+            EXPECT_EQ(a->m_lodHeights[i].m_normal, reference.m_lodHeights[i].m_normal);
+        }
+        auto stale = std::make_shared<Result>(Manager::PrepareSector(captureUnit(0)));
+        scene.StopSource();
+        EXPECT_FALSE(Accept({ stale }));
+        EXPECT_EQ(m_commits, 2);
+    }
+
+    void TerrainSectorLifetimeTests::CheckRecoveryRequiresIntermediateCoverageAndPreservesHoles()
+    {
+        using namespace TerrainCompositor;
+        ::testing::NiceMock<UnitTest::MockTerrainDataRequests> terrain;
+        SupplyTerrain(terrain);
+        SnapshotTestSupport::Composition scene;
+        ASSERT_TRUE(scene.AddImageHole(7));
+        m_channel = scene.Channel();
+        m_manager->m_sampleSpacing = 1;
+        m_manager->m_sectorLods.resize(3);
+        for (auto& level : m_manager->m_sectorLods)
+        {
+            level.m_sectors.resize(1);
+            level.m_sectors[0].m_requestedWorldCoord = { 0, 0 };
+        }
+        const auto prepareUnit = [&](uint32_t lod)
+        {
+            auto group = std::make_shared<Manager::SectorCommitGroup>();
+            group->m_expectedResults = 1;
+            group->m_boundedRecovery = true;
+            auto request = m_manager->CaptureSectorRequest(lod, 0, m_manager->CapturePreparationSettings(),
+                m_channel, true, m_channel->m_snapshot.load(), group);
+            request.m_samplingPlan.m_queryPolicy = TerrainSectorQueryPolicy::RetainedOnly;
+            request.m_samplingPlan.m_schedulePolicy = TerrainSectorSchedulePolicy::Deferred;
+            return std::make_shared<Result>(Manager::PrepareSector(request));
+        };
+        auto coarse = prepareUnit(2);
+        ASSERT_TRUE(coarse->m_hasData);
+        ASSERT_TRUE(coarse->m_aabb.IsValid());
+        ASSERT_TRUE(Accept({ coarse }));
+        auto fine = prepareUnit(0);
+        ASSERT_EQ(fine->m_status, Status::Empty);
+        Manager::SectorCommitStatistics statistics;
+        EXPECT_FALSE(m_manager->AcceptPreparedSectors({ &fine, 1 }, [](auto&, const auto&) { FAIL(); }, &statistics));
+        EXPECT_EQ(statistics.m_rejection, Manager::SectorRejection::Coverage);
+        auto intermediate = prepareUnit(1);
+        ASSERT_TRUE(Accept({ intermediate }));
+        ASSERT_TRUE(Accept({ fine }));
+        EXPECT_TRUE(m_manager->m_sectorLods[0].m_sectors[0].m_committed.m_valid);
+        EXPECT_FALSE(m_manager->m_sectorLods[0].m_sectors[0].m_committed.m_hasData);
+    }
+
+    void TerrainSectorLifetimeTests::CheckRecoveryCoverageProjectionDistinguishesUnknownAndEmpty()
+    {
+        m_manager->m_sampleSpacing = 1;
+        m_manager->m_sectorLods.resize(3);
+        for (auto& lod : m_manager->m_sectorLods) lod.m_sectors.resize(1);
+        auto& coarse = m_manager->m_sectorLods[2].m_sectors[0].m_committed;
+        coarse.m_valid = coarse.m_hasData = true;
+        coarse.m_worldCoord = { 0, 0 };
+        coarse.m_lodLevel = 2;
+        coarse.m_aabb = AZ::Aabb::CreateFromMinMaxValues(0, 0, -10, 8, 8, 10);
+        auto& fine = m_manager->m_sectorLods[0].m_sectors[0].m_committed;
+        fine.m_valid = true;
+        fine.m_hasData = false;
+        fine.m_worldCoord = { 0, 0 };
+        fine.m_lodLevel = 0;
+        EXPECT_TRUE(m_manager->HasRecoveryCoverage(AZ::Vector3(1, 1, 0))); // Authoritative empty.
+        EXPECT_FALSE(m_manager->HasRecoveryCoverage(AZ::Vector3(3, 3, 0))); // Missing intermediate remainder.
+        EXPECT_TRUE(m_manager->HasRecoveryCoverage(AZ::Vector3(6, 6, 0))); // Representable coarse quadrant.
+        auto& intermediate = m_manager->m_sectorLods[1].m_sectors[0].m_committed;
+        intermediate.m_valid = true;
+        intermediate.m_hasData = false;
+        intermediate.m_worldCoord = { 0, 0 };
+        intermediate.m_lodLevel = 1;
+        EXPECT_TRUE(m_manager->HasRecoveryCoverage(AZ::Vector3(3, 3, 0)));
+    }
+
+    void TerrainSectorLifetimeTests::CheckRecoveryUsesRendererDistanceFilter()
+    {
+        using namespace TerrainCompositor;
+        ::testing::NiceMock<UnitTest::MockTerrainDataRequests> terrain;
+        SupplyTerrain(terrain);
+        SnapshotTestSupport::Composition scene;
+        ASSERT_TRUE(scene.AddMeshHeight());
+        m_channel = scene.Channel();
+        m_manager->m_sampleSpacing = 1;
+        m_manager->m_sectorLods.resize(3);
+        for (auto& level : m_manager->m_sectorLods)
+        {
+            level.m_sectors.resize(1);
+            level.m_sectors[0].m_requestedWorldCoord = { 0, 0 };
+        }
+        const auto prepare = [&](uint32_t lod)
+        {
+            auto group = std::make_shared<Manager::SectorCommitGroup>();
+            group->m_expectedResults = 1;
+            group->m_boundedRecovery = true;
+            auto request = m_manager->CaptureSectorRequest(lod, 0, m_manager->CapturePreparationSettings(),
+                m_channel, true, m_channel->m_snapshot.load(), group);
+            request.m_samplingPlan.m_queryPolicy = TerrainSectorQueryPolicy::RetainedOnly;
+            request.m_samplingPlan.m_schedulePolicy = TerrainSectorSchedulePolicy::Deferred;
+            return std::make_shared<Result>(Manager::PrepareSector(request));
+        };
+        auto fine = prepare(0);
+        ASSERT_TRUE(fine->m_hasData);
+        ASSERT_TRUE(Accept({ fine }));
+        auto coarse = prepare(2);
+        ASSERT_TRUE(coarse->m_hasData);
+        Manager::SectorCommitStatistics statistics;
+        EXPECT_FALSE(m_manager->AcceptPreparedSectors({ &coarse, 1 }, [](auto&, const auto&) { FAIL(); }, &statistics));
+        EXPECT_EQ(statistics.m_rejection, Manager::SectorRejection::Coverage);
+        // The old fine claim no longer participates in drawing after movement.
+        // Its missing intermediate must not force a destructive full rebuild.
+        m_manager->m_cameraPosition = AZ::Vector3(300, 0, 0);
+        ASSERT_TRUE(Accept({ coarse }));
+        EXPECT_TRUE(m_manager->m_sectorLods[0].m_sectors[0].m_committed.m_valid);
+        EXPECT_EQ(m_manager->m_sectorLods[0].m_sectors[0].m_committed.m_worldCoord.m_x, 0);
+    }
+
+    TEST_F(TerrainSectorLifetimeTests, RecoveryUsesRendererDistanceFilter)
+    { CheckRecoveryUsesRendererDistanceFilter(); }
+    TEST_F(TerrainSectorLifetimeTests, RecoveryCoverageProjectionDistinguishesUnknownAndEmpty)
+    { CheckRecoveryCoverageProjectionDistinguishesUnknownAndEmpty(); }
+    TEST_F(TerrainSectorLifetimeTests, RecoveryRejectsUncertifiedNeighborsWithoutConsumingLeases)
+    { CheckRecoveryRejectsUncertifiedNeighborsWithoutConsumingLeases(); }
+    TEST_F(TerrainSectorLifetimeTests, RecoveryRequiresIntermediateCoverageAndPreservesHoles)
+    { CheckRecoveryRequiresIntermediateCoverageAndPreservesHoles(); }
 
     void TerrainSectorLifetimeTests::CheckReorderedIndependentCompletionsCommitOnceIncludingEmpty()
     {

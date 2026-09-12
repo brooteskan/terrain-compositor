@@ -42,6 +42,8 @@ set(FILES
     Code/Include/TerrainCompositor/TerrainMeshCutoutRenderRegistry.h
     Code/Include/TerrainCompositor/TerrainRenderQuery.h
     Code/Include/TerrainCompositor/TerrainSectorSampling.h
+    Code/Include/TerrainCompositor/TerrainDetailMaterial.h
+    Code/Include/TerrainCompositor/TerrainSectorRecovery.h
     Code/Include/TerrainCompositor/TerrainSectorSampleReuse.h
     Code/Include/TerrainCompositor/TerrainSectorDispatcher.h
     Code/Include/TerrainCompositor/Internal/RetainedCompositionMemory.h

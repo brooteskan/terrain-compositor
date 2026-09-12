@@ -92,6 +92,10 @@ namespace TerrainCompositor
         // Both raw channels are invariant under pointwise/subset execution with
         // the same sampler and immutable source set. Explicit opt-in for reuse.
         bool m_pointwise = false;
+        // Stronger opt-in: identical publication and complete authority/revision
+        // tickets yield bit-identical raw channels across independent captures.
+        // Required for certified shared edge/normal/CLOD replacement units.
+        bool m_replacementSampling = false;
         TerrainRenderCoordinates m_coordinates = TerrainRenderCoordinates::Unknown;
         bool m_acceptsExplicitPositions = false;
         bool m_acceptsRegularGrid = false;

@@ -1063,6 +1063,10 @@ namespace TerrainCompositor
             query.m_capability.m_height.m_ordinaryEquivalence = { true, false, true, false, true, true };
             query.m_capability.m_existence.m_ordinaryEquivalence = query.m_capability.m_height.m_ordinaryEquivalence;
             query.m_capability.m_pointwise = true;
+            // Prepared composition values and the built-in procedural kernel are
+            // immutable. Publication identity plus every captured dependency
+            // revision fixes both raw channels across independent acquisitions.
+            query.m_capability.m_replacementSampling = true;
         }
         if (acquisition == TerrainSourceAcquisition::NotRequested)
         {

@@ -9,6 +9,7 @@ if(NOT TARGET Terrain.Static)
     message(FATAL_ERROR "TerrainCompositor requires the Terrain.Static target")
 endif()
 set(tc_override_sources
+    TerrainRenderer/TerrainDetailMaterialManager.cpp
     TerrainRenderer/TerrainMeshManager.cpp
     TerrainRenderer/TerrainFeatureProcessor.cpp
     TerrainRaycast/TerrainRaycastContext.cpp
