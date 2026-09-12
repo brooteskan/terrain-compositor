@@ -10,6 +10,7 @@
 #include <TerrainCompositor/TerrainExistenceSampling.h>
 #include <TerrainCompositor/TerrainRenderQuery.h>
 #include <TerrainCompositor/TerrainPreparationDependency.h>
+#include <TerrainCompositor/TerrainProceduralSnapshot.h>
 
 #include <atomic>
 #include <cmath>
@@ -35,6 +36,12 @@ namespace TerrainCompositor
         //! It must preserve scalar existence-before-height and bulk source order.
         AZStd::function<void(TerrainRenderDispatch, AZStd::span<const AZ::Vector3>, AZStd::span<float>,
             AZStd::span<bool>, TerrainRenderQueryStatistics*)> m_execute;
+        //! Acquisition copies this query with retained source callbacks. It never
+        //! changes the scene publication. Legacy callbacks remain the fallback.
+        AZStd::function<std::shared_ptr<const TerrainRenderGeometryQuery>()> m_acquireSources;
+        TerrainProceduralSnapshotPtr m_proceduralSnapshot;
+        TerrainRenderQueryStatistics::SourceProvenance m_sourceProvenance;
+        const TerrainRenderGeometryQuery* m_liveFallback = nullptr; //!< Owned by the source set's retained publication.
     };
 
     struct TerrainMeshCutoutRenderSnapshot
@@ -50,6 +57,54 @@ namespace TerrainCompositor
         AZStd::vector<TerrainRenderGeometryQuery> m_renderGeometryQueries;
     };
     using TerrainMeshCutoutRenderSnapshotPtr = std::shared_ptr<const TerrainMeshCutoutRenderSnapshot>;
+
+    struct TerrainRenderQuerySources
+    {
+        TerrainMeshCutoutRenderSnapshotPtr m_publication;
+        AZStd::vector<TerrainRenderGeometryQuery> m_queries;
+        AZStd::vector<TerrainPreparationDependencyTicket> m_dependencies;
+    };
+    using TerrainRenderQuerySourcesPtr = std::shared_ptr<const TerrainRenderQuerySources>;
+
+    //! Capture before any ordinary queries. One set covers regular, CLOD and both
+    //! normal halos. All composition tickets precede acquisition callbacks, which
+    //! can invalidate other owners. Source tickets are those captured WITH values.
+    inline TerrainRenderQuerySourcesPtr CaptureTerrainRenderQuerySources(TerrainMeshCutoutRenderSnapshotPtr publication)
+    {
+        if (!publication) return {};
+        auto sources = std::make_shared<TerrainRenderQuerySources>();
+        sources->m_publication = AZStd::move(publication);
+        for (const auto& query : sources->m_publication->m_renderGeometryQueries)
+            if (query.m_preparationDependency)
+                sources->m_dependencies.push_back({ query.m_preparationDependency, query.m_preparationDependency->Capture() });
+        for (const auto& query : sources->m_publication->m_renderGeometryQueries)
+        {
+            const auto acquired = query.m_acquireSources ? query.m_acquireSources() : nullptr;
+            sources->m_queries.push_back(acquired ? *acquired : query);
+            auto& retained = sources->m_queries.back();
+            retained.m_liveFallback = &query;
+            if (query.m_acquireSources && !acquired)
+                retained.m_sourceProvenance.m_height = retained.m_sourceProvenance.m_existence = TerrainSourceAcquisition::Rejected;
+            // Composition ownership always comes from the original publication.
+            retained.m_compositionSession = query.m_compositionSession;
+            retained.m_compositionRevision = query.m_compositionRevision;
+            if (retained.m_proceduralSnapshot)
+                sources->m_dependencies.push_back(retained.m_proceduralSnapshot->m_ticket);
+        }
+        return sources;
+    }
+
+    inline void RecordTerrainRenderSourceAcquisitions(const TerrainRenderQuerySourcesPtr& sources, TerrainRenderQueryStatistics* statistics)
+    {
+        if (!sources || !statistics) return;
+        for (const auto& query : sources->m_queries)
+        {
+            const auto& source = query.m_sourceProvenance;
+            statistics->m_sourceAcquisitions[static_cast<size_t>(source.m_height)]++;
+            statistics->m_sourceAcquisitions[static_cast<size_t>(source.m_existence)]++;
+            statistics->m_sources.push_back(source);
+        }
+    }
 
     inline bool TryGetTerrainRenderGeometryHeight(
         const TerrainMeshCutoutRenderSnapshot& snapshot, const AZ::Vector3& position, float& height)
@@ -174,6 +229,7 @@ namespace TerrainCompositor
     struct TerrainRenderQueryPlan
     {
         TerrainMeshCutoutRenderSnapshotPtr m_publication;
+        TerrainRenderQuerySourcesPtr m_sources;
         TerrainRenderQueryRequest m_request;
         TerrainRenderQueryRun m_firstRun;
         AZStd::vector<TerrainRenderQueryRun> m_additionalRuns;
@@ -182,19 +238,25 @@ namespace TerrainCompositor
 
     inline TerrainRenderQueryPlan ResolveTerrainRenderQuery(
         TerrainMeshCutoutRenderSnapshotPtr publication, const TerrainRenderQueryRequest& request,
-        TerrainRenderQueryStatistics* statistics = nullptr)
+        TerrainRenderQueryStatistics* statistics = nullptr, TerrainRenderQuerySourcesPtr sources = {})
     {
         AZ_PROFILE_SCOPE(AzRender, "Terrain::RenderQuery::ResolveOwnership");
         TerrainRenderQueryTimer timer(statistics ? &statistics->m_resolutionMicroseconds : nullptr);
         TerrainRenderQueryPlan plan;
         plan.m_publication = AZStd::move(publication);
         plan.m_request = request;
+        if (sources && sources->m_publication != plan.m_publication)
+        {
+            AZ_Assert(false, "Source acquisition belongs to a different render publication.");
+            return plan;
+        }
+        plan.m_sources = AZStd::move(sources);
         const auto ownersAt = [&plan](const AZ::Vector3& position)
         {
             TerrainRenderQueryRun run;
             if (plan.m_publication)
             {
-                for (const auto& query : plan.m_publication->m_renderGeometryQueries)
+                for (const auto& query : plan.m_sources ? plan.m_sources->m_queries : plan.m_publication->m_renderGeometryQueries)
                 {
                     const auto& bounds = query.m_regionBounds;
                     if (!bounds.IsValid() || !(position.GetX() >= bounds.GetMin().GetX() &&
@@ -207,10 +269,11 @@ namespace TerrainCompositor
             }
             return run;
         };
-        const auto channelReasons = [&request](const TerrainRenderGeometryQuery* owner, bool height, size_t count)
+        const auto channelReasons = [&request](const TerrainRenderGeometryQuery* owner, bool height, size_t start, size_t count, bool batch)
         {
             if (!owner) return TerrainRenderFallbackBit(height ? TerrainRenderFallback::UnownedHeight : TerrainRenderFallback::UnownedExistence);
             const auto& capability = owner->m_capability;
+            const auto& channel = height ? capability.m_height : capability.m_existence;
             if (!capability.m_declared) return TerrainRenderFallbackBit(TerrainRenderFallback::LegacyContract);
             AZ::u32 reasons = 0;
             using Sampler = AzFramework::Terrain::TerrainDataRequests::Sampler;
@@ -223,10 +286,21 @@ namespace TerrainCompositor
                 request.m_positions.size() / request.m_gridWidth == request.m_gridHeight &&
                 request.m_positions.size() % request.m_gridWidth == 0 && request.m_gridStart.IsFinite() &&
                 request.m_gridSpacing.IsFinite() && request.m_gridSpacing.GetX() > 0 && request.m_gridSpacing.GetY() > 0;
-            if (request.m_coordinates == TerrainRenderCoordinates::Unknown || request.m_coordinates != capability.m_coordinates ||
+            const bool coordinates = request.m_coordinates == capability.m_coordinates ||
+                (request.m_coordinates == TerrainRenderCoordinates::WorldXY && channel.m_sampling.m_declared &&
+                    channel.m_inputZ == TerrainRenderInputZ::Independent &&
+                    capability.m_coordinates == TerrainRenderCoordinates::WorldXYOrdinarySurfaceZ);
+            if (request.m_coordinates == TerrainRenderCoordinates::Unknown || !coordinates ||
                 !sampler || !grid || count < capability.m_minSamples || count > capability.m_maxSamples)
                 reasons |= TerrainRenderFallbackBit(TerrainRenderFallback::UnsupportedRequest);
-            const auto& channel = height ? capability.m_height : capability.m_existence;
+            const auto& sampling = channel.m_sampling;
+            if (sampling.m_declared && (!sampling.SupportsPositions(request.m_positions.subspan(start, count)) ||
+                (!batch && (sampling.m_minSamples > 1 || sampling.m_maxSamples < 1)) ||
+                (request.m_grid == TerrainRenderGrid::ExplicitPositions ? !sampling.m_explicitPositions : !sampling.m_regularGrid) ||
+                !(request.m_sampler == Sampler::EXACT ? sampling.m_exact :
+                  request.m_sampler == Sampler::CLAMP ? sampling.m_clamp :
+                  request.m_sampler == Sampler::BILINEAR && sampling.m_bilinear)))
+                reasons |= TerrainRenderFallbackBit(TerrainRenderFallback::UnsupportedRequest);
             if (channel.m_source != TerrainRenderSource::RetainedAvailable)
                 reasons |= TerrainRenderFallbackBit(channel.m_source == TerrainRenderSource::Live ? TerrainRenderFallback::LiveSource :
                     channel.m_source == TerrainRenderSource::Unavailable ? TerrainRenderFallback::UnavailableSource : TerrainRenderFallback::UnknownSource);
@@ -245,9 +319,30 @@ namespace TerrainCompositor
                 if (next.m_height != run.m_height || next.m_existence != run.m_existence) break;
             }
             run.m_count = end - start;
+            const bool splitOwners = run.m_height && run.m_existence && run.m_height != run.m_existence;
             run.m_batch = request.m_allowBatch && run.m_height && run.m_height == run.m_existence && bool(run.m_height->m_getGeometry);
-            run.m_fallbackReasons = channelReasons(run.m_height, true, run.m_count) | channelReasons(run.m_existence, false, run.m_count);
-            if (run.m_height && run.m_existence && run.m_height != run.m_existence)
+            auto heightReasons = channelReasons(run.m_height, true, start, run.m_count, run.m_batch);
+            auto existenceReasons = channelReasons(run.m_existence, false, start, run.m_count, run.m_batch);
+            const auto unsupportedSnapshot = [](const TerrainRenderGeometryQuery* owner, AZ::u32 reasons, bool height)
+            {
+                return owner && owner->m_proceduralSnapshot && owner->m_liveFallback &&
+                    (height ? owner->m_capability.m_height : owner->m_capability.m_existence).m_source == TerrainRenderSource::RetainedAvailable &&
+                    (reasons & TerrainRenderFallbackBit(TerrainRenderFallback::UnsupportedRequest));
+            };
+            const bool liveHeight = unsupportedSnapshot(run.m_height, heightReasons, true);
+            const bool liveExistence = unsupportedSnapshot(run.m_existence, existenceReasons, false);
+            // Preserve the existing bulk call and source order when either channel
+            // cannot support its full run. Independently owned/scalar channels can
+            // fall back separately. Never regroup or chunk a legacy provider.
+            if (liveHeight || (run.m_batch && liveExistence)) run.m_height = run.m_height->m_liveFallback;
+            if (liveExistence || (run.m_batch && liveHeight)) run.m_existence = run.m_existence->m_liveFallback;
+            if (liveHeight || liveExistence)
+            {
+                heightReasons |= channelReasons(run.m_height, true, start, run.m_count, run.m_batch);
+                existenceReasons |= channelReasons(run.m_existence, false, start, run.m_count, run.m_batch);
+            }
+            run.m_fallbackReasons = heightReasons | existenceReasons;
+            if (splitOwners)
                 run.m_fallbackReasons |= TerrainRenderFallbackBit(TerrainRenderFallback::SplitOwners);
             if (statistics)
             {
@@ -255,6 +350,8 @@ namespace TerrainCompositor
                 if (run.m_existence) statistics->m_existenceOwned += run.m_count;
                 if (run.m_height && run.m_existence) statistics->m_bothOwned += run.m_count;
                 if (!run.m_fallbackReasons) statistics->m_independentSamples += run.m_count;
+                if (!heightReasons && run.m_height->m_proceduralSnapshot) statistics->m_heightSnapshotSamples += run.m_count;
+                if (!existenceReasons && run.m_existence->m_proceduralSnapshot) statistics->m_existenceSnapshotSamples += run.m_count;
             }
             run.m_fallbackReasons |= TerrainRenderFallbackBit(TerrainRenderFallback::PreservedPolicy);
             if (statistics)

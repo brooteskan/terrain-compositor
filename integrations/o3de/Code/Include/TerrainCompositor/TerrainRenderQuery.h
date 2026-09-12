@@ -5,19 +5,48 @@
 #include <Atom/RPI.Public/Base.h>
 #include <AzCore/Math/Vector2.h>
 #include <AzCore/Math/Vector3.h>
+#include <AzCore/Math/Uuid.h>
 #include <AzCore/std/containers/array.h>
 #include <AzCore/std/containers/span.h>
+#include <AzCore/std/containers/vector.h>
 #include <AzFramework/Terrain/TerrainDataRequestBus.h>
 #include <chrono>
+#include <cmath>
 #include <limits>
 
 namespace TerrainCompositor
 {
-    enum class TerrainRenderCoordinates { Unknown, WorldXYOrdinarySurfaceZ };
+    enum class TerrainRenderCoordinates { Unknown, WorldXYOrdinarySurfaceZ, WorldXY };
     enum class TerrainRenderGrid { ExplicitPositions, Regular };
     enum class TerrainRenderSource { Unknown, Live, RetainedAvailable, Unavailable };
     enum class TerrainRenderInputZ { Unknown, OrdinarySurface, Independent };
     enum class TerrainRenderDispatch { Height, Existence, Geometry };
+    enum class TerrainSourceAcquisition : size_t
+    {
+        NotRequested, Acquired, UnsupportedProvider, MissingProvider, InvalidIdentity,
+        Reentrant, Cyclic, Rejected, InvalidConfiguration, ExternalMask, Count
+    };
+
+    //! A channel's retained sampling guarantee. Samplers describe direct evaluation
+    //! at supplied world XY, not reconstruction of the ordinary terrain grid.
+    //! Undeclared channels continue to use the legacy query-level contract below.
+    struct TerrainRenderChannelSampling
+    {
+        bool m_declared = false;
+        bool m_explicitPositions = false, m_regularGrid = false;
+        bool m_exact = false, m_clamp = false, m_bilinear = false;
+        size_t m_minSamples = 0, m_maxSamples = std::numeric_limits<size_t>::max();
+        float m_maxAbsXY = 0.0f;
+
+        bool SupportsPositions(AZStd::span<const AZ::Vector3> positions) const
+        {
+            if (!m_declared || positions.size() < m_minSamples || positions.size() > m_maxSamples) return false;
+            for (const auto& position : positions)
+                if (!std::isfinite(position.GetX()) || !std::isfinite(position.GetY()) ||
+                    std::abs(position.GetX()) > m_maxAbsXY || std::abs(position.GetY()) > m_maxAbsXY) return false;
+            return true;
+        }
+    };
     enum class TerrainRenderFallback : size_t
     {
         UnownedHeight, UnownedExistence, SplitOwners, LegacyContract, UnsupportedRequest,
@@ -34,6 +63,7 @@ namespace TerrainCompositor
         TerrainRenderInputZ m_inputZ = TerrainRenderInputZ::Unknown;
         bool m_requiresOrdinaryResult = true;
         AZ::EntityId m_sourceEntityId{}; //!< Informational identity; never a source-lifetime lease.
+        TerrainRenderChannelSampling m_sampling;
     };
 
     //! Guarantees for the ownership decision, never an availability probe or a
@@ -82,6 +112,17 @@ namespace TerrainCompositor
         size_t m_scalarCallbacks = 0, m_batchCallbacks = 0;
         size_t m_heightSourceCalls = 0, m_existenceSourceCalls = 0, m_hierarchySourceCalls = 0;
         size_t m_heightSourceFallbackSamples = 0, m_existenceSourceFallbackSamples = 0;
+        size_t m_heightSnapshotSamples = 0, m_existenceSnapshotSamples = 0;
+        AZStd::array<size_t, static_cast<size_t>(TerrainSourceAcquisition::Count)> m_sourceAcquisitions{};
+        struct SourceProvenance
+        {
+            AZ::EntityId m_entityId{};
+            AZ::Uuid m_session{};
+            AZ::u64 m_generation = 0;
+            TerrainSourceAcquisition m_height = TerrainSourceAcquisition::NotRequested;
+            TerrainSourceAcquisition m_existence = TerrainSourceAcquisition::NotRequested;
+        };
+        AZStd::vector<SourceProvenance> m_sources;
         AZStd::array<size_t, static_cast<size_t>(TerrainRenderFallback::Count)> m_fallbackSamples{};
         double m_resolutionMicroseconds = 0, m_executionMicroseconds = 0, m_preparationMicroseconds = 0;
     };

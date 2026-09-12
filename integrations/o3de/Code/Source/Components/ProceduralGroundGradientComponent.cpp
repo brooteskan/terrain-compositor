@@ -210,6 +210,13 @@ namespace TerrainCompositor
         provided.push_back(AZ_CRC_CE("GradientService"));
     }
 
+    ProceduralGroundGradientComponent::~ProceduralGroundGradientComponent()
+    {
+        // Also retire snapshots if an editor-owned provider is destroyed without
+        // an explicit deactivation. Disconnect shared dispatch before members die.
+        StopGradient();
+    }
+
     void ProceduralGroundGradientComponent::GetIncompatibleServices(AZ::ComponentDescriptor::DependencyArrayType& incompatible)
     {
         incompatible.push_back(AZ_CRC_CE("GradientService"));
@@ -251,16 +258,31 @@ namespace TerrainCompositor
     {
         // Publish before exposing the handler, including when a serialized component is reactivated.
         m_activeEntityId = entityId;
+        {
+            AZStd::unique_lock lock(m_queryMutex);
+            if (m_snapshotDependency) m_snapshotDependency->Retire();
+            m_snapshotDependency = std::make_shared<TerrainPreparationDependency>();
+            m_snapshotSession = AZ::Uuid::CreateRandom();
+            m_snapshotEntityId = entityId;
+        }
         OnConfigurationChanged();
         GradientSignal::GradientRequestBus::Handler::BusConnect(entityId);
         TerrainExistenceSourceRequestBus::Handler::BusConnect(entityId);
+        TerrainProceduralSnapshotRequestBus::Handler::BusConnect(entityId);
         AZ::TickBus::Handler::BusConnect();
-        LmbrCentral::DependencyNotificationBus::Event(
-            entityId, &LmbrCentral::DependencyNotificationBus::Events::OnCompositionChanged);
+        if (entityId.IsValid())
+            LmbrCentral::DependencyNotificationBus::Event(
+                entityId, &LmbrCentral::DependencyNotificationBus::Events::OnCompositionChanged);
     }
 
     void ProceduralGroundGradientComponent::StopGradient()
     {
+        {
+            AZStd::unique_lock lock(m_queryMutex);
+            if (m_snapshotDependency) m_snapshotDependency->Retire();
+            m_snapshotDependency.reset();
+        }
+        TerrainProceduralSnapshotRequestBus::Handler::BusDisconnect();
         // The shared-dispatch bus waits for in-flight height queries before disconnecting.
         TerrainExistenceSourceRequestBus::Handler::BusDisconnect();
         GradientSignal::GradientRequestBus::Handler::BusDisconnect();
@@ -268,8 +290,9 @@ namespace TerrainCompositor
         StopNoiseTintUpdates();
         const AZ::EntityId entityId = m_activeEntityId;
         m_activeEntityId.SetInvalid();
-        LmbrCentral::DependencyNotificationBus::Event(
-            entityId, &LmbrCentral::DependencyNotificationBus::Events::OnCompositionChanged);
+        if (entityId.IsValid())
+            LmbrCentral::DependencyNotificationBus::Event(
+                entityId, &LmbrCentral::DependencyNotificationBus::Events::OnCompositionChanged);
     }
 
     AZ::u32 ProceduralGroundGradientComponent::OnConfigurationChanged()
@@ -283,6 +306,7 @@ namespace TerrainCompositor
                 m_queryConfiguration.m_frequency != m_configuration.m_frequency ||
                 m_queryConfiguration.m_holeThreshold != m_configuration.m_holeThreshold ||
                 !HoleSamplerEqual(m_queryConfiguration.m_holeMask, m_configuration.m_holeMask);
+            if (heightsChanged && m_snapshotDependency) m_snapshotDependency->Invalidate();
             m_queryConfiguration = m_configuration;
         }
         m_holeDependencyMonitor.Reset();
@@ -307,6 +331,47 @@ namespace TerrainCompositor
     {
         AZStd::shared_lock lock(m_queryMutex);
         return m_queryConfiguration;
+    }
+
+    TerrainProceduralSnapshotPtr ProceduralGroundGradientComponent::AcquireTerrainSnapshot() const
+    {
+        AZStd::shared_lock lock(m_queryMutex);
+        if (!m_snapshotDependency) return {};
+        const auto configuration = m_queryConfiguration;
+        auto snapshot = std::make_shared<TerrainProceduralSnapshot>();
+        snapshot->m_entityId = m_snapshotEntityId;
+        snapshot->m_session = m_snapshotSession;
+        snapshot->m_ticket = { m_snapshotDependency, m_snapshotDependency->Capture() };
+        TerrainRenderChannelCapability supported;
+        supported.m_source = TerrainRenderSource::RetainedAvailable;
+        supported.m_sourceEntityId = m_snapshotEntityId;
+        supported.m_inputZ = TerrainRenderInputZ::Independent;
+        supported.m_requiresOrdinaryResult = false;
+        supported.m_sampling.m_declared = true;
+        supported.m_sampling.m_explicitPositions = supported.m_sampling.m_regularGrid = true;
+        supported.m_sampling.m_exact = supported.m_sampling.m_clamp = supported.m_sampling.m_bilinear = true;
+        // Keeps density-scaled cell coordinates and their +/-1 neighbors well
+        // inside int64. Finite world XY only; Z is never read by either kernel.
+        supported.m_sampling.m_maxAbsXY = 1.0e12f;
+        snapshot->m_heightResult = TerrainSourceAcquisition::InvalidConfiguration;
+        if (std::isfinite(configuration.m_hillDensity) && std::isfinite(configuration.m_amplitudeMeters) &&
+            std::isfinite(configuration.m_frequency))
+        {
+            snapshot->m_height = supported;
+            snapshot->m_heightResult = TerrainSourceAcquisition::Acquired;
+            snapshot->m_heightValue = [configuration](const AZ::Vector3& position)
+            {
+                return EvaluatePosition(position, configuration);
+            };
+        }
+        snapshot->m_existenceResult = TerrainSourceAcquisition::ExternalMask;
+        if (!configuration.m_holeMask.m_gradientId.IsValid())
+        {
+            snapshot->m_existence = supported;
+            snapshot->m_existenceResult = TerrainSourceAcquisition::Acquired;
+            snapshot->m_existenceValue = [](const AZ::Vector3&) { return true; };
+        }
+        return snapshot;
     }
 
     void ProceduralGroundGradientComponent::StopNoiseTintUpdates()

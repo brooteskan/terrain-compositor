@@ -5,6 +5,7 @@
 #include <TerrainCompositor/TerrainMeshCutoutRenderRegistry.h>
 #include <Tests/Mocks/Terrain/MockTerrainDataRequestBus.h>
 #include "TerrainTestFixtures.h"
+#include "ProceduralSnapshotTestSupport.h"
 #include <thread>
 
 namespace Terrain
@@ -27,6 +28,11 @@ namespace Terrain
         void CheckClodEmptyQueryFallsBackButIncompleteQueryFails();
         void CheckSourceChangeDuringPreparationRejectsOwnedOutput();
         void CheckSceneReactivationPreservesIndependentlyOwnedRegistrations();
+        void CheckProceduralSnapshotMatchesPackedClodHaloAndRtOutput();
+        void CheckProceduralSnapshotChangeRemovalAndReconnectionRejectDelayedResults();
+        void CheckProceduralSnapshotChangeDuringOrdinarySamplingRejectsResults();
+        void CheckProceduralSnapshotPublicationReplacementRejectsResults();
+        void CheckAcquisitionCannotRefreshAnOldSourceGenerationTicket();
 
         using Manager = TerrainMeshManager;
         using Request = Manager::SectorPreparationRequest;
@@ -411,6 +417,178 @@ namespace Terrain
         registry.Remove(session);
         EXPECT_TRUE(m_channel->m_snapshot.load()->m_renderGeometryQueries.empty());
     }
+
+    void TerrainSectorLifetimeTests::CheckProceduralSnapshotMatchesPackedClodHaloAndRtOutput()
+    {
+        ::testing::NiceMock<UnitTest::MockTerrainDataRequests> terrain;
+        SupplyTerrain(terrain);
+        TerrainCompositor::ProceduralGroundGradientConfig config;
+        config.m_hillDensity = 0.3f;
+        config.m_amplitudeMeters = 180.0f; // Includes final renderer clamping in [-10, 10].
+        TerrainCompositor::SnapshotTestSupport::Composition scene(config);
+        ASSERT_TRUE(scene.AddImageHole());
+        m_channel = scene.Channel();
+        m_manager->m_sectorLods[0].m_sectors[0].m_rtData = AZStd::make_unique<Manager::RtSector>();
+        for (bool batch : { false, true })
+            for (auto sampler : { Requests::Sampler::EXACT, Requests::Sampler::CLAMP, Requests::Sampler::BILINEAR })
+            {
+                auto request = Capture();
+                auto settings = std::make_shared<Manager::SectorPreparationSettings>(*request.m_data.m_settings);
+                settings->m_batchQueries = batch;
+                request.m_data.m_settings = settings;
+                request.m_data.m_samplerType = sampler;
+                const auto captured = request.m_data.m_renderSources;
+                ASSERT_TRUE(captured && captured->m_queries.front().m_proceduralSnapshot);
+                auto legacy = std::make_shared<TerrainCompositor::TerrainRenderQuerySources>();
+                legacy->m_publication = request.m_data.m_renderSnapshot;
+                legacy->m_queries = legacy->m_publication->m_renderGeometryQueries;
+                request.m_data.m_renderSources = legacy;
+                const auto expected = Manager::PrepareSector(request);
+                request.m_data.m_renderSources = captured;
+                const auto actual = std::make_shared<Result>(Manager::PrepareSector(request));
+                ASSERT_EQ(actual->m_status, Status::Ready);
+                EXPECT_EQ(actual->m_status, expected.m_status);
+                EXPECT_EQ(actual->m_aabb, expected.m_aabb);
+                EXPECT_EQ(actual->m_hasData, expected.m_hasData);
+                ASSERT_EQ(actual->m_heights.size(), expected.m_heights.size());
+                ASSERT_EQ(actual->m_lodHeights.size(), expected.m_lodHeights.size());
+                for (size_t i = 0; i < actual->m_heights.size(); ++i)
+                {
+                    EXPECT_EQ(actual->m_heights[i].m_height, expected.m_heights[i].m_height);
+                    EXPECT_EQ(actual->m_heights[i].m_normal, expected.m_heights[i].m_normal);
+                    EXPECT_EQ(actual->m_lodHeights[i].m_height, expected.m_lodHeights[i].m_height);
+                    EXPECT_EQ(actual->m_lodHeights[i].m_normal, expected.m_lodHeights[i].m_normal);
+                    EXPECT_FLOAT_EQ(actual->m_rtPositions[i].x, expected.m_rtPositions[i].x);
+                    EXPECT_FLOAT_EQ(actual->m_rtPositions[i].y, expected.m_rtPositions[i].y);
+                    EXPECT_FLOAT_EQ(actual->m_rtPositions[i].z, expected.m_rtPositions[i].z);
+                    EXPECT_FLOAT_EQ(actual->m_rtNormals[i].x, expected.m_rtNormals[i].x);
+                    EXPECT_FLOAT_EQ(actual->m_rtNormals[i].y, expected.m_rtNormals[i].y);
+                    EXPECT_FLOAT_EQ(actual->m_rtNormals[i].z, expected.m_rtNormals[i].z);
+                }
+                EXPECT_EQ(actual->m_queryStatistics->m_ordinarySamples, 41);
+                EXPECT_EQ(actual->m_queryStatistics->m_heightSnapshotSamples, 41);
+                EXPECT_EQ(actual->m_queryStatistics->m_existenceSnapshotSamples, 41);
+                EXPECT_EQ(actual->m_queryStatistics->m_sources.size(), 1); // Captured once across both halos.
+                EXPECT_TRUE(Accept({ actual }));
+            }
+    }
+
+    void TerrainSectorLifetimeTests::CheckProceduralSnapshotChangeRemovalAndReconnectionRejectDelayedResults()
+    {
+        ::testing::NiceMock<UnitTest::MockTerrainDataRequests> terrain;
+        SupplyTerrain(terrain);
+        TerrainCompositor::SnapshotTestSupport::Composition scene;
+        m_channel = scene.Channel();
+        auto request = Capture();
+        const auto publication = request.m_data.m_renderSnapshot;
+        const auto snapshot = request.m_data.m_renderSources->m_queries.front().m_proceduralSnapshot;
+        const auto before = Manager::PrepareSector(request);
+        scene.m_config.m_amplitudeMeters = 0.0f;
+        scene.m_source->ReadInConfig(&scene.m_config);
+        EXPECT_EQ(scene.Publication(), publication); // No deferred composition republish is needed for rejection.
+        auto after = std::make_shared<Result>(Manager::PrepareSector(request));
+        ASSERT_EQ(after->m_heights.size(), before.m_heights.size());
+        for (size_t i = 0; i < after->m_heights.size(); ++i) EXPECT_EQ(after->m_heights[i].m_height, before.m_heights[i].m_height);
+        EXPECT_FALSE(Accept({ after }));
+        request = Capture();
+        scene.StopSource();
+        scene.StartSource();
+        EXPECT_FALSE(Accept({ std::make_shared<Result>(Manager::PrepareSector(request)) }));
+        auto destroyed = Capture();
+        scene.m_source.reset(); // Destruction also retires the provider without an explicit Deactivate.
+        auto oldOutput = std::make_shared<Result>(Manager::PrepareSector(destroyed));
+        EXPECT_EQ(oldOutput->m_status, Status::Ready);
+        EXPECT_FALSE(Accept({ oldOutput }));
+        scene.StartSource();
+        EXPECT_TRUE(Accept({ Empty() }));
+        EXPECT_EQ(m_commits, 1);
+        EXPECT_FALSE(TerrainCompositor::SnapshotTestSupport::Current(snapshot));
+    }
+
+    void TerrainSectorLifetimeTests::CheckProceduralSnapshotChangeDuringOrdinarySamplingRejectsResults()
+    {
+        ::testing::NiceMock<UnitTest::MockTerrainDataRequests> terrain;
+        SupplyTerrain(terrain);
+        TerrainCompositor::SnapshotTestSupport::Composition scene;
+        m_channel = scene.Channel();
+        auto request = Capture();
+        bool changed = false;
+        ON_CALL(terrain, QueryRegion).WillByDefault([&](const auto& region, auto, auto callback, auto)
+        {
+            if (!changed)
+            {
+                changed = true;
+                scene.m_config.m_amplitudeMeters = 0.0f;
+                scene.m_source->ReadInConfig(&scene.m_config);
+            }
+            for (size_t y = 0; y < region.m_numPointsY; ++y)
+                for (size_t x = 0; x < region.m_numPointsX; ++x)
+                {
+                    AzFramework::SurfaceData::SurfacePoint point;
+                    point.m_position = AZ::Vector3(region.m_startPoint.GetX() + x * region.m_stepSize.GetX(),
+                        region.m_startPoint.GetY() + y * region.m_stepSize.GetY(), -10);
+                    callback(x, y, point, false); // Ordinary collision holes must not disable the overlay.
+                }
+        });
+        auto result = std::make_shared<Result>(Manager::PrepareSector(request));
+        EXPECT_EQ(result->m_status, Status::Ready);
+        EXPECT_EQ(result->m_queryStatistics->m_heightSnapshotSamples, 41);
+        EXPECT_FALSE(Accept({ result }));
+        EXPECT_TRUE(Accept({ Empty() }));
+    }
+
+    void TerrainSectorLifetimeTests::CheckProceduralSnapshotPublicationReplacementRejectsResults()
+    {
+        ::testing::NiceMock<UnitTest::MockTerrainDataRequests> terrain;
+        SupplyTerrain(terrain);
+        TerrainCompositor::SnapshotTestSupport::Composition scene;
+        m_channel = scene.Channel();
+        const auto pending = Empty();
+        ASSERT_TRUE(scene.AddImageHole());
+        EXPECT_FALSE(Accept({ pending }));
+        EXPECT_TRUE(Accept({ Empty() }));
+        EXPECT_EQ(m_commits, 1);
+    }
+
+    void TerrainSectorLifetimeTests::CheckAcquisitionCannotRefreshAnOldSourceGenerationTicket()
+    {
+        ::testing::NiceMock<UnitTest::MockTerrainDataRequests> terrain;
+        SupplyTerrain(terrain);
+        TerrainCompositor::SnapshotTestSupport::Composition scene;
+        m_channel = scene.Channel();
+        const auto sources = scene.Capture();
+        scene.m_config.m_amplitudeMeters = 0.0f;
+        scene.m_source->ReadInConfig(&scene.m_config);
+        // Simulate a provider returning a previously retained value snapshot to a
+        // NEW request. Manager/composition tickets are current; the source's ticket
+        // must remain the old generation captured with those values.
+        auto publication = std::make_shared<TerrainCompositor::TerrainMeshCutoutRenderSnapshot>(*scene.Publication());
+        publication->m_renderGeometryQueries.front().m_acquireSources = [sources]
+        {
+            return std::make_shared<const TerrainCompositor::TerrainRenderGeometryQuery>(sources->m_queries.front());
+        };
+        m_channel->m_snapshot.store(publication);
+        const auto result = Empty();
+        EXPECT_EQ(result->m_status, Status::Ready);
+        EXPECT_FALSE(Accept({ result }));
+        // Even the empty-area fast path carries and validates the same source ticket.
+        ON_CALL(terrain, TerrainAreaExistsInBounds).WillByDefault(::testing::Return(false));
+        const auto empty = Empty();
+        EXPECT_EQ(empty->m_status, Status::Empty);
+        EXPECT_FALSE(Accept({ empty }));
+        EXPECT_EQ(m_commits, 0);
+    }
+
+    TEST_F(TerrainSectorLifetimeTests, ProceduralSnapshotMatchesPackedClodHaloAndRtOutput)
+    { CheckProceduralSnapshotMatchesPackedClodHaloAndRtOutput(); }
+    TEST_F(TerrainSectorLifetimeTests, ProceduralSnapshotChangeRemovalAndReconnectionRejectDelayedResults)
+    { CheckProceduralSnapshotChangeRemovalAndReconnectionRejectDelayedResults(); }
+    TEST_F(TerrainSectorLifetimeTests, ProceduralSnapshotChangeDuringOrdinarySamplingRejectsResults)
+    { CheckProceduralSnapshotChangeDuringOrdinarySamplingRejectsResults(); }
+    TEST_F(TerrainSectorLifetimeTests, ProceduralSnapshotPublicationReplacementRejectsResults)
+    { CheckProceduralSnapshotPublicationReplacementRejectsResults(); }
+    TEST_F(TerrainSectorLifetimeTests, AcquisitionCannotRefreshAnOldSourceGenerationTicket)
+    { CheckAcquisitionCannotRefreshAnOldSourceGenerationTicket(); }
 
     TEST_F(TerrainSectorLifetimeTests, SceneReactivationPreservesIndependentlyOwnedRegistrations)
     { CheckSceneReactivationPreservesIndependentlyOwnedRegistrations(); }

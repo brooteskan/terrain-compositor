@@ -10,6 +10,7 @@
 #include <GradientSignal/GradientSampler.h>
 #include <LmbrCentral/Dependency/DependencyMonitor.h>
 #include <TerrainCompositor/TerrainExistenceBus.h>
+#include <TerrainCompositor/TerrainProceduralSnapshot.h>
 
 namespace TerrainCompositor
 {
@@ -46,6 +47,7 @@ namespace TerrainCompositor
         , public AzFramework::EditorEntityEvents
         , private GradientSignal::GradientRequestBus::Handler
         , private TerrainExistenceSourceRequestBus::Handler
+        , private TerrainProceduralSnapshotRequestBus::Handler
         , private AZ::TickBus::Handler
     {
     public:
@@ -60,7 +62,7 @@ namespace TerrainCompositor
 
         explicit ProceduralGroundGradientComponent(const ProceduralGroundGradientConfig& configuration);
         ProceduralGroundGradientComponent() = default;
-        ~ProceduralGroundGradientComponent() override = default;
+        ~ProceduralGroundGradientComponent() override;
 
         void Activate() override;
         void Deactivate() override;
@@ -71,6 +73,7 @@ namespace TerrainCompositor
         void EditorDeactivate(AZ::EntityId entityId) override;
 
     private:
+        TerrainProceduralSnapshotPtr AcquireTerrainSnapshot() const override;
         float GetValue(const GradientSignal::GradientSampleParams& sampleParams) const override;
         void GetValues(AZStd::span<const AZ::Vector3> positions, AZStd::span<float> outValues) const override;
         bool GetTerrainExists(const AZ::Vector3& position) const override;
@@ -94,6 +97,9 @@ namespace TerrainCompositor
         ProceduralGroundGradientConfig m_configuration;
         mutable AZStd::shared_mutex m_queryMutex;
         ProceduralGroundGradientConfig m_queryConfiguration;
+        std::shared_ptr<TerrainPreparationDependency> m_snapshotDependency;
+        AZ::Uuid m_snapshotSession;
+        AZ::EntityId m_snapshotEntityId;
         AZ::EntityId m_activeEntityId;
         AZ::Data::Instance<AZ::RPI::Material> m_terrainMaterial;
         LmbrCentral::DependencyMonitor m_holeDependencyMonitor;

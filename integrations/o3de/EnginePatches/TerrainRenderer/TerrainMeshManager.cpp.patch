@@ -377,7 +377,7 @@
          const AZ::Vector2 stepSize(request.m_vertexSpacing);
  
          const uint16_t querySamplesX = request.m_samplesX + 2; // extra row / column on each side for normals.
-@@ -981,34 +1039,93 @@
+@@ -981,34 +1039,97 @@
          AZStd::vector<float> heights;
          heights.resize_no_construct(querySamplesCount);
  
@@ -389,6 +389,10 @@
 +        meshHeightsNormals.resize(outputSamplesCount, HeightNormalVertex{});
 +
 +        const auto renderSnapshot = request.m_renderSnapshot;
++        const auto renderSources = request.m_renderSources ? request.m_renderSources :
++            TerrainCompositor::CaptureTerrainRenderQuerySources(renderSnapshot);
++        if (!request.m_renderSources)
++            TerrainCompositor::RecordTerrainRenderSourceAcquisitions(renderSources, request.m_queryStatistics);
 +        const bool batchQueries = settings.m_batchQueries && renderSnapshot && !renderSnapshot->m_renderGeometryQueries.empty();
 +        AZStd::vector<AZ::Vector3> positions;
 +        std::unique_ptr<bool[]> exists;
@@ -400,7 +404,7 @@
 +        }
 +
 +        auto perPositionCallback =
-+            [&settings, &heights, &positions, &exists, &receivedSamples, querySamplesX, &terrainExistsAnywhere, renderSnapshot, batchQueries, renderRequest, queryStatistics](
++            [&settings, &heights, &positions, &exists, &receivedSamples, querySamplesX, &terrainExistsAnywhere, renderSnapshot, renderSources, batchQueries, renderRequest, queryStatistics](
 +                size_t xIndex, size_t yIndex, const AzFramework::SurfaceData::SurfacePoint& surfacePoint, bool terrainExists)
 +        {
 +            ++receivedSamples;
@@ -424,7 +428,7 @@
 +                auto scalarRequest = renderRequest;
 +                scalarRequest.m_positions = { &surfacePoint.m_position, 1 };
 +                scalarRequest.m_allowBatch = false;
-+                const auto plan = TerrainCompositor::ResolveTerrainRenderQuery(renderSnapshot, scalarRequest, queryStatistics);
++                const auto plan = TerrainCompositor::ResolveTerrainRenderQuery(renderSnapshot, scalarRequest, queryStatistics, renderSources);
 +                TerrainCompositor::ExecuteTerrainRenderQuery(plan, { &worldHeight, 1 }, { &renderTerrainExists, 1 }, queryStatistics);
 +            }
 +            const float height = AZ::GetClamp(worldHeight, settings.m_worldHeightBounds.m_min, settings.m_worldHeightBounds.m_max) - settings.m_worldHeightBounds.m_min;
@@ -464,7 +468,7 @@
 +            renderRequest.m_gridSpacing = stepSize;
 +            renderRequest.m_gridWidth = querySamplesX;
 +            renderRequest.m_gridHeight = querySamplesY;
-+            const auto plan = TerrainCompositor::ResolveTerrainRenderQuery(renderSnapshot, renderRequest, queryStatistics);
++            const auto plan = TerrainCompositor::ResolveTerrainRenderQuery(renderSnapshot, renderRequest, queryStatistics, renderSources);
 +            TerrainCompositor::ExecuteTerrainRenderQuery(plan, heights, AZStd::span<bool>(exists.get(), querySamplesCount), queryStatistics);
 +            for (size_t index = 0; index < querySamplesCount; ++index)
 +            {
@@ -489,7 +493,7 @@
          const float rcpWorldZ = 1.0f / zExtents;
          const float vertexSpacing2 = request.m_vertexSpacing * 2.0f;
  
-@@ -1030,7 +1147,7 @@
+@@ -1030,7 +1151,7 @@
                  const uint16_t queryCoord = queryY * querySamplesX + queryX;
  
                  uint16_t coord = y * request.m_samplesX + x;
@@ -498,7 +502,7 @@
  
                  const float height = heights.at(queryCoord);
                  if (height < 0.0f)
-@@ -1112,104 +1229,283 @@
+@@ -1112,104 +1233,290 @@
          {
              float width = (request.m_samplesX - 1) * request.m_vertexSpacing;
              float height = (request.m_samplesY - 1) * request.m_vertexSpacing;
@@ -537,10 +541,10 @@
 +        request.m_channel = AZStd::move(channel);
 +        request.m_data.m_renderSnapshot = AZStd::move(snapshot);
 +        request.m_dependencies.push_back({ m_preparationLifetime, m_preparationLifetime->Capture() });
-+        if (request.m_data.m_renderSnapshot)
-+            for (const auto& query : request.m_data.m_renderSnapshot->m_renderGeometryQueries)
-+                if (query.m_preparationDependency)
-+                    request.m_dependencies.push_back({ query.m_preparationDependency, query.m_preparationDependency->Capture() });
++        request.m_data.m_renderSources = TerrainCompositor::CaptureTerrainRenderQuerySources(request.m_data.m_renderSnapshot);
++        if (request.m_data.m_renderSources)
++            request.m_dependencies.insert(request.m_dependencies.end(), request.m_data.m_renderSources->m_dependencies.begin(),
++                request.m_data.m_renderSources->m_dependencies.end());
 +        request.m_destinationIdentity = sector.m_destinationIdentity;
 +        request.m_serial = ++sector.m_preparationSerial;
 +        request.m_lodLevel = lodLevel;
@@ -584,6 +588,7 @@
 +            }
 +            if (owned.m_collectStatistics)
 +                result.m_queryStatistics = std::make_unique<TerrainCompositor::TerrainRenderQueryStatistics>();
++            TerrainCompositor::RecordTerrainRenderSourceAcquisitions(owned.m_data.m_renderSources, result.m_queryStatistics.get());
 +            if (!owned.m_hasTerrain)
 +            {
 +                result.m_status = SectorPreparationStatus::Empty;
@@ -857,14 +862,20 @@
 +                for (size_t reason = 0; reason < stats.m_fallbackSamples.size(); ++reason)
 +                    if (stats.m_fallbackSamples[reason])
 +                        fallbacks += AZStd::string::format("%zu:%zu,", reason, stats.m_fallbackSamples[reason]);
++                for (const auto& source : stats.m_sources)
++                    AZ_Printf("TerrainRenderSource", "sector=%zu entity=%s session=%s generation=%llu height=%zu existence=%zu\n",
++                        index, source.m_entityId.ToString().c_str(), source.m_session.ToString<AZStd::string>().c_str(),
++                        static_cast<unsigned long long>(source.m_generation), static_cast<size_t>(source.m_height),
++                        static_cast<size_t>(source.m_existence));
 +                AZ_Printf("TerrainRenderQuery",
 +                    "sector=%zu ordinary=%zu retained=%zu owned-height=%zu owned-existence=%zu both=%zu independent=%zu "
 +                    "scalar=%zu batch=%zu scalar-calls=%zu batch-calls=%zu source-height=%zu source-existence=%zu hierarchy=%zu "
-+                    "height-fallback=%zu existence-fallback=%zu fallback-reasons=[%s] prepare=%.3fus resolve=%.3fus execute=%.3fus\n",
++                    "height-fallback=%zu existence-fallback=%zu snapshot-height=%zu snapshot-existence=%zu fallback-reasons=[%s] prepare=%.3fus resolve=%.3fus execute=%.3fus\n",
 +                    index, stats.m_ordinarySamples, stats.m_retainedSamples, stats.m_heightOwned, stats.m_existenceOwned,
 +                    stats.m_bothOwned, stats.m_independentSamples, stats.m_scalarSamples, stats.m_batchSamples,
 +                    stats.m_scalarCallbacks, stats.m_batchCallbacks, stats.m_heightSourceCalls, stats.m_existenceSourceCalls,
 +                    stats.m_hierarchySourceCalls, stats.m_heightSourceFallbackSamples, stats.m_existenceSourceFallbackSamples,
++                    stats.m_heightSnapshotSamples, stats.m_existenceSnapshotSamples,
 +                    fallbacks.c_str(), stats.m_preparationMicroseconds, stats.m_resolutionMicroseconds, stats.m_executionMicroseconds);
 +            }
 +        }

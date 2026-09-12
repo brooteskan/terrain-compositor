@@ -45,7 +45,7 @@
              Vector2i m_worldCoord = AZStd::numeric_limits<int32_t>::max();
  
              // When drawing, either the m_rhiDrawPacket will be used, or some number of the m_rhiDrawPacketQuadrants
-@@ -211,8 +217,14 @@
+@@ -211,8 +217,15 @@
              float m_gridToQuadScale;
          };
  
@@ -55,12 +55,13 @@
          {
 +            std::shared_ptr<const SectorPreparationSettings> m_settings;
 +            TerrainCompositor::TerrainMeshCutoutRenderSnapshotPtr m_renderSnapshot;
++            TerrainCompositor::TerrainRenderQuerySourcesPtr m_renderSources;
 +            // Optional statistics owned by this synchronous request's caller.
 +            TerrainCompositor::TerrainRenderQueryStatistics* m_queryStatistics = nullptr;
              AZ::Vector2 m_worldStartPosition;
              float m_vertexSpacing;
              int16_t m_samplesX;
-@@ -239,6 +251,14 @@
+@@ -239,6 +252,14 @@
              NormalXYDataType m_normal;
          };
  
@@ -75,7 +76,7 @@
          struct CandidateSector
          {
              AZ::Aabb m_aabb;
-@@ -250,6 +270,72 @@
+@@ -250,6 +271,73 @@
              uint8_t m_posx;
              uint8_t m_posy;
          };
@@ -108,7 +109,8 @@
 +            bool m_hasTerrain = false;
 +            bool m_rayTracing = false;
 +            bool m_collectStatistics = false;
-+            // Ordinary and procedural buses provide call-scoped handler lifetime only.
++            // Opted-in procedural values are retained across regular/CLOD halos.
++            // Ordinary and unsupported procedural buses remain live.
 +            // This request must still execute within the current synchronous update.
 +        };
 +
@@ -148,7 +150,7 @@
  
          struct RayTracedItem
          {
-@@ -273,13 +359,25 @@
+@@ -273,13 +361,25 @@
          AZ::RHI::StreamBufferView CreateStreamBufferView(AZ::Data::Instance<AZ::RPI::Buffer>& buffer, uint32_t offset = 0);
  
          void CreateCommonBuffers();
@@ -178,7 +180,7 @@
          void ProcessSectorUpdates(AZStd::vector<AZStd::vector<Sector*>>& sectorUpdates);
  
          AZ::Data::Instance<AZ::RPI::Buffer> CreateMeshBufferInstance(
-@@ -318,6 +416,10 @@
+@@ -318,6 +418,10 @@
          AZ::Data::Instance<AZ::RPI::Buffer> m_dummyLodHeightsNormalsBuffer;
          AZ::RHI::IndexBufferView m_indexBufferView;
  

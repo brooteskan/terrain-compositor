@@ -1,9 +1,9 @@
 # Owned sector preparation and validated commit lifetime
 
-Section 2 of terrain-compositor issue #2 keeps `StartAndWaitForCompletion` and
-the existing ordinary-query-then-overlay policy. The change establishes owned
-CPU work and one acceptance boundary for a synchronous batch. It makes no
-performance improvement claim and does not enable cross-frame scheduling.
+Issues #2 and #3 keep `StartAndWaitForCompletion` and the existing
+ordinary-query-then-overlay policy. Owned CPU work, opt-in procedural snapshots,
+and one acceptance boundary serve a synchronous batch. These changes make no
+performance improvement claim and do not enable cross-frame scheduling.
 
 ## Owned work
 
@@ -11,8 +11,9 @@ performance improvement claim and does not enable cross-frame scheduling.
 remap, RT XY positions, batching choice, and CLOD choice once per update batch.
 Each `SectorPreparationRequest` owns its world coordinate, LOD, destination
 slot/lease, regular-grid request and sampler, object SRG constants, RT choice,
-area-existence result, cancellation token, retained render publication, and
-invalidation tickets. Settings are shared as const values within the batch.
+area-existence result, cancellation token, retained render publication, acquired
+procedural source set, and invalidation tickets. Settings are shared as const
+values within the batch.
 The area-existence query runs after ticket capture so even an empty-area result
 participates in invalidation.
 
@@ -23,12 +24,21 @@ Regular and CLOD query plans borrow only storage within their synchronous
 kernel; their publication remains retained by the owned request. Query counters
 belong to the result, and the kernel's temporary counter pointer never escapes.
 
-Ordinary terrain and procedural providers remain live buses. Their existing
-bus dispatch protects handler lifetime for each call; immutable publications do
-not freeze those providers' values. Requests must execute within the current
-synchronous update. A future scheduler must explicitly address providers that
-change without notifications and admission across frames; this refactor does
-not declare those sources retained or independent of ordinary terrain queries.
+`CaptureTerrainRenderQuerySources` first captures every composition notification
+ticket, then acquires each opt-in source. The owned set retains the exact scene
+publication plus replacement queries containing immutable source values. A source
+ticket is copied from acquisition, never recaptured at execution time. The same
+set is used for regular and CLOD gathers, including both normal halos, so numerical
+configuration cannot change between them. Queries with no supported source retain
+the original callbacks. Neither capture nor execution changes the scene registry.
+
+The built-in height kernel and no-mask existence case have retained values as
+specified in [TerrainRenderQueries.md](TerrainRenderQueries.md). Ordinary terrain
+and unsupported procedural/mask providers remain live buses with call-scoped
+handler lifetime. Requests still execute within the current synchronous update.
+A future scheduler must cover these remaining live dependencies, unnotified
+changes, and admission across frames. Source snapshots alone do not make the
+whole request independent of ordinary terrain results.
 
 Results own packed heights/normals, CLOD fallback/interpolation, decoded RT
 positions/normals, AABB, existence, and diagnostics. Incomplete ordinary queries
@@ -62,6 +72,16 @@ their render query. Source notifications advance it immediately before entering
 the deferred mailbox, including notifications coalesced with earlier edits.
 Reconnection and shutdown retire it. Thus a source edit can reject work while the
 immutable render snapshot still has the same pointer and revision.
+
+Opt-in sources add their own activation authority and captured generation to the
+request's existing dependency list. A configuration edit invalidates this ticket
+before publishing new numerical settings, independently of delayed composition
+notifications. Provider removal retires it, and reconnection creates a distinct
+authority/session. Retained values can still be sampled after either event, but
+the unchanged production `AcceptPreparedSectors` boundary rejects their results.
+This also rejects old work captured from an unchanged scene publication after a
+source generation becomes obsolete. Resource commit holds the source dependency
+locks alongside the existing manager/composition locks.
 
 All manager/destination mutation and completion acceptance remain renderer
 control-thread operations. Workers and foreign-thread source notifications never
@@ -114,7 +134,26 @@ publication mutex stays held for every commit in a batch.
 Maintained renderer patches and their normalized output hashes remain the source
 of truth; generated build sources are only verification artifacts.
 
-### Verification on 2026-09-11
+### Issue #3 verification on 2026-09-11
+
+The source-snapshot integration passed 345 runtime and 46 editor tests, including
+the 32-test snapshot/sector-lifetime subset. New production-boundary checks cover
+identical packed regular/CLOD vertices, halo normals and RT decoding; source
+changes during ordinary sampling; retained preparation after source destruction;
+reconnection and publication replacement; and rejection of an original stale
+ticket even when an acquisition callback offers a newer ticket.
+
+Final Editor diagnostics confirmed the retained source set is used by live sector
+preparation while ordinary queries and synchronous scheduling remain enabled.
+Generated manager SHA-256 values are
+`6330886d2866b508c8075891dbe8e8e68b237dac53c3bcc9c351c00bb5938463`
+(CPP) and
+`5509421017b864c411e1070a7f7d838196ecdbaaff637f18dde23509779504fe`
+(header). The [render-query verification record](TerrainRenderQueries.md#issue-3-verification-on-2026-09-11)
+contains exact provenance, shader-build remediation, remaining warnings, and
+artifact locations. No frame-time improvement or cross-frame policy is claimed.
+
+### Historical issue #2 verification on 2026-09-11
 
 - MSVC 19.51, profile configuration, pinned O3DE
   `061180bf24f1666eb30315b35da292eb14f4659c`.

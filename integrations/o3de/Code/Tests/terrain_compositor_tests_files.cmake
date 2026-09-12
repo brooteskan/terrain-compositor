@@ -6,6 +6,8 @@ set(FILES
     TestMain.cpp
     TerrainTestFixtures.h
     ProceduralGroundGradientComponentTests.cpp
+    ProceduralSnapshotTestSupport.h
+    TerrainProceduralSnapshotTests.cpp
     HeightmapReconstructionTests.cpp
     TerrainMeshCutoutTests.cpp
     TerrainSectorLifetimeTests.cpp

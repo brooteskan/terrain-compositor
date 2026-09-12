@@ -151,8 +151,10 @@ namespace TerrainCompositor
             const AZStd::vector<AZ::Aabb>& surfaceRegions);
         QueryStatePtr GetQueryState() const;
         static bool CanSampleSource(const QueryState& state);
-        static float GetNormalizedHeight(const QueryState& state, const AZ::Vector3& position);
-        static TerrainRenderGeometryQuery CreateRenderGeometryQuery(QueryStatePtr state);
+        static float GetNormalizedHeight(const QueryState& state, const AZ::Vector3& position,
+            const TerrainProceduralSnapshotPtr& source = {});
+        static TerrainRenderGeometryQuery CreateRenderGeometryQuery(QueryStatePtr state,
+            TerrainProceduralSnapshotPtr source = {}, TerrainSourceAcquisition acquisition = TerrainSourceAcquisition::NotRequested);
         static TerrainMeshHeightGapActivationPtr CaptureGapActivation(const QueryState& state);
         bool GetComposedTerrainExists(const QueryState& state, const AZ::Vector3& position,
             const TerrainMeshHeightGapActivationPtr& activation) const;
