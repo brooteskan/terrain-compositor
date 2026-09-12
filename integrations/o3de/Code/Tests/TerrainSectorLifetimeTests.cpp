@@ -38,6 +38,8 @@ namespace Terrain
         void CheckRetainedOnlyMatchesRealTerrainAndCoordinates();
         void CheckDeferredAreaCaptureAndSettingsRevalidation();
         void CheckPredictedLeaseAdoptionAndCancellation();
+        void CheckUploadsWaitForWholeGroupBeforeConsumingLeases();
+        void CheckSourceChangeAndCancellationDuringUploadWaitRejectPublication();
         void CheckRetainedOnlyWholeSectorFallbackAndInvalidation();
         void CheckProceduralSnapshotChangeRemovalAndReconnectionRejectDelayedResults();
         void CheckProceduralSnapshotChangeDuringOrdinarySamplingRejectsResults();
@@ -1501,6 +1503,73 @@ namespace Terrain
         EXPECT_EQ(sector.m_committed.m_worldCoord, target);
         EXPECT_FALSE(Accept({ std::make_shared<Result>(Manager::PrepareSector(obsolete)) }));
     }
+
+    void TerrainSectorLifetimeTests::CheckUploadsWaitForWholeGroupBeforeConsumingLeases()
+    {
+        ::testing::NiceMock<UnitTest::MockTerrainDataRequests> terrain;
+        SupplyTerrain(terrain);
+        const auto settings = m_manager->CapturePreparationSettings();
+        auto group = std::make_shared<Manager::SectorCommitGroup>();
+        group->m_expectedResults = 2;
+        AZStd::vector<ResultPtr> results;
+        for (size_t slot = 0; slot < 2; ++slot)
+        {
+            // Preserve distinct old coverage while the replacement is pending.
+            auto& old = m_manager->m_sectorLods[0].m_sectors[slot].m_committed;
+            old.m_worldCoord = Vector2i(-20 + int(slot), 0);
+            old.m_valid = old.m_hasData = true;
+            auto request = m_manager->CaptureSectorRequest(0, slot, settings, {}, false, {}, group);
+            request.m_stageUploads = true;
+            results.push_back(std::make_shared<Result>(Manager::PrepareSector(AZStd::move(request))));
+            ASSERT_EQ(results.back()->m_status, Status::Ready);
+        }
+        const auto serial = results[0]->m_request.m_serial;
+        Manager::SectorCommitStatistics stats;
+        EXPECT_FALSE(m_manager->AcceptPreparedSectors(results, [](auto&, const auto&) { FAIL() << "Early upload commit"; }, &stats));
+        EXPECT_EQ(stats.m_rejection, Manager::SectorRejection::UploadPending);
+        // No upload state, or just one ready member, cannot publish any member.
+        results[0]->m_uploads = std::make_unique<Result::Uploads>();
+        results[0]->m_uploads->m_ready = true;
+        EXPECT_FALSE(Accept(results));
+        EXPECT_EQ(m_manager->m_sectorLods[0].m_sectors[0].m_preparationSerial, serial);
+        EXPECT_EQ(m_manager->m_sectorLods[0].m_sectors[0].m_committed.m_worldCoord, Vector2i(-20, 0));
+        EXPECT_TRUE(m_manager->m_sectorLods[0].m_sectors[0].m_committed.m_valid);
+        EXPECT_TRUE(m_manager->m_sectorLods[0].m_sectors[0].m_committed.m_hasData);
+        EXPECT_EQ(m_commits, 0);
+        // Inject immediate completed transfers; the sink observes the real
+        // all-or-nothing acceptance without needing hardware buffers.
+        results[1]->m_uploads = std::make_unique<Result::Uploads>();
+        results[1]->m_uploads->m_ready = true;
+        EXPECT_TRUE(Accept(results));
+        EXPECT_EQ(m_commits, 2);
+        EXPECT_FALSE(Accept(results));
+        EXPECT_EQ(m_commits, 2);
+    }
+
+    void TerrainSectorLifetimeTests::CheckSourceChangeAndCancellationDuringUploadWaitRejectPublication()
+    {
+        ::testing::NiceMock<UnitTest::MockTerrainDataRequests> terrain;
+        SupplyTerrain(terrain);
+        for (bool cancel : { false, true })
+        {
+            auto request = Capture();
+            request.m_stageUploads = true;
+            auto result = std::make_shared<Result>(Manager::PrepareSector(AZStd::move(request)));
+            ASSERT_EQ(result->m_status, Status::Ready);
+            EXPECT_FALSE(Accept({ result }));
+            if (cancel) result->m_request.m_cancelled->store(true);
+            else m_manager->m_preparationLifetime->Invalidate();
+            result->m_uploads = std::make_unique<Result::Uploads>();
+            result->m_uploads->m_ready = true;
+            EXPECT_FALSE(Accept({ result }));
+        }
+        EXPECT_EQ(m_commits, 0);
+    }
+
+    TEST_F(TerrainSectorLifetimeTests, UploadsWaitForWholeGroupBeforeConsumingLeases)
+    { CheckUploadsWaitForWholeGroupBeforeConsumingLeases(); }
+    TEST_F(TerrainSectorLifetimeTests, SourceChangeAndCancellationDuringUploadWaitRejectPublication)
+    { CheckSourceChangeAndCancellationDuringUploadWaitRejectPublication(); }
 
     TEST_F(TerrainSectorLifetimeTests, DeferredAreaCaptureAndSettingsRevalidation)
     { CheckDeferredAreaCaptureAndSettingsRevalidation(); }

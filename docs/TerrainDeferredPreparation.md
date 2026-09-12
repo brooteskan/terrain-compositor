@@ -61,6 +61,7 @@ whole replacement group validates and commits.
 | Queued, running and completed sector requests | 96 |
 | Reservation ledger | 256 MiB |
 | Peak scratch/result allowance per sector | 2 MiB |
+| Additional staged replacement allowance per sector per RHI device | 1 MiB |
 | Publication/source allowance per group | 32 MiB |
 | Accepted deep publication estimate | 16 MiB |
 | Queries per publication | 32 |
@@ -85,8 +86,9 @@ synchronous recovery without evicting valid committed bundles for queue space.
 A required group older than 500 ms cancels outstanding work and requests a full
 refresh. Edits/publication invalidation retain the conservative existing full
 refresh. Recovery can exceed the soft control-thread target; it is recorded as
-such, not hidden in warmed-route averages. No upload staging or smaller atomic
-publication unit is introduced.
+such, not hidden in warmed-route averages. [Upload staging](TerrainUploadStaging.md)
+now spreads eligible deferred groups' replacement uploads across frames; the
+atomic publication unit and synchronous recovery policy remain unchanged.
 
 ## Exact raw sample reuse
 

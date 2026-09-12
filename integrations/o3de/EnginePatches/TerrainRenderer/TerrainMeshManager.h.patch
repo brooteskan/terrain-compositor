@@ -2,7 +2,7 @@
 +++ b/TerrainRenderer/TerrainMeshManager.h
 @@ -9,6 +9,10 @@
  #pragma once
-
+ 
  #include <AzCore/base.h>
 +#include <AzCore/Jobs/Job.h>
 +#include <TerrainCompositor/TerrainSectorScheduling.h>
@@ -11,28 +11,36 @@
  #include <AzCore/Math/Aabb.h>
  #include <AzCore/Outcome/Outcome.h>
  #include <AzCore/std/containers/vector.h>
-@@ -91,7 +95,7 @@
+@@ -18,6 +22,7 @@
+ #include <AzFramework/Terrain/TerrainDataRequestBus.h>
+ 
+ #include <Atom/RHI.Reflect/ShaderInputNameIndex.h>
++#include <Atom/RHI/Fence.h>
+ 
+ #include <Atom/RPI.Public/Shader/ShaderSystemInterface.h>
+ #include <Atom/RPI.Public/FeatureProcessor.h>
+@@ -91,7 +96,7 @@
          : private AzFramework::Terrain::TerrainDataNotificationBus::Handler
      {
      private:
 -        
 +
          using MaterialInstance = AZ::Data::Instance<AZ::RPI::Material>;
-
+ 
      public:
-@@ -117,6 +121,9 @@
+@@ -117,6 +122,9 @@
      private:
-
+ 
          using HeightDataType = uint16_t;
 +        friend class TerrainSectorPreparationTests;
 +        friend class TerrainSectorLifetimeTests;
 +        friend class TerrainRenderingTests;
          using NormalDataType = int8_t;
          using NormalXYDataType = AZStd::pair<NormalDataType, NormalDataType>;
-
-@@ -153,10 +160,31 @@
+ 
+@@ -153,10 +161,31 @@
              };
-
+ 
              AZStd::array<MeshGroup, 5> m_meshGroups; // 0 is the primary, 1-4 are the quadrants.
 -            
 -        };
@@ -50,7 +58,7 @@
 +        };
 +
 +        enum class SectorState { Requested, Preparing, Ready, Committed, Failed, Cancelled, Invalidated, Retired };
-+        enum class SectorRejection { None, IncompleteGroup, Publication, Dependency, Destination, Duplicate, Failed, Cancelled, Payload, Settings, Budget, AtomicGroupTooLarge };
++        enum class SectorRejection { None, IncompleteGroup, Publication, Dependency, Destination, Duplicate, Failed, Cancelled, Payload, Settings, Budget, AtomicGroupTooLarge, UploadPending };
 +
 +        struct SectorDestinationIdentity
 +        {
@@ -66,7 +74,7 @@
          {
              using GeometryView = AZ::RHI::GeometryView;
              static constexpr auto AllDevices = AZ::RHI::MultiDevice::AllDevices;
-@@ -166,6 +194,16 @@
+@@ -166,6 +195,16 @@
              AZ::Aabb m_aabb = AZ::Aabb::CreateNull();
              AZStd::array<AZ::Aabb, 4> m_quadrantAabbs;
              Vector2i m_worldCoord = AZStd::numeric_limits<int32_t>::max();
@@ -80,16 +88,16 @@
 +            TerrainCompositor::TerrainMeshCutoutRenderSnapshotPtr m_publication;
 +            AZStd::vector<TerrainCompositor::TerrainPreparationDependencyTicket> m_dependencies;
 +            bool m_valid = false; // Includes authoritative empty terrain.
-
+ 
              // When drawing, either the m_rhiDrawPacket will be used, or some number of the m_rhiDrawPacketQuadrants
              AZ::RHI::ConstPtr<AZ::RHI::DrawPacket> m_rhiDrawPacket;
-@@ -186,20 +224,26 @@
+@@ -186,20 +225,26 @@
              bool m_isQueuedForSrgCompile = false;
          };
-
+ 
 +        struct Sector
 +        {
-+            // The slot owns exactly one resource bundle; pending work owns CPU data only.
++            // The slot owns visible resources. Deferred uploads own unpublished replacement buffers.
 +            CommittedSector m_committed;
 +            std::shared_ptr<const SectorDestinationIdentity> m_destinationIdentity = std::make_shared<const SectorDestinationIdentity>();
 +            AZ::u64 m_preparationSerial = 0;
@@ -104,7 +112,7 @@
          struct SectorLodGrid
          {
              AZStd::vector<Sector> m_sectors;
-
+ 
              // The world space sector coord of the top most left item
              Vector2i m_startCoord = AZStd::numeric_limits<int32_t>::max();
 -        };
@@ -116,12 +124,12 @@
 -            uint32_t m_lodLevel{ 0 };
 -            float m_rcpLodLevel{ 1.0f };
          };
-
+ 
          struct alignas(16) ShaderMeshData
-@@ -211,8 +255,15 @@
+@@ -211,8 +256,15 @@
              float m_gridToQuadScale;
          };
-
+ 
 +        struct SectorPreparationSettings;
 +
          struct SectorDataRequest
@@ -134,7 +142,7 @@
              AZ::Vector2 m_worldStartPosition;
              float m_vertexSpacing;
              int16_t m_samplesX;
-@@ -220,6 +271,9 @@
+@@ -220,6 +272,9 @@
              AzFramework::Terrain::TerrainDataRequests::Sampler m_samplerType =
                  AzFramework::Terrain::TerrainDataRequests::Sampler::CLAMP;
              bool m_useVertexOrderRemap = false;
@@ -142,12 +150,12 @@
 +            bool m_retainedOnly = false;
 +            TerrainCompositor::TerrainSectorSampleReuse* m_sampleReuse = nullptr;
          };
-
+ 
          struct CachedDrawData
-@@ -239,6 +293,14 @@
+@@ -239,6 +294,14 @@
              NormalXYDataType m_normal;
          };
-
+ 
 +        // Tightly packed R32G32B32 data for ray tracing buffer uploads.
 +        struct RtVertex
 +        {
@@ -159,7 +167,7 @@
          struct CandidateSector
          {
              AZ::Aabb m_aabb;
-@@ -250,6 +312,134 @@
+@@ -250,6 +313,150 @@
              uint8_t m_posx;
              uint8_t m_posy;
          };
@@ -205,6 +213,7 @@
 +            TerrainCompositor::TerrainSectorSamplingPlan m_samplingPlan;
 +            bool m_rayTracing = false;
 +            bool m_collectStatistics = false;
++            bool m_stageUploads = false;
 +            double m_capturedAtUs = 0.0;
 +            // Opted-in procedural values are retained across regular/CLOD halos.
 +            // Ordinary and unsupported procedural buses remain live.
@@ -235,6 +244,17 @@
 +            double m_startedAtUs = 0.0, m_completedAtUs = 0.0, m_deliveredAtUs = 0.0;
 +            bool m_delivered = false; // Control-thread delivery, independent of optional timing.
 +            TerrainCompositor::TerrainSectorAdmission m_admission = TerrainCompositor::TerrainSectorAdmission::InvalidPlan;
++            // Created only by the control thread after the worker handoff. This
++            // result retains every transfer source until all submitted fences finish.
++            struct Uploads
++            {
++                AZStd::array<AZ::Data::Instance<AZ::RPI::Buffer>, 4> m_buffers;
++                AZStd::array<AZ::RHI::Ptr<AZ::RHI::Fence>, 4> m_transferFences;
++                AZStd::vector<AZ::RHI::Ptr<AZ::RHI::DeviceFence>> m_fences;
++                AZStd::unique_ptr<RtSector> m_rtData;
++                bool m_ready = false;
++            };
++            std::unique_ptr<Uploads> m_uploads;
 +        };
 +
 +        struct SectorWorkStorage
@@ -269,6 +289,10 @@
 +            size_t remainingUploadBytes = AZStd::numeric_limits<size_t>::max(),
 +            size_t maximumUploadBytes = AZStd::numeric_limits<size_t>::max());
 +        void CommitSectorResources(Sector& sector, const PreparedSectorResult& result);
++        bool StageSectorResources(PreparedSectorResult& result, size_t step);
++        static bool SectorUploadsComplete(const PreparedSectorResult& result, bool wait = false);
++        void ReleaseSectorUploads(PreparedSectorResult& result);
++        void DrainDeferredGroups();
 +        void RequestSectorPlacement(Sector& sector, Vector2i coordinate);
 +        void CancelSectorPreparation(Sector& sector);
 +        void SetSectorState(Sector& sector, SectorState state, SectorRejection reason = SectorRejection::None);
@@ -291,12 +315,20 @@
 +        };
 +        SectorResourceAccounting GetSectorResourceAccounting() const;
 +        static size_t GetPreparedCpuBytes(const PreparedSectorResult& result);
-
+ 
          struct RayTracedItem
          {
-@@ -273,13 +463,51 @@
+@@ -267,19 +474,62 @@
+         bool UpdateGridSize(float distanceToFirstLod);
+         void BuildDrawPacket(Sector& sector);
+         void BuildRtSector(Sector& sector, uint32_t lodLevel);
++        void BuildRtSectorViews(RtSector& rtSector, uint32_t lodLevel);
++        void SetSectorBufferViews(CommittedSector& sector);
+         void RebuildSectors();
+         void RebuildDrawPackets();
+         void RemoveRayTracedMeshes();
          AZ::RHI::StreamBufferView CreateStreamBufferView(AZ::Data::Instance<AZ::RPI::Buffer>& buffer, uint32_t offset = 0);
-
+ 
          void CreateCommonBuffers();
 -        void UpdateSectorBuffers(Sector& sector, const AZStd::span<const HeightNormalVertex> heightsNormals);
 -        void UpdateSectorLodBuffers(Sector& sector,
@@ -334,6 +366,9 @@
 +            SectorUpdatePlan m_plan;
 +            bool m_due = false;
 +            double m_capturedUs = 0, m_requiredUs = 0;
++            size_t m_uploadStep = 0;
++            double m_uploadMicroseconds = 0;
++            bool m_stageUploads = false;
 +        };
 +        SectorUpdatePlan PlanSectorUpdates(AZ::Vector3 position) const;
 +        bool ScheduleSectorGroup(const SectorUpdatePlan& plan, bool due);
@@ -349,12 +384,12 @@
          void CheckLodGridsForUpdate(AZ::Vector3 newPosition);
 +        AZStd::vector<AZStd::vector<Sector*>> CollectUpdatedSectors(AZ::Vector3 newPosition);
          void ProcessSectorUpdates(AZStd::vector<AZStd::vector<Sector*>>& sectorUpdates);
-
+ 
          AZ::Data::Instance<AZ::RPI::Buffer> CreateMeshBufferInstance(
-@@ -297,12 +525,9 @@
+@@ -297,12 +547,9 @@
          void UpdateCandidateSectors();
          void CreateAabbQuadrants(const AZ::Aabb& aabb, AZStd::span<AZ::Aabb, 4> quadrantAabb);
-
+ 
 -        template<typename Callback>
 -        void ForOverlappingSectors(const AZ::Aabb& bounds, Callback callback);
 -
@@ -363,13 +398,13 @@
 -        AZ::Render::RayTracingFeatureProcessorInterface* m_rayTracingFeatureProcessor;
 +        AZ::RPI::Scene* m_parentScene = nullptr;
 +        AZ::Render::RayTracingFeatureProcessorInterface* m_rayTracingFeatureProcessor = nullptr;
-
+ 
          MaterialInstance m_materialInstance;
          AZStd::vector<CachedDrawData> m_cachedDrawData; // Holds common parts of draw packets
-@@ -318,6 +543,10 @@
+@@ -318,6 +565,10 @@
          AZ::Data::Instance<AZ::RPI::Buffer> m_dummyLodHeightsNormalsBuffer;
          AZ::RHI::IndexBufferView m_indexBufferView;
-
+ 
 +        // Mutations and acceptance are control-thread operations. Jobs retain only
 +        // this invalidation authority; it never owns or points back to the manager.
 +        std::shared_ptr<TerrainCompositor::TerrainPreparationDependency> m_preparationLifetime =
@@ -377,9 +412,9 @@
          AZStd::vector<SectorLodGrid> m_sectorLods;
          AZStd::vector<CandidateSector> m_candidateSectors;
          AZStd::vector<Sector*> m_sectorsThatNeedSrgCompiled;
-@@ -352,6 +581,6 @@
+@@ -352,6 +603,6 @@
          AZ::RHI::Handle<uint32_t> m_meshMovedFlag;
-
+ 
          // Cached MeshFeatureProcessor
 -        AZ::Render::MeshFeatureProcessorInterface* m_meshfeatureProcessor;
 +        AZ::Render::MeshFeatureProcessorInterface* m_meshfeatureProcessor = nullptr;
