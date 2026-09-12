@@ -147,6 +147,10 @@ namespace Terrain
             } rhi;
             TerrainMeshManager manager;
             manager.m_gridSize = 128;
+            // These movement tests also prepare complete empty requests. Supply
+            // the production grid dimensions so admission validates both gathers.
+            manager.m_gridVerts1D = 129;
+            manager.m_gridVerts2D = 129 * 129;
             manager.m_sampleSpacing = 0.5f;
             manager.m_config.m_firstLodDistance = 256.0f;
             manager.m_1dSectorCount = 10; // Non-power-of-two grid from DefaultLevel.

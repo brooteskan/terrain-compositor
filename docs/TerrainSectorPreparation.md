@@ -1,5 +1,10 @@
 # Sector preparation, committed coverage, and validated replacement
 
+Issue #6 adds [scheduling and atomic replacement contracts](TerrainSectorScheduling.md),
+including independent delivery, conservative split assessment, shared coverage
+projection, optional atomic upload-byte admission, diagnostics and the policy
+requirements for later deferred scheduling. Production remains synchronous.
+
 Issues #2 through #5 keep `StartAndWaitForCompletion` and the existing
 ordinary-query-then-overlay policy. Owned CPU work, opt-in procedural snapshots,
 and one acceptance boundary serve a synchronous batch. These changes make no

@@ -12,6 +12,7 @@ set(FILES
     TerrainMeshCutoutTests.cpp
     TerrainSectorLifetimeTests.cpp
     TerrainSectorSamplingTests.cpp
+    TerrainSectorSchedulingTests.cpp
     SectorRayTracingMock.h
     TerrainMeshHeightStampTests.cpp
     TerrainMeshHeightGapGpuTests.cpp

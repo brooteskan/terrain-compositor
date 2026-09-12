@@ -1,4 +1,5 @@
 #include <AzTest/AzTest.h>
+#include <AzCore/Asset/AssetCommon.h>
 #include <AzCore/UnitTest/UnitTest.h>
 #include <AzCore/std/containers/array.h>
 #include <AzCore/std/smart_ptr/unique_ptr.h>

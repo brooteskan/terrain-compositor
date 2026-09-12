@@ -38,6 +38,12 @@ namespace Terrain
         void CheckAcquisitionCannotRefreshAnOldSourceGenerationTicket();
         void CheckCompletePlanPreservesGatherCoordinatesAndCallbackOrder();
         void CheckPooledJobOwnsCompletePlanWithoutCapturingItsStorage();
+        void CheckDeliveryAndAtomicBudgetDoNotConsumeReadyGroup();
+        void CheckReplacementUnitRejectsMixedSettingsGroupsAndMissingMembers();
+        void CheckSplitAssessmentCannotAuthorizeSharedOrUnrepresentableReplacement();
+        void CheckWorkStorageAndLifecycleReclaimedAfterDelayedCancellation();
+        void CheckCancellationBetweenGathersSkipsClodAndRayTracing();
+        void CheckInvalidationDuringBudgetWaitRejectsBeforeAnyCommit();
 
         void CheckRequestedPlacementNeverRelabelsCommittedGeometry();
         void CheckFineCoarseGroupCannotCommitPartially();
@@ -1011,6 +1017,212 @@ namespace Terrain
         EXPECT_EQ(result->m_heights.size(), 9);
         EXPECT_EQ(result->m_lodHeights.size(), 9);
     }
+
+    void TerrainSectorLifetimeTests::CheckDeliveryAndAtomicBudgetDoNotConsumeReadyGroup()
+    {
+        ::testing::NiceMock<UnitTest::MockTerrainDataRequests> terrain;
+        SupplyTerrain(terrain);
+        const auto settings = m_manager->CapturePreparationSettings();
+        auto group = std::make_shared<Manager::SectorCommitGroup>();
+        group->m_expectedResults = 2;
+        Executor executor;
+        executor.Submit(m_manager->CaptureSectorRequest(0, 0, settings, {}, true, {}, group));
+        executor.Submit(m_manager->CaptureSectorRequest(0, 1, settings, {}, true, {}, group));
+        auto second = executor.Complete(1);
+        EXPECT_EQ(m_manager->DeliverPreparedSector(*second), Manager::SectorRejection::None);
+        EXPECT_EQ(m_manager->m_sectorLods[0].m_sectors[1].m_state, Manager::SectorState::Ready);
+        EXPECT_FALSE(m_manager->m_sectorLods[0].m_sectors[1].m_committed.m_valid);
+        EXPECT_EQ(m_commits, 0);
+        const auto deliveryTime = second->m_deliveredAtUs;
+        EXPECT_EQ(m_manager->DeliverPreparedSector(*second), Manager::SectorRejection::None);
+        EXPECT_EQ(deliveryTime, second->m_deliveredAtUs);
+        AZStd::vector<ResultPtr> results{ second, executor.Complete(0) };
+        const auto bytes = Manager::GetSectorUploadBytes(results);
+        EXPECT_EQ(bytes, 2 * 9 * 2 * sizeof(Manager::HeightNormalVertex));
+        Manager::SectorCommitStatistics stats;
+        const auto sink = [this](auto&, const auto&) { ++m_commits; };
+        m_manager->m_rebuildSectors = false;
+        EXPECT_FALSE(m_manager->AcceptPreparedSectors(results, sink, &stats, bytes - 1, bytes));
+        EXPECT_EQ(stats.m_rejection, Manager::SectorRejection::Budget);
+        EXPECT_FALSE(m_manager->m_rebuildSectors);
+        EXPECT_EQ(m_commits, 0);
+        for (const auto& result : results) EXPECT_NE(m_manager->FindPreparationDestination(result->m_request), nullptr);
+        EXPECT_FALSE(m_manager->AcceptPreparedSectors(results, sink, &stats, bytes, bytes - 1));
+        EXPECT_EQ(stats.m_rejection, Manager::SectorRejection::AtomicGroupTooLarge);
+        EXPECT_EQ(m_commits, 0);
+        EXPECT_TRUE(m_manager->AcceptPreparedSectors(results, sink, &stats, bytes, bytes));
+        EXPECT_EQ(stats.m_rejection, Manager::SectorRejection::None);
+        EXPECT_EQ(m_commits, 2);
+        for (const auto& result : results)
+        {
+            EXPECT_LE(result->m_request.m_capturedAtUs, result->m_startedAtUs);
+            EXPECT_LE(result->m_startedAtUs, result->m_completedAtUs);
+            EXPECT_LE(result->m_completedAtUs, result->m_deliveredAtUs);
+            const auto& committed = m_manager->m_sectorLods[0].m_sectors[result->m_request.m_slot].m_committed;
+            EXPECT_EQ(committed.m_groupId, group->m_id);
+            EXPECT_LE(result->m_deliveredAtUs, committed.m_committedAtUs);
+        }
+        EXPECT_EQ(m_manager->DeliverPreparedSector(*second), Manager::SectorRejection::Destination);
+        EXPECT_EQ(m_manager->m_sectorLods[0].m_sectors[1].m_state, Manager::SectorState::Committed);
+    }
+
+    void TerrainSectorLifetimeTests::CheckReplacementUnitRejectsMixedSettingsGroupsAndMissingMembers()
+    {
+        const auto settings = m_manager->CapturePreparationSettings();
+        auto group = std::make_shared<Manager::SectorCommitGroup>();
+        group->m_expectedResults = 2;
+        auto a = std::make_shared<Result>(Manager::PrepareSector(m_manager->CaptureSectorRequest(0, 0, settings, {}, false, {}, group)));
+        auto b = std::make_shared<Result>(Manager::PrepareSector(m_manager->CaptureSectorRequest(0, 1, settings, {}, false, {}, group)));
+        AZStd::vector<ResultPtr> results{ a, b };
+        EXPECT_EQ(Manager::ValidateSectorReplacementUnit(results), Manager::SectorRejection::None);
+        results[1].reset();
+        EXPECT_EQ(Manager::ValidateSectorReplacementUnit(results), Manager::SectorRejection::IncompleteGroup);
+        EXPECT_FALSE(Accept(results));
+        results[1] = a;
+        EXPECT_EQ(Manager::ValidateSectorReplacementUnit(results), Manager::SectorRejection::Duplicate);
+        results[1] = b;
+        b->m_request.m_data.m_settings = m_manager->CapturePreparationSettings();
+        EXPECT_EQ(Manager::ValidateSectorReplacementUnit(results), Manager::SectorRejection::Settings);
+        EXPECT_FALSE(Accept(results));
+        b->m_request.m_data.m_settings = settings;
+        auto otherGroup = std::make_shared<Manager::SectorCommitGroup>();
+        otherGroup->m_expectedResults = 2;
+        EXPECT_NE(group->m_id, otherGroup->m_id);
+        b->m_request.m_group = otherGroup;
+        EXPECT_FALSE(Accept(results));
+        EXPECT_EQ(m_commits, 0);
+        b->m_request.m_group = group;
+        // A current empty result is authoritative only after the complete group.
+        EXPECT_TRUE(Accept(results));
+        EXPECT_EQ(m_commits, 2);
+    }
+
+    void TerrainSectorLifetimeTests::CheckSplitAssessmentCannotAuthorizeSharedOrUnrepresentableReplacement()
+    {
+        const auto settings = m_manager->CapturePreparationSettings();
+        const auto a = m_manager->CaptureSectorRequest(0, 0, settings, {}, false, {});
+        const auto b = m_manager->CaptureSectorRequest(0, 1, settings, {}, false, {});
+        AZStd::vector<TerrainCompositor::TerrainSectorCoverageClaim> claims{ { -1, -1, 2, true }, { -1, -1, 0, false } };
+        const auto projection = TerrainCompositor::SelectTerrainSectorCoverage(claims, 3);
+        const auto blockers = Manager::AssessSectorSplit(a, b, projection);
+        using Blocker = TerrainCompositor::TerrainSectorSplitBlocker;
+        for (auto reason : { Blocker::WholeGroupPolicy, Blocker::LiveSampling, Blocker::SharedSamples, Blocker::ClodSamples, Blocker::Coverage })
+            EXPECT_NE(blockers & static_cast<AZ::u32>(reason), 0);
+        EXPECT_EQ(blockers & static_cast<AZ::u32>(Blocker::Settings), 0);
+        EXPECT_EQ(m_commits, 0);
+        EXPECT_TRUE(m_manager->SelectSectorCoverage().empty());
+    }
+
+    void TerrainSectorLifetimeTests::CheckWorkStorageAndLifecycleReclaimedAfterDelayedCancellation()
+    {
+        m_channel = std::make_shared<TerrainCompositor::TerrainMeshCutoutRenderChannel>();
+        m_channel->m_snapshot.store(std::make_shared<TerrainCompositor::TerrainMeshCutoutRenderSnapshot>());
+        const auto settings = m_manager->CapturePreparationSettings();
+        auto group = std::make_shared<Manager::SectorCommitGroup>();
+        group->m_expectedResults = 2;
+        auto pending = std::make_shared<Result>();
+        pending->m_request = m_manager->CaptureSectorRequest(0, 0, settings, m_channel, false, m_channel->m_snapshot.load(), group);
+        auto finished = std::make_shared<Result>(Manager::PrepareSector(m_manager->CaptureSectorRequest(
+            0, 1, settings, m_channel, false, m_channel->m_snapshot.load(), group)));
+        m_manager->DeliverPreparedSector(*finished);
+        AZStd::vector<ResultPtr> results{ pending, finished };
+        const auto storage = Manager::GetSectorWorkStorage(results);
+        EXPECT_EQ(storage.m_pendingResults, 1);
+        EXPECT_EQ(storage.m_completedResults, 1); // Timing is disabled.
+        EXPECT_GT(storage.m_pendingCpuBytes, 0);
+        EXPECT_GT(storage.m_completedCpuBytes, 0);
+        EXPECT_GE(storage.m_sharedSettingsBytes, sizeof(Manager::SectorPreparationSettings));
+        EXPECT_EQ(storage.m_retainedSourceSets, 2);
+        EXPECT_EQ(storage.m_retainedPublications, 1);
+        EXPECT_GE(storage.m_retainedSourceBytes, 2 * sizeof(TerrainCompositor::TerrainRenderQuerySources));
+        EXPECT_GE(storage.m_retainedPublicationBytes, sizeof(TerrainCompositor::TerrainMeshCutoutRenderSnapshot));
+        std::weak_ptr<const TerrainCompositor::TerrainRenderQuerySources> retainedSources = pending->m_request.m_samplingPlan.m_sources;
+        std::weak_ptr<std::atomic_bool> cancellation = pending->m_request.m_cancelled;
+        std::weak_ptr<const Manager::SectorCommitGroup> retainedGroup = group;
+        m_manager->RequestSectorPlacement(m_manager->m_sectorLods[0].m_sectors[0], { 10000, -10000 });
+        *pending = Manager::PrepareSector(AZStd::move(pending->m_request));
+        EXPECT_EQ(pending->m_status, Status::Cancelled);
+        EXPECT_EQ(m_manager->DeliverPreparedSector(*pending), Manager::SectorRejection::Destination);
+        EXPECT_EQ(m_manager->m_sectorLods[0].m_sectors[0].m_state, Manager::SectorState::Requested);
+        EXPECT_FALSE(Accept(results));
+        m_manager.reset();
+        results.clear();
+        pending.reset();
+        finished.reset();
+        group.reset();
+        EXPECT_TRUE(cancellation.expired());
+        EXPECT_TRUE(retainedGroup.expired());
+        EXPECT_TRUE(retainedSources.expired());
+        EXPECT_EQ(Manager::GetSectorWorkStorage(results).m_pendingCpuBytes, 0);
+    }
+
+    void TerrainSectorLifetimeTests::CheckCancellationBetweenGathersSkipsClodAndRayTracing()
+    {
+        ::testing::NiceMock<UnitTest::MockTerrainDataRequests> terrain;
+        SupplyTerrain(terrain);
+        auto request = Capture();
+        request.m_rayTracing = request.m_samplingPlan.m_rayTracing = true;
+        EXPECT_CALL(terrain, QueryRegion).Times(1).WillOnce([&](const auto& region, auto, auto callback, auto)
+        {
+            for (size_t y = 0; y < region.m_numPointsY; ++y)
+                for (size_t x = 0; x < region.m_numPointsX; ++x)
+                {
+                    AzFramework::SurfaceData::SurfacePoint surface;
+                    surface.m_position = AZ::Vector3(float(x), float(y), 1.0f);
+                    callback(x, y, surface, true);
+                }
+            request.m_cancelled->store(true);
+        });
+        const auto result = Manager::PrepareSector(request);
+        EXPECT_EQ(result.m_status, Status::Cancelled);
+        EXPECT_TRUE(result.m_lodHeights.empty());
+        EXPECT_TRUE(result.m_rtPositions.empty());
+        EXPECT_EQ(m_commits, 0);
+    }
+
+    void TerrainSectorLifetimeTests::CheckInvalidationDuringBudgetWaitRejectsBeforeAnyCommit()
+    {
+        ::testing::NiceMock<UnitTest::MockTerrainDataRequests> terrain;
+        SupplyTerrain(terrain);
+        m_channel = std::make_shared<TerrainCompositor::TerrainMeshCutoutRenderChannel>();
+        m_channel->m_snapshot.store(std::make_shared<TerrainCompositor::TerrainMeshCutoutRenderSnapshot>());
+        for (bool changePublication : { true, false })
+        {
+            const auto settings = m_manager->CapturePreparationSettings();
+            auto group = std::make_shared<Manager::SectorCommitGroup>();
+            group->m_expectedResults = 2;
+            AZStd::vector<ResultPtr> results;
+            for (size_t slot = 0; slot < 2; ++slot)
+                results.push_back(std::make_shared<Result>(Manager::PrepareSector(m_manager->CaptureSectorRequest(
+                    0, slot, settings, m_channel, false, m_channel->m_snapshot.load(), group))));
+            const auto bytes = Manager::GetSectorUploadBytes(results);
+            Manager::SectorCommitStatistics stats;
+            const auto sink = [this](auto&, const auto&) { ++m_commits; };
+            EXPECT_FALSE(m_manager->AcceptPreparedSectors(results, sink, &stats, 0, bytes));
+            EXPECT_EQ(stats.m_rejection, Manager::SectorRejection::Budget);
+            if (changePublication)
+                m_channel->m_snapshot.store(std::make_shared<TerrainCompositor::TerrainMeshCutoutRenderSnapshot>());
+            else
+                m_manager->m_preparationLifetime->Invalidate();
+            EXPECT_FALSE(m_manager->AcceptPreparedSectors(results, sink, &stats, bytes, bytes));
+            EXPECT_EQ(stats.m_rejection, changePublication ? Manager::SectorRejection::Publication : Manager::SectorRejection::Dependency);
+            EXPECT_EQ(m_commits, 0);
+            for (const auto& sector : m_manager->m_sectorLods[0].m_sectors) EXPECT_FALSE(sector.m_committed.m_valid);
+        }
+    }
+
+    TEST_F(TerrainSectorLifetimeTests, DeliveryAndAtomicBudgetDoNotConsumeReadyGroup)
+    { CheckDeliveryAndAtomicBudgetDoNotConsumeReadyGroup(); }
+    TEST_F(TerrainSectorLifetimeTests, ReplacementUnitRejectsMixedSettingsGroupsAndMissingMembers)
+    { CheckReplacementUnitRejectsMixedSettingsGroupsAndMissingMembers(); }
+    TEST_F(TerrainSectorLifetimeTests, SplitAssessmentCannotAuthorizeSharedOrUnrepresentableReplacement)
+    { CheckSplitAssessmentCannotAuthorizeSharedOrUnrepresentableReplacement(); }
+    TEST_F(TerrainSectorLifetimeTests, WorkStorageAndLifecycleReclaimedAfterDelayedCancellation)
+    { CheckWorkStorageAndLifecycleReclaimedAfterDelayedCancellation(); }
+    TEST_F(TerrainSectorLifetimeTests, CancellationBetweenGathersSkipsClodAndRayTracing)
+    { CheckCancellationBetweenGathersSkipsClodAndRayTracing(); }
+    TEST_F(TerrainSectorLifetimeTests, InvalidationDuringBudgetWaitRejectsBeforeAnyCommit)
+    { CheckInvalidationDuringBudgetWaitRejectsBeforeAnyCommit(); }
 
     TEST_F(TerrainSectorLifetimeTests, PooledJobOwnsCompletePlanWithoutCapturingItsStorage)
     { CheckPooledJobOwnsCompletePlanWithoutCapturingItsStorage(); }
