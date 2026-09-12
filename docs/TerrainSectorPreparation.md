@@ -259,6 +259,63 @@ publication mutex stays held for every commit in a batch.
 Maintained renderer patches and their normalized output hashes remain the source
 of truth; generated build sources are only verification artifacts.
 
+### Issue #4 verification on 2026-09-11
+
+Implementation: `3303fb462f0d6ea4985d41dc9abb89a3a162d375`, based on
+`627a39fb2a76202e9f2032903ee88fc016f45afa`, on local branch
+`codex/sector-committed-coverage`. Engine:
+`061180bf24f1666eb30315b35da292eb14f4659c`. TG remained at
+`6db89b4dcc60cf690c6008e94572f30016180702`, with its compositor pin at
+`894ad31e43335436f8b36e1a3ce647bad5f14b1e`.
+
+- **353 runtime and 46 editor tests passed.** Two existing optional runtime
+  benchmarks remain disabled. Eight new lifetime tests cover committed placement,
+  complete fine/coarse groups, missing/failed/empty coverage, absent intermediate
+  LODs, cancellation, publication/source retirement, worker-storage reclamation,
+  and the production RT registration path. The three existing signed grid tests
+  additionally verify retained placement through crossings and teleports.
+- **142,560 boundary classifications matched on D3D11 hardware**, with zero
+  mismatches. Engine override generation, repeat generation without rewriting
+  unchanged output, and incorrect input/output hash rejection passed.
+- Rebuilt `Terrain.Static`, `TerrainCompositor.Static`, runtime/editor modules,
+  and both compositor test modules in the MSVC profile candidate build at
+  `D:/TG/TGProject/build/render-query-candidate`. Standard target builds used
+  existing engine dependencies (`BuildProjectReferences=false`); this was not a
+  clean build of the entire engine. The separate `build/windows` reference output
+  was preserved.
+- The final Editor opened DefaultLevel, confirmed all seven requested camera
+  positions through the camera getter, crossed X/Y boundaries, teleported to
+  `(1024,-1024,128)`, returned to `(16,16,32)`, captured a rendered frame, and
+  exited with code **0**. Its 15,755 state records contain 2,551 committed
+  transitions and 2,204 records retaining valid coverage at a different requested
+  coordinate. The audit found no committed-coordinate change before acceptance;
+  every committed coordinate matched its accepted destination.
+- Live accounting reported 266,256,000 allocated sector GPU buffer bytes and
+  266,524,000 owned pending CPU bytes for a full 500-sector batch. These exclude
+  the shared/transitive and driver allocations described above. Synchronous
+  completion left zero pending requests and zero replacement-retained GPU bytes
+  in the post-commit records.
+- All **62 authored-file hashes**, including the pre-existing Blender edits,
+  matched before and after verification. Batching and RT stayed enabled; optional
+  timing was restored to false. Temporary TG integration build inputs were backed
+  up and restored; its Git pin and authored content were not updated.
+
+The live Editor retained the startup/shutdown warning categories seen in the
+previous verification (audio, console ranges, missing macro/icon resources and
+DynamicDrawContext shutdown). No terrain error or assertion failure was reported.
+This checks rendering/lifetime integration with intrusive diagnostics, not frame
+time or hitch-free flight; TG #37 remains outside this acceptance.
+
+Normalized generated SHA-256 values:
+`be2ecda6872fb36794cb086e985c51f6f80afa76784184ae227bd7b592a575dc`
+(manager CPP),
+`2ad55b8b7eeee84f6b7c0cacf79d111582638f513a1c0ba66a896d2421a2f03f`
+(header). The complete compiled-source digest is
+`c1c419b2bc59499dd3b8fa273a017f2a7976209b2701793f3ec02c7361ae3ed5`.
+Raw XML, build/Editor logs, camera getter results, screenshot, source and binary
+hashes, override checks, authored-file hashes, and the restoration manifest are
+under `build/sector-coverage-session` in the standalone checkout.
+
 ### Issue #3 verification on 2026-09-11
 
 The source-snapshot integration passed 345 runtime and 46 editor tests, including
