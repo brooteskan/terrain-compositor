@@ -1,11 +1,44 @@
 #include "ProceduralSnapshotTestSupport.h"
 #include <AzCore/std/containers/array.h>
 #include <thread>
+#include <chrono>
+#include <cstring>
 
 namespace TerrainCompositor
 {
     using SnapshotTestSupport::Acquire;
     using SnapshotTestSupport::Current;
+
+    TEST(TerrainProceduralSnapshotTests, ZeroProfilePruningMatchesUnoptimizedLiveKernelBitForBit)
+    {
+        using Clock = std::chrono::steady_clock;
+        double referenceUs = 0, optimizedUs = 0;
+        size_t compared = 0;
+        for (float density : { 0.005f, 0.3f, 1.0f })
+            for (float frequency : { 0.1f, 1.0f, 16.0f })
+            {
+                ProceduralGroundGradientConfig config;
+                config.m_hillDensity = density;
+                config.m_frequency = frequency;
+                SnapshotTestSupport::Composition scene(config);
+                const auto snapshot = Acquire(scene.m_sourceId);
+                ASSERT_TRUE(snapshot && snapshot->m_zeroProfilePruning);
+                AZStd::vector<AZ::Vector3> points;
+                for (size_t i = 0; i < 32768; ++i)
+                    points.emplace_back(float(i % 256) * 0.5f - 64.125f,
+                        float(i / 256) * 0.1f - 6.39f + (i % 3 == 0 ? 8192.03f : 0.0f), 0.0f);
+                AZStd::vector<float> reference(points.size()), optimized(points.size());
+                auto start = Clock::now();
+                GradientSignal::GradientRequestBus::Event(scene.m_sourceId, &GradientSignal::GradientRequests::GetValues, points, reference);
+                referenceUs += std::chrono::duration<double, std::micro>(Clock::now() - start).count();
+                start = Clock::now();
+                ASSERT_TRUE(snapshot->SampleHeights(points, optimized));
+                optimizedUs += std::chrono::duration<double, std::micro>(Clock::now() - start).count();
+                for (size_t i = 0; i < points.size(); ++i) EXPECT_EQ(std::memcmp(&reference[i], &optimized[i], sizeof(float)), 0);
+                compared += points.size();
+            }
+        AZ_Printf("TerrainKernelBenchmark", "samples=%zu reference-us=%.3f pruned-us=%.3f\n", compared, referenceUs, optimizedUs);
+    }
 
     TEST(TerrainProceduralSnapshotTests, NormalizedScalarBatchAndClampedConfigurationMatchLiveKernel)
     {

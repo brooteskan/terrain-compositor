@@ -1,5 +1,10 @@
 # Sector preparation, committed coverage, and validated replacement
 
+See [TerrainDeferredPreparation.md](TerrainDeferredPreparation.md) for TG #38's
+enabled retained-only deferred policy and request-local raw sample reuse. The
+historical issue #2–#6 notes below describe the synchronous foundation; owned
+requests, validated whole-group acceptance and committed coverage still apply.
+
 Issue #6 adds [scheduling and atomic replacement contracts](TerrainSectorScheduling.md),
 including independent delivery, conservative split assessment, shared coverage
 projection, optional atomic upload-byte admission, diagnostics and the policy

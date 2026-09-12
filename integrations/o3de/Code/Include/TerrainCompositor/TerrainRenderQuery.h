@@ -89,6 +89,9 @@ namespace TerrainCompositor
     struct TerrainRenderQueryCapability
     {
         bool m_declared = false;
+        // Both raw channels are invariant under pointwise/subset execution with
+        // the same sampler and immutable source set. Explicit opt-in for reuse.
+        bool m_pointwise = false;
         TerrainRenderCoordinates m_coordinates = TerrainRenderCoordinates::Unknown;
         bool m_acceptsExplicitPositions = false;
         bool m_acceptsRegularGrid = false;
@@ -125,6 +128,8 @@ namespace TerrainCompositor
         size_t m_heightOwned = 0, m_existenceOwned = 0, m_bothOwned = 0;
         size_t m_independentSamples = 0, m_ordinarySamples = 0, m_retainedSamples = 0;
         size_t m_skippedOrdinarySamples = 0;
+        size_t m_requestedSamples = 0, m_evaluatedSamples = 0, m_reusedSamples = 0, m_reuseScratchBytes = 0;
+        double m_reuseMicroseconds = 0;
         size_t m_scalarSamples = 0, m_batchSamples = 0;
         size_t m_scalarCallbacks = 0, m_batchCallbacks = 0;
         size_t m_heightSourceCalls = 0, m_existenceSourceCalls = 0, m_hierarchySourceCalls = 0;

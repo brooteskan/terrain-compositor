@@ -3,6 +3,42 @@
 
 namespace TerrainCompositor
 {
+    TEST(TerrainSectorSamplingTests, DeferredRectangularCertificateMatchesTheFullOwnershipWalk)
+    {
+        SnapshotTestSupport::Composition scene;
+        const auto channel = scene.Channel();
+        for (bool batch : { false, true })
+            for (float start : { -63.9f, -0.125f, 8192.03f })
+                for (unsigned contract = 0; contract < 4; ++contract)
+                {
+                    TerrainSectorSamplingPlan plan;
+                    plan.m_channel = channel;
+                    plan.m_publication = channel->m_snapshot.load();
+                    auto sources = std::make_shared<TerrainRenderQuerySources>(*CaptureTerrainRenderQuerySources(plan.m_publication));
+                    plan.m_sources = sources;
+                    plan.m_dependencies = sources->m_dependencies;
+                    plan.m_area.m_captured = plan.m_area.m_exists = plan.m_area.m_retainedAcrossFrames = true;
+                    plan.m_batchQueries = batch;
+                    plan.m_regular = { AZ::Vector2(start, -0.125f), 0.5f, 129, 129 };
+                    plan.m_clod = { plan.m_regular.m_start, 1, 65, 65 };
+                    plan.m_clodEnabled = true;
+                    plan.m_queryPolicy = TerrainSectorQueryPolicy::RetainedOnly;
+                    auto& owner = sources->m_queries.front();
+                    if (contract == 1) owner.m_regionBounds.SetMin(AZ::Vector3(start, -10000, -1024)); // Missing normal halo.
+                    if (contract == 2) owner.m_capability.m_height.m_sampling.m_minSamples = 100;
+                    if (contract == 3) owner.m_capability.m_existence.m_source = TerrainRenderSource::Live;
+                    auto reference = plan;
+                    reference.Assess();
+                    plan.m_schedulePolicy = TerrainSectorSchedulePolicy::Deferred;
+                    plan.Assess();
+                    EXPECT_EQ(plan.m_ordinaryFallbacks, reference.m_ordinaryFallbacks);
+                    EXPECT_EQ(plan.m_acrossFramesFallbacks, reference.m_acrossFramesFallbacks);
+                    EXPECT_EQ(plan.m_regularReadiness.m_bothOwned, reference.m_regularReadiness.m_bothOwned);
+                    EXPECT_EQ(plan.m_regularReadiness.m_eligibleSamples, reference.m_regularReadiness.m_eligibleSamples);
+                    EXPECT_EQ(plan.m_clodReadiness.m_bothOwned, reference.m_clodReadiness.m_bothOwned);
+                    EXPECT_EQ(plan.m_clodReadiness.m_eligibleSamples, reference.m_clodReadiness.m_eligibleSamples);
+                }
+    }
     namespace SectorSamplingTestSupport
     {
         using Sampler = AzFramework::Terrain::TerrainDataRequests::Sampler;

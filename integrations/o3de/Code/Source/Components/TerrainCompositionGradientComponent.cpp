@@ -1,4 +1,5 @@
 #include <TerrainCompositor/Components/TerrainCompositionGradientComponent.h>
+#include <TerrainCompositor/Internal/RetainedCompositionMemory.h>
 #include "../ComponentConfiguration.h"
 #include "../CompositionPreparation.h"
 #include "../CompositionInvalidation.h"
@@ -1041,6 +1042,7 @@ namespace TerrainCompositor
         // composed/rendered channel or TerrainSystem's ordinary sampler. Stamps,
         // image holes and collision-only fallback require a composition-level proof.
         query.m_capability.m_height.m_ordinaryEquivalence = {};
+        query.m_retainedBytes = Internal::RetainedBytes(*state);
         query.m_capability.m_existence.m_ordinaryEquivalence = {};
         const auto independent = [](const TerrainRenderChannelCapability& channel)
         {
@@ -1060,6 +1062,7 @@ namespace TerrainCompositor
             // EXACT/BILINEAR remain on the original path in this first fast path.
             query.m_capability.m_height.m_ordinaryEquivalence = { true, false, true, false, true, true };
             query.m_capability.m_existence.m_ordinaryEquivalence = query.m_capability.m_height.m_ordinaryEquivalence;
+            query.m_capability.m_pointwise = true;
         }
         if (acquisition == TerrainSourceAcquisition::NotRequested)
         {

@@ -29,6 +29,7 @@ namespace TerrainCompositor
         //! ordinary terrain query's surface Z, including its collision fallback.
         AZStd::function<void(AZStd::span<const AZ::Vector3>, AZStd::span<float>, AZStd::span<bool>)> m_getGeometry;
         TerrainRenderQueryCapability m_capability;
+        size_t m_retainedBytes = 0; //!< Zero means unknown: ineligible for bounded deferred admission.
         std::shared_ptr<TerrainPreparationDependency> m_preparationDependency;
         AZ::Uuid m_compositionSession{};
         AZ::u64 m_compositionRevision = 0;

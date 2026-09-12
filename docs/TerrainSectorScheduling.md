@@ -1,5 +1,10 @@
 # Sector scheduling and atomic replacement policy
 
+TG #38 now implements the bounded retained-only dispatcher and request-local
+sample reuse described in [TerrainDeferredPreparation.md](TerrainDeferredPreparation.md).
+The issue #6 history below records the original synchronous decision boundaries;
+the new document specifies enabled policy, lifetime proof, limits and recovery.
+
 Issue #6 establishes decision boundaries, deterministic tests and requirements
 for a future scheduler. Production still captures one update group, starts its
 jobs, waits for every job, and accepts the whole group on the renderer control

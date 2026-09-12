@@ -36,6 +36,8 @@ namespace Terrain
         void CheckSceneReactivationPreservesIndependentlyOwnedRegistrations();
         void CheckProceduralSnapshotMatchesPackedClodHaloAndRtOutput();
         void CheckRetainedOnlyMatchesRealTerrainAndCoordinates();
+        void CheckDeferredAreaCaptureAndSettingsRevalidation();
+        void CheckPredictedLeaseAdoptionAndCancellation();
         void CheckRetainedOnlyWholeSectorFallbackAndInvalidation();
         void CheckProceduralSnapshotChangeRemovalAndReconnectionRejectDelayedResults();
         void CheckProceduralSnapshotChangeDuringOrdinarySamplingRejectsResults();
@@ -500,8 +502,9 @@ namespace Terrain
                 EXPECT_EQ(actual->m_queryStatistics->m_sectorBothOwned, 41);
                 EXPECT_EQ(actual->m_queryStatistics->m_sectorAvoidOrdinaryEligible, sampler == Requests::Sampler::CLAMP);
                 EXPECT_FALSE(actual->m_queryStatistics->m_sectorAcrossFramesEligible);
-                EXPECT_EQ(actual->m_queryStatistics->m_heightSnapshotSamples, 41);
-                EXPECT_EQ(actual->m_queryStatistics->m_existenceSnapshotSamples, 41);
+                EXPECT_EQ(actual->m_queryStatistics->m_reusedSamples, sampler == Requests::Sampler::CLAMP ? 4 : 0);
+                EXPECT_EQ(actual->m_queryStatistics->m_heightSnapshotSamples, sampler == Requests::Sampler::CLAMP ? 37 : 41);
+                EXPECT_EQ(actual->m_queryStatistics->m_existenceSnapshotSamples, sampler == Requests::Sampler::CLAMP ? 37 : 41);
                 EXPECT_EQ(actual->m_queryStatistics->m_sources.size(), 1); // Captured once across both halos.
                 EXPECT_TRUE(Accept({ actual }));
             }
@@ -603,8 +606,11 @@ namespace Terrain
                     EXPECT_EQ(terrain.m_calls, 2);
                     EXPECT_EQ(expected.m_queryStatistics->m_ordinarySamples, 21650);
                     // Preserve the comparison's immutable settings object.
+                    for (bool reuse : { false, true })
+                    {
                     settings = std::make_shared<Manager::SectorPreparationSettings>(*settings);
                     settings->m_retainedOnlyQueries = true;
+                    settings->m_sampleReuse = reuse;
                     request.m_data.m_settings = settings;
                     terrain.m_calls = 0;
                     const auto actual = Manager::PrepareSector(request);
@@ -631,6 +637,7 @@ namespace Terrain
                         EXPECT_EQ(actual.m_rtNormals[i].x, expected.m_rtNormals[i].x);
                         EXPECT_EQ(actual.m_rtNormals[i].y, expected.m_rtNormals[i].y);
                         EXPECT_EQ(actual.m_rtNormals[i].z, expected.m_rtNormals[i].z);
+                    }
                     }
                 }
         EXPECT_EQ(terrain.m_points, 18 * 21650);
@@ -1428,6 +1435,77 @@ namespace Terrain
     TEST_F(TerrainSectorLifetimeTests, FailureAndCancellationRetainOnlyValidOldCoverage) { CheckFailureAndCancellationRetainOnlyValidOldCoverage(); }
     TEST_F(TerrainSectorLifetimeTests, PublicationAndSourceRetirementHideCommittedCoverage) { CheckPublicationAndSourceRetirementHideCommittedCoverage(); }
     TEST_F(TerrainSectorLifetimeTests, CommittedOwnershipDoesNotRetainWorkerStorage) { CheckCommittedOwnershipDoesNotRetainWorkerStorage(); }
+
+
+    void TerrainSectorLifetimeTests::CheckDeferredAreaCaptureAndSettingsRevalidation()
+    {
+        using namespace TerrainCompositor;
+        ::testing::NiceMock<UnitTest::MockTerrainDataRequests> terrain;
+        SupplyTerrain(terrain);
+        SnapshotTestSupport::Composition scene;
+        m_channel = scene.Channel();
+        auto request = Capture();
+        request.m_samplingPlan.m_queryPolicy = TerrainSectorQueryPolicy::RetainedOnly;
+        request.m_samplingPlan.m_schedulePolicy = TerrainSectorSchedulePolicy::Deferred;
+        EXPECT_CALL(terrain, QueryRegion).Times(0);
+        auto ready = std::make_shared<Result>(Manager::PrepareSector(request));
+        ASSERT_EQ(ready->m_status, Status::Ready);
+        EXPECT_EQ(ready->m_admission, TerrainSectorAdmission::Deferred);
+        EXPECT_TRUE(ready->m_request.m_samplingPlan.CanExecuteAcrossFrames());
+        // Area registration can change before the terrain notification tick. The
+        // owned worker decision is safe, but no replacement may publish it stale.
+        ON_CALL(terrain, TerrainAreaExistsInBounds).WillByDefault(::testing::Return(false));
+        EXPECT_FALSE(Accept({ ready }));
+        EXPECT_EQ(m_commits, 0);
+        m_manager->m_rebuildSectors = false;
+        ON_CALL(terrain, TerrainAreaExistsInBounds).WillByDefault(::testing::Return(true));
+        request = Capture();
+        request.m_samplingPlan.m_queryPolicy = TerrainSectorQueryPolicy::RetainedOnly;
+        request.m_samplingPlan.m_schedulePolicy = TerrainSectorSchedulePolicy::Deferred;
+        ready = std::make_shared<Result>(Manager::PrepareSector(request));
+        m_manager->m_config.m_clodEnabled = false;
+        EXPECT_FALSE(Accept({ ready }));
+        EXPECT_EQ(m_commits, 0);
+        m_manager->m_config.m_clodEnabled = true;
+        EXPECT_TRUE(Accept({ ready }));
+        EXPECT_EQ(m_commits, 1);
+    }
+
+    void TerrainSectorLifetimeTests::CheckPredictedLeaseAdoptionAndCancellation()
+    {
+        using namespace TerrainCompositor;
+        ::testing::NiceMock<UnitTest::MockTerrainDataRequests> terrain;
+        SupplyTerrain(terrain);
+        SnapshotTestSupport::Composition scene;
+        m_channel = scene.Channel();
+        auto& sector = m_manager->m_sectorLods[0].m_sectors[0];
+        const Vector2i target(1, 0);
+        auto request = m_manager->CaptureSectorRequest(0, 0, m_manager->CapturePreparationSettings(), m_channel,
+            true, m_channel->m_snapshot.load(), {}, &target);
+        request.m_samplingPlan.m_queryPolicy = TerrainSectorQueryPolicy::RetainedOnly;
+        request.m_samplingPlan.m_schedulePolicy = TerrainSectorSchedulePolicy::Deferred;
+        auto ready = std::make_shared<Result>(Manager::PrepareSector(request));
+        EXPECT_EQ(sector.m_requestedWorldCoord, Vector2i(-1, 0));
+        EXPECT_EQ(m_manager->FindPreparationDestination(ready->m_request), nullptr);
+        const auto serial = sector.m_preparationSerial;
+        m_manager->RequestSectorPlacement(sector, target);
+        EXPECT_EQ(sector.m_preparationSerial, serial);
+        EXPECT_FALSE(request.m_cancelled->load());
+        EXPECT_TRUE(Accept({ ready }));
+        EXPECT_EQ(sector.m_committed.m_worldCoord, target);
+        const Vector2i next(2, 0);
+        auto obsolete = m_manager->CaptureSectorRequest(0, 0, m_manager->CapturePreparationSettings(), m_channel,
+            true, m_channel->m_snapshot.load(), {}, &next);
+        m_manager->RequestSectorPlacement(sector, Vector2i(-1, 0));
+        EXPECT_TRUE(obsolete.m_cancelled->load());
+        EXPECT_EQ(sector.m_committed.m_worldCoord, target);
+        EXPECT_FALSE(Accept({ std::make_shared<Result>(Manager::PrepareSector(obsolete)) }));
+    }
+
+    TEST_F(TerrainSectorLifetimeTests, DeferredAreaCaptureAndSettingsRevalidation)
+    { CheckDeferredAreaCaptureAndSettingsRevalidation(); }
+    TEST_F(TerrainSectorLifetimeTests, PredictedLeaseAdoptionAndCancellation)
+    { CheckPredictedLeaseAdoptionAndCancellation(); }
 
     TEST_F(TerrainSectorLifetimeTests, RetainedOnlyMatchesRealTerrainAndCoordinates)
     { CheckRetainedOnlyMatchesRealTerrainAndCoordinates(); }

@@ -6,8 +6,12 @@ file(COPY "${TC_ENGINE_TERRAIN_ROOT}/${first}" DESTINATION "${TC_TEST_ROOT}/wron
 file(APPEND "${TC_TEST_ROOT}/wrong-input/${first}" "\n// Incompatible engine input.\n")
 
 file(READ "${generator}" altered_generator)
+string(REGEX MATCH "TerrainRenderer/TerrainMeshManager.h\\|[a-f0-9]+\\|([a-f0-9]+)" first_override "${altered_generator}")
+if(NOT first_override)
+    message(FATAL_ERROR "Cannot locate the generated manager-header hash for the rejection test")
+endif()
 string(REPLACE
-    "962d3606373c40ed3f4de89cf9b6a5ac9b08b0ec71d549de67a79b41a7ae5c90"
+    "${CMAKE_MATCH_1}"
     "0000000000000000000000000000000000000000000000000000000000000000"
     altered_generator "${altered_generator}")
 file(MAKE_DIRECTORY "${TC_TEST_ROOT}/wrong-output")

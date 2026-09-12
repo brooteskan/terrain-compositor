@@ -7,7 +7,7 @@ namespace TerrainCompositor
 {
     //! One owned request (including regular, halo, CLOD and RT work) is a CPU
     //! scheduling unit. Admission never grants a destination or publication lease.
-    enum class TerrainSectorAdmission { Synchronous, Cancelled, InvalidPlan, DeferredUnsupported };
+    enum class TerrainSectorAdmission { Synchronous, Cancelled, InvalidPlan, DeferredUnsupported, Deferred };
     inline TerrainSectorAdmission AssessTerrainSectorAdmission(const TerrainSectorSamplingPlan& plan, bool cancelled,
         bool acrossFrames = false)
     {
@@ -17,7 +17,9 @@ namespace TerrainCompositor
         // Capability and enabled policy are separate. Even a fully retained plan
         // needs a future scheduler's admission, lifetime and memory policy.
         if (acrossFrames || plan.m_schedulePolicy != TerrainSectorSchedulePolicy::Synchronous)
-            return TerrainSectorAdmission::DeferredUnsupported;
+            return plan.m_schedulePolicy == TerrainSectorSchedulePolicy::Deferred &&
+                plan.m_queryPolicy == TerrainSectorQueryPolicy::RetainedOnly && plan.CanExecuteAcrossFrames()
+                ? TerrainSectorAdmission::Deferred : TerrainSectorAdmission::DeferredUnsupported;
         return TerrainSectorAdmission::Synchronous;
     }
 

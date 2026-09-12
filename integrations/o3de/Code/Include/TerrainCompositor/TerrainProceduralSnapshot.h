@@ -19,6 +19,7 @@ namespace TerrainCompositor
         // render proof. Custom snapshots retain the ordinary-query fallback.
         enum class Kernel { Unspecified, ProceduralGround };
         Kernel m_kernel = Kernel::Unspecified;
+        bool m_zeroProfilePruning = false; //!< Captured equivalent kernel policy; never read a cvar on workers.
         AZ::EntityId m_entityId{};
         AZ::Uuid m_session{};
         TerrainPreparationDependencyTicket m_ticket;

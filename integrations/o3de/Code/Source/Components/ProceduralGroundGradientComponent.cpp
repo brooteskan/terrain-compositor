@@ -12,11 +12,14 @@
 #include <TerrainRenderer/TerrainFeatureProcessor.h>
 
 #include <cmath>
+#include <AzCore/Console/Console.h>
 
 #include <TerrainCompositor/TerrainCompositorTypeIds.h>
 
 namespace TerrainCompositor
 {
+    AZ_CVAR(bool, r_terrainRetainedKernel, true, nullptr, AZ::ConsoleFunctorFlags::Null,
+        "Skip provably zero hill contributions in retained procedural snapshots. Disable for kernel comparisons.");
     namespace
     {
         constexpr AZ::u64 NoiseSeed = 0x9E3779B97F4A7C15ULL;
@@ -47,7 +50,7 @@ namespace TerrainCompositor
             return static_cast<float>(hash & 0x00FFFFFFu) * HashScale;
         }
 
-        float EvaluateHillField(float x, float y, float density, float riseFrequency)
+        float EvaluateHillField(float x, float y, float density, float riseFrequency, bool pruneZeroProfiles)
         {
             const float cellX = x * density;
             const float cellY = y * density;
@@ -72,6 +75,10 @@ namespace TerrainCompositor
                     const float deltaY = cellY - hillCenterY;
                     const float normalizedDistance = std::sqrt((deltaX * deltaX) + (deltaY * deltaY)) / HillRadiusInCells;
                     const float baseProfile = SmoothCurve(1.0f - normalizedDistance);
+                    // Frequency is clamped positive. pow(+0, frequency) is +0,
+                    // and adding a zero-weight feature leaves either union intact.
+                    // Preserve the exact distance/profile operations at the rim.
+                    if (pruneZeroProfiles && baseProfile == 0.0f) continue;
                     const float hillProfile = std::pow(baseProfile, riseFrequency);
 
                     // Randomly assign each feature as a bump or depression, then combine each group as a smooth bounded union.
@@ -340,6 +347,7 @@ namespace TerrainCompositor
         const auto configuration = m_queryConfiguration;
         auto snapshot = std::make_shared<TerrainProceduralSnapshot>();
         snapshot->m_kernel = TerrainProceduralSnapshot::Kernel::ProceduralGround;
+        snapshot->m_zeroProfilePruning = r_terrainRetainedKernel;
         snapshot->m_entityId = m_snapshotEntityId;
         snapshot->m_session = m_snapshotSession;
         snapshot->m_ticket = { m_snapshotDependency, m_snapshotDependency->Capture() };
@@ -360,9 +368,9 @@ namespace TerrainCompositor
         {
             snapshot->m_height = supported;
             snapshot->m_heightResult = TerrainSourceAcquisition::Acquired;
-            snapshot->m_heightValue = [configuration](const AZ::Vector3& position)
+            snapshot->m_heightValue = [configuration, prune = snapshot->m_zeroProfilePruning](const AZ::Vector3& position)
             {
-                return EvaluatePosition(position, configuration);
+                return EvaluatePosition(position, configuration, prune);
             };
         }
         snapshot->m_existenceResult = TerrainSourceAcquisition::ExternalMask;
@@ -443,7 +451,7 @@ namespace TerrainCompositor
     }
 
     float ProceduralGroundGradientComponent::EvaluatePosition(
-        const AZ::Vector3& position, const ProceduralGroundGradientConfig& configuration)
+        const AZ::Vector3& position, const ProceduralGroundGradientConfig& configuration, bool pruneZeroProfiles)
     {
         const float density = AZ::GetClamp(configuration.m_hillDensity, 0.0f, 1.0f);
         const float amplitudeMeters = AZ::GetClamp(configuration.m_amplitudeMeters, 0.0f, TerrainHeightRangeMeters * 0.5f);
@@ -453,7 +461,7 @@ namespace TerrainCompositor
         }
 
         const float riseFrequency = AZ::GetClamp(configuration.m_frequency, 0.1f, 16.0f);
-        const float hillAmount = EvaluateHillField(position.GetX(), position.GetY(), density, riseFrequency);
+        const float hillAmount = EvaluateHillField(position.GetX(), position.GetY(), density, riseFrequency, pruneZeroProfiles);
         const float normalizedAmplitude = amplitudeMeters / TerrainHeightRangeMeters;
         return AZ::GetClamp(NormalizedGroundHeight + (hillAmount * normalizedAmplitude), 0.0f, 1.0f);
     }

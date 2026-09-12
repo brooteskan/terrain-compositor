@@ -6,7 +6,7 @@ namespace TerrainCompositor
 {
     //! The enabled policy is intentionally independent of capability assessment.
     enum class TerrainSectorQueryPolicy { OrdinaryThenOverlay, RetainedOnly };
-    enum class TerrainSectorSchedulePolicy { Synchronous };
+    enum class TerrainSectorSchedulePolicy { Synchronous, Deferred };
     enum class TerrainSectorSampleChannels { HeightAndExistence };
 
     //! Row-major output grid plus one normal row/column on EVERY side. CLOD has
@@ -156,6 +156,49 @@ namespace TerrainCompositor
                     readiness.m_fallbackReasons |= reasons;
                 };
                 const bool batch = m_batchQueries && publication && !publication->m_renderGeometryQueries.empty();
+                // A pointwise first owner containing the complete rectangular
+                // gather can be certified from its extrema. Float construction
+                // is monotone for a valid positive-spacing layout, so every halo
+                // point lies inside these bounds. Preserve the full walk for
+                // split ownership and all undeclared/subset-limited contracts.
+                if (m_schedulePolicy == TerrainSectorSchedulePolicy::Deferred &&
+                    sources && sources->m_publication == publication && !sources->m_queries.empty())
+                {
+                    const auto& owner = sources->m_queries.front();
+                    const auto& cap = owner.m_capability;
+                    const AZStd::array<AZ::Vector3, 4> corners{
+                        layout.Position(0, 0), layout.Position(layout.Width() - 1, 0),
+                        layout.Position(0, layout.Height() - 1), layout.Position(layout.Width() - 1, layout.Height() - 1) };
+                    const size_t count = batch ? layout.Count() : 1;
+                    const auto channelSupportsGrid = [&](const TerrainRenderChannelCapability& channel)
+                    {
+                        return channel.m_sampling.m_declared && (!batch || channel.m_sampling.m_regularGrid) &&
+                            channel.m_sampling.m_minSamples <= count && channel.m_sampling.m_maxSamples >= count;
+                    };
+                    const auto& bounds = owner.m_regionBounds;
+                    if (cap.m_pointwise && owner.m_getHeight && owner.m_getTerrainExists && bounds.IsValid() &&
+                        cap.m_minSamples <= count && cap.m_maxSamples >= count && (!batch || cap.m_acceptsRegularGrid) &&
+                        channelSupportsGrid(cap.m_height) && channelSupportsGrid(cap.m_existence) &&
+                        AZStd::all_of(corners.begin(), corners.end(), [&](const auto& p)
+                        {
+                            return p.GetX() >= bounds.GetMin().GetX() && p.GetX() <= bounds.GetMax().GetX() &&
+                                p.GetY() >= bounds.GetMin().GetY() && p.GetY() <= bounds.GetMax().GetY();
+                        }))
+                    {
+                        auto request = layout.Query(corners, false);
+                        request.m_allowBatch = batch;
+                        request.m_coordinates = TerrainRenderCoordinates::WorldXY;
+                        auto query = ResolveTerrainRenderQuery(publication, request, nullptr, sources);
+                        if (query.m_firstRun.m_height == &owner && query.m_firstRun.m_existence == &owner &&
+                            query.m_additionalRuns.empty() &&
+                            !(query.m_firstRun.m_fallbackReasons & ~bit(TerrainRenderFallback::PreservedPolicy)))
+                        {
+                            query.m_firstRun.m_count = layout.Count();
+                            assessRun(query.m_firstRun);
+                            return;
+                        }
+                    }
+                }
                 // Match the selected dispatch exactly: scalar callbacks are one
                 // explicit position, while a batch retains full grid/run sizes.
                 AZStd::vector<AZ::Vector3> positions;
@@ -189,7 +232,8 @@ namespace TerrainCompositor
             m_ordinaryFallbacks |= m_regularReadiness.m_fallbackReasons | m_clodReadiness.m_fallbackReasons;
             m_acrossFramesFallbacks = m_ordinaryFallbacks;
             if (!m_area.m_retainedAcrossFrames) m_acrossFramesFallbacks |= bit(TerrainRenderFallback::AreaLifetimeUnproven);
-            if (!m_ordinaryQueriesRetainedAcrossFrames) m_acrossFramesFallbacks |= bit(TerrainRenderFallback::OrdinaryQueryLifetimeUnproven);
+            if (!m_ordinaryQueriesRetainedAcrossFrames && m_queryPolicy != TerrainSectorQueryPolicy::RetainedOnly)
+                m_acrossFramesFallbacks |= bit(TerrainRenderFallback::OrdinaryQueryLifetimeUnproven);
             m_assessed = true;
             if (statistics)
             {

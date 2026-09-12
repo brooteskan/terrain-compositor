@@ -80,7 +80,8 @@ namespace TerrainCompositor
         void GetTerrainExistsFromList(
             AZStd::span<const AZ::Vector3> positions, AZStd::span<bool> terrainExists) const override;
 
-        static float EvaluatePosition(const AZ::Vector3& position, const ProceduralGroundGradientConfig& configuration);
+        static float EvaluatePosition(const AZ::Vector3& position, const ProceduralGroundGradientConfig& configuration,
+            bool pruneZeroProfiles = false);
 
         void StartGradient(AZ::EntityId entityId);
         void StopGradient();
