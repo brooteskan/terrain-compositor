@@ -4,6 +4,47 @@ This is the current architecture ranking for [terrain-compositor #1](https://git
 
 Rank work by the optimization it enables, evidence of relevant runtime cost, dependencies, behavior risk and characterization effort. LOC is descriptive maintenance information. A justified request/result type, cancellation owner, test or measurement interface may add code. The previous percentage target, net-savings gate and reduction-ceiling task are retired.
 
+## Implementation status after issues #2 through #6
+
+The architectural implementation now reaches `413a105` on local `main`.
+The original source inventory and rank-1/rank-2 motivation below are historical;
+they must not be used as a list of missing abstractions. Implemented boundaries:
+
+| Boundary | Implementation | Remaining policy gate for TG #37 |
+| --- | --- | --- |
+| Render-query ownership and executor | `047710d` | Production still requires ordinary results. |
+| Owned preparation and validated resource commit | `894ad31` | Production still joins every worker in the update. |
+| Immutable procedural source acquisition | `627a39f` | Unsupported providers/masks and ordinary services remain live. |
+| Requested placement versus committed coverage | `3303fb4` | Coverage through delayed updates is not guaranteed for arbitrary partial LOD populations. |
+| Complete regular/CLOD/halo sampling eligibility | `03a61c2` | Final-composition equivalence and area/query-service lifetime proofs remain absent. |
+| Scheduling, delivery, replacement and budget contracts | `413a105` | Deferred dispatch and smaller replacement groups remain disabled. |
+
+The next work is integration and a current measured baseline, followed by narrowly
+supported execution policies. Do not repeat ownership/lifetime extractions or
+promote registration/asset-cache work ahead of the camera-flight investigation.
+Correctness tests and intrusive Editor smoke checks from these implementations
+are not evidence of reduced frame time.
+
+For query elimination, certify complete final composed outputs for explicitly
+supported sources/samplers, preserving coordinate rounding, clamping, image-hole
+existence, collision fallback, all normal halos and CLOD. A procedural kernel
+cannot certify the final composition. Keep fallback for unsupported requests.
+See [complete sampling proofs](TerrainRenderQueries.md#proofs-required-before-changing-policy).
+
+For deferred execution, cover the area decision and every remaining live service,
+then implement synchronized completion and reserved memory, concurrency, fairness,
+cancellation/reclamation and retry limits. Retain whole replacement groups first.
+If measured upload cost requires spreading a group across frames, bounded staging
+into replacement buffers is a candidate design; it needs final validation and
+atomic raster/RT visibility, and costs additional temporary GPU memory. Splitting
+groups instead requires shared-sample and representable-coverage proofs.
+See [scheduling requirements](TerrainSectorScheduling.md).
+
+These are architectural choices and proof obligations, not measured speedups.
+TG #37 owns numeric budgets, same-route performance evidence and user flight
+acceptance. The TG consumer's `Gem/Docs/TerrainFlightPreparation.md` describes its
+provenance and measurement workflow.
+
 ## Evidence and baseline
 
 The source inspection uses `19b6d1b09b478b2af9f0c2288aac9cc1ffcd0cab` plus the stable-removal changes now committed as `9dc34a1`. This is the architecture baseline, not the revision used for earlier flight measurements. Registration traversal improvements remain valid prior work; they are not evidence of a camera-flight speedup.
