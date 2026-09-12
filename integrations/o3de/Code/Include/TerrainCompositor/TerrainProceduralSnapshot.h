@@ -15,6 +15,10 @@ namespace TerrainCompositor
     //! inferred from height support. Unsupported sampling leaves outputs untouched.
     struct TerrainProceduralSnapshot
     {
+        // Identifies the value kernel covered by the composition's differential
+        // render proof. Custom snapshots retain the ordinary-query fallback.
+        enum class Kernel { Unspecified, ProceduralGround };
+        Kernel m_kernel = Kernel::Unspecified;
         AZ::EntityId m_entityId{};
         AZ::Uuid m_session{};
         TerrainPreparationDependencyTicket m_ticket;

@@ -7,14 +7,25 @@ file(APPEND "${TC_TEST_ROOT}/wrong-input/${first}" "\n// Incompatible engine inp
 
 file(READ "${generator}" altered_generator)
 string(REPLACE
-    "04fda8c2520579594d8031ebbf54c5b388128ea59155174653e257929a3aaf02"
+    "962d3606373c40ed3f4de89cf9b6a5ac9b08b0ec71d549de67a79b41a7ae5c90"
     "0000000000000000000000000000000000000000000000000000000000000000"
     altered_generator "${altered_generator}")
 file(MAKE_DIRECTORY "${TC_TEST_ROOT}/wrong-output")
 file(WRITE "${TC_TEST_ROOT}/wrong-output/EngineOverrides.cmake" "${altered_generator}")
 file(COPY "${integration}/EnginePatches" DESTINATION "${TC_TEST_ROOT}/wrong-output")
 
-foreach(case IN ITEMS valid repeat wrong-input wrong-output)
+file(MAKE_DIRECTORY "${TC_TEST_ROOT}/wrong-query/TerrainSystem")
+foreach(relative IN ITEMS TerrainRenderer/TerrainMeshManager.h TerrainRenderer/TerrainMeshManager.cpp
+    TerrainRenderer/TerrainFeatureProcessor.cpp TerrainRaycast/TerrainRaycastContext.cpp
+    Components/TerrainPhysicsColliderComponent.h Components/TerrainPhysicsColliderComponent.cpp
+    TerrainSystem/TerrainSystem.cpp)
+    get_filename_component(directory "${TC_TEST_ROOT}/wrong-query/${relative}" DIRECTORY)
+    file(MAKE_DIRECTORY "${directory}")
+    configure_file("${TC_ENGINE_TERRAIN_ROOT}/${relative}" "${TC_TEST_ROOT}/wrong-query/${relative}" COPYONLY)
+endforeach()
+file(APPEND "${TC_TEST_ROOT}/wrong-query/TerrainSystem/TerrainSystem.cpp" "\n// Changed grid/sampler contract.\n")
+
+foreach(case IN ITEMS valid repeat wrong-input wrong-output wrong-query)
     set(script "${generator}")
     set(upstream "${TC_ENGINE_TERRAIN_ROOT}")
     if(case STREQUAL "wrong-input")
@@ -23,6 +34,9 @@ foreach(case IN ITEMS valid repeat wrong-input wrong-output)
     elseif(case STREQUAL "wrong-output")
         set(script "${TC_TEST_ROOT}/wrong-output/EngineOverrides.cmake")
         set(expected_error "generated override does not match")
+    elseif(case STREQUAL "wrong-query")
+        set(upstream "${TC_TEST_ROOT}/wrong-query")
+        set(expected_error "pinned terrain query input changed")
     endif()
     execute_process(
         COMMAND "${CMAKE_COMMAND}" "-DTC_ENGINE_TERRAIN_ROOT=${upstream}"

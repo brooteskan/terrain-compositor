@@ -2,7 +2,7 @@
 +++ b/TerrainRenderer/TerrainMeshManager.h
 @@ -9,6 +9,8 @@
  #pragma once
- 
+
  #include <AzCore/base.h>
 +#include <AzCore/Jobs/Job.h>
 +#include <TerrainCompositor/TerrainSectorScheduling.h>
@@ -16,20 +16,20 @@
 -        
 +
          using MaterialInstance = AZ::Data::Instance<AZ::RPI::Material>;
- 
+
      public:
 @@ -117,6 +119,8 @@
      private:
- 
+
          using HeightDataType = uint16_t;
 +        friend class TerrainSectorPreparationTests;
 +        friend class TerrainSectorLifetimeTests;
          using NormalDataType = int8_t;
          using NormalXYDataType = AZStd::pair<NormalDataType, NormalDataType>;
- 
+
 @@ -153,10 +157,31 @@
              };
- 
+
              AZStd::array<MeshGroup, 5> m_meshGroups; // 0 is the primary, 1-4 are the quadrants.
 -            
 -        };
@@ -77,13 +77,13 @@
 +            TerrainCompositor::TerrainMeshCutoutRenderSnapshotPtr m_publication;
 +            AZStd::vector<TerrainCompositor::TerrainPreparationDependencyTicket> m_dependencies;
 +            bool m_valid = false; // Includes authoritative empty terrain.
- 
+
              // When drawing, either the m_rhiDrawPacket will be used, or some number of the m_rhiDrawPacketQuadrants
              AZ::RHI::ConstPtr<AZ::RHI::DrawPacket> m_rhiDrawPacket;
 @@ -186,20 +221,23 @@
              bool m_isQueuedForSrgCompile = false;
          };
- 
+
 +        struct Sector
 +        {
 +            // The slot owns exactly one resource bundle; pending work owns CPU data only.
@@ -98,7 +98,7 @@
          struct SectorLodGrid
          {
              AZStd::vector<Sector> m_sectors;
- 
+
              // The world space sector coord of the top most left item
              Vector2i m_startCoord = AZStd::numeric_limits<int32_t>::max();
 -        };
@@ -110,12 +110,12 @@
 -            uint32_t m_lodLevel{ 0 };
 -            float m_rcpLodLevel{ 1.0f };
          };
- 
+
          struct alignas(16) ShaderMeshData
 @@ -211,8 +249,15 @@
              float m_gridToQuadScale;
          };
- 
+
 +        struct SectorPreparationSettings;
 +
          struct SectorDataRequest
@@ -128,10 +128,19 @@
              AZ::Vector2 m_worldStartPosition;
              float m_vertexSpacing;
              int16_t m_samplesX;
-@@ -239,6 +284,14 @@
+@@ -220,6 +265,8 @@
+             AzFramework::Terrain::TerrainDataRequests::Sampler m_samplerType =
+                 AzFramework::Terrain::TerrainDataRequests::Sampler::CLAMP;
+             bool m_useVertexOrderRemap = false;
++            // Set only after complete regular/CLOD/halo eligibility assessment.
++            bool m_retainedOnly = false;
+         };
+
+         struct CachedDrawData
+@@ -239,6 +286,14 @@
              NormalXYDataType m_normal;
          };
- 
+
 +        // Tightly packed R32G32B32 data for ray tracing buffer uploads.
 +        struct RtVertex
 +        {
@@ -143,7 +152,7 @@
          struct CandidateSector
          {
              AZ::Aabb m_aabb;
-@@ -250,6 +303,132 @@
+@@ -250,6 +305,133 @@
              uint8_t m_posx;
              uint8_t m_posy;
          };
@@ -158,6 +167,7 @@
 +            uint8_t m_gridVerts1D = 0;
 +            uint16_t m_gridVerts2D = 0;
 +            bool m_batchQueries = true;
++            bool m_retainedOnlyQueries = true;
 +            bool m_clodEnabled = false;
 +        };
 +
@@ -273,12 +283,12 @@
 +        };
 +        SectorResourceAccounting GetSectorResourceAccounting() const;
 +        static size_t GetPreparedCpuBytes(const PreparedSectorResult& result);
- 
+
          struct RayTracedItem
          {
-@@ -273,13 +452,26 @@
+@@ -273,13 +455,26 @@
          AZ::RHI::StreamBufferView CreateStreamBufferView(AZ::Data::Instance<AZ::RPI::Buffer>& buffer, uint32_t offset = 0);
- 
+
          void CreateCommonBuffers();
 -        void UpdateSectorBuffers(Sector& sector, const AZStd::span<const HeightNormalVertex> heightsNormals);
 -        void UpdateSectorLodBuffers(Sector& sector,
@@ -301,16 +311,16 @@
 +            AZStd::vector<HeightNormalVertex>& clodHeightNormals);
 +        static bool GatherMeshData(SectorDataRequest request, AZStd::vector<HeightNormalVertex>& meshHeightsNormals, AZ::Aabb& meshAabb, bool& terrainExistsAnywhere,
 +            const TerrainCompositor::TerrainSectorSamplingLayout* samplingLayout = nullptr);
- 
+
          void CheckLodGridsForUpdate(AZ::Vector3 newPosition);
 +        AZStd::vector<AZStd::vector<Sector*>> CollectUpdatedSectors(AZ::Vector3 newPosition);
          void ProcessSectorUpdates(AZStd::vector<AZStd::vector<Sector*>>& sectorUpdates);
- 
+
          AZ::Data::Instance<AZ::RPI::Buffer> CreateMeshBufferInstance(
-@@ -297,12 +489,9 @@
+@@ -297,12 +492,9 @@
          void UpdateCandidateSectors();
          void CreateAabbQuadrants(const AZ::Aabb& aabb, AZStd::span<AZ::Aabb, 4> quadrantAabb);
- 
+
 -        template<typename Callback>
 -        void ForOverlappingSectors(const AZ::Aabb& bounds, Callback callback);
 -
@@ -319,13 +329,13 @@
 -        AZ::Render::RayTracingFeatureProcessorInterface* m_rayTracingFeatureProcessor;
 +        AZ::RPI::Scene* m_parentScene = nullptr;
 +        AZ::Render::RayTracingFeatureProcessorInterface* m_rayTracingFeatureProcessor = nullptr;
- 
+
          MaterialInstance m_materialInstance;
          AZStd::vector<CachedDrawData> m_cachedDrawData; // Holds common parts of draw packets
-@@ -318,6 +507,10 @@
+@@ -318,6 +510,10 @@
          AZ::Data::Instance<AZ::RPI::Buffer> m_dummyLodHeightsNormalsBuffer;
          AZ::RHI::IndexBufferView m_indexBufferView;
- 
+
 +        // Mutations and acceptance are control-thread operations. Jobs retain only
 +        // this invalidation authority; it never owns or points back to the manager.
 +        std::shared_ptr<TerrainCompositor::TerrainPreparationDependency> m_preparationLifetime =
@@ -333,9 +343,9 @@
          AZStd::vector<SectorLodGrid> m_sectorLods;
          AZStd::vector<CandidateSector> m_candidateSectors;
          AZStd::vector<Sector*> m_sectorsThatNeedSrgCompiled;
-@@ -352,6 +545,6 @@
+@@ -352,6 +548,6 @@
          AZ::RHI::Handle<uint32_t> m_meshMovedFlag;
- 
+
          // Cached MeshFeatureProcessor
 -        AZ::Render::MeshFeatureProcessorInterface* m_meshfeatureProcessor;
 +        AZ::Render::MeshFeatureProcessorInterface* m_meshfeatureProcessor = nullptr;

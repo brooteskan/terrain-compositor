@@ -5,7 +5,7 @@
 namespace TerrainCompositor
 {
     //! The enabled policy is intentionally independent of capability assessment.
-    enum class TerrainSectorQueryPolicy { OrdinaryThenOverlay };
+    enum class TerrainSectorQueryPolicy { OrdinaryThenOverlay, RetainedOnly };
     enum class TerrainSectorSchedulePolicy { Synchronous };
     enum class TerrainSectorSampleChannels { HeightAndExistence };
 
@@ -36,6 +36,8 @@ namespace TerrainCompositor
         }
         AZ::Vector3 Position(size_t x, size_t y) const
         {
+            // Same float operations/order as pinned TerrainSystem's
+            // GenerateInputPositionsFromRegion (not repeated addition or double).
             const auto start = QueryStart();
             return AZ::Vector3(start.GetX() + float(x) * m_spacing, start.GetY() + float(y) * m_spacing, 0.0f);
         }
@@ -165,14 +167,18 @@ namespace TerrainCompositor
                         if (batch) positions.push_back(position);
                         else
                         {
-                            const auto query = ResolveTerrainRenderQuery(publication, layout.Query({ &position, 1 }, false), nullptr,
+                            auto request = layout.Query({ &position, 1 }, false);
+                            request.m_coordinates = TerrainRenderCoordinates::WorldXY;
+                            const auto query = ResolveTerrainRenderQuery(publication, request, nullptr,
                                 sources && sources->m_publication == publication ? sources : nullptr);
                             assessRun(query.m_firstRun);
                         }
                     }
                 if (batch)
                 {
-                    const auto query = ResolveTerrainRenderQuery(publication, layout.Query(positions, true), nullptr,
+                    auto request = layout.Query(positions, true);
+                    request.m_coordinates = TerrainRenderCoordinates::WorldXY;
+                    const auto query = ResolveTerrainRenderQuery(publication, request, nullptr,
                         sources && sources->m_publication == publication ? sources : nullptr);
                     assessRun(query.m_firstRun);
                     for (const auto& run : query.m_additionalRuns) assessRun(run);

@@ -339,6 +339,7 @@ namespace TerrainCompositor
         if (!m_snapshotDependency) return {};
         const auto configuration = m_queryConfiguration;
         auto snapshot = std::make_shared<TerrainProceduralSnapshot>();
+        snapshot->m_kernel = TerrainProceduralSnapshot::Kernel::ProceduralGround;
         snapshot->m_entityId = m_snapshotEntityId;
         snapshot->m_session = m_snapshotSession;
         snapshot->m_ticket = { m_snapshotDependency, m_snapshotDependency->Capture() };

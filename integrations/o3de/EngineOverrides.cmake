@@ -3,8 +3,8 @@
 function(tc_prepare_engine_overrides upstream_root output_root)
     find_package(Git REQUIRED)
     set(overrides
-        "TerrainRenderer/TerrainMeshManager.h|19260ae06c587e2173df0ca5671a9f061d3b50a75a4e2c794b335885a1691f9b|04fda8c2520579594d8031ebbf54c5b388128ea59155174653e257929a3aaf02"
-        "TerrainRenderer/TerrainMeshManager.cpp|0cd52bf650755c4c479a842fc31c41645808ee0e9a9fc7253326b57d457b83eb|68c8005e9cb5f3777d92b6c081999f418b8f44995dbe5b8e47a7a23cc5921933"
+        "TerrainRenderer/TerrainMeshManager.h|19260ae06c587e2173df0ca5671a9f061d3b50a75a4e2c794b335885a1691f9b|962d3606373c40ed3f4de89cf9b6a5ac9b08b0ec71d549de67a79b41a7ae5c90"
+        "TerrainRenderer/TerrainMeshManager.cpp|0cd52bf650755c4c479a842fc31c41645808ee0e9a9fc7253326b57d457b83eb|5f199e3b8e61fdd30eb3f36c100157b290044b9ec130285427b93feb374c3eb5"
         "TerrainRenderer/TerrainFeatureProcessor.cpp|1d1ea74a882de2c48864179f56234c2c39dd9ca1e88f7902f5ccb27598fdaf5c|a1ad4f30805cd5617b77d45cb5aa682d31828afe302a8f07f520be00351570e1"
         "TerrainRaycast/TerrainRaycastContext.cpp|67bbd8e633136e9bbd2676bdcb19a76f735912559b85b6ebc3c173df881a2d92|ca0ac838425cbda646d9921df6077914a4a3c7ca71ac30364864499a1c7b5fc5"
         "Components/TerrainPhysicsColliderComponent.h|178852bddc0df6a499428bfded053475d9629b5a4b5448e7591e10e08a41ece5|a6f17d8784e66398b1c2cd4d7031222abb03ad6da01cf8a7f0ac04833e5614d3"
@@ -45,6 +45,16 @@ function(tc_prepare_engine_overrides upstream_root output_root)
         endif()
         configure_file("${staging}/${relative}" "${output_root}/${relative}" COPYONLY)
     endforeach()
+    # The retained-only renderer proof depends on QueryRegion returning original
+    # grid XY (including float rounding), regardless of its ordinary sampler.
+    set(query_source "${upstream_root}/TerrainSystem/TerrainSystem.cpp")
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${query_source}")
+    file(READ "${query_source}" query_content)
+    string(REPLACE "\r\n" "\n" query_content "${query_content}")
+    string(SHA256 query_hash "${query_content}")
+    if(NOT query_hash STREQUAL "e4a2dd3b54921c68f270376c199a517c6b4af0d9de61b7faaf3f81d4891cce5e")
+        message(FATAL_ERROR "TerrainCompositor: pinned terrain query input changed: ${query_source}")
+    endif()
 endfunction()
 
 if(CMAKE_SCRIPT_MODE_FILE STREQUAL CMAKE_CURRENT_LIST_FILE)

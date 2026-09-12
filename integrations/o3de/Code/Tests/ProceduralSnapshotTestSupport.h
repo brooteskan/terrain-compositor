@@ -75,7 +75,7 @@ namespace TerrainCompositor::SnapshotTestSupport
         TerrainMeshCutoutRenderChannelPtr Channel() { return m_registry.AcquireSceneChannel(nullptr); }
         TerrainMeshCutoutRenderSnapshotPtr Publication() { return Channel()->m_snapshot.load(); }
         TerrainRenderQuerySourcesPtr Capture() { return CaptureTerrainRenderQuerySources(Publication()); }
-        bool AddImageHole()
+        bool AddImageHole(float footprint = 0.5f, bool withHeight = false)
         {
             HeightmapStampRegistrationData record;
             record.m_stampEntityId = AZ::EntityId(901004);
@@ -87,13 +87,50 @@ namespace TerrainCompositor::SnapshotTestSupport
             record.m_updateRevision = 1;
             record.m_configuration.m_targetCompositionEntityId = m_owner;
             record.m_configuration.AssignNewPersistentOrderingIdentity();
-            record.m_configuration.m_footprintWidth = record.m_configuration.m_footprintDepth = 0.5f;
+            record.m_configuration.m_footprintWidth = record.m_configuration.m_footprintDepth = footprint;
             record.m_configuration.m_holeMask.m_maskAsset = AZ::Data::Asset<AZ::RPI::StreamingImageAsset>(
                 AZ::Data::AssetId(AZ::Uuid::CreateRandom()), azrtti_typeid<AZ::RPI::StreamingImageAsset>(), {});
             record.m_holeMask.m_status = HeightmapDataStatus::Ready;
             record.m_holeMask.m_data = TestSupport::MakeMask(1.0f);
+            if (withHeight)
+            {
+                record.m_worldTransform = AZ::Transform::CreateRotationZ(0.37f);
+                record.m_worldTransform.SetTranslation(AZ::Vector3(0, 0, -7));
+                record.m_configuration.m_featherWidth = 0;
+                record.m_configuration.m_heightScale = 40;
+                record.m_configuration.m_heightmapAsset = record.m_configuration.m_holeMask.m_maskAsset;
+                record.m_heightmap.m_status = HeightmapDataStatus::Ready;
+                record.m_heightmap.m_data = AZStd::make_shared<HeightmapData>(TestSupport::MakeImage(2, 2, {0, 1, 0.25f, 0.5f}));
+                record.m_holeMask.m_data = AZStd::make_shared<HeightmapData>(TestSupport::MakeImage(2, 2, {0, 1, 1, 0}));
+            }
             bool accepted = false;
             TerrainCompositionRequestBus::EventResult(accepted, address, &TerrainCompositionRequests::RegisterStamp, record);
+            return accepted;
+        }
+        bool AddMeshHeight()
+        {
+            TerrainMeshHeightStampRegistrationData record;
+            record.m_stampEntityId = AZ::EntityId(901005);
+            m_context.BusConnect(record.m_stampEntityId);
+            record.m_contextId = m_context.m_id;
+            const TerrainCompositionAddress address{ m_context.m_id, m_owner };
+            TerrainCompositionRequestBus::EventResult(record.m_compositionSession, address, &TerrainCompositionRequests::GetCompositionSession);
+            record.m_registrationId = AZ::Uuid::CreateRandom();
+            record.m_updateRevision = 1;
+            record.m_configuration.m_targetCompositionEntityId = m_owner;
+            record.m_configuration.AssignNewPersistentOrderingIdentity();
+            record.m_configuration.m_relativeEdgeBlend = false;
+            record.m_configuration.m_priority = 2;
+            record.m_worldTransform = AZ::Transform::CreateRotationZ(-0.23f);
+            record.m_worldTransform.SetTranslation(AZ::Vector3(2, 1, 3));
+            auto data = AZStd::make_shared<TerrainMeshHeightData>();
+            const AZStd::array positions{ AZ::Vector3(-4,-4,-2), AZ::Vector3(4,-4,3), AZ::Vector3(-4,4,6), AZ::Vector3(4,4,-1) };
+            const AZStd::array<AZ::u32, 6> indices{0, 1, 3, 0, 3, 2};
+            if (BuildTerrainMeshHeightData(positions, indices, *data) != TerrainMeshHeightValidation::Valid) return false;
+            record.m_mesh.m_status = TerrainMeshHeightDataStatus::Ready;
+            record.m_mesh.m_data = data;
+            bool accepted = false;
+            TerrainCompositionRequestBus::EventResult(accepted, address, &TerrainCompositionRequests::RegisterMeshHeightStamp, record);
             return accepted;
         }
     };

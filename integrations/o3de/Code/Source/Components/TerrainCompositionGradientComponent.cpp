@@ -1042,6 +1042,25 @@ namespace TerrainCompositor
         // image holes and collision-only fallback require a composition-level proof.
         query.m_capability.m_height.m_ordinaryEquivalence = {};
         query.m_capability.m_existence.m_ordinaryEquivalence = {};
+        const auto independent = [](const TerrainRenderChannelCapability& channel)
+        {
+            return channel.m_source == TerrainRenderSource::RetainedAvailable &&
+                channel.m_inputZ == TerrainRenderInputZ::Independent && !channel.m_requiresOrdinaryResult &&
+                channel.m_sampling.m_declared;
+        };
+        if (source && source->m_kernel == TerrainProceduralSnapshot::Kernel::ProceduralGround &&
+            source->m_heightResult == TerrainSourceAcquisition::Acquired &&
+            source->m_existenceResult == TerrainSourceAcquisition::Acquired &&
+            independent(source->m_height) && independent(source->m_existence))
+        {
+            // Pinned TerrainSystem::QueryRegion returns the original region XY,
+            // even with CLAMP. Both retained channels overwrite ordinary results;
+            // prepared height/image-hole contributors read XY, never ordinary Z.
+            // Collision-only holes therefore cannot change final render output.
+            // EXACT/BILINEAR remain on the original path in this first fast path.
+            query.m_capability.m_height.m_ordinaryEquivalence = { true, false, true, false, true, true };
+            query.m_capability.m_existence.m_ordinaryEquivalence = query.m_capability.m_height.m_ordinaryEquivalence;
+        }
         if (acquisition == TerrainSourceAcquisition::NotRequested)
         {
             query.m_acquireSources = [state, validSourceIdentity]()

@@ -1,5 +1,10 @@
 # Retained render-query ownership and execution
 
+The foundation design and verification below record behavior through `920d3f6`.
+TG #37 now adds a gated ordinary-query elimination path; its current execution
+contract and differential proof are documented in [TerrainQueryElimination.md](TerrainQueryElimination.md).
+The ordinary path described below remains the fallback and comparison baseline.
+
 `TerrainRenderQueryRequest`, `TerrainRenderQueryCapability`, and
 `TerrainRenderQueryPlan` make the renderer's ordinary-query-then-overlay contract
 explicit. Issue #3 adds opt-in immutable procedural-source acquisition to the

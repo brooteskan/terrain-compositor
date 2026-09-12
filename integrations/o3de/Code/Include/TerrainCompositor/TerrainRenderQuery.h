@@ -62,7 +62,8 @@ namespace TerrainCompositor
 
     //! Separate from direct-XY sampler support. Opting in requires differential
     //! proof against ordinary-query-then-overlay for this channel, including holes,
-    //! clamping and collision-only fallback. No current adapter declares this proof.
+    //! clamping and collision-only fallback. The composition adapter certifies
+    //! CLAMP for its supported built-in source; source-level flags are not copied.
     struct TerrainRenderOrdinaryEquivalence
     {
         bool m_coordinates = false;
@@ -123,6 +124,7 @@ namespace TerrainCompositor
     {
         size_t m_heightOwned = 0, m_existenceOwned = 0, m_bothOwned = 0;
         size_t m_independentSamples = 0, m_ordinarySamples = 0, m_retainedSamples = 0;
+        size_t m_skippedOrdinarySamples = 0;
         size_t m_scalarSamples = 0, m_batchSamples = 0;
         size_t m_scalarCallbacks = 0, m_batchCallbacks = 0;
         size_t m_heightSourceCalls = 0, m_existenceSourceCalls = 0, m_hierarchySourceCalls = 0;

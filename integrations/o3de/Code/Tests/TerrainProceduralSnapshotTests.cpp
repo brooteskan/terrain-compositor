@@ -333,6 +333,7 @@ namespace TerrainCompositor
     {
         SnapshotTestSupport::Composition scene;
         auto source = std::make_shared<TerrainProceduralSnapshot>(*Acquire(scene.m_sourceId));
+        source->m_kernel = TerrainProceduralSnapshot::Kernel::Unspecified;
         source->m_height.m_ordinaryEquivalence = source->m_existence.m_ordinaryEquivalence = { true, true, true, true, true, true };
         scene.StopSource();
         SnapshotMasks::Provider provider(scene.m_sourceId, true);

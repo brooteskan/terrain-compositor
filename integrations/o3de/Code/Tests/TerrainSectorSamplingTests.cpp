@@ -263,8 +263,15 @@ namespace TerrainCompositor
         };
         assess();
         EXPECT_EQ(f.m_plan.m_regularReadiness.m_bothOwned, 25);
-        EXPECT_FALSE(f.m_plan.CanAvoidOrdinaryResults());
-        EXPECT_TRUE(f.Has(Reason::SamplerEquivalenceUnproven));
+        EXPECT_TRUE(f.m_plan.CanAvoidOrdinaryResults());
+        for (auto sampler : { Sampler::EXACT, Sampler::BILINEAR })
+        {
+            f.m_plan.m_clod.m_sampler = sampler;
+            assess();
+            EXPECT_FALSE(f.m_plan.CanAvoidOrdinaryResults());
+            EXPECT_TRUE(f.Has(Reason::SamplerEquivalenceUnproven));
+        }
+        f.m_plan.m_clod.m_sampler = Sampler::CLAMP;
         for (auto mask : { AZ::EntityId(99), scene.m_sourceId })
         {
             scene.m_config.m_holeMask.m_gradientId = mask;

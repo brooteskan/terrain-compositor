@@ -1,6 +1,9 @@
 #include <AzTest/AzTest.h>
 #include <AzCore/Jobs/JobCompletion.h>
 #include <AzCore/Jobs/JobManager.h>
+#include <AzCore/Jobs/JobManagerBus.h>
+#include <TerrainSystem/TerrainSystem.h>
+#include <Terrain/MockTerrain.h>
 #include <Atom/RHI/RHISystem.h>
 #include <Atom/RPI.Public/Shader/ShaderSystemInterface.h>
 #include <TerrainRenderer/TerrainMeshManager.h>
@@ -32,6 +35,8 @@ namespace Terrain
         void CheckSourceChangeDuringPreparationRejectsOwnedOutput();
         void CheckSceneReactivationPreservesIndependentlyOwnedRegistrations();
         void CheckProceduralSnapshotMatchesPackedClodHaloAndRtOutput();
+        void CheckRetainedOnlyMatchesRealTerrainAndCoordinates();
+        void CheckRetainedOnlyWholeSectorFallbackAndInvalidation();
         void CheckProceduralSnapshotChangeRemovalAndReconnectionRejectDelayedResults();
         void CheckProceduralSnapshotChangeDuringOrdinarySamplingRejectsResults();
         void CheckProceduralSnapshotPublicationReplacementRejectsResults();
@@ -488,17 +493,200 @@ namespace Terrain
                     EXPECT_FLOAT_EQ(actual->m_rtNormals[i].y, expected.m_rtNormals[i].y);
                     EXPECT_FLOAT_EQ(actual->m_rtNormals[i].z, expected.m_rtNormals[i].z);
                 }
-                EXPECT_EQ(actual->m_queryStatistics->m_ordinarySamples, 41);
+                EXPECT_EQ(actual->m_queryStatistics->m_ordinarySamples, sampler == Requests::Sampler::CLAMP ? 0 : 41);
+                EXPECT_EQ(actual->m_queryStatistics->m_skippedOrdinarySamples, sampler == Requests::Sampler::CLAMP ? 41 : 0);
                 EXPECT_EQ(actual->m_queryStatistics->m_requiredSectorSamples, 41);
                 EXPECT_EQ(actual->m_queryStatistics->m_requiredClodSamples, 16);
                 EXPECT_EQ(actual->m_queryStatistics->m_sectorBothOwned, 41);
-                EXPECT_FALSE(actual->m_queryStatistics->m_sectorAvoidOrdinaryEligible);
+                EXPECT_EQ(actual->m_queryStatistics->m_sectorAvoidOrdinaryEligible, sampler == Requests::Sampler::CLAMP);
                 EXPECT_FALSE(actual->m_queryStatistics->m_sectorAcrossFramesEligible);
                 EXPECT_EQ(actual->m_queryStatistics->m_heightSnapshotSamples, 41);
                 EXPECT_EQ(actual->m_queryStatistics->m_existenceSnapshotSamples, 41);
                 EXPECT_EQ(actual->m_queryStatistics->m_sources.size(), 1); // Captured once across both halos.
                 EXPECT_TRUE(Accept({ actual }));
             }
+    }
+
+    void TerrainSectorLifetimeTests::CheckRetainedOnlyMatchesRealTerrainAndCoordinates()
+    {
+        using namespace TerrainCompositor;
+        class Jobs final : public AZ::JobManagerBus::Handler
+        {
+        public:
+            Jobs() { BusConnect(); }
+            ~Jobs() override { BusDisconnect(); }
+            AZ::JobManager* GetManager() override { return &m_manager; }
+            AZ::JobContext* GetGlobalContext() override { return &m_context; }
+            AZ::JobManager m_manager{ AZ::JobManagerDesc{} };
+            AZ::JobContext m_context{ m_manager };
+        } jobs;
+        class CountingTerrain final : public TerrainSystem
+        {
+        public:
+            void QueryRegion(const AzFramework::Terrain::TerrainQueryRegion& region, TerrainDataMask mask,
+                AzFramework::Terrain::SurfacePointRegionFillCallback callback, Sampler sampler) const override
+            {
+                const auto& layout = m_layouts.at(m_calls++);
+                TerrainSystem::QueryRegion(region, mask, [&](size_t x, size_t y, const auto& point, bool exists)
+                {
+                    EXPECT_EQ(point.m_position.GetX(), layout.Position(x, y).GetX());
+                    EXPECT_EQ(point.m_position.GetY(), layout.Position(x, y).GetY());
+                    ++m_points;
+                    if (!exists) ++m_holes;
+                    callback(x, y, point, exists);
+                }, sampler);
+            }
+            AZStd::vector<TerrainSectorSamplingLayout> m_layouts;
+            mutable size_t m_calls = 0, m_points = 0, m_holes = 0;
+        };
+        ProceduralGroundGradientConfig config;
+        config.m_hillDensity = 0.3f;
+        config.m_amplitudeMeters = 180;
+        SnapshotTestSupport::Composition scene(config);
+        ASSERT_TRUE(scene.AddImageHole(16, true));
+        ASSERT_TRUE(scene.AddMeshHeight());
+        ::testing::NiceMock<UnitTest::MockTerrainSpawnerRequests> spawner(scene.m_region);
+        ::testing::NiceMock<UnitTest::MockTerrainAreaHeightRequests> provider(scene.m_region);
+        ON_CALL(spawner, GetUseGroundPlane).WillByDefault(::testing::Return(false));
+        ON_CALL(spawner, GetPriority).WillByDefault([](uint32_t& layer, int32_t& priority) { layer = 0; priority = 0; });
+        const TerrainCompositionAddress address{ scene.m_context.m_id, scene.m_owner };
+        ON_CALL(provider, GetHeights).WillByDefault([&](AZStd::span<AZ::Vector3> points, AZStd::span<bool> exists)
+        {
+            AZStd::vector<float> heights(points.size());
+            TerrainCompositionHeightRequestBus::Event(address, &TerrainCompositionHeightRequests::GetHeights,
+                scene.m_region, AZStd::span<const AZ::Vector3>(points), AZStd::span<float>(heights), exists);
+            for (size_t i = 0; i < points.size(); ++i)
+            {
+                points[i].SetZ(heights[i]);
+                // Exercise collision-only holes in the actual ordinary sampler.
+                // Render existence deliberately remains independent of these.
+                if (points[i].GetX() < 0) exists[i] = false;
+            }
+        });
+        CountingTerrain terrain;
+        terrain.SetTerrainHeightBounds({ -10, 10 });
+        terrain.SetTerrainHeightQueryResolution(0.5f);
+        terrain.Activate();
+        AZ::TickBus::Broadcast(&AZ::TickEvents::OnTick, 0.0f, AZ::ScriptTimePoint{});
+        m_channel = scene.Channel();
+        m_manager->m_gridSize = 128;
+        m_manager->m_gridVerts1D = 129;
+        m_manager->m_gridVerts2D = 129 * 129;
+        m_manager->m_vertexOrder.clear();
+        m_manager->m_xyPositions.clear();
+        for (uint16_t y = 0; y < 129; ++y)
+            for (uint16_t x = 0; x < 129; ++x)
+            {
+                m_manager->m_vertexOrder.push_back(y * 129 + x);
+                m_manager->m_xyPositions.push_back({ uint8_t(x), uint8_t(y) });
+            }
+        for (bool batch : { false, true })
+            for (float spacing : { 0.1f, 0.5f, 1.3f })
+                for (float start : { -63.9f, -0.125f, 8192.03f })
+                {
+                    SCOPED_TRACE(::testing::Message() << batch << "/" << spacing << "/" << start);
+                    auto request = Capture();
+                    auto settings = std::make_shared<Manager::SectorPreparationSettings>(*request.m_data.m_settings);
+                    settings->m_batchQueries = batch;
+                    settings->m_retainedOnlyQueries = false;
+                    request.m_data.m_settings = settings;
+                    auto& sampling = request.m_samplingPlan;
+                    sampling.m_batchQueries = batch;
+                    sampling.m_rayTracing = true;
+                    sampling.m_regular.m_start = sampling.m_clod.m_start = AZ::Vector2(start, -0.125f);
+                    sampling.m_regular.m_spacing = spacing;
+                    sampling.m_clod.m_spacing = spacing * 2;
+                    terrain.m_layouts = { sampling.m_regular, sampling.m_clod };
+                    terrain.m_calls = 0;
+                    const auto expected = Manager::PrepareSector(request);
+                    ASSERT_EQ(expected.m_status, Status::Ready);
+                    EXPECT_EQ(terrain.m_calls, 2);
+                    EXPECT_EQ(expected.m_queryStatistics->m_ordinarySamples, 21650);
+                    // Preserve the comparison's immutable settings object.
+                    settings = std::make_shared<Manager::SectorPreparationSettings>(*settings);
+                    settings->m_retainedOnlyQueries = true;
+                    request.m_data.m_settings = settings;
+                    terrain.m_calls = 0;
+                    const auto actual = Manager::PrepareSector(request);
+                    EXPECT_EQ(terrain.m_calls, 0);
+                    EXPECT_EQ(actual.m_status, expected.m_status);
+                    EXPECT_EQ(actual.m_aabb, expected.m_aabb);
+                    EXPECT_EQ(actual.m_hasData, expected.m_hasData);
+                    EXPECT_EQ(actual.m_queryStatistics->m_ordinarySamples, 0);
+                    EXPECT_EQ(actual.m_queryStatistics->m_skippedOrdinarySamples, 21650);
+                    EXPECT_EQ(actual.m_queryStatistics->m_heightSourceCalls + actual.m_queryStatistics->m_existenceSourceCalls, 0);
+                    ASSERT_EQ(actual.m_heights.size(), expected.m_heights.size());
+                    ASSERT_EQ(actual.m_lodHeights.size(), expected.m_lodHeights.size());
+                    ASSERT_EQ(actual.m_rtPositions.size(), expected.m_rtPositions.size());
+                    ASSERT_EQ(actual.m_rtNormals.size(), expected.m_rtNormals.size());
+                    for (size_t i = 0; i < actual.m_heights.size(); ++i)
+                    {
+                        EXPECT_EQ(actual.m_heights[i].m_height, expected.m_heights[i].m_height);
+                        EXPECT_EQ(actual.m_heights[i].m_normal, expected.m_heights[i].m_normal);
+                        EXPECT_EQ(actual.m_lodHeights[i].m_height, expected.m_lodHeights[i].m_height);
+                        EXPECT_EQ(actual.m_lodHeights[i].m_normal, expected.m_lodHeights[i].m_normal);
+                        EXPECT_EQ(actual.m_rtPositions[i].x, expected.m_rtPositions[i].x);
+                        EXPECT_EQ(actual.m_rtPositions[i].y, expected.m_rtPositions[i].y);
+                        EXPECT_EQ(actual.m_rtPositions[i].z, expected.m_rtPositions[i].z);
+                        EXPECT_EQ(actual.m_rtNormals[i].x, expected.m_rtNormals[i].x);
+                        EXPECT_EQ(actual.m_rtNormals[i].y, expected.m_rtNormals[i].y);
+                        EXPECT_EQ(actual.m_rtNormals[i].z, expected.m_rtNormals[i].z);
+                    }
+                }
+        EXPECT_EQ(terrain.m_points, 18 * 21650);
+        EXPECT_GT(terrain.m_holes, 0);
+    }
+
+    void TerrainSectorLifetimeTests::CheckRetainedOnlyWholeSectorFallbackAndInvalidation()
+    {
+        using namespace TerrainCompositor;
+        ::testing::NiceMock<UnitTest::MockTerrainDataRequests> terrain;
+        SupplyTerrain(terrain);
+        SnapshotTestSupport::Composition scene;
+        m_channel = scene.Channel();
+        EXPECT_CALL(terrain, QueryRegion).Times(6);
+        // A single unowned corner of either halo forces BOTH gathers to fall back.
+        for (bool clod : { false, true })
+        {
+            auto request = Capture();
+            (clod ? request.m_samplingPlan.m_clod : request.m_samplingPlan.m_regular).m_start = AZ::Vector2(9999);
+            const auto result = Manager::PrepareSector(request);
+            EXPECT_EQ(result.m_status, Status::Ready);
+            EXPECT_EQ(result.m_queryStatistics->m_skippedOrdinarySamples, 0);
+            EXPECT_EQ(result.m_queryStatistics->m_ordinarySamples, 41);
+        }
+        scene.m_config.m_holeMask.m_gradientId = AZ::EntityId(998877);
+        scene.m_source->ReadInConfig(&scene.m_config);
+        const auto masked = Empty();
+        EXPECT_EQ(masked->m_queryStatistics->m_skippedOrdinarySamples, 0);
+        EXPECT_EQ(masked->m_queryStatistics->m_ordinarySamples, 41);
+        EXPECT_NE(masked->m_queryStatistics->m_sectorOrdinaryFallbacks & TerrainRenderFallbackBit(TerrainRenderFallback::ExternalMask), 0);
+        scene.m_config.m_holeMask.m_gradientId = AZ::EntityId{};
+        scene.m_source->ReadInConfig(&scene.m_config);
+        ::testing::Mock::VerifyAndClearExpectations(&terrain);
+        EXPECT_CALL(terrain, QueryRegion).Times(0);
+        auto request = Capture();
+        auto sources = std::make_shared<TerrainRenderQuerySources>(*request.m_samplingPlan.m_sources);
+        auto& query = sources->m_queries.front();
+        const auto original = query.m_execute;
+        const auto authority = query.m_proceduralSnapshot->m_ticket.m_dependency;
+        query.m_execute = [original, authority](auto dispatch, auto positions, auto heights, auto exists, auto* statistics)
+        {
+            original(dispatch, positions, heights, exists, statistics);
+            authority->Invalidate(); // Values remain readable; GPU acceptance must fail.
+        };
+        request.m_samplingPlan.m_sources = sources;
+        const auto result = std::make_shared<Result>(Manager::PrepareSector(request));
+        EXPECT_EQ(result->m_status, Status::Ready);
+        EXPECT_EQ(result->m_queryStatistics->m_skippedOrdinarySamples, 41);
+        EXPECT_FALSE(Accept({ result }));
+        EXPECT_EQ(m_commits, 0);
+        ASSERT_TRUE(scene.AddImageHole(100));
+        const auto empty = Empty();
+        EXPECT_EQ(empty->m_status, Status::Empty);
+        EXPECT_EQ(empty->m_queryStatistics->m_skippedOrdinarySamples, 25);
+        EXPECT_EQ(empty->m_queryStatistics->m_requiredSectorSamples, 41);
+        EXPECT_TRUE(Accept({ empty }));
     }
 
     void TerrainSectorLifetimeTests::CheckProceduralSnapshotChangeRemovalAndReconnectionRejectDelayedResults()
@@ -545,6 +733,9 @@ namespace Terrain
         m_channel = scene.Channel();
         auto request = Capture();
         bool changed = false;
+        auto settings = std::make_shared<Manager::SectorPreparationSettings>(*request.m_data.m_settings);
+        settings->m_retainedOnlyQueries = false;
+        request.m_data.m_settings = settings;
         ON_CALL(terrain, QueryRegion).WillByDefault([&](const auto& region, auto, auto callback, auto)
         {
             if (!changed)
@@ -1238,6 +1429,10 @@ namespace Terrain
     TEST_F(TerrainSectorLifetimeTests, PublicationAndSourceRetirementHideCommittedCoverage) { CheckPublicationAndSourceRetirementHideCommittedCoverage(); }
     TEST_F(TerrainSectorLifetimeTests, CommittedOwnershipDoesNotRetainWorkerStorage) { CheckCommittedOwnershipDoesNotRetainWorkerStorage(); }
 
+    TEST_F(TerrainSectorLifetimeTests, RetainedOnlyMatchesRealTerrainAndCoordinates)
+    { CheckRetainedOnlyMatchesRealTerrainAndCoordinates(); }
+    TEST_F(TerrainSectorLifetimeTests, RetainedOnlyWholeSectorFallbackAndInvalidation)
+    { CheckRetainedOnlyWholeSectorFallbackAndInvalidation(); }
     TEST_F(TerrainSectorLifetimeTests, ProceduralSnapshotMatchesPackedClodHaloAndRtOutput)
     { CheckProceduralSnapshotMatchesPackedClodHaloAndRtOutput(); }
     TEST_F(TerrainSectorLifetimeTests, ProceduralSnapshotChangeRemovalAndReconnectionRejectDelayedResults)
