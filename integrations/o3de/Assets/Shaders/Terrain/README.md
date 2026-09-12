@@ -47,6 +47,12 @@ the two compute source wrappers include the stock passes from the project
 include root. They do not add tint to clipmaps: tint is still evaluated in the
 forward shader, so inspector edits do not require regenerating clipmap textures.
 
+The cutout fragment stage shared by depth and shadow returns the rasterized
+`SV_Position.z` through a `precise SV_Depth` output, matching Atom's clipped depth
+shaders. This gives the shader builder a depth-only output contract while keeping
+the cutout predicate and surviving fragment depths unchanged. A void fragment
+return compiles to GPU code but fails this engine's output-layout reflection.
+
 Rebuild the TerrainCompositor Gem using the consuming project's existing `build/windows` directory, then reopen
 the editor and let Asset Processor finish processing the project shader/material
 assets. After introducing or changing the material parameter layout, fully restart

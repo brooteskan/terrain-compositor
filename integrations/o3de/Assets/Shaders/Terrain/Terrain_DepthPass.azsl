@@ -31,10 +31,21 @@ VSDepthOutput MainVS(in VertexInput input)
     return output;
 }
 
-void MainPS(VSDepthOutput input)
+struct PSDepthOutput
+{
+    precise float m_depth : SV_Depth;
+};
+
+PSDepthOutput MainPS(VSDepthOutput input)
 {
     if (TGMeshCutoutDiscardsTerrain(input.m_worldPosition))
     {
         discard;
     }
+
+    // Match Atom's clipped depth shaders: expose a depth-only output contract
+    // and preserve the rasterized depth for every fragment that survives.
+    PSDepthOutput output;
+    output.m_depth = input.m_position.z;
+    return output;
 }
