@@ -1,9 +1,127 @@
-# Owned sector preparation and validated commit lifetime
+# Sector preparation, committed coverage, and validated replacement
 
-Issues #2 and #3 keep `StartAndWaitForCompletion` and the existing
+Issues #2, #3, and #4 keep `StartAndWaitForCompletion` and the existing
 ordinary-query-then-overlay policy. Owned CPU work, opt-in procedural snapshots,
 and one acceptance boundary serve a synchronous batch. These changes make no
 performance improvement claim and do not enable cross-frame scheduling.
+
+## Requested placement and committed ownership
+
+`Sector` owns a destination identity, request serial, requested world coordinate,
+preparation state, a weak cancellation handle, and exactly one `CommittedSector`.
+The committed bundle owns the packed and CLOD buffers, RT buffers and mesh groups,
+draw packets/views, SRGs, AABB/quadrants, existence, actual coordinate and LOD,
+shader object constants, height origin, accepted serial, publication, and dependency
+tickets. Its validity bit distinguishes unknown content from an accepted empty
+sector. Relocation changes only the request. It cannot move the old AABB, change
+its SRG translation, or relabel its RT mesh.
+
+The existing destination identity remains the slot-lifetime authority. Its numeric
+ID supports diagnostics; identity pointer and serial still govern acceptance.
+There is no second lease system, retained mesh cache, or asynchronous queue.
+The renderer owns all state changes; workers continue to own only CPU requests
+and results. Capturing another request at the same coordinate supersedes the
+previous serial just as relocation does.
+
+| Event | Request state | Committed coverage |
+| --- | --- | --- |
+| Allocate or relocate | Requested | Unknown initially; otherwise retain valid old placement |
+| Capture and dispatch | Requested → Preparing | Retain valid old placement, including known emptiness |
+| Deliver complete populated/empty result | Ready | Unchanged until whole-group acceptance |
+| Deliver incomplete/failed result | Failed | Retain only still-valid old coverage; request synchronous retry |
+| Explicit cancellation or cancelled completion | Cancelled | Retain only still-valid old coverage; request retry |
+| Newer request supersedes work | Requested → Preparing | Old completion cannot change the newer state |
+| Accept complete group | Ready → Committed | Replace all bundle contents and then publish group visibility |
+| Invalidate displayed content | Invalidated | Hide raster/RT coverage, release publication/tickets, request full rebuild |
+| Reset, buffer clear, teardown | Retired | Withdraw RT registrations, release all slot resources and handles |
+
+Workers may finish obsolete work. Results hold no sector or GPU reference, and
+rejection changes no committed resource. Explicit cancellation uses the existing
+cooperative flag; it cannot undo an accepted lease. Teardown retires the existing
+manager dependency, so retained work can finish independently but cannot commit.
+
+## Coverage selection
+
+`SelectSectorCoverage` builds a bounded, temporary hierarchy from valid committed
+world coordinates. It does not index retained geometry relative to requested grid
+starts. Signed parent coordinates use floor division, including negative odd
+coordinates. Initial slots and failed/pending results contribute no coverage.
+Accepted empty results contribute authoritative coverage without a draw, preventing
+coarser terrain from filling authored holes. A moving request also retains this
+empty coverage at its original committed coordinate.
+
+The hierarchy selects finer committed sectors within the existing LOD distance
+thresholds. A coarser full mesh or quadrant can fill a wholly uncovered child
+region. The same selection and masks drive raster candidates and RT registrations;
+RT transforms use the committed object translation and height origin. A teleport
+cannot drag retained geometry to the requested destination. Old content outside
+the camera's distance thresholds is unselected; new areas with no valid fallback
+remain unknown and hidden until their replacement commits.
+
+A coarse quadrant cannot represent a partially covered child region when an
+intermediate LOD is missing. Drawing it would overlap finer geometry or overwrite
+finer holes. In that case, retain the finer coverage and leave the unrepresentable
+remainder uncovered. This is an explicit limitation for delayed/partial LOD
+population, not a promise of continuous coverage under a future scheduler. Normal
+production still prepares and commits the complete synchronous update group.
+
+Before reuse, committed coverage is checked against its exact active publication
+and captured dependencies, using publication-then-sorted-dependency lock order.
+Visibility is admitted at the renderer's control-thread selection boundary;
+notifications after that boundary are observed at the next selection. Unknown or
+invalid content never acts as a hole/fallback claim. Invalidation withdraws visible
+RT meshes as well as raster candidates, even with a stationary camera.
+
+**Conservative policy change:** manager terrain height/settings invalidation now
+requests a full synchronous rebuild, including changes with a regional dirty
+rectangle. Configuration or publication/source changes that invalidate retained
+content also require full refresh. Previously regional notifications could refresh
+only overlapping sectors. Since the existing manager authority invalidates all
+captured tickets, retaining the other bundles under that authority would falsely
+claim validity. A later optimization can prove regional equivalence, including
+normal/CLOD halos, before narrowing this policy. This change claims no speedup.
+
+## Replacement groups and reclamation
+
+`ProcessSectorUpdates` captures one immutable `SectorCommitGroup` with the expected
+result count for its entire synchronous update. Every request/result retains that
+group. Missing members, mixed groups, duplicates, stale destinations, invalid
+publications/dependencies, cancellation, and malformed payloads reject the whole
+group before any lease consumption or committed mutation. Ready members remain
+ready for a complete retry; failures/cancellation retain their explicit states.
+The private ungrouped capture option supports existing independent lifetime tests;
+production always supplies its full group.
+
+Acceptance consumes all leases, withdraws affected RT registrations, replaces the
+bundles through the resource sink, then marks every bundle valid/committed and
+invalidates candidate selection. Object SRGs are queued for compilation before
+drawing. Packed geometry, CLOD fallback/interpolation, RT decode, bounds, object
+constants and coverage are one replacement. The publication and dependency locks
+remain held across every sink invocation. GPU allocation/upload failures keep the
+engine's existing handling; there is no new hardware transaction or rollback.
+
+Neighboring sectors share edge samples and normal halos. Each CLOD buffer also
+encodes the next LOD's samples and normals. A later scheduler must prove identical
+configuration, publication, source tickets and shared edge samples across a split,
+retain representable non-overlapping coverage (including empty claims), and move
+raster/RT selections together. Independent ready sectors are not sufficient proof
+that splitting a production group preserves CLOD boundaries. Removing the wait or
+splitting a group is outside this change.
+
+Each slot owns at most one GPU bundle. A new request retains that bundle in place;
+CPU results are local to the synchronous batch and are reclaimed after its wait
+and acceptance/rejection. Committed metadata retains publication/dependency identity,
+not query-source snapshots, preparation settings, cancellation flags, or result
+vectors. Reset/retirement clears candidates and SRG queues before slot destruction.
+All five RT mesh-info handles per allocated sector are released, including groups
+that were never visible or were removed from selection before retirement.
+
+`GetPreparedCpuBytes` reports owned result/vector storage. `GetSectorResourceAccounting`
+reports allocated GPU buffer bytes, bytes retained during replacement, committed
+metadata/vector storage, and pending request count. Shared common buffers,
+transitive publication/source allocations, diagnostic allocations and driver/BLAS
+memory are not estimated. Counts are observations for future admission limits;
+they do not impose a frame budget or add a cache.
 
 ## Owned work
 
@@ -103,10 +221,11 @@ the existing publication-generation guarantee. The commit sink performs no
 terrain/source query or dependency notification. Tests inject a resource-mutation
 observer at that same boundary; production supplies `CommitSectorResources`.
 
-Only the accepted sink changes vertex/CLOD/RT buffers, RT mesh registration,
-sector existence/AABBs/quadrants, object SRG constants and compilation queues,
-or candidate-sector invalidation. In particular, SRG changes no longer precede
-acceptance. Rejected batches request the existing full rebuild, so failed and
+Only the accepted replacement path changes vertex/CLOD/RT buffers, committed
+placement/existence/AABBs/quadrants, and object SRG constants/compilation queues.
+Visibility selection and invalidation can withdraw RT/raster coverage without
+accepting a replacement. SRG changes never precede acceptance.
+Rejected batches request the full rebuild, so failed and
 empty work remain retryable. Cancellation is cooperative before acceptance;
 once leases are consumed, commit owns the result. No worker is forcibly stopped.
 Owned requests/results are reclaimed after synchronous completion and release of
@@ -119,7 +238,13 @@ publication wait, acceptance, and GPU commit. `r_terrainSectorUpdateTiming`
 remains false by default. When enabled, control-thread output reports accepted
 and rejected counts, capture/dispatch, worker wait, summed worker preparation,
 publication wait, acceptance, and commit time. Existing result-owned query
-counters remain available. No contended per-sample logging is added.
+counters remain available. `TerrainSectorState` correlates numeric destination IDs,
+request/accepted serials, requested/committed coordinates, committed LOD/publication,
+validity, and transitions. `TerrainSectorReject` records obsolete request identity,
+coordinates, reason and result bytes even when the slot has been superseded.
+`TerrainSectorMemory` reports the available CPU/GPU accounting. State and reason
+values follow their enum declaration order in the manager header. No contended
+per-sample logging is added.
 
 Deterministic tests delay and reorder actual owned requests and feed their
 results through the production acceptance boundary. Coverage includes negative

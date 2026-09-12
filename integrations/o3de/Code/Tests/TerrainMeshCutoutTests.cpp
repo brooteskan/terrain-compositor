@@ -156,7 +156,7 @@ namespace Terrain
             grid.m_sectors.resize(100);
             for (auto& sector : grid.m_sectors)
             {
-                sector.m_worldCoord = { 100, 100 };
+                sector.m_requestedWorldCoord = { 100, 100 };
             }
             auto updates = manager.CollectUpdatedSectors(AZ::Vector3(192.0f, 192.0f, 0.0f));
             ASSERT_EQ(updates[0].size(), 100);
@@ -169,6 +169,7 @@ namespace Terrain
             for (const auto& position : { positivePosition, AZ::Vector3(192.0f, 192.0f, 0.0f), positivePosition })
             {
                 AZStd::vector<Vector2i> oldCoordinates;
+                AZStd::vector<Vector2i> committedCoordinates;
                 AZStd::vector<std::shared_ptr<TerrainMeshManager::PreparedSectorResult>> delayed;
                 const auto settings = manager.CapturePreparationSettings();
                 for (size_t slot = 0; slot < grid.m_sectors.size(); ++slot)
@@ -176,23 +177,31 @@ namespace Terrain
                         manager.PrepareSector(manager.CaptureSectorRequest(0, slot, settings, {}, false, {}))));
                 for (const auto& sector : grid.m_sectors)
                 {
-                    oldCoordinates.push_back(sector.m_worldCoord);
+                    oldCoordinates.push_back(sector.m_requestedWorldCoord);
+                    committedCoordinates.push_back(sector.m_committed.m_worldCoord);
                 }
                 updates = manager.CollectUpdatedSectors(position);
                 EXPECT_EQ(updates[0].size(), expectedUpdates);
+                for (size_t slot = 0; slot < grid.m_sectors.size(); ++slot)
+                    EXPECT_EQ(grid.m_sectors[slot].m_committed.m_worldCoord, committedCoordinates[slot]);
                 size_t commits = 0;
                 for (const auto& result : delayed)
                 {
-                    const bool stillAssigned = result->m_request.m_worldCoord == grid.m_sectors[result->m_request.m_slot].m_worldCoord;
+                    const bool stillAssigned = result->m_request.m_worldCoord == grid.m_sectors[result->m_request.m_slot].m_requestedWorldCoord;
                     EXPECT_EQ(manager.AcceptPreparedSectors({ &result, 1 },
-                        [&commits](auto&, const auto&) { ++commits; }), stillAssigned);
+                        [&commits](auto& sector, const auto& prepared)
+                        {
+                            EXPECT_EQ(sector.m_committed.m_worldCoord, prepared.m_request.m_worldCoord);
+                            EXPECT_EQ(sector.m_state, TerrainMeshManager::SectorState::Ready);
+                            ++commits;
+                        }), stillAssigned);
                 }
                 EXPECT_EQ(commits, 100 - expectedUpdates);
                 for (size_t oldIndex = 0; oldIndex < oldCoordinates.size(); ++oldIndex)
                 {
                     for (size_t newIndex = 0; newIndex < grid.m_sectors.size(); ++newIndex)
                     {
-                        if (oldCoordinates[oldIndex] == grid.m_sectors[newIndex].m_worldCoord)
+                        if (oldCoordinates[oldIndex] == grid.m_sectors[newIndex].m_requestedWorldCoord)
                         {
                             EXPECT_EQ(oldIndex, newIndex) << "An overlapping sector changed buffer slots";
                         }
@@ -204,10 +213,27 @@ namespace Terrain
                     {
                         const Vector2i expected = grid.m_startCoord + Vector2i(x, y);
                         EXPECT_EQ(AZStd::count_if(grid.m_sectors.begin(), grid.m_sectors.end(),
-                            [&expected](const auto& sector) { return sector.m_worldCoord == expected; }), 1);
+                            [&expected](const auto& sector) { return sector.m_requestedWorldCoord == expected; }), 1);
                     }
                 }
                 EXPECT_TRUE(manager.CollectUpdatedSectors(position)[0].empty());
+            }
+            // A teleport replaces the whole requested grid but cannot relabel any
+            // of the committed slots, including delayed empty results.
+            AZStd::vector<Vector2i> displayed;
+            AZStd::vector<std::shared_ptr<TerrainMeshManager::PreparedSectorResult>> delayed;
+            for (size_t slot = 0; slot < grid.m_sectors.size(); ++slot)
+            {
+                displayed.push_back(grid.m_sectors[slot].m_committed.m_worldCoord);
+                delayed.push_back(std::make_shared<TerrainMeshManager::PreparedSectorResult>(
+                    manager.PrepareSector(manager.CaptureSectorRequest(0, slot, manager.CapturePreparationSettings(), {}, false, {}))));
+            }
+            EXPECT_EQ(manager.CollectUpdatedSectors(AZ::Vector3(-100000.0f,100000.0f,0))[0].size(),100);
+            for (size_t slot = 0; slot < grid.m_sectors.size(); ++slot)
+            {
+                EXPECT_EQ(grid.m_sectors[slot].m_committed.m_worldCoord, displayed[slot]);
+                EXPECT_FALSE(manager.AcceptPreparedSectors({&delayed[slot],1}, [](auto&, const auto&)
+                    { ADD_FAILURE() << "A pre-teleport result reached resource commit"; }));
             }
         }
         static void CheckMissingTerrainProvider()

@@ -7,7 +7,7 @@ file(APPEND "${TC_TEST_ROOT}/wrong-input/${first}" "\n// Incompatible engine inp
 
 file(READ "${generator}" altered_generator)
 string(REPLACE
-    "5509421017b864c411e1070a7f7d838196ecdbaaff637f18dde23509779504fe"
+    "2ad55b8b7eeee84f6b7c0cacf79d111582638f513a1c0ba66a896d2421a2f03f"
     "0000000000000000000000000000000000000000000000000000000000000000"
     altered_generator "${altered_generator}")
 file(MAKE_DIRECTORY "${TC_TEST_ROOT}/wrong-output")
