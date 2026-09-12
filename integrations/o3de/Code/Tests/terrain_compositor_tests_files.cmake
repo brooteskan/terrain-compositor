@@ -11,6 +11,8 @@ set(FILES
     HeightmapReconstructionTests.cpp
     TerrainMeshCutoutTests.cpp
     TerrainSectorLifetimeTests.cpp
+    TerrainRenderingTests.cpp
+    TerrainNormalGpuTests.cpp
     TerrainSectorSamplingTests.cpp
     TerrainSectorDispatcherTests.cpp
     TerrainSectorSampleReuseTests.cpp

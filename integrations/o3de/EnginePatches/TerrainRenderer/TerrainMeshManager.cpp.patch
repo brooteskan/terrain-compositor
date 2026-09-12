@@ -708,7 +708,7 @@
          }
      }
 
-@@ -845,91 +1100,82 @@
+@@ -845,91 +1100,84 @@
          m_dummyLodHeightsNormalsBuffer = CreateMeshBufferInstance(sizeof(HeightNormalVertex), m_gridVerts2D, nullptr);
      }
 
@@ -820,7 +820,9 @@
 +            // the ray traced normal lines up with the compressed one used in forward pass.
 +            float normalZ = sqrt(AZStd::GetMax(0.0f, 1.0f - normalX * normalX - normalY * normalY));
 +
-+            rtNormals.at(i) = { normalX, normalY, normalZ };
++            // Match the shader when quantization rounds XY outside the unit disk.
++            const AZ::Vector3 normal = AZ::Vector3(normalX, normalY, normalZ).GetNormalized();
++            rtNormals.at(i) = { normal.GetX(), normal.GetY(), normal.GetZ() };
 +        }
 +    }
 +
@@ -872,7 +874,7 @@
                  uint16_t lodIndex1 = (yPos / 2) * lodGridVerts1D + (xPos / 2);
                  uint16_t lodIndex2 = lodIndex1;
 
-@@ -944,7 +1190,7 @@
+@@ -944,7 +1192,7 @@
                      lodIndex2 += lodGridVerts1D;
                  }
 
@@ -881,7 +883,7 @@
 
                  if (lodHeightsNormals[lodIndex1].m_height == NoTerrainVertexHeight || lodHeightsNormals[lodIndex2].m_height == NoTerrainVertexHeight)
                  {
-@@ -966,49 +1212,165 @@
+@@ -966,49 +1214,165 @@
              }
          }
 
@@ -1077,7 +1079,7 @@
          const float rcpWorldZ = 1.0f / zExtents;
          const float vertexSpacing2 = request.m_vertexSpacing * 2.0f;
 
-@@ -1030,7 +1392,7 @@
+@@ -1030,7 +1394,7 @@
                  const uint16_t queryCoord = queryY * querySamplesX + queryX;
 
                  uint16_t coord = y * request.m_samplesX + x;
@@ -1086,7 +1088,35 @@
 
                  const float height = heights.at(queryCoord);
                  if (height < 0.0f)
-@@ -1112,219 +1474,767 @@
+@@ -1053,7 +1417,7 @@
+                 {
+                     minHeight = height;
+                 }
+-                else if (maxHeight < height)
++                if (maxHeight < height)
+                 {
+                     maxHeight = height;
+                 }
+@@ -1088,12 +1452,16 @@
+                 const float leftHeight = heights.at(queryCoord - 1);
+                 const float rightHeight = heights.at(queryCoord + 1);
+                 const float xSlope = getSlope(leftHeight, rightHeight);
+-                const float normalX = xSlope / sqrt(xSlope * xSlope + 1); // sin(arctan(xSlope)
+
+                 const float upHeight = heights.at(queryCoord - querySamplesX);
+                 const float downHeight = heights.at(queryCoord + querySamplesX);
+                 const float ySlope = getSlope(upHeight, downHeight);
+-                const float normalY = ySlope / sqrt(ySlope * ySlope + 1); // sin(arctan(ySlope)
++                // Both slopes describe one heightfield normal. Normalizing each
++                // axis separately tilts diagonal slopes and can put XY outside
++                // the unit disk before SNORM packing.
++                const float inverseLength = 1.0f / sqrt(xSlope * xSlope + ySlope * ySlope + 1.0f);
++                const float normalX = xSlope * inverseLength;
++                const float normalY = ySlope * inverseLength;
+
+                 meshHeightsNormals.at(coord).m_normal =
+                 {
+@@ -1112,219 +1480,767 @@
          {
              float width = (request.m_samplesX - 1) * request.m_vertexSpacing;
              float height = (request.m_samplesY - 1) * request.m_vertexSpacing;
@@ -2053,7 +2083,7 @@
          }
 
          if (m_rayTracingEnabled)
-@@ -1334,7 +2244,7 @@
+@@ -1334,7 +2250,7 @@
 
              auto getMeshGroup = [](auto& item) -> auto&
              {
@@ -2062,7 +2092,7 @@
              };
 
              AZStd::sort(newRayTraceItems.begin(), newRayTraceItems.end(),
-@@ -1349,8 +2259,9 @@
+@@ -1349,8 +2265,9 @@
 
              auto addMesh = [&](RayTracedItem& item, RtSector::MeshGroup& meshGroup)
              {
@@ -2074,7 +2104,7 @@
                  meshGroup.m_mesh.m_transform = AZ::Transform::CreateTranslation(translation);
                  meshGroup.m_isVisible = true;
                  m_rayTracingFeatureProcessor->AddMesh(meshGroup.m_id, meshGroup.m_mesh, meshGroup.m_submeshVector);
-@@ -1430,37 +2341,6 @@
+@@ -1430,37 +2347,6 @@
          }
      }
 

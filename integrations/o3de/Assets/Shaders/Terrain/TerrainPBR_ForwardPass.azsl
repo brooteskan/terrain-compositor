@@ -12,7 +12,7 @@
 #include <viewsrg_all.srgi>
 #include <TerrainSrg.azsli>
 #include <TerrainMeshCutout.azsli>
-#include <Terrain/Assets/Shaders/Terrain/TerrainCommon.azsli>
+#include <TerrainCommon.azsli>
 #include <TerrainDetailHelpers.azsli>
 #include <Terrain/Assets/Shaders/Terrain/TerrainMacroHelpers.azsli>
 #include <Terrain/Assets/Shaders/Terrain/ClipmapComputeHelpers.azsli>

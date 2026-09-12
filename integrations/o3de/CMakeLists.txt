@@ -123,6 +123,7 @@ if(PAL_TRAIT_BUILD_TESTS_SUPPORTED)
     )
 
     set_source_files_properties(Code/Tests/TerrainMeshHeightGapGpuTests.cpp PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
+    set_source_files_properties(Code/Tests/TerrainNormalGpuTests.cpp PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
     target_compile_definitions(
         ${gem_name}.Tests PRIVATE
         TERRAIN_COMPOSITOR_SHADER_DIR="${CMAKE_CURRENT_SOURCE_DIR}/Assets/Shaders/Terrain")

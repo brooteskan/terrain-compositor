@@ -8,12 +8,14 @@
 #include <Atom/Features/SrgSemantics.azsli>
 #include <scenesrg_all.srgi>
 #include <viewsrg_all.srgi>
-#include <Terrain/Assets/Shaders/Terrain/TerrainCommon.azsli>
+#include <TerrainCommon.azsli>
 #include <TerrainMeshCutout.azsli>
 
 struct VSDepthOutput
 {
-    float4 m_position : SV_Position;
+    // SV_Depth must preserve each MSAA sample's rasterized depth. Pixel-frequency
+    // depth would make the later forward pass reject samples on sloped terrain.
+    sample float4 m_position : SV_Position;
     float3 m_worldPosition : UV0;
 };
 
