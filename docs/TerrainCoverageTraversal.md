@@ -1,167 +1,181 @@
-# Cached coverage traversal
+# Incremental terrain coverage and renderer changes
 
-Coverage uses polytree's immutable forest, cached reverse topological order and
-direct child handles. Algo's range-to-sink transform evaluates that order into
-caller-owned result storage. Terrain policy supplies claim precedence,
-authoritative emptiness, missing/partial/full classification and quadrant masks.
-Neither generic library depends on O3DE or scene-polytree's runtime.
+Coverage uses polytree's immutable forest, cached reverse topological order,
+direct child handles and reusable inclusive ancestor closure. Algo composes
+affected-node filtering and terrain-policy evaluation into caller-owned output.
+Terrain owns precedence, authoritative emptiness, quadrant masks, resource
+identity and publication policy. It does not depend on scene transform runtime.
 
-## Dependency configuration
+## Dependencies
 
-`cmake/Dependencies.cmake` resolves `algo::algo` before `polytree::polytree`.
-Visible existing targets are reused. Otherwise it uses an explicit source
-checkout, an installed config package, then an optional pinned Git fetch.
-The pins are polytree **0.2.0**, commit
-`6a7e2ee401cb755a40512ab7b4630becf2eb9950`, and algo **0.0.1**, commit
-`ea2e45f8c19ebe7deb44c85c91179e12fac57154`. These match scene-polytree 0.4.0's
-dependencies; polytree transitively links the same algo target. Direct algo use
-is declared as a target dependency too.
+Source dependencies are pinned Git submodules: `external/polytree` (0.2.1)
+and its nested `external/algo` (0.0.1). The gitlinks, visible with
+`git submodule status --recursive`, are the revision authority. The generic
+ancestor primitive, construction changes, independent tests and INCREMENTAL.md
+contract live upstream in polytree.
 
-Installed-package ranges are `polytree 0.2...<0.3` and `algo 0.0.1...<0.1`.
-Existing targets and local overrides must provide the cached evaluation-plan,
-immutable storage, child/edge query and `algo::next::transform` APIs at these
-revisions. The coverage contract build exercises those APIs; target names alone
-do not establish compatibility. CMake 3.24 and C++20 are required.
+Run `git submodule update --init --recursive` before configuring. CMake reads only
+these initialized submodules. It performs no FetchContent or installed-package
+fallback and exposes no sibling-checkout path overrides. Missing submodules,
+checked-out revisions that differ from their gitlinks, and conflicting existing
+targets fail configuration. Compatible shared targets must come from an
+initialized submodule at the same pinned revision.
 
-```text
--DTERRAIN_COMPOSITOR_POLYTREE_SOURCE_DIR=D:/wzmono/polytree
--DTERRAIN_COMPOSITOR_ALGO_SOURCE_DIR=D:/wzmono/algo
--DTERRAIN_COMPOSITOR_FETCH_DEPENDENCIES=OFF
-```
+The scene-first and terrain-first compositions use matching pins and work in
+either order without parent-level dependency bootstrapping. The scene-polytree
+submodule under `tests/dependencies/scene-polytree` is test-only: production
+terrain does not add it to the build. GoogleTest is also pinned in the upstream
+repositories' test submodules. The installed package exports remain available
+for downstream binary-package consumers; repository source acquisition is
+exclusively through submodules.
 
-For installed libraries, set `CMAKE_PREFIX_PATH` instead of source overrides.
-Fetch can be disabled to make missing packages an error. Standard FetchContent
-source/cache and disconnected controls remain available. Fallbacks use complete
-commit IDs without shallow cloning. A containing project can resolve compatible
-targets before either Gem. Imported packages found here are global, so sibling
-Gems can reuse them. Existing directory-local imported targets remain owned by
-their package scope; config discovery in another scope refers to the same
-installed headers and does not compile another library.
+CMake 3.24 and target-scoped C++20 requirements remain. The coverage source is
+isolated from unity compilation and enables exception cleanup only for that
+translation unit. Engine hash checks, compiler/include scope and MIT notices
+in licenses/ remain. No scene-polytree runtime or global compiler flags are added.
 
-The resolver also honors `SCENE_POLYTREE_{POLYTREE,ALGO}_SOURCE_DIR` when terrain
-configures first, and rejects differing explicit compositor/scene source paths.
-Set matching overrides at project configuration time, before adding either Gem.
-Dependency tests and benchmarks are disabled in the resolver's scope, without
-overwriting a parent's cache choices. Terrain does not link scene-polytree.
+## Identity and topology
 
-Usage requirements reach `Terrain.Static` (which owns the patched renderer and
-coverage construction source), `TerrainCompositor.Static` and their runtime,
-editor and test consumers. Only `TerrainSectorCoverage.cpp` enables exception
-unwinding for polytree construction and suppresses the dependency's unused
-assert-only parameter warning. It is excluded from unity compilation. There
-are no global include directories or compiler-option changes.
+One control owner owns the scratch. Inputs are ordered logical slots: committed
+signed coordinates, LOD, destination, resource version, known flag and has-data
+flag. Renderer inputs include every bounded slot, including camera-ineligible
+or invalid resources, at committed rather than pending requested locations.
+Unknown is never authoritative emptiness; a known claim without data is.
 
-Both libraries use the MIT license, copyright 2026 Wozzits Engine contributors.
-Distributions containing their headers or compiled substantial portions must
-include their copyright and permission notices; copies are under
-`licenses/`. Existing O3DE license notices and engine hash checks remain intact.
+Topology keys include all ordered coordinates, LODs, destination tokens and LOD
+count. Known/has-data/resource-version changes reuse topology. Slot count,
+coordinates, identity ordering, LOD count or explicit invalidation rebuild it.
+Clear/reconfigure invalidates even with identical coordinates. Committed grid
+movement and teleports rebuild; camera eligibility changes alone do not.
 
-## Cache and policy contract
+Destination tokens use the existing leased destination identity. Resource
+versions are monotonic owner tokens assigned to every accepted bundle and
+draw-packet replacement, including identical coordinates and quadrant masks.
+They are separate from topology handles and confer no publication authority.
+Generations are scoped to an owner and assumed not to wrap in its lifetime;
+a fresh owner requires a fresh consumer baseline.
 
-The workspace belongs to one control owner. It retains ordered `(x, y, lod)`
-claim keys, active LOD count, construction scratch, immutable topology, one
-coverage value per node and draw capacity. It retains no sector pointers,
-publication snapshots, dependency tickets, meshes or GPU resources.
+Each coordinate retains its ordered duplicate chain. The last *known* supplied
+claim wins. An unknown later slot does not hide an earlier known claim.
+Duplicate diagnostics count only extra known claims. Invalid LOD claims count
+as errors only while known. Synthetic ancestors stay unknown without coverage.
+Signed doubling uses checked 64-bit arithmetic; negative parenting floors division.
 
-Every evaluation compares the full ordered keys and LOD count. An insertion,
-removal, reorder, coordinate change or LOD change rebuilds the plan. This is an
-exact comparison, not a hash. `m_generation` advances on construction and is a
-diagnostic plan identity; it never authorizes visibility or publication.
-`Invalidate()` forces a rebuild even for identical keys. The manager calls it
-when sector buffers are cleared for teardown/reconfiguration. Moving a workspace
-transfers its storage and invalidates the source. Graph views/handles must not
-outlive that workspace generation; no borrowed views are stored separately.
+Handles belong to one plan generation. Scratch owns no sector, source,
+publication, dependency, mesh or GPU resource pointers. Returned references and
+spans borrow scratch until evaluation, invalidation, move or destruction.
+Move invalidates the source workspace.
 
-`m_hasData` is read from current claims on every evaluation, so an empty/populated
-transition reuses topology but changes policy immediately. Removed eligibility
-(including camera changes without grid shifts) changes the input keys. The
-existing manager still observes publications and dependency revisions before
-forming claims, including a second selection in one frame. Final synchronized
-whole-group acceptance and atomic raster/RT replacement are unchanged.
+## Evaluation and stopping proof
 
-Each unique coordinate at each LOD is a node, including implicit ancestors
-through missing intermediate LODs. Signed parent division floors toward negative
-infinity. Child coordinate arithmetic uses int64 before checked int32 conversion.
-Duplicate claims retain the last supplied index and report each duplicate.
-Out-of-range LOD claims remain counted as unrepresentable.
+Every evaluation compares the complete current input snapshot, including a second
+call in the same frame. This establishes a complete directly changed-node set.
+An incomplete upstream event list never suppresses immediate input observation.
 
-Nodes are inserted in increasing LOD and lexicographic coordinate order; edges
-are inserted in quadrant order 0, 1, 2, 3. Polytree's characterized LIFO
-topological order reverses to the existing ascending-root, ascending-quadrant
-postorder. Children are evaluated before parents, including children of
-authoritatively empty nodes. Draws preserve that exact order. Unknown coverage
-never becomes an authored hole, and a coarse populated claim still rejects an
-unrepresentable partially covered child quadrant.
+Polytree computes the inclusive union of changed nodes and ancestors in cached
+children-before-parents order. Algo filters it to directly marked nodes or nodes
+marked by a changed child aggregate. Terrain evaluates each node, emits its local
+draw change, and marks its parent only if the aggregate classification changes.
 
-## Cost and reproducible checks
+A parent depends only on its own current winning claim and children's
+Missing/Partial/Full classifications. Child resource tokens, draw masks,
+duplicate diagnostics and local partial counts do not otherwise enter parent
+policy. Independently changed parents are marked directly. Therefore a local
+draw change is emitted *before* stopping on an unchanged aggregate: turning a fine
+draw into authoritative emptiness cannot silently lose that removal.
 
-Let C be claim count and N/E the constructed node/edge counts. Exact key checking
-costs O(C); warm evaluation is O(N+E), with no sorting, spatial search, recursion
-or heap allocation. Draw capacity reserves C entries on construction, enough for
-all populated claims even when previously empty claims become populated.
+forceFull retains full evaluation as oracle and fallback. Topology changes and
+missed consumer baselines use full reset snapshots. When every input slot changed,
+the evaluator also uses the cached full order and a reset snapshot instead of
+constructing and sorting a dense ancestor union. Independent preserved map
+and flat/cell oracles characterize the policy. Full ordered draw-vector
+materialization is lazy; production batch consumption does not request it.
 
-Cold construction retains the previous sorted spatial-level builder, then adds
-the generic topology. Sorting and child searches cost O(sum N_l log N_l), with
-the library's construction scratch and compact retained storage on top. The
-library currently stable-sorts edges and builds per-node temporary adjacency;
-construction is not allocation-free. Changing topology rebuilds that storage.
-Levels, claim keys, values and output keep their high-water capacities; replacing
-the graph frees its previous compact allocation. Retained graph storage also
-includes the library's other cached orders, even though coverage only evaluates
-reverse topological order.
+Let C be slots, N nodes, A the ancestor union and V actually evaluated nodes.
+Warm unchanged evaluation costs O(C). Sparse evaluation costs
+O(C + A log A + child edges of V + duplicate-chain visits). Full evaluation is
+O(C + N + E). Optional changed-output materialization is O(N).
+Dense changes are not claimed to have sparse cost.
 
-The portable suite preserves both the previous map oracle and flat implicit
-selector (using standard containers in place of AZStd for portability), compares
-9,000 populated/empty selections, and checks exact output
-order, signed extremes, duplicate claims, missing LODs, plan invalidation and
-move lifetime. A separate allocation-instrumented executable verifies warm
-evaluation, including empty/populated transitions, performs no allocations.
+Scratch owns topology, cached aggregates, duplicate chains, dirty flags, closure
+workspace, output and change capacity. Construction reserves the possible draw
+and change count for that topology. Warm unchanged, sparse and dense policy or
+resource updates allocate nothing after construction; topology rebuilds can
+allocate. Retained payload reports owned vector capacities and compact topology,
+excluding stacks, allocator metadata, input vectors, renderer and driver memory.
+Allocation measurement is separated from timing.
 
-```powershell
-cmake -S tests/coverage -B build/coverage-contracts -DTERRAIN_COMPOSITOR_POLYTREE_SOURCE_DIR=D:/wzmono/polytree -DTERRAIN_COMPOSITOR_ALGO_SOURCE_DIR=D:/wzmono/algo
-cmake --build build/coverage-contracts --config Release
-ctest --test-dir build/coverage-contracts -C Release --output-on-failure
-build/coverage-contracts/Release/terrain_coverage_tests.exe --benchmark
-build/coverage-contracts/Release/terrain_coverage_allocations.exe --benchmark
-tools/TestDependencyModes.ps1 -PolytreeSource D:/wzmono/polytree -AlgoSource D:/wzmono/algo -SceneSource D:/wzmono/scene-polytree -Fetch
-```
+Polytree construction uses contiguous temporary CSR adjacency and skips stable
+sorting of already parent-grouped edges. Terrain reserves node/edge builder
+inputs. Cached plan orders and level construction scratch remain. Mutable
+authoring/freeze would add maps and stable-ID storage to this bounded forest;
+it was not introduced without evidence that it benefits group coordinate changes.
 
-The dependency matrix configures/builds terrain alone and with scene-polytree in
-both orders for source, installed-package and real pinned-fetch modes. These are
-portable coverage consumers; O3DE runtime/editor/test builds were also validated
-with both Gems in TG and in a standalone compositor consumer reusing matching
-engine artifacts. TG owns flight measurements, raster/RT integration evidence,
-provenance and authored-content verification. Record cold,
-unchanged, policy-changing and topology-changing timings separately. A faster
-warm traversal does not establish a frame-rate improvement.
+## Batch and renderer application
 
-On the 2026-09-12 Windows/MSVC 19.51 run, the 700-claim portable benchmark
-(median of three processes, 500 calls each, allocation hooks disabled) measured:
+A borrowed batch identifies baseline/result/plan generations, node count and reset
+status. Changes identify an ordered position plus before/after draws: claim,
+quadrant mask, destination and resource version. Zero masks mean absence.
+A reset lists all current draws and replaces the complete consumer selection.
 
-| Workload | Previous flat, microseconds | Cached polytree, microseconds |
-| --- | ---: | ---: |
-| Cold workspace, construction/evaluation/destruction | 134.516 | 230.375 |
-| Warm unchanged | 109.425 | 14.231 |
-| Warm populated/empty changes | 111.401 | 12.841 |
-| Topology changes every call | 110.222 | 220.353 |
+Validate before mutation. Ordinary batches require the exact baseline and plan.
+Repeated/older results are rejected. Resets can skip a missed baseline but cannot
+roll back an accepted result. The renderer requests a fresh full reset after a
+missed evaluation or RT enablement change. Application is synchronous in the
+owner; copying token storage does not authorize delayed publication against a
+later producer state or a new owner.
 
-Separate allocation instrumentation found zero allocations in both warm paths.
-Initial allocation counts were 115/789 and retained payload bytes 34,095/81,126
-(flat/polytree). Cold peak payload bytes were 41,718/86,890. Alternating topology
-incurred 688 allocations per cached-plan rebuild versus zero in the warmed flat
-builder. Counts cover these selectors' ordinary C++ allocation calls; bytes
-exclude allocator metadata, stacks, inputs and the rest of the renderer.
+Candidates and RT entries remain ordered contiguous vectors. Binary lookup
+removes affected order ranges; changes insert current entries directly. Unchanged
+selection performs no edits and no whole-list sorting or reconstruction.
+Insert/erase can still shift entries; diagnostics report that cost. Common RT
+quadrants are retained only when before/after destination and resource version
+match. Draw submission still visits visible candidates.
 
-The cached representation is retained because reuse pays for its construction
-cost in the measured renderer route. In matched four-second TG translation
-traces, selection total fell from 24.974 to 15.355 ms and candidate update total
-from 51.181 to 40.556 ms. **Tail cost regressed:** maximum selection increased
-from 0.225 to 0.410 ms, and maximum candidate update from 0.421 to 0.654 ms.
-Cold cost, memory and changing-topology cost remain targets for subsequent work;
-the warm microbenchmark improvement must not be substituted for these renderer
-measurements. The reference camera flights remained near 60 FPS.
+The established synchronized acceptance path withdraws old raster pointers and
+visible RT meshes before swapping their resource owners. Retirement does the
+same. A subsequent removal token cannot dereference a replaced resource: the
+old visibility was removed while that owner lived. Camera-only changes operate
+while current committed resources remain live. Full resets rebuild bookkeeping
+from a complete snapshot, reconcile desired masks against current resource owners,
+and preserve unchanged visible RT groups. A plan/order change must not cause
+unchanged meshes to be removed/re-added or their acceleration structures rebuilt.
 
-TG's `Gem/Docs/TerrainCoverageTraversalProfiling.md` and accompanying measurement
-JSON record the integration settings, revisions, complete timing rows, tests,
-authored-file hashes and raw local artifacts. These are consuming-project
-evidence, not a dependency of this Gem.
+RefreshCommittedCoverage still observes publication and dependency authority on
+every call. Plans, input equality and batches cannot publish GPU resources,
+admit partial atomic groups, defer invalidation or refresh stale source tickets.
+
+## Diagnostics and validation
+
+Statistics report rebuild reason, hits/rebuilds, directly changed claims,
+evaluated nodes/edges, output changes, known/resource/has-data transitions and
+retained selector payload. Renderer timing logs add plan/result/reset identity,
+raster edits/shifts and actual RT API edits. Camera eligibility is counted while
+resources remain available; separate availability transitions record invalidation,
+retirement and renewed availability. Transition counters apply to matching plans;
+rebuilds conservatively count all claims in the new plan as directly changed and
+report the topology cause. Publication/dependency checks remain separately traced
+by RefreshCommittedCoverage.
+
+Portable tests include 9,000 preserved selections and 12,000 sequential
+full/incremental/map/flat/delta comparisons, signed extremes, missing LODs,
+duplicates, unknown/empty/populated transitions, sparse/dense changes, resource
+replacement, reconfiguration, destination changes, missed/obsolete batches,
+move/reset lifetime and allocation checks. Strict RT mocks exercise production
+acceptance, identical-mask replacement, unchanged work, camera-only eligibility
+consumer resynchronization, topology resets and retention of common RT quadrants.
+
+TG owns route/build/test evidence in Gem/Docs. Raw local artifacts are under
+build/issue10. Traversal timing is not an FPS claim. See
+[CoverageAdoptionFollowups.md](CoverageAdoptionFollowups.md) for bounded next work.
+
+Build the portable targets with `cmake -S tests/coverage -B build/coverage`, then
+`cmake --build build/coverage --config Release` and
+`ctest --test-dir build/coverage -C Release --output-on-failure`. `terrain_coverage_tests --benchmark` measures
+the preserved flat and current selector; `--incremental-benchmark` compares full
+and sparse batch evaluation and bounded/eligible-only topology. Run the matching
+`terrain_coverage_allocations` options separately for allocation measurements;
+their instrumented timings are not performance evidence. The submodule composition matrix
+is `tools/TestDependencyModes.ps1`. Engine validation uses the maintained
+`integrations/o3de/Code/Tests/EngineOverridesTests.cmake` script and runtime/editor
+test targets, including GPU and sector-lifetime tests.

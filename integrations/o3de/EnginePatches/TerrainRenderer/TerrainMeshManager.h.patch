@@ -77,12 +77,13 @@
          {
              using GeometryView = AZ::RHI::GeometryView;
              static constexpr auto AllDevices = AZ::RHI::MultiDevice::AllDevices;
-@@ -166,6 +197,17 @@
+@@ -166,6 +197,18 @@
              AZ::Aabb m_aabb = AZ::Aabb::CreateNull();
              AZStd::array<AZ::Aabb, 4> m_quadrantAabbs;
              Vector2i m_worldCoord = AZStd::numeric_limits<int32_t>::max();
 +            uint32_t m_lodLevel = 0;
 +            AZ::u64 m_serial = 0;
++            AZ::u64 m_coverageResourceVersion = 0;
 +            AZ::u64 m_groupId = 0;
 +            double m_committedAtUs = 0.0;
 +            ShaderObjectData m_objectData;
@@ -95,7 +96,7 @@
  
              // When drawing, either the m_rhiDrawPacket will be used, or some number of the m_rhiDrawPacketQuadrants
              AZ::RHI::ConstPtr<AZ::RHI::DrawPacket> m_rhiDrawPacket;
-@@ -186,20 +228,26 @@
+@@ -186,20 +229,27 @@
              bool m_isQueuedForSrgCompile = false;
          };
  
@@ -103,6 +104,7 @@
 +        {
 +            // The slot owns visible resources. Deferred uploads own unpublished replacement buffers.
 +            CommittedSector m_committed;
++            size_t m_coverageOrder = TerrainCompositor::TerrainSectorCoverageScratch::NoClaim;
 +            std::shared_ptr<const SectorDestinationIdentity> m_destinationIdentity = std::make_shared<const SectorDestinationIdentity>();
 +            AZ::u64 m_preparationSerial = 0;
 +            Vector2i m_requestedWorldCoord = AZStd::numeric_limits<int32_t>::max();
@@ -130,7 +132,7 @@
          };
  
          struct alignas(16) ShaderMeshData
-@@ -211,8 +259,15 @@
+@@ -211,8 +261,15 @@
              float m_gridToQuadScale;
          };
  
@@ -146,7 +148,7 @@
              AZ::Vector2 m_worldStartPosition;
              float m_vertexSpacing;
              int16_t m_samplesX;
-@@ -220,6 +275,10 @@
+@@ -220,6 +277,10 @@
              AzFramework::Terrain::TerrainDataRequests::Sampler m_samplerType =
                  AzFramework::Terrain::TerrainDataRequests::Sampler::CLAMP;
              bool m_useVertexOrderRemap = false;
@@ -157,7 +159,7 @@
          };
  
          struct CachedDrawData
-@@ -239,6 +298,14 @@
+@@ -239,10 +300,19 @@
              NormalXYDataType m_normal;
          };
  
@@ -172,11 +174,15 @@
          struct CandidateSector
          {
              AZ::Aabb m_aabb;
-@@ -250,6 +317,153 @@
-             uint8_t m_posx;
+             const AZ::RHI::DrawPacket* m_rhiDrawPacket;
++            size_t m_order = 0;
+         };
+ 
+         struct XYPosition
+@@ -251,10 +321,160 @@
              uint8_t m_posy;
          };
-+
+ 
 +        // Copied once per synchronous update batch. Workers have no manager/sector dependencies.
 +        struct SectorPreparationSettings
 +        {
@@ -313,6 +319,8 @@
 +            uint8_t m_quadrants = 0; // 0xf selects the full mesh; otherwise select these quadrants.
 +        };
 +        const AZStd::vector<SectorCoverage>& SelectSectorCoverage();
++        const TerrainCompositor::TerrainCoverageChangeBatch& CaptureCoverageChanges(bool full = false);
++        void RemoveCoverageItems(size_t order, uint8_t retainedQuadrants = 0);
 +        void InvalidateCandidateSectors();
 +        struct SectorResourceAccounting
 +        {
@@ -323,10 +331,16 @@
 +        };
 +        SectorResourceAccounting GetSectorResourceAccounting() const;
 +        static size_t GetPreparedCpuBytes(const PreparedSectorResult& result);
- 
++
          struct RayTracedItem
          {
-@@ -267,19 +481,73 @@
+             Sector* m_sector;
+             uint32_t m_meshGroupIndex;
++            size_t m_order = 0;
+             uint32_t m_lodLevel;
+         };
+ 
+@@ -267,19 +487,73 @@
          bool UpdateGridSize(float distanceToFirstLod);
          void BuildDrawPacket(Sector& sector);
          void BuildRtSector(Sector& sector, uint32_t lodLevel);
@@ -405,7 +419,7 @@
          void ProcessSectorUpdates(AZStd::vector<AZStd::vector<Sector*>>& sectorUpdates);
  
          AZ::Data::Instance<AZ::RPI::Buffer> CreateMeshBufferInstance(
-@@ -297,12 +565,9 @@
+@@ -297,12 +571,9 @@
          void UpdateCandidateSectors();
          void CreateAabbQuadrants(const AZ::Aabb& aabb, AZStd::span<AZ::Aabb, 4> quadrantAabb);
  
@@ -420,7 +434,7 @@
  
          MaterialInstance m_materialInstance;
          AZStd::vector<CachedDrawData> m_cachedDrawData; // Holds common parts of draw packets
-@@ -318,8 +583,26 @@
+@@ -318,8 +589,27 @@
          AZ::Data::Instance<AZ::RPI::Buffer> m_dummyLodHeightsNormalsBuffer;
          AZ::RHI::IndexBufferView m_indexBufferView;
  
@@ -443,19 +457,22 @@
 +        TerrainCompositor::TerrainSectorCoverageScratch m_coverageSelectionScratch;
 +        AZStd::vector<TerrainCompositor::TerrainSectorCoverageClaim> m_coverageClaims;
 +        AZStd::vector<Sector*> m_coverageSectors;
++        AZStd::vector<uint8_t> m_coverageResetMasks;
 +        AZStd::vector<SectorCoverage> m_selectedCoverage;
          AZStd::vector<Sector*> m_sectorsThatNeedSrgCompiled;
          uint32_t m_1dSectorCount = 0;
  
-@@ -338,6 +621,7 @@
+@@ -338,6 +628,9 @@
  
          // Tracks which sectors are currently in the ray tracing system so they can be easily compared and updated each frame.
          AZStd::vector<RayTracedItem> m_rayTracedItems;
-+        AZStd::vector<RayTracedItem> m_nextRayTracedItems;
++        uint64_t m_appliedCoverageGeneration = 0, m_appliedCoveragePlan = 0, m_nextCoverageResourceVersion = 0;
++        bool m_coverageRayTracingEnabled = false;
++        size_t m_coverageCandidateEdits = 0, m_coverageRtEdits = 0, m_coverageCandidateShifts = 0;
  
          uint8_t m_gridSize = 0; // number of quads in a single row of a sector
          uint8_t m_gridVerts1D = 0; // number of vertices along sector edge (m_gridSize + 1)
-@@ -352,6 +636,6 @@
+@@ -352,6 +645,6 @@
          AZ::RHI::Handle<uint32_t> m_meshMovedFlag;
  
          // Cached MeshFeatureProcessor

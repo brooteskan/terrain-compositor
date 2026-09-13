@@ -10,6 +10,14 @@ The repository is intentionally separate from any consuming game project.
 Its O3DE adapter lives at `integrations/o3de`, matching the external-Gem
 layout used by `scene-polytree`.
 
+## Source checkout
+
+Clone recursively, or run `git submodule update --init --recursive` after cloning.
+All repository dependencies are pinned submodules; no local checkout paths or
+CMake network fetches are required. To add this Gem to another repository, use
+`git submodule add https://github.com/brooteskan/terrain-compositor.git Gems/terrain-compositor`
+and then initialize its submodules recursively.
+
 ## O3DE integration
 
 Add the Gem directory to a project's `external_subdirectories` and enable
@@ -18,7 +26,7 @@ Add the Gem directory to a project's `external_subdirectories` and enable
 ```json
 {
   "external_subdirectories": [
-    "D:/wzmono/terrain-compositor/integrations/o3de"
+    "Gems/terrain-compositor/integrations/o3de"
   ],
   "gem_names": [
     "TerrainCompositor"
@@ -43,7 +51,8 @@ See [the O3DE integration notes](integrations/o3de/README.md) and the
 [composition contract](docs/TerrainComposition.md) for details.
 
 The [coverage traversal contract](docs/TerrainCoverageTraversal.md) documents
-polytree/algo dependencies, local/package/fetch configuration and cached selection.
+pinned polytree/algo submodules, incremental
+selection and resource-aware raster/RT change batches.
 
 The [architecture refactoring plan](docs/ArchitectureOptimizationReadiness.md)
 ranks the work needed to prepare for terrain-query and sector-scheduling

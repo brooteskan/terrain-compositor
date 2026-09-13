@@ -70,6 +70,8 @@ namespace Terrain
         void CheckSharedCoverageMetadataKeepsIndependentInvalidation();
         void CheckSourceInvalidationWithdrawsWarmedRasterAndRayTracing();
         void CheckRayTracingUsesCommittedPlacementAndWithdrawsEmptyReplacement();
+        void CheckIncrementalCoverageBatchesKeepRasterRtResourcesCurrent();
+        void CheckCoverageMaskChangesKeepCommonRayTracingQuadrants();
 
         using Manager = TerrainMeshManager;
         using Request = Manager::SectorPreparationRequest;
@@ -1229,6 +1231,135 @@ namespace Terrain
         }
     }
 
+    void TerrainSectorLifetimeTests::CheckIncrementalCoverageBatchesKeepRasterRtResourcesCurrent()
+    {
+        ::testing::NiceMock<UnitTest::MockTerrainDataRequests> terrain;
+        SupplyTerrain(terrain);
+        ::testing::StrictMock<AZ::Render::SectorRayTracingMock> rayTracing;
+        m_manager->m_rayTracingEnabled = true;
+        m_manager->m_rayTracingFeatureProcessor = &rayTracing;
+        const std::shared_ptr<void> cleanup(nullptr, [this](void*)
+        {
+            m_manager->ClearSectorBuffers();
+            m_manager->m_rayTracingFeatureProcessor = nullptr;
+        });
+        auto& sectors = m_manager->m_sectorLods[0].m_sectors;
+        for (auto& sector : sectors) sector.m_committed.m_rtData = AZStd::make_unique<Manager::RtSector>();
+        const auto firstId = sectors[0].m_committed.m_rtData->m_meshGroups[0].m_id;
+        const auto secondId = sectors[1].m_committed.m_rtData->m_meshGroups[0].m_id;
+        ASSERT_TRUE(Accept({ Empty(0), Empty(1) }));
+        EXPECT_CALL(rayTracing, AddMesh(firstId, ::testing::_, ::testing::_));
+        EXPECT_CALL(rayTracing, AddMesh(secondId, ::testing::_, ::testing::_));
+        m_manager->UpdateCandidateSectors();
+        ASSERT_EQ(m_manager->m_candidateSectors.size(), 2);
+        const auto plan = m_manager->m_coverageSelectionScratch.m_generation;
+        m_manager->UpdateCandidateSectors();
+        EXPECT_EQ(m_manager->m_coverageSelectionScratch.m_statistics.m_visitedNodes, 0);
+        EXPECT_EQ(m_manager->m_coverageCandidateEdits, 0);
+        EXPECT_EQ(m_manager->m_coverageRtEdits, 0);
+
+        // Eligibility changes with fixed grid coordinates preserve the plan.
+        m_manager->m_cameraPosition = AZ::Vector3(100000, 100000, 0);
+        EXPECT_CALL(rayTracing, RemoveMesh(firstId));
+        EXPECT_CALL(rayTracing, RemoveMesh(secondId));
+        m_manager->UpdateCandidateSectors();
+        EXPECT_TRUE(m_manager->m_candidateSectors.empty());
+        EXPECT_EQ(m_manager->m_coverageSelectionScratch.m_generation, plan);
+        m_manager->m_cameraPosition = AZ::Vector3::CreateZero();
+        EXPECT_CALL(rayTracing, AddMesh(firstId, ::testing::_, ::testing::_));
+        EXPECT_CALL(rayTracing, AddMesh(secondId, ::testing::_, ::testing::_));
+        m_manager->UpdateCandidateSectors();
+        EXPECT_EQ(m_manager->m_coverageSelectionScratch.m_generation, plan);
+
+        // Same coordinate/mask and same mock mesh UUID still replace the bundle.
+        const auto version = sectors[0].m_committed.m_coverageResourceVersion;
+        EXPECT_CALL(rayTracing, RemoveMesh(firstId));
+        ASSERT_TRUE(Accept({ Empty(0) }));
+        EXPECT_NE(sectors[0].m_committed.m_coverageResourceVersion, version);
+        EXPECT_EQ(m_manager->m_candidateSectors.size(), 1);
+        EXPECT_CALL(rayTracing, AddMesh(firstId, ::testing::_, ::testing::_));
+        m_manager->UpdateCandidateSectors(); // Strict mock forbids touching sector 1.
+        EXPECT_EQ(m_manager->m_candidateSectors.size(), 2);
+        EXPECT_EQ(m_manager->m_coverageRtEdits, 1);
+        EXPECT_EQ(m_manager->m_coverageSelectionScratch.m_generation, plan);
+
+        m_manager->RequestSectorPlacement(sectors[0], {1, 0});
+        EXPECT_CALL(rayTracing, RemoveMesh(firstId));
+        ASSERT_TRUE(Accept({ Empty(0) }));
+        EXPECT_CALL(rayTracing, AddMesh(firstId, ::testing::_, ::testing::_));
+        m_manager->UpdateCandidateSectors(); // Topology reset must not touch sector 1's RT resource.
+        EXPECT_TRUE(m_manager->m_coverageSelectionScratch.m_batch.m_reset);
+        EXPECT_EQ(m_manager->m_coverageRtEdits, 1);
+        EXPECT_GT(m_manager->m_coverageSelectionScratch.m_generation, plan);
+
+        // An independent inspection consumes an evaluation without applying it.
+        m_manager->SelectSectorCoverage();
+        // Resynchronization must preserve unchanged RT registrations and BLAS.
+        m_manager->UpdateCandidateSectors();
+        EXPECT_TRUE(m_manager->m_coverageSelectionScratch.m_batch.m_reset);
+        EXPECT_EQ(m_manager->m_coverageRtEdits, 0);
+        EXPECT_EQ(m_manager->m_appliedCoverageGeneration, m_manager->m_coverageSelectionScratch.m_batch.m_result);
+        EXPECT_CALL(rayTracing, RemoveMesh(firstId));
+        EXPECT_CALL(rayTracing, RemoveMesh(secondId));
+    }
+
+    TEST_F(TerrainSectorLifetimeTests, IncrementalCoverageBatchesKeepRasterRtResourcesCurrent)
+    { CheckIncrementalCoverageBatchesKeepRasterRtResourcesCurrent(); }
+
+    void TerrainSectorLifetimeTests::CheckCoverageMaskChangesKeepCommonRayTracingQuadrants()
+    {
+        ::testing::NiceMock<UnitTest::MockTerrainDataRequests> terrain;
+        SupplyTerrain(terrain);
+        ::testing::StrictMock<AZ::Render::SectorRayTracingMock> rayTracing;
+        m_manager->m_rayTracingEnabled = true;
+        m_manager->m_rayTracingFeatureProcessor = &rayTracing;
+        const std::shared_ptr<void> cleanup(nullptr, [this](void*)
+        {
+            m_manager->ClearSectorBuffers();
+            m_manager->m_rayTracingFeatureProcessor = nullptr;
+        });
+        auto& initial = m_manager->m_sectorLods[0].m_sectors;
+        m_manager->RequestSectorPlacement(initial[0], {0,0});
+        m_manager->RequestSectorPlacement(initial[1], {1,0});
+        for (auto& sector : initial) sector.m_committed.m_rtData = AZStd::make_unique<Manager::RtSector>();
+        ASSERT_TRUE(Accept({Empty(0), Empty(1)}));
+        m_manager->m_sectorLods.resize(2);
+        auto& fine = m_manager->m_sectorLods[0].m_sectors;
+        m_manager->m_sectorLods[1].m_sectors.resize(1);
+        auto& coarse = m_manager->m_sectorLods[1].m_sectors[0].m_committed;
+        coarse.m_worldCoord = {0,0};
+        coarse.m_lodLevel = 1;
+        coarse.m_valid = coarse.m_hasData = true;
+        coarse.m_dependencies = fine[0].m_committed.m_dependencies;
+        coarse.m_aabb = AZ::Aabb::CreateFromMinMax(AZ::Vector3(0,0,0), AZ::Vector3(4,4,1));
+        m_manager->CreateAabbQuadrants(coarse.m_aabb, coarse.m_quadrantAabbs);
+        coarse.m_coverageResourceVersion = ++m_manager->m_nextCoverageResourceVersion;
+        coarse.m_rtData = AZStd::make_unique<Manager::RtSector>();
+        const auto firstId = fine[0].m_committed.m_rtData->m_meshGroups[0].m_id;
+        const auto secondId = fine[1].m_committed.m_rtData->m_meshGroups[0].m_id;
+        const auto q1 = coarse.m_rtData->m_meshGroups[2].m_id;
+        const auto q2 = coarse.m_rtData->m_meshGroups[3].m_id;
+        const auto q3 = coarse.m_rtData->m_meshGroups[4].m_id;
+        EXPECT_CALL(rayTracing, AddMesh(firstId, ::testing::_, ::testing::_));
+        EXPECT_CALL(rayTracing, AddMesh(secondId, ::testing::_, ::testing::_));
+        EXPECT_CALL(rayTracing, AddMesh(q2, ::testing::_, ::testing::_));
+        EXPECT_CALL(rayTracing, AddMesh(q3, ::testing::_, ::testing::_));
+        m_manager->UpdateCandidateSectors();
+        EXPECT_CALL(rayTracing, RemoveMesh(secondId));
+        m_manager->HideCommittedSector(fine[1]);
+        EXPECT_CALL(rayTracing, AddMesh(q1, ::testing::_, ::testing::_));
+        m_manager->UpdateCandidateSectors(); // The common q2/q3 registrations stay live.
+        EXPECT_EQ(m_manager->m_coverageRtEdits, 1);
+        EXPECT_CALL(rayTracing, RemoveMesh(firstId));
+        EXPECT_CALL(rayTracing, RemoveMesh(q1));
+        EXPECT_CALL(rayTracing, RemoveMesh(q2));
+        EXPECT_CALL(rayTracing, RemoveMesh(q3));
+    }
+
+    TEST_F(TerrainSectorLifetimeTests, CoverageMaskChangesKeepCommonRayTracingQuadrants)
+    { CheckCoverageMaskChangesKeepCommonRayTracingQuadrants(); }
+
+
     void TerrainSectorLifetimeTests::CheckSharedCoverageMetadataKeepsIndependentInvalidation()
     {
         using Dependency = TerrainCompositor::TerrainPreparationDependency;
@@ -1382,7 +1513,7 @@ namespace Terrain
         m_manager->UpdateCandidateSectors();
         EXPECT_TRUE(m_manager->m_candidateSectors.empty());
         EXPECT_FALSE(m_manager->m_candidateSectorsDirty);
-        EXPECT_TRUE(m_manager->m_nextRayTracedItems.empty());
+        EXPECT_EQ(m_manager->m_appliedCoverageGeneration, m_manager->m_coverageSelectionScratch.m_batch.m_result);
         m_manager->ClearSectorBuffers();
         m_manager->m_rayTracingFeatureProcessor = nullptr;
     }

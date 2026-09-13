@@ -152,6 +152,9 @@ void Measure(const char* name, Scratch& scratch, Evaluate evaluate, std::vector<
     const auto us = std::chrono::duration<double, std::micro>(std::chrono::steady_clock::now() - start).count() / 500;
     std::printf("selection,%s,cold,us=%.3f,draws=%zu\n", name, us, draws);
 }
+#include "IncrementalContracts.inl"
+#include "IncrementalBenchmarks.inl"
+
 int main(int argc, char** argv)
 {
 #ifdef TC_COUNT_ALLOCATIONS
@@ -159,7 +162,8 @@ int main(int argc, char** argv)
 #else
     std::puts("Allocation hooks disabled: memory counters below are unavailable");
 #endif
-    if (argc < 2 || std::strcmp(argv[1], "--benchmark")) { Contracts(); return 0; }
+    if (argc > 1 && !std::strcmp(argv[1], "--incremental-benchmark")) { IncrementalBenchmarks(); SupersetBenchmarks(); return 0; }
+    if (argc < 2 || std::strcmp(argv[1], "--benchmark")) { Contracts(); IncrementalContracts(); return 0; }
     std::vector<TerrainSectorCoverageClaim> claims;
     for (uint32_t lod = 0; lod < 7; ++lod)
         for (int32_t x = -5; x < 5; ++x)

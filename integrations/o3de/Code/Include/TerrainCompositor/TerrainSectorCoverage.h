@@ -1,7 +1,7 @@
 #pragma once
 
 #include <algo/next.h>
-#include <graph/static_polytree.h>
+#include <graph/ancestor_closure.h>
 #include <algorithm>
 #include <climits>
 #include <limits>
@@ -10,42 +10,88 @@
 
 namespace TerrainCompositor
 {
-    // Supplied claims are current and known, including authoritative emptiness.
-    // Resource ownership and publication validation remain with the caller.
+    // Logical slots include unknown (unavailable/ineligible) claims. Unknown is
+    // never authoritative emptiness. Tokens identify resources, not authority.
     struct TerrainSectorCoverageClaim
     {
         int32_t m_x = 0, m_y = 0;
         uint32_t m_lod = 0;
         bool m_hasData = false;
+        bool m_known = true;
+        uint64_t m_destination = 0, m_resourceVersion = 0;
+        bool m_available = true; // Diagnostic provenance; m_known is the coverage-policy input.
+        bool operator==(const TerrainSectorCoverageClaim&) const = default;
     };
     struct TerrainSectorCoverageSelection
     {
-        struct Draw { size_t m_claim; uint8_t m_quadrants; };
+        struct Draw
+        {
+            size_t m_claim = std::numeric_limits<size_t>::max();
+            uint8_t m_quadrants = 0;
+            uint64_t m_destination = 0, m_resourceVersion = 0;
+            bool operator==(const Draw&) const = default;
+        };
         std::vector<Draw> m_draws;
-        size_t m_unrepresentableChildren = 0;
-        size_t m_duplicateClaims = 0;
+        size_t m_unrepresentableChildren = 0, m_duplicateClaims = 0;
         bool IsRepresentable() const { return !m_unrepresentableChildren && !m_duplicateClaims; }
     };
 
-    // Single control-owner workspace. No pointers to sectors or resources.
-    // Output references last until the next evaluation; graph handles are private
-    // to this plan generation. Invalidate on an owner/topology identity reset.
-    struct TerrainSectorCoverageScratch
+    enum class TerrainCoverageRebuild : uint8_t { None, Initial, Invalidated, LodCount, SlotCount, Coordinates, Ordering };
+    struct TerrainCoverageStatistics
+    {
+        TerrainCoverageRebuild m_rebuild = TerrainCoverageRebuild::None;
+        size_t m_planHits = 0, m_planRebuilds = 0;
+        size_t m_directlyChangedClaims = 0, m_visitedNodes = 0, m_visitedEdges = 0, m_emittedChanges = 0;
+        size_t m_eligibilityChanges = 0, m_availabilityChanges = 0, m_resourceChanges = 0, m_policyChanges = 0;
+        size_t m_retainedBytes = 0;
+        bool m_fullEvaluation = false;
+    };
+    struct TerrainCoverageChangeBatch
+    {
+        struct Change
+        {
+            size_t m_order = 0;
+            TerrainSectorCoverageSelection::Draw m_before, m_after;
+        };
+        uint64_t m_baseline = 0, m_result = 0, m_plan = 0;
+        // Reset replaces the entire consumer state; changes contain all draws.
+        bool m_reset = false;
+        size_t m_nodeCount = 0;
+        std::vector<Change> m_changes;
+    };
+
+    struct TerrainSectorCoverageState
     {
         using Coordinate = std::pair<int32_t, int32_t>;
         using Handle = wz::core::graph::NodeHandle;
         static constexpr size_t NoClaim = std::numeric_limits<size_t>::max();
         struct Node { Coordinate m_coordinate; size_t m_claim; Handle m_handle = wz::core::graph::INVALID_NODE; };
         enum class Coverage : uint8_t { Missing, Partial, Full };
+        struct Value
+        {
+            Coverage m_coverage = Coverage::Missing;
+            TerrainSectorCoverageSelection::Draw m_draw;
+            size_t m_partial = 0, m_duplicates = 0;
+        };
         std::vector<std::vector<Node>> m_levels;
         std::vector<TerrainSectorCoverageClaim> m_keys;
+        std::vector<size_t> m_previousClaim;
+        std::vector<Handle> m_claimNodes, m_direct;
+        std::vector<uint8_t> m_dirty;
         wz::core::graph::PolytreeStorage<size_t, uint8_t> m_topology;
-        std::vector<Coverage> m_values;
+        wz::core::graph::AncestorClosureWorkspace m_closure;
+        std::vector<Value> m_values;
         TerrainSectorCoverageSelection m_selection;
-        size_t m_lodCount = 0, m_invalidClaims = 0, m_duplicates = 0;
-        uint64_t m_generation = 0;
-        bool m_valid = false;
-
+        TerrainCoverageChangeBatch m_batch;
+        TerrainCoverageStatistics m_statistics;
+        size_t m_lodCount = 0, m_invalidClaims = 0;
+        uint64_t m_generation = 0, m_resultGeneration = 0;
+        bool m_valid = false, m_selectionDirty = true;
+    };
+    // Single control owner, no resource pointers. All borrowed results expire on
+    // evaluation, invalidation, move or destruction. See the coverage contract.
+    struct TerrainSectorCoverageScratch : TerrainSectorCoverageState
+    {
         TerrainSectorCoverageScratch() = default;
         TerrainSectorCoverageScratch(const TerrainSectorCoverageScratch&) = delete;
         TerrainSectorCoverageScratch& operator=(const TerrainSectorCoverageScratch&) = delete;
@@ -54,75 +100,30 @@ namespace TerrainCompositor
         {
             if (this != &other)
             {
-                m_levels = std::move(other.m_levels);
-                m_keys = std::move(other.m_keys);
-                m_topology = std::move(other.m_topology);
-                m_values = std::move(other.m_values);
-                m_selection = std::move(other.m_selection);
-                m_lodCount = other.m_lodCount;
-                m_invalidClaims = other.m_invalidClaims;
-                m_duplicates = other.m_duplicates;
-                m_generation = other.m_generation;
-                m_valid = std::exchange(other.m_valid, false);
+                TerrainSectorCoverageState::operator=(std::move(other));
+                other.Invalidate();
             }
             return *this;
         }
-
         void Invalidate() { m_valid = false; }
-        bool Matches(std::span<const TerrainSectorCoverageClaim> claims, size_t lodCount) const
-        {
-            return m_valid && lodCount == m_lodCount && claims.size() == m_keys.size() &&
-                std::equal(claims.begin(), claims.end(), m_keys.begin(), [](const auto& a, const auto& b)
-                { return a.m_x == b.m_x && a.m_y == b.m_y && a.m_lod == b.m_lod; });
-        }
+        bool Matches(std::span<const TerrainSectorCoverageClaim> claims, size_t lodCount) const;
     };
 
     void BuildTerrainSectorCoveragePlan(std::span<const TerrainSectorCoverageClaim> claims,
         size_t lodCount, TerrainSectorCoverageScratch& scratch);
+    // Full input comparison on EVERY call, even within a frame. Sparse evaluation
+    // visits the inclusive ancestor closure. forceFull is the correctness oracle.
+    const TerrainCoverageChangeBatch& EvaluateTerrainSectorCoverageChanges(
+        std::span<const TerrainSectorCoverageClaim> claims, size_t lodCount, TerrainSectorCoverageScratch& scratch,
+        bool forceFull = false);
+    const TerrainSectorCoverageSelection& MaterializeTerrainSectorCoverage(TerrainSectorCoverageScratch& scratch);
+    const TerrainSectorCoverageSelection& EvaluateTerrainSectorCoverage(
+        std::span<const TerrainSectorCoverageClaim> claims, size_t lodCount, TerrainSectorCoverageScratch& scratch);
 
-    // Exact ordered keys are checked on every call, including calls in one frame.
-    // Warm evaluation is O(claims + nodes + edges), with no heap allocations.
-    // hasData is deliberately not cached: empty/populated transitions reuse the
-    // topology and immediately change policy results. See TerrainCoverageTraversal.md.
-    inline const TerrainSectorCoverageSelection& EvaluateTerrainSectorCoverage(
-        std::span<const TerrainSectorCoverageClaim> claims, size_t lodCount, TerrainSectorCoverageScratch& scratch)
+    // Validate before consumer mutation. Reset permits resynchronization, but an
+    // obsolete batch never does. A consumer missing a delta requests a full reset.
+    inline bool CanApplyTerrainCoverageBatch(const TerrainCoverageChangeBatch& batch, uint64_t baseline, uint64_t plan)
     {
-        namespace graph = wz::core::graph;
-        using Coverage = TerrainSectorCoverageScratch::Coverage;
-        if (!scratch.Matches(claims, lodCount)) BuildTerrainSectorCoveragePlan(claims, lodCount, scratch);
-        auto& selection = scratch.m_selection;
-        selection.m_draws.clear();
-        selection.m_unrepresentableChildren = scratch.m_invalidClaims;
-        selection.m_duplicateClaims = scratch.m_duplicates;
-        const auto& tree = scratch.m_topology.polytree;
-        struct Result { graph::NodeHandle m_node; Coverage m_coverage; };
-        struct Sink
-        {
-            std::span<Coverage> m_values;
-            bool push(Result result) { m_values[result.m_node] = result.m_coverage; return true; }
-        } sink{ scratch.m_values };
-        wz::core::algo::next::transform(graph::evaluation_plan(tree).reverse_topological_order, sink,
-            [&](graph::NodeHandle node) -> Result
-            {
-                const size_t index = graph::node_data(tree, node);
-                uint8_t missing = 0xf;
-                bool partial = false;
-                for (auto child : graph::children(tree, node))
-                {
-                    const auto coverage = scratch.m_values[child];
-                    if (coverage != Coverage::Missing) missing &= ~(1 << graph::parent_edge_data(tree, child));
-                    partial |= coverage == Coverage::Partial;
-                    if (index != TerrainSectorCoverageScratch::NoClaim && claims[index].m_hasData && coverage == Coverage::Partial)
-                        ++selection.m_unrepresentableChildren;
-                }
-                if (index != TerrainSectorCoverageScratch::NoClaim)
-                {
-                    if (!claims[index].m_hasData) return { node, Coverage::Full };
-                    if (missing) selection.m_draws.push_back({ index, missing });
-                    return { node, partial ? Coverage::Partial : Coverage::Full };
-                }
-                return { node, !missing && !partial ? Coverage::Full : missing == 0xf ? Coverage::Missing : Coverage::Partial };
-            });
-        return selection;
+        return batch.m_result > baseline && (batch.m_reset || (batch.m_baseline == baseline && batch.m_plan == plan));
     }
 }
