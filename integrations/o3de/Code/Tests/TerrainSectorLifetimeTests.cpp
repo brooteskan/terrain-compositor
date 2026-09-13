@@ -68,6 +68,7 @@ namespace Terrain
         void CheckPublicationAndSourceRetirementHideCommittedCoverage();
         void CheckCommittedOwnershipDoesNotRetainWorkerStorage();
         void CheckSharedCoverageMetadataKeepsIndependentInvalidation();
+        void CheckSourceInvalidationWithdrawsWarmedRasterAndRayTracing();
         void CheckRayTracingUsesCommittedPlacementAndWithdrawsEmptyReplacement();
 
         using Manager = TerrainMeshManager;
@@ -1203,6 +1204,10 @@ namespace Terrain
             ASSERT_TRUE(Accept({std::make_shared<Result>(Manager::PrepareSector(emptyRequest))}));
             auto populated = Empty();
             auto empty = Empty(1);
+            ASSERT_EQ(m_manager->SelectSectorCoverage().size(), 1);
+            EXPECT_FALSE(m_manager->m_coverageValidationDirty);
+            EXPECT_EQ(m_manager->m_coveragePublications.size(), 1);
+            m_manager->RefreshCommittedCoverage(); // Exercise the unchanged metadata path.
             if (invalidation == 0) query.m_preparationDependency->Invalidate();
             if (invalidation == 1) query.m_preparationDependency->Retire();
             if (invalidation == 2) registry->Publish(this, AZ::Uuid::CreateRandom(), {});
@@ -1230,12 +1235,22 @@ namespace Terrain
         ASSERT_TRUE(Accept({ a, b }));
         auto& sectors = m_manager->m_sectorLods[0].m_sectors;
         EXPECT_EQ(sectors[0].m_committed.m_dependencies, sectors[1].m_committed.m_dependencies);
+        m_manager->UpdateCandidateSectors();
+        EXPECT_FALSE(m_manager->m_candidateSectorsDirty);
+        EXPECT_FALSE(m_manager->m_coverageValidationDirty);
+        EXPECT_EQ(m_manager->m_coverageDependencies.size(), 1);
         m_manager->RefreshCommittedCoverage();
         EXPECT_TRUE(sectors[0].m_committed.m_valid);
+        EXPECT_FALSE(m_manager->m_candidateSectorsDirty);
         dependency->Invalidate();
         m_manager->RefreshCommittedCoverage();
         EXPECT_FALSE(sectors[0].m_committed.m_valid);
         EXPECT_FALSE(sectors[1].m_committed.m_valid);
+        EXPECT_TRUE(m_manager->m_candidateSectorsDirty);
+        EXPECT_TRUE(m_manager->m_candidateSectors.empty());
+        m_manager->UpdateCandidateSectors();
+        EXPECT_FALSE(m_manager->m_candidateSectorsDirty); // Empty coverage is settled too.
+        EXPECT_TRUE(m_manager->m_candidateSectors.empty());
 
         a = Empty(0); b = Empty(1);
         a->m_request.m_samplingPlan.m_dependencies.push_back({ dependency, dependency->Capture() });
@@ -1250,6 +1265,45 @@ namespace Terrain
 
     TEST_F(TerrainSectorLifetimeTests, SharedCoverageMetadataKeepsIndependentInvalidation)
     { CheckSharedCoverageMetadataKeepsIndependentInvalidation(); }
+
+    void TerrainSectorLifetimeTests::CheckSourceInvalidationWithdrawsWarmedRasterAndRayTracing()
+    {
+        ::testing::NiceMock<UnitTest::MockTerrainDataRequests> terrain;
+        SupplyTerrain(terrain);
+        ::testing::StrictMock<AZ::Render::SectorRayTracingMock> rayTracing;
+        m_manager->m_rayTracingEnabled = true;
+        m_manager->m_rayTracingFeatureProcessor = &rayTracing;
+        const std::shared_ptr<void> cleanup(nullptr, [this](void*)
+        {
+            m_manager->ClearSectorBuffers();
+            m_manager->m_rayTracingFeatureProcessor = nullptr;
+        });
+        auto& sector = m_manager->m_sectorLods[0].m_sectors[0];
+        sector.m_committed.m_rtData = AZStd::make_unique<Manager::RtSector>();
+        const auto id = sector.m_committed.m_rtData->m_meshGroups[0].m_id;
+        auto source = std::make_shared<TerrainCompositor::TerrainPreparationDependency>();
+        auto prepared = Empty();
+        prepared->m_request.m_samplingPlan.m_dependencies.push_back({ source, source->Capture() });
+        ASSERT_TRUE(Accept({ prepared }));
+        EXPECT_CALL(rayTracing, AddMesh(id, ::testing::_, ::testing::_));
+        m_manager->UpdateCandidateSectors();
+        EXPECT_EQ(m_manager->m_candidateSectors.size(), 1);
+        EXPECT_EQ(m_manager->m_rayTracedItems.size(), 1);
+        EXPECT_FALSE(m_manager->m_coverageValidationDirty);
+        m_manager->RefreshCommittedCoverage();
+        source->Invalidate();
+        EXPECT_CALL(rayTracing, RemoveMesh(id));
+        m_manager->RefreshCommittedCoverage(); // No frame advance or terrain notification.
+        EXPECT_FALSE(sector.m_committed.m_valid);
+        EXPECT_TRUE(m_manager->m_candidateSectors.empty());
+        EXPECT_TRUE(m_manager->m_rayTracedItems.empty());
+        EXPECT_TRUE(m_manager->m_coverageDependencies.empty());
+        EXPECT_TRUE(m_manager->m_coveragePublications.empty());
+        EXPECT_TRUE(m_manager->m_candidateSectorsDirty);
+    }
+
+    TEST_F(TerrainSectorLifetimeTests, SourceInvalidationWithdrawsWarmedRasterAndRayTracing)
+    { CheckSourceInvalidationWithdrawsWarmedRasterAndRayTracing(); }
 
     void TerrainSectorLifetimeTests::CheckCommittedOwnershipDoesNotRetainWorkerStorage()
     {
@@ -1323,6 +1377,8 @@ namespace Terrain
         EXPECT_TRUE(m_manager->m_rayTracedItems.empty());
         m_manager->UpdateCandidateSectors();
         EXPECT_TRUE(m_manager->m_candidateSectors.empty());
+        EXPECT_FALSE(m_manager->m_candidateSectorsDirty);
+        EXPECT_TRUE(m_manager->m_nextRayTracedItems.empty());
         m_manager->ClearSectorBuffers();
         m_manager->m_rayTracingFeatureProcessor = nullptr;
     }

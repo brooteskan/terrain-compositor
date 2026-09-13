@@ -3,6 +3,7 @@
 #include <AzCore/base.h>
 #include <AzCore/std/containers/vector.h>
 #include <algorithm>
+#include <atomic>
 #include <functional>
 #include <memory>
 #include <mutex>
@@ -18,25 +19,31 @@ namespace TerrainCompositor
         AZ::u64 Capture() const
         {
             std::lock_guard lock(m_mutex);
-            return m_revision;
+            return m_revision.load(std::memory_order_relaxed);
+        }
+        //! Visibility observation only, never a commit lease. Invalidation is
+        //! monotonic and retirement permanent, so unchanged tickets stay valid.
+        bool IsCurrent(AZ::u64 revision) const
+        {
+            return m_active.load(std::memory_order_acquire) && m_revision.load(std::memory_order_acquire) == revision;
         }
         void Invalidate()
         {
             std::lock_guard lock(m_mutex);
-            ++m_revision;
+            m_revision.fetch_add(1, std::memory_order_release);
         }
         void Retire()
         {
             std::lock_guard lock(m_mutex);
-            m_active = false;
-            ++m_revision;
+            m_active.store(false, std::memory_order_release);
+            m_revision.fetch_add(1, std::memory_order_release);
         }
 
     private:
         friend class TerrainPreparationAdmission;
         mutable std::mutex m_mutex;
-        AZ::u64 m_revision = 0;
-        bool m_active = true;
+        std::atomic<AZ::u64> m_revision{ 0 };
+        std::atomic_bool m_active{ true };
     };
 
     struct TerrainPreparationDependencyTicket
@@ -62,6 +69,14 @@ namespace TerrainCompositor
             m_dependencies.erase(std::unique(m_dependencies.begin(), m_dependencies.end()), m_dependencies.end());
         }
         const AZStd::vector<TerrainPreparationDependencyTicket>& GetTickets() const { return m_tickets; }
+        //! A fresh observation of every exact ticket, including conflicting
+        //! duplicates. This does not hold invalidation off through GPU publication.
+        bool IsCurrent() const
+        {
+            for (const auto& ticket : m_tickets)
+                if (!ticket.m_dependency || !ticket.m_dependency->IsCurrent(ticket.m_revision)) return false;
+            return true;
+        }
         size_t GetHeapBytes() const
         {
             return m_tickets.capacity() * sizeof(TerrainPreparationDependencyTicket) +

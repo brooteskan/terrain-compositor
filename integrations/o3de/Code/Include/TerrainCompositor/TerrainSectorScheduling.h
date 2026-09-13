@@ -1,7 +1,8 @@
 #pragma once
 
 #include <TerrainCompositor/TerrainSectorSampling.h>
-#include <map>
+#include <algorithm>
+#include <utility>
 
 namespace TerrainCompositor
 {
@@ -48,15 +49,31 @@ namespace TerrainCompositor
         bool IsRepresentable() const { return !m_unrepresentableChildren && !m_duplicateClaims; }
     };
 
-    //! The same projection serves production raster/RT selection and replacement
-    //! assessment. Missing claims are unknown, never authoritative holes.
-    inline TerrainSectorCoverageSelection SelectTerrainSectorCoverage(
-        AZStd::span<const TerrainSectorCoverageClaim> claims, size_t lodCount)
+    //! One control owner. Only capacity survives a call; indices and coordinates
+    //! describe the supplied claims, never retained sector resources.
+    struct TerrainSectorCoverageScratch
     {
         using Coordinate = std::pair<int32_t, int32_t>;
+        struct Node { Coordinate m_coordinate; size_t m_claim; };
+        AZStd::vector<AZStd::vector<Node>> m_levels;
+        TerrainSectorCoverageSelection m_selection;
+    };
+
+    //! The same projection serves production raster/RT selection and replacement
+    //! assessment. Missing claims are unknown, never authoritative holes.
+    inline const TerrainSectorCoverageSelection& SelectTerrainSectorCoverage(
+        AZStd::span<const TerrainSectorCoverageClaim> claims, size_t lodCount, TerrainSectorCoverageScratch& scratch)
+    {
+        using Coordinate = TerrainSectorCoverageScratch::Coordinate;
+        using Node = TerrainSectorCoverageScratch::Node;
         constexpr size_t noClaim = AZStd::numeric_limits<size_t>::max();
-        AZStd::vector<std::map<Coordinate, size_t>> levels(lodCount);
-        TerrainSectorCoverageSelection selection;
+        auto& levels = scratch.m_levels;
+        // Keep inactive levels' capacity too, but never traverse their old nodes.
+        if (levels.size() < lodCount) levels.resize(lodCount);
+        for (auto& level : levels) level.clear();
+        auto& selection = scratch.m_selection;
+        selection.m_draws.clear();
+        selection.m_unrepresentableChildren = selection.m_duplicateClaims = 0;
         const auto parent = [](Coordinate coordinate)
         {
             const auto half = [](int32_t value) { return value / 2 - (value < 0 && value % 2 != 0); };
@@ -66,22 +83,41 @@ namespace TerrainCompositor
         {
             const auto& claim = claims[index];
             if (claim.m_lod >= lodCount) { ++selection.m_unrepresentableChildren; continue; }
-            Coordinate coordinate{ claim.m_x, claim.m_y };
-            auto [node, inserted] = levels[claim.m_lod].try_emplace(coordinate, noClaim);
-            if (!inserted && node->second != noClaim) ++selection.m_duplicateClaims;
-            node->second = index;
-            for (size_t ancestor = claim.m_lod + 1; ancestor < levels.size(); ++ancestor)
+            levels[claim.m_lod].push_back({ { claim.m_x, claim.m_y }, index });
+        }
+        for (size_t lod = 0; lod < lodCount; ++lod)
+        {
+            auto& level = levels[lod];
+            std::sort(level.begin(), level.end(), [](const Node& a, const Node& b)
+            { return a.m_coordinate < b.m_coordinate; });
+            size_t count = 0;
+            for (size_t i = 0; i < level.size(); ++i)
             {
-                coordinate = parent(coordinate);
-                levels[ancestor].try_emplace(coordinate, noClaim);
+                const auto node = level[i];
+                if (!count || level[count - 1].m_coordinate != node.m_coordinate) level[count++] = node;
+                else if (node.m_claim != noClaim)
+                {
+                    auto& previous = level[count - 1].m_claim;
+                    if (previous != noClaim)
+                    {
+                        ++selection.m_duplicateClaims;
+                        previous = AZStd::max(previous, node.m_claim); // Last supplied claim wins.
+                    }
+                    else previous = node.m_claim;
+                }
             }
+            level.resize(count);
+            if (lod + 1 < lodCount)
+                for (const auto& node : level) levels[lod + 1].push_back({ parent(node.m_coordinate), noClaim });
         }
         enum class Coverage { Missing, Partial, Full };
         const auto select = [&](auto&& self, size_t lod, Coordinate coordinate) -> Coverage
         {
-            const auto node = levels[lod].find(coordinate);
-            if (node == levels[lod].end()) return Coverage::Missing;
-            const size_t index = node->second;
+            const auto& level = levels[lod];
+            const auto node = std::lower_bound(level.begin(), level.end(), coordinate,
+                [](const Node& value, Coordinate key) { return value.m_coordinate < key; });
+            if (node == level.end() || node->m_coordinate != coordinate) return Coverage::Missing;
+            const size_t index = node->m_claim;
             uint8_t missing = 0;
             bool partial = false;
             for (uint8_t quadrant = 0; quadrant < 4; ++quadrant)
@@ -103,9 +139,17 @@ namespace TerrainCompositor
             }
             return !missing && !partial ? Coverage::Full : missing == 0xf ? Coverage::Missing : Coverage::Partial;
         };
-        if (!levels.empty())
-            for (const auto& [coordinate, unused] : levels.back()) select(select, levels.size() - 1, coordinate);
+        if (lodCount)
+            for (const auto& node : levels[lodCount - 1]) select(select, lodCount - 1, node.m_coordinate);
         return selection;
+    }
+
+    inline TerrainSectorCoverageSelection SelectTerrainSectorCoverage(
+        AZStd::span<const TerrainSectorCoverageClaim> claims, size_t lodCount)
+    {
+        TerrainSectorCoverageScratch scratch;
+        SelectTerrainSectorCoverage(claims, lodCount, scratch);
+        return AZStd::move(scratch.m_selection);
     }
 
     //! Requirements still unproven across a proposed cut through an atomic group.

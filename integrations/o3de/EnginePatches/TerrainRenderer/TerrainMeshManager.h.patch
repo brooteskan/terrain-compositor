@@ -172,7 +172,7 @@
          struct CandidateSector
          {
              AZ::Aabb m_aabb;
-@@ -250,6 +317,151 @@
+@@ -250,6 +317,153 @@
              uint8_t m_posx;
              uint8_t m_posy;
          };
@@ -304,6 +304,7 @@
 +        void SetSectorState(Sector& sector, SectorState state, SectorRejection reason = SectorRejection::None);
 +        Sector* FindPreparationDestination(const SectorPreparationRequest& request);
 +        void RefreshCommittedCoverage();
++        void InvalidateCoverageValidation();
 +        void HideCommittedSector(Sector& sector);
 +        void RemoveSectorRayTracedMeshes(Sector& sector);
 +        struct SectorCoverage
@@ -311,7 +312,8 @@
 +            Sector* m_sector = nullptr;
 +            uint8_t m_quadrants = 0; // 0xf selects the full mesh; otherwise select these quadrants.
 +        };
-+        AZStd::vector<SectorCoverage> SelectSectorCoverage();
++        const AZStd::vector<SectorCoverage>& SelectSectorCoverage();
++        void InvalidateCandidateSectors();
 +        struct SectorResourceAccounting
 +        {
 +            size_t m_allocatedGpuBytes = 0;
@@ -324,7 +326,7 @@
  
          struct RayTracedItem
          {
-@@ -267,19 +479,73 @@
+@@ -267,19 +481,73 @@
          bool UpdateGridSize(float distanceToFirstLod);
          void BuildDrawPacket(Sector& sector);
          void BuildRtSector(Sector& sector, uint32_t lodLevel);
@@ -403,7 +405,7 @@
          void ProcessSectorUpdates(AZStd::vector<AZStd::vector<Sector*>>& sectorUpdates);
  
          AZ::Data::Instance<AZ::RPI::Buffer> CreateMeshBufferInstance(
-@@ -297,12 +563,9 @@
+@@ -297,12 +565,9 @@
          void UpdateCandidateSectors();
          void CreateAabbQuadrants(const AZ::Aabb& aabb, AZStd::span<AZ::Aabb, 4> quadrantAabb);
  
@@ -418,7 +420,7 @@
  
          MaterialInstance m_materialInstance;
          AZStd::vector<CachedDrawData> m_cachedDrawData; // Holds common parts of draw packets
-@@ -318,6 +581,11 @@
+@@ -318,8 +583,26 @@
          AZ::Data::Instance<AZ::RPI::Buffer> m_dummyLodHeightsNormalsBuffer;
          AZ::RHI::IndexBufferView m_indexBufferView;
  
@@ -426,11 +428,34 @@
 +        // this invalidation authority; it never owns or points back to the manager.
 +        std::shared_ptr<TerrainCompositor::TerrainPreparationDependency> m_preparationLifetime =
 +            std::make_shared<TerrainCompositor::TerrainPreparationDependency>();
-+        TerrainCompositor::TerrainPreparationAdmissionScratch m_coverageAdmissionScratch;
++        struct CoveragePublication
++        {
++            TerrainCompositor::TerrainMeshCutoutRenderChannelPtr m_channel;
++            TerrainCompositor::TerrainMeshCutoutRenderSnapshotPtr m_publication;
++        };
++        // No sector or worker pointers. Clear before committed ownership changes.
++        AZStd::vector<CoveragePublication> m_coveragePublications;
++        AZStd::vector<std::shared_ptr<const TerrainCompositor::TerrainPreparationDependencySet>> m_coverageDependencies;
++        bool m_coverageValidationDirty = true;
          AZStd::vector<SectorLodGrid> m_sectorLods;
          AZStd::vector<CandidateSector> m_candidateSectors;
++        bool m_candidateSectorsDirty = true; // Empty is a valid completed selection.
++        TerrainCompositor::TerrainSectorCoverageScratch m_coverageSelectionScratch;
++        AZStd::vector<TerrainCompositor::TerrainSectorCoverageClaim> m_coverageClaims;
++        AZStd::vector<Sector*> m_coverageSectors;
++        AZStd::vector<SectorCoverage> m_selectedCoverage;
          AZStd::vector<Sector*> m_sectorsThatNeedSrgCompiled;
-@@ -352,6 +620,6 @@
+         uint32_t m_1dSectorCount = 0;
+ 
+@@ -338,6 +621,7 @@
+ 
+         // Tracks which sectors are currently in the ray tracing system so they can be easily compared and updated each frame.
+         AZStd::vector<RayTracedItem> m_rayTracedItems;
++        AZStd::vector<RayTracedItem> m_nextRayTracedItems;
+ 
+         uint8_t m_gridSize = 0; // number of quads in a single row of a sector
+         uint8_t m_gridVerts1D = 0; // number of vertices along sector edge (m_gridSize + 1)
+@@ -352,6 +636,6 @@
          AZ::RHI::Handle<uint32_t> m_meshMovedFlag;
  
          // Cached MeshFeatureProcessor

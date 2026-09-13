@@ -189,11 +189,14 @@ not synchronization. Cancellation now checks before preparation, after regular
 gather, after CLOD work and before completion; synchronous bus calls in progress
 must return before cooperative cancellation can proceed.
 
-Acceptance and coverage validation retain publication-then-sorted-dependency
-lock ordering. No source query occurs under commit locks; the locks cover every
-resource sink call. Completion delivery and storage reclamation are renderer
-control-thread operations. Workers write only their owned result, and only the
-existing atomic cancellation flag crosses the control/worker boundary.
+Acceptance retains publication-then-sorted-dependency lock ordering through every
+resource sink call, with no source queries under commit locks. Coverage visibility
+observes current publication state and atomic dependency revisions on every call;
+unchanged shared metadata skips duplicate sector walks. These observations never
+grant a commit lease. The locked visibility fallback remains available. See
+[control storage](TerrainControlStorage.md) for cache invalidation and ownership.
+Completion delivery and storage reclamation are renderer control-thread operations;
+workers retain owned requests/results and observe atomic cancellation.
 
 ## Verification (2026-09-11)
 
