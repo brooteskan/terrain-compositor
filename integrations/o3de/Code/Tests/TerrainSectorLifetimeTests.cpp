@@ -1207,6 +1207,10 @@ namespace Terrain
             ASSERT_EQ(m_manager->SelectSectorCoverage().size(), 1);
             EXPECT_FALSE(m_manager->m_coverageValidationDirty);
             EXPECT_EQ(m_manager->m_coveragePublications.size(), 1);
+            const auto planGeneration = m_manager->m_coverageSelectionScratch.m_generation;
+            ASSERT_GT(planGeneration, 0);
+            ASSERT_EQ(m_manager->SelectSectorCoverage().size(), 1);
+            EXPECT_EQ(m_manager->m_coverageSelectionScratch.m_generation, planGeneration);
             m_manager->RefreshCommittedCoverage(); // Exercise the unchanged metadata path.
             if (invalidation == 0) query.m_preparationDependency->Invalidate();
             if (invalidation == 1) query.m_preparationDependency->Retire();

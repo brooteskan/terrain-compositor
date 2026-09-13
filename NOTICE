@@ -5,3 +5,8 @@ This repository was extracted from TGProject at commit
 425908e44a3d38a88a9e9f7ee12b12b4b4db8f1a. The extracted component and
 configuration UUIDs are intentionally unchanged so existing O3DE levels and
 prefabs continue to deserialize without migration.
+
+Coverage traversal uses the MIT-licensed polytree and algo libraries.
+Copyright (c) 2026 Wozzits Engine contributors.
+Their license notices are reproduced in licenses/polytree-MIT.txt and
+licenses/algo-MIT.txt. See docs/TerrainCoverageTraversal.md for pinned versions.

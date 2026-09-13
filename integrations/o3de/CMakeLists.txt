@@ -1,5 +1,8 @@
 o3de_gem_setup("TerrainCompositor")
 
+include("${CMAKE_CURRENT_SOURCE_DIR}/../../cmake/Dependencies.cmake")
+terrain_compositor_require_dependencies()
+
 include(EngineOverrides.cmake)
 set(tc_terrain_source_root "${LY_ROOT_FOLDER}/Gems/Terrain/Code/Source")
 set(tc_generated_overrides "${CMAKE_CURRENT_BINARY_DIR}/EngineOverrides")
@@ -36,6 +39,18 @@ endforeach()
 set_property(TARGET Terrain.Static PROPERTY SOURCES "${tc_terrain_sources}")
 target_include_directories(Terrain.Static BEFORE PUBLIC
     "${tc_generated_overrides}" "${CMAKE_CURRENT_SOURCE_DIR}/EngineOverrides" "${CMAKE_CURRENT_SOURCE_DIR}/Code/Include")
+target_link_libraries(Terrain.Static PUBLIC polytree::polytree algo::algo)
+# Isolate polytree construction's exception cleanup from O3DE's default
+# no-unwind translation units. No engine-wide compiler settings are changed.
+set(tc_coverage_source "${CMAKE_CURRENT_SOURCE_DIR}/Code/Source/TerrainSectorCoverage.cpp")
+target_sources(Terrain.Static PRIVATE "${tc_coverage_source}")
+if(MSVC)
+    set(tc_coverage_exceptions /EHsc /wd4100)
+else()
+    set(tc_coverage_exceptions -fexceptions -Wno-unused-parameter)
+endif()
+set_source_files_properties("${tc_coverage_source}" TARGET_DIRECTORY Terrain.Static PROPERTIES
+    SKIP_UNITY_BUILD_INCLUSION ON COMPILE_OPTIONS "${tc_coverage_exceptions}")
 
 ly_add_target(
     NAME ${gem_name}.Static STATIC
@@ -58,6 +73,8 @@ ly_add_target(
             Gem::LmbrCentral.API
             Gem::Terrain.Static
 )
+
+target_link_libraries(${gem_name}.Static PUBLIC polytree::polytree algo::algo)
 
 ly_add_target(
     NAME ${gem_name} ${PAL_TRAIT_MONOLITHIC_DRIVEN_MODULE_TYPE}
