@@ -13,6 +13,7 @@
 #include "ProceduralSnapshotTestSupport.h"
 #include "SectorRayTracingMock.h"
 #include <thread>
+#include <cstdio>
 
 namespace Terrain
 {
@@ -39,6 +40,7 @@ namespace Terrain
         void CheckSourceChangeDuringPreparationRejectsOwnedOutput();
         void CheckSceneReactivationPreservesIndependentlyOwnedRegistrations();
         void CheckProceduralSnapshotMatchesPackedClodHaloAndRtOutput();
+        void MeasureProceduralHillKernels();
         void CheckRetainedOnlyMatchesRealTerrainAndCoordinates();
         void CheckDeferredAreaCaptureAndSettingsRevalidation();
         void CheckPredictedLeaseAdoptionAndCancellation();
@@ -156,6 +158,8 @@ namespace Terrain
         size_t m_commits = 0;
         AZStd::vector<size_t> m_order;
     };
+
+#include "ProceduralHillKernelSectorTests.inl"
 
     void TerrainSectorLifetimeTests::CheckRecoveryRejectsUncertifiedNeighborsWithoutConsumingLeases()
     {

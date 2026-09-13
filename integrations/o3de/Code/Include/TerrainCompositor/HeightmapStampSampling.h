@@ -94,4 +94,6 @@ namespace TerrainCompositor
         float baseValue,
         const HeightmapRegionMapping& mapping,
         AZStd::span<const PreparedHeightContributor> contributors);
+    float ComposeHeightContributors(const AZ::Vector3& position, float baseValue,
+        const HeightmapRegionMapping& mapping, AZStd::span<const PreparedHeightContributor* const> contributors);
 } // namespace TerrainCompositor

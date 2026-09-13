@@ -146,17 +146,18 @@
              AZ::Vector2 m_worldStartPosition;
              float m_vertexSpacing;
              int16_t m_samplesX;
-@@ -220,6 +275,9 @@
+@@ -220,6 +275,10 @@
              AzFramework::Terrain::TerrainDataRequests::Sampler m_samplerType =
                  AzFramework::Terrain::TerrainDataRequests::Sampler::CLAMP;
              bool m_useVertexOrderRemap = false;
 +            // Set only after complete regular/CLOD/halo eligibility assessment.
 +            bool m_retainedOnly = false;
 +            TerrainCompositor::TerrainSectorSampleReuse* m_sampleReuse = nullptr;
++            const TerrainCompositor::TerrainSectorOwnedQuery* m_ownedQuery = nullptr;
          };
  
          struct CachedDrawData
-@@ -239,6 +297,14 @@
+@@ -239,6 +298,14 @@
              NormalXYDataType m_normal;
          };
  
@@ -171,7 +172,7 @@
          struct CandidateSector
          {
              AZ::Aabb m_aabb;
-@@ -250,6 +316,151 @@
+@@ -250,6 +317,151 @@
              uint8_t m_posx;
              uint8_t m_posy;
          };
@@ -323,7 +324,7 @@
  
          struct RayTracedItem
          {
-@@ -267,19 +478,73 @@
+@@ -267,19 +479,73 @@
          bool UpdateGridSize(float distanceToFirstLod);
          void BuildDrawPacket(Sector& sector);
          void BuildRtSector(Sector& sector, uint32_t lodLevel);
@@ -402,7 +403,7 @@
          void ProcessSectorUpdates(AZStd::vector<AZStd::vector<Sector*>>& sectorUpdates);
  
          AZ::Data::Instance<AZ::RPI::Buffer> CreateMeshBufferInstance(
-@@ -297,12 +562,9 @@
+@@ -297,12 +563,9 @@
          void UpdateCandidateSectors();
          void CreateAabbQuadrants(const AZ::Aabb& aabb, AZStd::span<AZ::Aabb, 4> quadrantAabb);
  
@@ -417,7 +418,7 @@
  
          MaterialInstance m_materialInstance;
          AZStd::vector<CachedDrawData> m_cachedDrawData; // Holds common parts of draw packets
-@@ -318,6 +580,11 @@
+@@ -318,6 +581,11 @@
          AZ::Data::Instance<AZ::RPI::Buffer> m_dummyLodHeightsNormalsBuffer;
          AZ::RHI::IndexBufferView m_indexBufferView;
  
@@ -429,7 +430,7 @@
          AZStd::vector<SectorLodGrid> m_sectorLods;
          AZStd::vector<CandidateSector> m_candidateSectors;
          AZStd::vector<Sector*> m_sectorsThatNeedSrgCompiled;
-@@ -352,6 +619,6 @@
+@@ -352,6 +620,6 @@
          AZ::RHI::Handle<uint32_t> m_meshMovedFlag;
  
          // Cached MeshFeatureProcessor

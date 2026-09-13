@@ -49,6 +49,8 @@ set(FILES
     Code/Include/TerrainCompositor/Internal/RetainedCompositionMemory.h
     Code/Include/TerrainCompositor/TerrainSectorScheduling.h
     Code/Include/TerrainCompositor/TerrainProceduralSnapshot.h
+    Code/Include/TerrainCompositor/ProceduralHillKernel.h
+    Code/Include/TerrainCompositor/TerrainBatchCandidates.h
     Code/Include/TerrainCompositor/TerrainMeshCutoutSampling.h
     Code/Include/TerrainCompositor/TerrainMeshHeightData.h
     Code/Include/TerrainCompositor/TerrainMeshHeightDataCache.h

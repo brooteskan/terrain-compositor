@@ -5,6 +5,7 @@
 #include <AzCore/std/function/function_template.h>
 #include <TerrainCompositor/TerrainPreparationDependency.h>
 #include <TerrainCompositor/TerrainRenderQuery.h>
+#include <TerrainCompositor/ProceduralHillKernel.h>
 
 namespace TerrainCompositor
 {
@@ -26,6 +27,9 @@ namespace TerrainCompositor
         TerrainRenderChannelCapability m_height, m_existence;
         TerrainSourceAcquisition m_heightResult = TerrainSourceAcquisition::Rejected;
         TerrainSourceAcquisition m_existenceResult = TerrainSourceAcquisition::Rejected;
+        std::shared_ptr<const ProceduralHillKernel> m_hillKernel;
+        AZStd::function<void(AZStd::span<const AZ::Vector3>, AZStd::span<float>, ProceduralHillCounters*)> m_heightBatch;
+        bool m_constantExistence = false;
         AZStd::function<float(const AZ::Vector3&)> m_heightValue;
         AZStd::function<bool(const AZ::Vector3&)> m_existenceValue;
 
@@ -37,14 +41,15 @@ namespace TerrainCompositor
                     channel.m_source == TerrainRenderSource::RetainedAvailable && channel.m_sourceEntityId == m_entityId);
             };
             return m_entityId.IsValid() && !m_session.IsNull() && m_ticket.m_dependency &&
-                valid(m_height, m_heightResult, bool(m_heightValue)) && valid(m_existence, m_existenceResult, bool(m_existenceValue));
+                valid(m_height, m_heightResult, bool(m_heightValue) || bool(m_heightBatch)) && valid(m_existence, m_existenceResult, bool(m_existenceValue) || m_constantExistence);
         }
 
-        bool SampleHeights(AZStd::span<const AZ::Vector3> positions, AZStd::span<float> values) const
+        bool SampleHeights(AZStd::span<const AZ::Vector3> positions, AZStd::span<float> values, ProceduralHillCounters* counters = nullptr) const
         {
             if (m_heightResult != TerrainSourceAcquisition::Acquired || positions.size() != values.size() ||
-                !m_heightValue || !m_height.m_sampling.SupportsPositions(positions)) return false;
-            for (size_t i = 0; i < positions.size(); ++i) values[i] = m_heightValue(positions[i]);
+                (!m_heightValue && !m_heightBatch) || !m_height.m_sampling.SupportsPositions(positions)) return false;
+            if (m_heightBatch) m_heightBatch(positions, values, counters);
+            else for (size_t i = 0; i < positions.size(); ++i) values[i] = m_heightValue(positions[i]);
             return true;
         }
         bool SampleHeight(const AZ::Vector3& position, float& value) const
@@ -54,8 +59,9 @@ namespace TerrainCompositor
         bool SampleExistence(AZStd::span<const AZ::Vector3> positions, AZStd::span<bool> values) const
         {
             if (m_existenceResult != TerrainSourceAcquisition::Acquired || positions.size() != values.size() ||
-                !m_existenceValue || !m_existence.m_sampling.SupportsPositions(positions)) return false;
-            for (size_t i = 0; i < positions.size(); ++i) values[i] = m_existenceValue(positions[i]);
+                (!m_existenceValue && !m_constantExistence) || !m_existence.m_sampling.SupportsPositions(positions)) return false;
+            if (m_constantExistence) AZStd::fill(values.begin(), values.end(), true);
+            else for (size_t i = 0; i < positions.size(); ++i) values[i] = m_existenceValue(positions[i]);
             return true;
         }
         bool SampleExists(const AZ::Vector3& position, bool& value) const

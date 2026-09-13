@@ -412,4 +412,30 @@ namespace TerrainCompositor
                 return true;
             });
     }
+
+    float ComposeHeightContributors(const AZ::Vector3& position, float baseValue,
+        const HeightmapRegionMapping& mapping, AZStd::span<const PreparedHeightContributor* const> contributors)
+    {
+        return ComposeContributions(position, baseValue, mapping, contributors,
+            [&position](const PreparedHeightContributor* selected, ContributionSample& sample)
+            {
+                const auto& contributor = *selected;
+                if (contributor.m_type == PreparedHeightContributor::Type::Image)
+                {
+                    return TrySampleImageContribution(position, contributor.m_image, sample);
+                }
+                TerrainMeshHeightContribution meshSample;
+                if (!SampleTerrainMeshHeightStamp(position, contributor.m_mesh, meshSample))
+                {
+                    return false;
+                }
+                sample.m_displacement = meshSample.m_displacement;
+                sample.m_target = meshSample.m_targetHeight;
+                sample.m_heightOrigin = contributor.m_mesh.m_heightOrigin;
+                sample.m_weight = meshSample.m_weight;
+                sample.m_replaceBlend = meshSample.m_replaceBlend;
+                sample.m_relativeEdgeBlend = contributor.m_mesh.m_relativeEdgeBlend;
+                return true;
+            });
+    }
 } // namespace TerrainCompositor

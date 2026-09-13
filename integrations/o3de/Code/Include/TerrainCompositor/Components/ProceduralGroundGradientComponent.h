@@ -33,6 +33,9 @@ namespace TerrainCompositor
         //! Controls how quickly each feature rises or falls. Higher values create tighter bumps and depressions without changing their count.
         float m_frequency = 1.5f;
 
+        //! Integer powers are experimental; captured for every height consumer.
+        ProceduralHillPolicy m_kernelPolicy = ProceduralHillPolicy::CachedExact;
+
         //! Terrain-wide shader tint strength. Zero restores the untinted base color.
         float m_noiseTintStrength = 0.75f;
 
@@ -72,6 +75,13 @@ namespace TerrainCompositor
         void EditorActivate(AZ::EntityId entityId) override;
         void EditorDeactivate(AZ::EntityId entityId) override;
 
+        //! Preserved scalar oracle for differential measurements; never selected
+        //! implicitly by optimized retained batches.
+        static float EvaluateReference(const AZ::Vector3& position, const ProceduralGroundGradientConfig& configuration)
+        {
+            return EvaluatePosition(position, configuration);
+        }
+
     private:
         TerrainProceduralSnapshotPtr AcquireTerrainSnapshot() const override;
         float GetValue(const GradientSignal::GradientSampleParams& sampleParams) const override;
@@ -87,6 +97,7 @@ namespace TerrainCompositor
         void StopGradient();
         AZ::u32 OnConfigurationChanged();
         ProceduralGroundGradientConfig GetQueryConfiguration() const;
+        std::shared_ptr<const ProceduralHillKernel> GetQueryKernel() const;
 
         void StopNoiseTintUpdates();
         void OnTick(float deltaTime, AZ::ScriptTimePoint time) override;
@@ -98,6 +109,7 @@ namespace TerrainCompositor
         ProceduralGroundGradientConfig m_configuration;
         mutable AZStd::shared_mutex m_queryMutex;
         ProceduralGroundGradientConfig m_queryConfiguration;
+        std::shared_ptr<const ProceduralHillKernel> m_queryKernel;
         std::shared_ptr<TerrainPreparationDependency> m_snapshotDependency;
         AZ::Uuid m_snapshotSession;
         AZ::EntityId m_snapshotEntityId;

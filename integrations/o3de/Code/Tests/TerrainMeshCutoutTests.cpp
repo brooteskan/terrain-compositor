@@ -4,6 +4,7 @@
 #include <AzCore/Jobs/JobManagerBus.h>
 #include "TerrainTestFixtures.h"
 #include <AzTest/AzTest.h>
+#include <AzCore/UnitTest/UnitTest.h>
 #include <Atom/RHI/RHISystem.h>
 #include <TerrainCompositor/Components/ProceduralGroundGradientComponent.h>
 #include <TerrainCompositor/Components/TerrainCompositionGradientComponent.h>

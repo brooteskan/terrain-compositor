@@ -20,6 +20,8 @@ namespace TerrainCompositor
 {
     AZ_CVAR(bool, r_terrainRetainedKernel, true, nullptr, AZ::ConsoleFunctorFlags::Null,
         "Skip provably zero hill contributions in retained procedural snapshots. Disable for kernel comparisons.");
+    AZ_CVAR(bool, r_terrainCacheHillCells, true, nullptr, AZ::ConsoleFunctorFlags::Null,
+        "Cache hill cells and reject distant hills. Disable to compare against the previous zero-profile-pruned kernel.");
     namespace
     {
         constexpr AZ::u64 NoiseSeed = 0x9E3779B97F4A7C15ULL;
@@ -115,10 +117,11 @@ namespace TerrainCompositor
         if (auto* serializeContext = azrtti_cast<AZ::SerializeContext*>(context))
         {
             serializeContext->Class<ProceduralGroundGradientConfig, AZ::ComponentConfig>()
-                ->Version(2)
+                ->Version(3)
                 ->Field("HillDensity", &ProceduralGroundGradientConfig::m_hillDensity)
                 ->Field("AmplitudeMeters", &ProceduralGroundGradientConfig::m_amplitudeMeters)
                 ->Field("Frequency", &ProceduralGroundGradientConfig::m_frequency)
+                ->Field("KernelPolicy", &ProceduralGroundGradientConfig::m_kernelPolicy)
                 ->Field("NoiseTintStrength", &ProceduralGroundGradientConfig::m_noiseTintStrength)
                 ->Field("HoleMask", &ProceduralGroundGradientConfig::m_holeMask)
                 ->Field("HoleThreshold", &ProceduralGroundGradientConfig::m_holeThreshold);
@@ -311,10 +314,14 @@ namespace TerrainCompositor
             heightsChanged = m_queryConfiguration.m_hillDensity != m_configuration.m_hillDensity ||
                 m_queryConfiguration.m_amplitudeMeters != m_configuration.m_amplitudeMeters ||
                 m_queryConfiguration.m_frequency != m_configuration.m_frequency ||
+                m_queryConfiguration.m_kernelPolicy != m_configuration.m_kernelPolicy ||
                 m_queryConfiguration.m_holeThreshold != m_configuration.m_holeThreshold ||
                 !HoleSamplerEqual(m_queryConfiguration.m_holeMask, m_configuration.m_holeMask);
             if (heightsChanged && m_snapshotDependency) m_snapshotDependency->Invalidate();
             m_queryConfiguration = m_configuration;
+            if (heightsChanged || !m_queryKernel)
+                m_queryKernel = std::make_shared<const ProceduralHillKernel>(m_configuration.m_hillDensity,
+                    m_configuration.m_amplitudeMeters, m_configuration.m_frequency, m_configuration.m_kernelPolicy);
         }
         m_holeDependencyMonitor.Reset();
         if (m_activeEntityId.IsValid())
@@ -338,6 +345,12 @@ namespace TerrainCompositor
     {
         AZStd::shared_lock lock(m_queryMutex);
         return m_queryConfiguration;
+    }
+
+    std::shared_ptr<const ProceduralHillKernel> ProceduralGroundGradientComponent::GetQueryKernel() const
+    {
+        AZStd::shared_lock lock(m_queryMutex);
+        return m_queryKernel;
     }
 
     TerrainProceduralSnapshotPtr ProceduralGroundGradientComponent::AcquireTerrainSnapshot() const
@@ -368,9 +381,24 @@ namespace TerrainCompositor
         {
             snapshot->m_height = supported;
             snapshot->m_heightResult = TerrainSourceAcquisition::Acquired;
-            snapshot->m_heightValue = [configuration, prune = snapshot->m_zeroProfilePruning](const AZ::Vector3& position)
+            // The legacy diagnostic switch only selects exact-equivalent work.
+            // Approximation policy always comes from the invalidated source state.
+            const auto kernel = !snapshot->m_zeroProfilePruning && configuration.m_kernelPolicy != ProceduralHillPolicy::IntegerPowers
+                ? std::make_shared<const ProceduralHillKernel>(configuration.m_hillDensity,
+                    configuration.m_amplitudeMeters, configuration.m_frequency, ProceduralHillPolicy::Reference)
+                : (!r_terrainCacheHillCells && configuration.m_kernelPolicy == ProceduralHillPolicy::CachedExact
+                    ? std::make_shared<const ProceduralHillKernel>(configuration.m_hillDensity,
+                        configuration.m_amplitudeMeters, configuration.m_frequency, ProceduralHillPolicy::PrunedReference)
+                    : m_queryKernel);
+            snapshot->m_hillKernel = kernel;
+            snapshot->m_heightBatch = [kernel](auto positions, auto values, auto* counters)
             {
-                return EvaluatePosition(position, configuration, prune);
+                kernel->SampleBatch(positions, values, counters);
+            };
+            snapshot->m_heightValue = [kernel](const AZ::Vector3& position)
+            {
+                ProceduralHillKernel::Scratch scratch;
+                return kernel->Sample(position.GetX(), position.GetY(), scratch);
             };
         }
         snapshot->m_existenceResult = TerrainSourceAcquisition::ExternalMask;
@@ -378,6 +406,7 @@ namespace TerrainCompositor
         {
             snapshot->m_existence = supported;
             snapshot->m_existenceResult = TerrainSourceAcquisition::Acquired;
+            snapshot->m_constantExistence = true;
             snapshot->m_existenceValue = [](const AZ::Vector3&) { return true; };
         }
         return snapshot;
@@ -468,6 +497,11 @@ namespace TerrainCompositor
 
     float ProceduralGroundGradientComponent::GetValue(const GradientSignal::GradientSampleParams& sampleParams) const
     {
+        if (const auto kernel = GetQueryKernel())
+        {
+            ProceduralHillKernel::Scratch scratch;
+            return kernel->Sample(sampleParams.m_position.GetX(), sampleParams.m_position.GetY(), scratch);
+        }
         return EvaluatePosition(sampleParams.m_position, GetQueryConfiguration());
     }
 
@@ -481,10 +515,12 @@ namespace TerrainCompositor
             return;
         }
 
-        const auto configuration = GetQueryConfiguration();
-        for (size_t index = 0; index < positions.size(); ++index)
+        if (const auto kernel = GetQueryKernel()) kernel->SampleBatch(positions, outValues);
+        else
         {
-            outValues[index] = EvaluatePosition(positions[index], configuration);
+            const auto configuration = GetQueryConfiguration();
+            for (size_t index = 0; index < positions.size(); ++index)
+                outValues[index] = EvaluatePosition(positions[index], configuration);
         }
     }
 

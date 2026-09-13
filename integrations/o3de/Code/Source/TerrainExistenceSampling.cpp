@@ -628,4 +628,16 @@ namespace TerrainCompositor
         }
         return result;
     }
+    bool ComposeTerrainRenderGeometryExists(const AZ::Vector3& position, bool baseExists,
+        AZStd::span<const PreparedTerrainExistenceContributor* const> contributors)
+    {
+        bool result = baseExists;
+        for (const auto* contributor : contributors)
+        {
+            if (contributor->m_type != PreparedTerrainExistenceContributor::Type::ImageMask) continue;
+            bool authored = result;
+            if (SampleTerrainExistenceStamp(position, contributor->m_imageMask, authored)) result = authored;
+        }
+        return result;
+    }
 } // namespace TerrainCompositor

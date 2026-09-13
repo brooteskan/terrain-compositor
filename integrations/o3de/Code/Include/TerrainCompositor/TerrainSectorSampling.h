@@ -65,6 +65,69 @@ namespace TerrainCompositor
         AZ::u32 m_fallbackReasons = 0;
     };
 
+    struct TerrainSectorOwnedQuery
+    {
+        AZStd::vector<AZ::Vector3> m_positions;
+        TerrainRenderQueryPlan m_query;
+    };
+
+    inline size_t TerrainSectorOwnedQueryBytes(const std::shared_ptr<const TerrainSectorOwnedQuery>& owned)
+    {
+        return owned ? sizeof(TerrainSectorOwnedQuery) + owned->m_positions.capacity() * sizeof(AZ::Vector3) +
+            owned->m_query.m_additionalRuns.capacity() * sizeof(TerrainRenderQueryRun) : 0;
+    }
+
+    //! Resolution used to record these counters immediately before execution.
+    //! A certified retained gather reuses that resolution but still evaluates
+    //! these samples. Record only at execution, never during assessment.
+    inline void RecordTerrainSectorOwnedQueryStatistics(const TerrainRenderQueryPlan& plan, TerrainRenderQueryStatistics* statistics)
+    {
+        if (!statistics) return;
+        const auto record = [&](const TerrainRenderQueryRun& run)
+        {
+            if (!run.m_count) return;
+            const auto reasons = run.m_fallbackReasons & ~TerrainRenderFallbackBit(TerrainRenderFallback::PreservedPolicy);
+            AZ_Assert(!reasons, "Only fully supported retained queries may reuse sector ownership.");
+            if (run.m_height) statistics->m_heightOwned += run.m_count;
+            if (run.m_existence) statistics->m_existenceOwned += run.m_count;
+            if (run.m_height && run.m_existence) statistics->m_bothOwned += run.m_count;
+            if (!reasons)
+            {
+                statistics->m_independentSamples += run.m_count;
+                if (run.m_height && run.m_height->m_proceduralSnapshot) statistics->m_heightSnapshotSamples += run.m_count;
+                if (run.m_existence && run.m_existence->m_proceduralSnapshot) statistics->m_existenceSnapshotSamples += run.m_count;
+            }
+            for (size_t reason = 0; reason < statistics->m_fallbackSamples.size(); ++reason)
+                if (run.m_fallbackReasons & (AZ::u32{1} << reason)) statistics->m_fallbackSamples[reason] += run.m_count;
+        };
+        record(plan.m_firstRun);
+        for (const auto& run : plan.m_additionalRuns) record(run);
+    }
+
+    inline void ExecuteTerrainSectorOwnedQuery(const TerrainSectorOwnedQuery& owned, const TerrainSectorSamplingLayout& layout,
+        AZStd::span<float> heights, AZStd::span<bool> exists, TerrainRenderQueryStatistics* statistics)
+    {
+        RecordTerrainSectorOwnedQueryStatistics(owned.m_query, statistics);
+        if (!owned.m_positions.empty())
+        {
+            ExecuteTerrainRenderQuery(owned.m_query, heights, exists, statistics);
+            return;
+        }
+        // A corner-certified gather deliberately deferred coordinate allocation
+        // until its worker. Its source/publication/run remain the assessed owners.
+        AZStd::vector<AZ::Vector3> positions;
+        {
+            TerrainRenderQueryTimer timer(statistics ? &statistics->m_coordinateMicroseconds : nullptr);
+            positions.reserve(layout.Count());
+            for (size_t y = 0; y < layout.Height(); ++y)
+                for (size_t x = 0; x < layout.Width(); ++x) positions.push_back(layout.Position(x, y));
+        }
+        auto query = owned.m_query;
+        query.m_request = layout.Query(positions, true);
+        query.m_request.m_coordinates = TerrainRenderCoordinates::WorldXY;
+        ExecuteTerrainRenderQuery(query, heights, exists, statistics);
+    }
+
     struct TerrainSectorSamplingPlan
     {
         // These are the existing owned request boundaries, not another source
@@ -92,6 +155,7 @@ namespace TerrainCompositor
         TerrainSectorGatherReadiness m_regularReadiness, m_clodReadiness;
         AZ::u32 m_ordinaryFallbacks = 0, m_acrossFramesFallbacks = 0;
         bool m_assessed = false;
+        std::shared_ptr<const TerrainSectorOwnedQuery> m_regularQuery, m_clodQuery;
 
         bool CanAvoidOrdinaryResults() const { return m_assessed && !m_ordinaryFallbacks; }
         bool CanExecuteAcrossFrames() const { return m_assessed && !m_acrossFramesFallbacks; }
@@ -106,6 +170,8 @@ namespace TerrainCompositor
             const auto& sources = m_sources;
             const auto& channel = m_channel;
             const auto& dependencies = m_dependencies;
+            m_regularQuery.reset();
+            m_clodQuery.reset();
             m_regularReadiness = {};
             m_clodReadiness = {};
             m_ordinaryFallbacks = 0;
@@ -122,7 +188,8 @@ namespace TerrainCompositor
             if (!TerrainPreparationAdmission(dependencies).IsValid()) m_ordinaryFallbacks |= bit(TerrainRenderFallback::StaleDependency);
             // Include both potential gathers even for a captured empty area. Empty
             // ordinary results must not disguise incomplete retained ownership.
-            const auto assessGather = [&](const TerrainSectorSamplingLayout& layout, TerrainSectorGatherReadiness& readiness)
+            const auto assessGather = [&](const TerrainSectorSamplingLayout& layout, TerrainSectorGatherReadiness& readiness,
+                std::shared_ptr<const TerrainSectorOwnedQuery>& retained)
             {
                 if (!layout.IsValid())
                 {
@@ -188,20 +255,34 @@ namespace TerrainCompositor
                         auto request = layout.Query(corners, false);
                         request.m_allowBatch = batch;
                         request.m_coordinates = TerrainRenderCoordinates::WorldXY;
-                        auto query = ResolveTerrainRenderQuery(publication, request, nullptr, sources);
+                        auto query = [&]()
+                        {
+                            TerrainRenderQueryTimer ownershipTimer(statistics ? &statistics->m_resolutionMicroseconds : nullptr);
+                            return ResolveTerrainRenderQuery(publication, request, nullptr, sources);
+                        }();
                         if (query.m_firstRun.m_height == &owner && query.m_firstRun.m_existence == &owner &&
                             query.m_additionalRuns.empty() &&
                             !(query.m_firstRun.m_fallbackReasons & ~bit(TerrainRenderFallback::PreservedPolicy)))
                         {
                             query.m_firstRun.m_count = layout.Count();
                             assessRun(query.m_firstRun);
+                            auto owned = std::make_shared<TerrainSectorOwnedQuery>();
+                            // The corner span is stack-owned. Retain only the
+                            // certified run; execution constructs the grid once.
+                            query.m_request = layout.Query({}, batch);
+                            query.m_request.m_coordinates = TerrainRenderCoordinates::WorldXY;
+                            owned->m_query = AZStd::move(query);
+                            retained = AZStd::move(owned);
                             return;
                         }
                     }
                 }
                 // Match the selected dispatch exactly: scalar callbacks are one
                 // explicit position, while a batch retains full grid/run sizes.
-                AZStd::vector<AZ::Vector3> positions;
+                auto owned = std::make_shared<TerrainSectorOwnedQuery>();
+                auto& positions = owned->m_positions;
+                {
+                TerrainRenderQueryTimer coordinatesTimer(batch && statistics ? &statistics->m_coordinateMicroseconds : nullptr);
                 if (batch) positions.reserve(layout.Count());
                 for (size_t y = 0; y < layout.Height(); ++y)
                     for (size_t x = 0; x < layout.Width(); ++x)
@@ -217,18 +298,26 @@ namespace TerrainCompositor
                             assessRun(query.m_firstRun);
                         }
                     }
+                }
                 if (batch)
                 {
                     auto request = layout.Query(positions, true);
                     request.m_coordinates = TerrainRenderCoordinates::WorldXY;
-                    const auto query = ResolveTerrainRenderQuery(publication, request, nullptr,
+                    TerrainRenderQueryTimer ownershipTimer(statistics ? &statistics->m_resolutionMicroseconds : nullptr);
+                    owned->m_query = ResolveTerrainRenderQuery(publication, request, nullptr,
                         sources && sources->m_publication == publication ? sources : nullptr);
-                    assessRun(query.m_firstRun);
-                    for (const auto& run : query.m_additionalRuns) assessRun(run);
+                    assessRun(owned->m_query.m_firstRun);
+                    for (const auto& run : owned->m_query.m_additionalRuns) assessRun(run);
+                    // Bound retained run capacity as well as coordinates. Highly
+                    // fragmented ownership uses the existing resolver at gather;
+                    // retaining an O(samples) run array would exceed the added
+                    // per-request planning reservation on the supported grid.
+                    if (owned->m_query.m_additionalRuns.size() <= 64)
+                        retained = AZStd::move(owned);
                 }
             };
-            assessGather(m_regular, m_regularReadiness);
-            if (m_clodEnabled) assessGather(m_clod, m_clodReadiness);
+            assessGather(m_regular, m_regularReadiness, m_regularQuery);
+            if (m_clodEnabled) assessGather(m_clod, m_clodReadiness, m_clodQuery);
             m_ordinaryFallbacks |= m_regularReadiness.m_fallbackReasons | m_clodReadiness.m_fallbackReasons;
             m_acrossFramesFallbacks = m_ordinaryFallbacks;
             if (!m_area.m_retainedAcrossFrames) m_acrossFramesFallbacks |= bit(TerrainRenderFallback::AreaLifetimeUnproven);

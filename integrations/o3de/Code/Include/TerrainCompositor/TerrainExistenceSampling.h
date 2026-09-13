@@ -142,4 +142,6 @@ namespace TerrainCompositor
     //! by the terrain shaders instead of changing mesh topology.
     bool ComposeTerrainRenderGeometryExists(
         const AZ::Vector3& surfacePoint, bool baseExists, AZStd::span<const PreparedTerrainExistenceContributor> contributors);
+    bool ComposeTerrainRenderGeometryExists(const AZ::Vector3& position, bool baseExists,
+        AZStd::span<const PreparedTerrainExistenceContributor* const> contributors);
 } // namespace TerrainCompositor

@@ -1,4 +1,5 @@
 #include <TerrainCompositor/Components/TerrainCompositionGradientComponent.h>
+#include <TerrainCompositor/TerrainBatchCandidates.h>
 #include <TerrainCompositor/Internal/RetainedCompositionMemory.h>
 #include "../ComponentConfiguration.h"
 #include "../CompositionPreparation.h"
@@ -1118,8 +1119,24 @@ namespace TerrainCompositor
             if (positions.empty() || positions.size() != heights.size() || positions.size() != exists.size())
                 return;
 
-            AZStd::fill(heights.begin(), heights.end(), 0.0f);
-            const bool retainedHeights = source && source->SampleHeights(positions, heights);
+            ProceduralHillCounters counters;
+            bool retainedHeights;
+            {
+                AZ_PROFILE_SCOPE(AzRender, "Terrain::RenderQuery::SourceHeight");
+                TerrainRenderQueryTimer timer(s_renderQueryStatistics ? &s_renderQueryStatistics->m_sourceHeightMicroseconds : nullptr);
+                retainedHeights = source && source->SampleHeights(positions, heights, s_renderQueryStatistics ? &counters : nullptr);
+            }
+            if (s_renderQueryStatistics)
+            {
+                auto& stats = *s_renderQueryStatistics;
+                stats.m_kernelSamples += counters.m_samples;
+                stats.m_kernelCells += counters.m_cells;
+                stats.m_kernelCellHits += counters.m_cellHits;
+                stats.m_kernelSqrt += counters.m_sqrt;
+                stats.m_kernelPow += counters.m_pow;
+                stats.m_kernelScratchBytes = AZStd::max(stats.m_kernelScratchBytes, sizeof(ProceduralHillKernel::Scratch));
+            }
+            if (!retainedHeights) AZStd::fill(heights.begin(), heights.end(), 0.0f);
             const bool sampleHeights = retainedHeights || (!GradientSignal::GradientRequestBus::HasReentrantEBusUseThisThread() &&
                 GradientSignal::GradientRequestBus::HasHandlers(state->m_sourceEntityId) && CanSampleSource(*state));
             if (sampleHeights && !retainedHeights)
@@ -1129,8 +1146,8 @@ namespace TerrainCompositor
                     state->m_sourceEntityId, &GradientSignal::GradientRequestBus::Events::GetValues, positions, heights);
             }
             else if (!sampleHeights && s_renderQueryStatistics) s_renderQueryStatistics->m_heightSourceFallbackSamples += positions.size();
-            AZStd::fill(exists.begin(), exists.end(), true);
             const bool retainedExistence = source && source->SampleExistence(positions, exists);
+            if (!retainedExistence) AZStd::fill(exists.begin(), exists.end(), true);
             if (!retainedExistence && !TerrainExistenceSourceRequestBus::HasReentrantEBusUseThisThread() &&
                 TerrainExistenceSourceRequestBus::HasHandlers(state->m_sourceEntityId) && CanSampleSource(*state))
             {
@@ -1139,6 +1156,13 @@ namespace TerrainCompositor
                     state->m_sourceEntityId, &TerrainExistenceSourceRequestBus::Events::GetTerrainExistsFromList, positions, exists);
             }
             else if (!retainedExistence && s_renderQueryStatistics) s_renderQueryStatistics->m_existenceSourceFallbackSamples += positions.size();
+            AZ_PROFILE_SCOPE(AzRender, "Terrain::RenderQuery::Composition");
+            TerrainRenderQueryTimer compositionTimer(s_renderQueryStatistics ? &s_renderQueryStatistics->m_compositionMicroseconds : nullptr);
+            // No coordinate scan or candidate work on the procedural-only scene.
+            const auto bounds = state->m_heightContributors.empty() && state->m_existenceContributors.empty()
+                ? AZ::Aabb::CreateNull() : TerrainBatchBounds(positions);
+            const TerrainBatchCandidates<PreparedHeightContributor> heightsInBatch(state->m_heightContributors, bounds);
+            const TerrainBatchCandidates<PreparedTerrainExistenceContributor> existenceInBatch(state->m_existenceContributors, bounds);
             for (size_t index = 0; index < positions.size(); ++index)
             {
                 // Match the scalar unavailable/cyclic-source fallback: suppress
@@ -1146,10 +1170,16 @@ namespace TerrainCompositor
                 if (sampleHeights)
                 {
                     heights[index] =
-                        ComposeHeightContributors(positions[index], heights[index], state->m_regionMapping, state->m_heightContributors);
+                        heightsInBatch.m_full
+                        ? ComposeHeightContributors(positions[index], heights[index], state->m_regionMapping, state->m_heightContributors)
+                        : (heightsInBatch.m_records.empty() ? heights[index]
+                            : ComposeHeightContributors(positions[index], heights[index], state->m_regionMapping, heightsInBatch.Selected()));
                 }
                 heights[index] = float(state->m_regionMapping.m_minZ + double(heights[index]) * state->m_regionMapping.m_range);
-                exists[index] = ComposeTerrainRenderGeometryExists(positions[index], exists[index], state->m_existenceContributors);
+                if (existenceInBatch.m_full)
+                    exists[index] = ComposeTerrainRenderGeometryExists(positions[index], exists[index], state->m_existenceContributors);
+                else if (!existenceInBatch.m_records.empty())
+                    exists[index] = ComposeTerrainRenderGeometryExists(positions[index], exists[index], existenceInBatch.Selected());
             }
         };
         query.m_execute = [height = query.m_getHeight, existence = query.m_getTerrainExists, geometry = query.m_getGeometry](

@@ -12,7 +12,9 @@ namespace TerrainCompositor
     {
     public:
         explicit TerrainSectorSampleReuse(const TerrainSectorSamplingPlan& plan)
-            : m_regular(plan.m_regular), m_publication(plan.m_publication), m_sources(plan.m_sources) {}
+            : m_regularQuery(plan.m_regularQuery), m_clodQuery(plan.m_clodQuery),
+              m_regular(plan.m_regular), m_clod(plan.m_clod), m_publication(plan.m_publication), m_sources(plan.m_sources),
+              m_subsetSupported(Supported(plan)) {}
 
         static bool Supported(const TerrainSectorSamplingPlan& plan)
         {
@@ -36,16 +38,38 @@ namespace TerrainCompositor
         {
             TerrainRenderQueryTimer timer(statistics ? &statistics->m_reuseMicroseconds : nullptr);
             const bool first = m_heights.empty();
-            AZStd::vector<AZ::Vector3> positions;
-            positions.reserve(layout.Count());
+            auto& positions = m_positions;
+            positions.clear();
             if (first)
             {
                 // The regular grid is already the destination for raw samples.
                 // Avoid a second output, identity map and scatter just to retain it.
-                for (size_t y = 0; y < layout.Height(); ++y)
-                    for (size_t x = 0; x < layout.Width(); ++x)
-                        positions.push_back(layout.Position(x, y));
-                Evaluate(layout, positions, heights, existence, batch, true, statistics);
+                const bool owned = batch && m_regularQuery && m_regularQuery->m_query.m_sources == m_sources &&
+                    m_regularQuery->m_query.m_publication == m_publication &&
+                    layout.m_start == m_regular.m_start && layout.m_spacing == m_regular.m_spacing &&
+                    layout.Width() == m_regular.Width() && layout.Height() == m_regular.Height() && layout.m_sampler == m_regular.m_sampler;
+                AZStd::span<const AZ::Vector3> inputs;
+                if (owned && !m_regularQuery->m_positions.empty()) inputs = m_regularQuery->m_positions;
+                else
+                {
+                    TerrainRenderQueryTimer coordinateTimer(statistics ? &statistics->m_coordinateMicroseconds : nullptr);
+                    positions.reserve(layout.Count());
+                    for (size_t y = 0; y < layout.Height(); ++y)
+                        for (size_t x = 0; x < layout.Width(); ++x)
+                            positions.push_back(layout.Position(x, y));
+                    inputs = positions;
+                }
+                if (owned) RecordTerrainSectorOwnedQueryStatistics(m_regularQuery->m_query, statistics);
+                if (owned && !m_regularQuery->m_positions.empty())
+                    ExecuteTerrainRenderQuery(m_regularQuery->m_query, heights, existence, statistics);
+                else if (owned)
+                {
+                    auto resolved = m_regularQuery->m_query;
+                    resolved.m_request = layout.Query(inputs, true);
+                    resolved.m_request.m_coordinates = TerrainRenderCoordinates::WorldXY;
+                    ExecuteTerrainRenderQuery(resolved, heights, existence, statistics);
+                }
+                else Evaluate(layout, inputs, heights, existence, batch, true, statistics);
                 m_heights = heights;
                 m_existence.assign(existence.begin(), existence.end());
                 Record(statistics, layout.Count(), layout.Count(), positions.capacity() * sizeof(AZ::Vector3) + CacheBytes());
@@ -54,7 +78,10 @@ namespace TerrainCompositor
 
             // A rectangular grid has only Width + Height distinct axis values.
             // Resolve each once, still comparing the original float bits exactly.
-            AZStd::vector<size_t> columns(layout.Width()), rows(layout.Height()), missing;
+            auto& columns = m_columns;
+            auto& rows = m_rows;
+            auto& missing = m_missing;
+            columns.resize(layout.Width()); rows.resize(layout.Height()); missing.clear();
             for (size_t x = 0; x < layout.Width(); ++x) columns[x] = FindAxis(layout.Position(x, 0).GetX(), true);
             for (size_t y = 0; y < layout.Height(); ++y) rows[y] = FindAxis(layout.Position(0, y).GetY(), false);
             missing.reserve(layout.Count());
@@ -74,17 +101,22 @@ namespace TerrainCompositor
                         positions.push_back(layout.Position(x, y));
                     }
                 }
-            AZStd::vector<float> evaluated(positions.size(), 0.0f);
-            auto exists = std::make_unique<bool[]>(positions.size());
-            Evaluate(layout, positions, evaluated, { exists.get(), positions.size() }, batch, false, statistics);
+            auto& evaluated = m_evaluated;
+            evaluated.resize(positions.size());
+            if (positions.size() > m_existsCapacity)
+            {
+                m_exists = std::make_unique<bool[]>(positions.size());
+                m_existsCapacity = positions.size();
+            }
+            Evaluate(layout, positions, evaluated, { m_exists.get(), positions.size() }, batch, false, statistics);
             for (size_t i = 0; i < missing.size(); ++i)
             {
                 heights[missing[i]] = evaluated[i];
-                existence[missing[i]] = exists[i];
+                existence[missing[i]] = m_exists[i];
             }
             Record(statistics, layout.Count(), missing.size(),
                 (missing.capacity() + columns.capacity() + rows.capacity()) * sizeof(size_t) +
-                positions.capacity() * sizeof(AZ::Vector3) + evaluated.capacity() * sizeof(float) + positions.size() + CacheBytes());
+                positions.capacity() * sizeof(AZ::Vector3) + evaluated.capacity() * sizeof(float) + m_existsCapacity + CacheBytes());
         }
 
     private:
@@ -99,8 +131,25 @@ namespace TerrainCompositor
                 query.m_allowBatch = batch;
                 if (batch)
                 {
-                    const auto resolved = ResolveTerrainRenderQuery(m_publication, query, statistics, m_sources);
-                    ExecuteTerrainRenderQuery(resolved, heights, existence, statistics);
+                    // A subset of a certified pointwise single-owner CLOD run
+                    // keeps the same owners. Split ownership retains resolution.
+                    if (!fullGrid && m_subsetSupported && m_clodQuery &&
+                        m_clodQuery->m_query.m_sources == m_sources && m_clodQuery->m_query.m_publication == m_publication &&
+                        m_clodQuery->m_query.m_additionalRuns.empty() &&
+                        layout.m_start == m_clod.m_start && layout.m_spacing == m_clod.m_spacing &&
+                        layout.Width() == m_clod.Width() && layout.Height() == m_clod.Height() && layout.m_sampler == m_clod.m_sampler)
+                    {
+                        auto resolved = m_clodQuery->m_query;
+                        resolved.m_request = query;
+                        resolved.m_firstRun.m_count = positions.size();
+                        RecordTerrainSectorOwnedQueryStatistics(resolved, statistics);
+                        ExecuteTerrainRenderQuery(resolved, heights, existence, statistics);
+                    }
+                    else
+                    {
+                        const auto resolved = ResolveTerrainRenderQuery(m_publication, query, statistics, m_sources);
+                        ExecuteTerrainRenderQuery(resolved, heights, existence, statistics);
+                    }
                 }
                 else for (size_t i = 0; i < positions.size(); ++i)
                 {
@@ -110,7 +159,11 @@ namespace TerrainCompositor
                 }
             }
         }
-        size_t CacheBytes() const { return m_heights.capacity() * sizeof(float) + m_existence.capacity(); }
+        size_t CacheBytes() const
+        {
+            return m_heights.capacity() * sizeof(float) + m_existence.capacity() +
+                TerrainSectorOwnedQueryBytes(m_regularQuery) + TerrainSectorOwnedQueryBytes(m_clodQuery);
+        }
         static void Record(TerrainRenderQueryStatistics* statistics, size_t requested, size_t evaluated, size_t scratch)
         {
             if (statistics)
@@ -131,9 +184,16 @@ namespace TerrainCompositor
             while (lo < hi) { const size_t mid = lo + (hi - lo) / 2; if (at(mid) < value) lo = mid + 1; else hi = mid; }
             return lo < count && SameBits(at(lo), value) ? lo : size_t(-1);
         }
-        TerrainSectorSamplingLayout m_regular;
+        AZStd::vector<AZ::Vector3> m_positions;
+        AZStd::vector<size_t> m_columns, m_rows, m_missing;
+        AZStd::vector<float> m_evaluated;
+        std::unique_ptr<bool[]> m_exists;
+        size_t m_existsCapacity = 0;
+        std::shared_ptr<const TerrainSectorOwnedQuery> m_regularQuery, m_clodQuery;
+        TerrainSectorSamplingLayout m_regular, m_clod;
         TerrainMeshCutoutRenderSnapshotPtr m_publication;
         TerrainRenderQuerySourcesPtr m_sources;
+        bool m_subsetSupported = false;
         AZStd::vector<float> m_heights;
         AZStd::vector<uint8_t> m_existence;
     };
