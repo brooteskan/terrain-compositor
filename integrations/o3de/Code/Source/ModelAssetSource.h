@@ -1,5 +1,9 @@
 #pragma once
 
+#include "AssetSource.h"
+#include <AzCore/Jobs/JobFunction.h>
+#include <TerrainCompositor/Internal/AssetPreparation.h>
+
 #include <TerrainCompositor/HeightmapControlThread.h>
 #include <Atom/Feature/Mesh/ModelReloaderSystemInterface.h>
 #include <Atom/RPI.Reflect/Model/ModelAsset.h>
@@ -12,12 +16,7 @@
 
 namespace TerrainCompositor::Internal
 {
-    inline AZ::Data::AssetInfo GetAssetInfo(const AZ::Data::AssetId& id)
-    {
-        AZ::Data::AssetInfo info;
-        AZ::Data::AssetCatalogRequestBus::BroadcastResult(info, &AZ::Data::AssetCatalogRequestBus::Events::GetAssetInfoById, id);
-        return info;
-    }
+    enum class PreparationTicketTiming { BeforeLoading, AfterLoading };
 
     template<class Source, class Status>
     class ModelAssetSource
@@ -62,6 +61,53 @@ namespace TerrainCompositor::Internal
         HeightmapControlThread m_controlThread;
 
     protected:
+        // Keep each role's historical ticket timing visible. Loading can pump the
+        // completion queue or accept another ready event before this call resumes.
+        template<class Prepare>
+        void PrepareModel(AZ::u64 generation, const AZ::Data::Asset<AZ::RPI::ModelAsset>& model,
+            PreparationTicketTiming timing, AZ::u64& ticketCounter, Prepare prepare)
+        {
+            if (!m_controlThread.Check() || generation != m_generation || model.GetId() != m_assetId || !model.IsReady())
+                return;
+            m_model = model;
+            AZ::u64 ticket = 0;
+            const auto advance = [&] { ticket = ++ticketCounter; m_latestPreparationTicket = ticket; };
+            if (timing == PreparationTicketTiming::BeforeLoading) advance();
+            Self().Publish(Status::Loading);
+            if (timing == PreparationTicketTiming::AfterLoading) advance();
+            const auto weak = m_weakSelf;
+            AZ::Job* job = AZ::CreateJobFunction([weak, generation, ticket, model, prepare]() mutable
+            {
+                auto complete = prepare(model);
+                AZ::SystemTickBus::QueueFunction([weak, generation, ticket, model, complete = AZStd::move(complete)]() mutable
+                {
+                    if (auto source = weak.lock(); source && source->m_active &&
+                        IsAssetPreparationCurrent(generation, ticket, source->m_generation, source->m_latestPreparationTicket) &&
+                        source->m_model.GetId() == model.GetId())
+                    {
+                        complete(*source);
+                    }
+                });
+            }, true);
+            job->Start();
+        }
+
+        template<class Data, class MakeSnapshot>
+        void PublishPreparedSnapshot(const Data& data, AZ::u64& revisionCounter, MakeSnapshot makeSnapshot)
+        {
+            if (!m_active) return;
+            const AZ::u64 revision = data ? data->m_revision : ++revisionCounter;
+            Self().m_snapshot = makeSnapshot(revision);
+            const auto snapshot = Self().m_snapshot;
+            Self().m_changed.Signal(snapshot);
+        }
+
+        void QueueFailure()
+        {
+            // Retire ready callbacks and completions before the queued error notification.
+            QueueStatus(Status::Error, ++m_generation);
+        }
+
         void QueueStatus(Status status, AZ::u64 generation)
         {
             const auto weak = m_weakSelf;
@@ -79,6 +125,7 @@ namespace TerrainCompositor::Internal
         AZ::Data::Asset<AZ::RPI::ModelAsset> m_model;
         AZStd::atomic<AZ::u64> m_generation = 0;
         bool m_active = false;
+        AZ::u64 m_latestPreparationTicket = 0;
 
     private:
         Source& Self() { return *static_cast<Source*>(this); }
@@ -201,23 +248,5 @@ namespace TerrainCompositor::Internal
         AZ::Render::ModelReloadedEvent::Handler m_modelReloadedHandler;
     };
 
-    template<class Source, class Sources>
-    AZStd::shared_ptr<Source> AcquireModelSource(Sources& sources, const AZ::Data::AssetId& assetId)
-    {
-        const auto info = GetAssetInfo(assetId);
-        const AZ::Data::AssetId canonical = info.m_assetId.IsValid() ? info.m_assetId : assetId;
-        for (auto iterator = sources.begin(); iterator != sources.end();)
-        {
-            if (iterator->second.expired())
-                iterator = sources.erase(iterator);
-            else
-                ++iterator;
-        }
-        if (auto source = sources[canonical].lock())
-            return source;
-        auto source = AZStd::make_shared<Source>(canonical);
-        sources[canonical] = source;
-        source->Start();
-        return source;
-    }
+
 }

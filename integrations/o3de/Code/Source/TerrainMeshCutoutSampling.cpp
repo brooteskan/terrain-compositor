@@ -1,3 +1,4 @@
+#include "MeshCutoutTraversal.h"
 #include <TerrainCompositor/TerrainMeshCutoutSampling.h>
 
 #include <algorithm>
@@ -117,57 +118,22 @@ namespace TerrainCompositor
         bool IsWithinDistance(const AZ::Vector3& point, const TerrainMeshCutoutData& data, double maximumDistance)
         {
             const double maximumSquared = maximumDistance * maximumDistance;
-            AZ::u32 nodeIndex = 0;
-            while (nodeIndex < data.m_bvh.size())
-            {
-                const auto& node = data.m_bvh[nodeIndex];
-                if (DistanceSquaredToAabb(point, node.m_bounds) > maximumSquared)
-                {
-                    nodeIndex = node.m_escapeIndex;
-                    continue;
-                }
-                if (node.m_triangleCount == 0)
-                {
-                    ++nodeIndex;
-                    continue;
-                }
-                for (AZ::u32 offset = 0; offset < node.m_triangleCount; ++offset)
-                {
-                    if (DistanceSquaredToTriangle(point, data.m_triangles[node.m_firstTriangle + offset]) <= maximumSquared)
-                    {
-                        return true;
-                    }
-                }
-                nodeIndex = node.m_escapeIndex;
-            }
-            return false;
+            return Internal::VisitMeshCutoutTriangles(data,
+                [&](const AZ::Aabb& bounds) { return !(DistanceSquaredToAabb(point, bounds) > maximumSquared); },
+                [&](AZ::u32 triangle) { return DistanceSquaredToTriangle(point, data.m_triangles[triangle]) <= maximumSquared; });
         }
 
         bool IsInside(const AZ::Vector3& point, const TerrainMeshCutoutData& data)
         {
             const AZ::Vector3 direction = AZ::Vector3(1.0f, 0.37139067f, 0.19792317f).GetNormalized();
             size_t intersections = 0;
-            AZ::u32 nodeIndex = 0;
-            while (nodeIndex < data.m_bvh.size())
-            {
-                const auto& node = data.m_bvh[nodeIndex];
-                if (!RayIntersectsAabb(point, direction, node.m_bounds))
+            Internal::VisitMeshCutoutTriangles(data,
+                [&](const AZ::Aabb& bounds) { return RayIntersectsAabb(point, direction, bounds); },
+                [&](AZ::u32 triangle)
                 {
-                    nodeIndex = node.m_escapeIndex;
-                    continue;
-                }
-                if (node.m_triangleCount == 0)
-                {
-                    ++nodeIndex;
-                    continue;
-                }
-                for (AZ::u32 offset = 0; offset < node.m_triangleCount; ++offset)
-                {
-                    intersections += RayIntersectsTriangle(
-                        point, direction, data.m_triangles[node.m_firstTriangle + offset]);
-                }
-                nodeIndex = node.m_escapeIndex;
-            }
+                    intersections += RayIntersectsTriangle(point, direction, data.m_triangles[triangle]);
+                    return false; // Parity requires every hit, including after the first intersection.
+                });
             return (intersections & 1) != 0;
         }
     } // namespace

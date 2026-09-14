@@ -2,6 +2,7 @@ set(FILES
     Code/Source/Editor/TerrainCompositorEditorModule.cpp
     Code/Source/Editor/EditorHeightmapStampComponent.h
     Code/Source/Editor/EditorHeightmapStampComponent.cpp
+    Code/Source/Editor/EditorConfiguration.h
     Code/Source/Editor/EditorPreviewStatus.h
     Code/Source/Editor/EditorTerrainCompositionGradientComponent.h
     Code/Source/Editor/EditorTerrainCompositionGradientComponent.cpp

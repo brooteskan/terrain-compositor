@@ -1,5 +1,6 @@
 #include "EditorTerrainCompositionSurfaceProviderComponent.h"
 #include "../ComponentConfiguration.h"
+#include "EditorConfiguration.h"
 
 #include <AzCore/Serialization/EditContext.h>
 #include <AzCore/Serialization/SerializeContext.h>
@@ -9,33 +10,12 @@ namespace TerrainCompositor
 {
     void EditorTerrainCompositionSurfaceProviderComponent::Reflect(AZ::ReflectContext* context)
     {
-        if (auto* serialize = azrtti_cast<AZ::SerializeContext*>(context))
-        {
-            if (!serialize->IsRemovingReflection())
-            {
-                TerrainCompositionSurfaceProviderConfig::Reflect(context);
-            }
-            serialize->Class<EditorTerrainCompositionSurfaceProviderComponent, BaseClass>()
-                ->Version(1)
-                ->Field("Configuration", &EditorTerrainCompositionSurfaceProviderComponent::m_configuration);
-            if (auto* edit = serialize->GetEditContext())
-            {
-                edit->Class<EditorTerrainCompositionSurfaceProviderComponent>("Terrain Composition Surface Provider",
-                    "Provides the composition's categorical surface weights on this Terrain Layer Spawner region.")
-                    ->ClassElement(AZ::Edit::ClassElements::EditorData, "")
-                    ->Attribute(AZ::Edit::Attributes::Category, "Terrain")
-                    ->Attribute(AZ::Edit::Attributes::AppearsInAddComponentMenu, AZ_CRC_CE("Game"))
-                    ->Attribute(AZ::Edit::Attributes::AutoExpand, true)
-                    ->DataElement(AZ::Edit::UIHandlers::Default,
-                        &EditorTerrainCompositionSurfaceProviderComponent::m_configuration,
-                        "Configuration", "Composition to query for the region's surface weights.")
-                    ->Attribute(AZ::Edit::Attributes::ChangeNotify,
-                        &EditorTerrainCompositionSurfaceProviderComponent::OnConfigurationChanged)
-                    ->UIElement(AZ::Edit::UIHandlers::Label, "Status", "Read-only provider status.")
-                    ->Attribute(AZ::Edit::Attributes::ValueText,
-                        &EditorTerrainCompositionSurfaceProviderComponent::GetStatusText);
-            }
-        }
+        Internal::ReflectEditorConfiguration<EditorTerrainCompositionSurfaceProviderComponent, BaseClass>(context,
+            &EditorTerrainCompositionSurfaceProviderComponent::m_configuration, &EditorTerrainCompositionSurfaceProviderComponent::OnConfigurationChanged,
+            &EditorTerrainCompositionSurfaceProviderComponent::GetStatusText, "Terrain Composition Surface Provider",
+            "Provides the composition's categorical surface weights on this Terrain Layer Spawner region.",
+            "Composition to query for the region's surface weights.",
+            "Read-only provider status.");
     }
 
     void EditorTerrainCompositionSurfaceProviderComponent::GetProvidedServices(
@@ -75,11 +55,7 @@ namespace TerrainCompositor
 
     bool EditorTerrainCompositionSurfaceProviderComponent::ReadInConfig(const AZ::ComponentConfig* configuration)
     {
-        return Internal::ReadConfiguration<TerrainCompositionSurfaceProviderConfig>(configuration, [this](const auto& value)
-        {
-            m_configuration = value;
-            OnConfigurationChanged();
-        });
+        return Internal::ReadConfiguration(configuration, m_configuration, [this] { OnConfigurationChanged(); });
     }
 
     bool EditorTerrainCompositionSurfaceProviderComponent::WriteOutConfig(AZ::ComponentConfig* configuration) const
@@ -89,8 +65,7 @@ namespace TerrainCompositor
 
     AZ::u32 EditorTerrainCompositionSurfaceProviderComponent::OnConfigurationChanged()
     {
-        m_preview.Refresh(m_configuration);
-        return AZ::Edit::PropertyRefreshLevels::AttributesAndValues;
+        return Internal::RefreshEditorConfiguration(m_preview, m_configuration);
     }
 
 } // namespace TerrainCompositor

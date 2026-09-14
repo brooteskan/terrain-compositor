@@ -7,10 +7,58 @@
 #include <TerrainCompositor/Internal/PreparedComposition.h>
 #include <TerrainCompositor/SurfaceStampSampling.h>
 #include "StampMath.h"
+#include "ImageSampling.h"
+#include <cstring>
 #include <TerrainCompositor/TerrainDetailMaterial.h>
 
 namespace TerrainCompositor
 {
+    TEST(ImageSamplingTests, BilinearMatchesIndependentRowsAtEdgesAndDegenerateDimensions)
+    {
+        const float values[] = { 0.13f, 0.79f, 0.23f, 0.97f, 0.37f, 0.61f };
+        for (AZ::u32 width : { 1u, 2u, 3u })
+            for (AZ::u32 height : { 1u, 2u })
+                for (double u : { -0.5, 0.0, 0.125, 0.5, 0.999999999, 1.0, 1.5 })
+                    for (double v : { -0.5, 0.0, 0.125, 0.5, 0.999999999, 1.0, 1.5 })
+                    {
+                        // Frozen pre-extraction arithmetic, independent of the production coordinates.
+                        const double x = std::clamp(u, 0.0, 1.0) * (width - 1);
+                        const double y = std::clamp(1.0 - v, 0.0, 1.0) * (height - 1);
+                        const size_t x0 = size_t(x), y0 = size_t(y);
+                        const size_t x1 = std::min(x0 + 1, size_t(width - 1));
+                        const size_t y1 = std::min(y0 + 1, size_t(height - 1));
+                        const double tx = x - double(x0), ty = y - double(y0);
+                        const double top = values[y0 * width + x0] * (1.0 - tx) + values[y0 * width + x1] * tx;
+                        const double bottom = values[y1 * width + x0] * (1.0 - tx) + values[y1 * width + x1] * tx;
+                        const double expected = top * (1.0 - ty) + bottom * ty;
+                        const double actual = Internal::SampleBilinear(values, width, height, u, v);
+                        EXPECT_EQ(std::memcmp(&expected, &actual, sizeof(double)), 0);
+                    }
+    }
+
+    TEST(StampMathTests, TransformedBoundsContainCornersAndRejectOverflow)
+    {
+        const auto local = AZ::Aabb::CreateFromMinMax(AZ::Vector3(-7, -3, 0), AZ::Vector3(2, 5, 0));
+        for (double yaw : { -3.0, -0.1, 0.0, 0.7, 3.0 })
+            for (double scale : { 0.001, 1.0, 1000000.0 })
+            {
+                const auto bounds = Internal::TransformStampXYBounds(local, 0.123, -456.789, scale, std::cos(yaw), std::sin(yaw));
+                ASSERT_TRUE(bounds.IsRepresentable());
+                const auto rounded = bounds.ToAabb();
+                for (double x : { -7.0, 2.0 })
+                    for (double y : { -3.0, 5.0 })
+                    {
+                        const double worldX = 0.123 + scale * (std::cos(yaw) * x - std::sin(yaw) * y);
+                        const double worldY = -456.789 + scale * (std::sin(yaw) * x + std::cos(yaw) * y);
+                        EXPECT_LE(rounded.GetMin().GetX(), worldX);
+                        EXPECT_GE(rounded.GetMax().GetX(), worldX);
+                        EXPECT_LE(rounded.GetMin().GetY(), worldY);
+                        EXPECT_GE(rounded.GetMax().GetY(), worldY);
+                    }
+            }
+        EXPECT_FALSE(Internal::TransformStampXYBounds(local, 0, 0, double(std::numeric_limits<float>::max()), 1, 0).IsRepresentable());
+    }
+
     TEST(TerrainDetailMaterialTests, UniformPixelsRespectRegionOrderMappingsAndEveryPixelByte)
     {
         const auto box = [](float x0, float y0, float x1, float y1)

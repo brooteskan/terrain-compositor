@@ -248,8 +248,7 @@ namespace TerrainCompositor
                         channelSupportsGrid(cap.m_height) && channelSupportsGrid(cap.m_existence) &&
                         AZStd::all_of(corners.begin(), corners.end(), [&](const auto& p)
                         {
-                            return p.GetX() >= bounds.GetMin().GetX() && p.GetX() <= bounds.GetMax().GetX() &&
-                                p.GetY() >= bounds.GetMin().GetY() && p.GetY() <= bounds.GetMax().GetY();
+                            return TerrainRenderRegionContains(bounds, p);
                         }))
                     {
                         auto request = layout.Query(corners, false);

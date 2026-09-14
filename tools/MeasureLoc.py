@@ -40,7 +40,10 @@ def measure(revision, worktree):
     if worktree:
         paths = git("ls-files", "-z", "--cached", "--others", "--exclude-standard")
     else:
-        paths = git("ls-tree", "-rz", "--name-only", commit)
+        # Gitlinks identify dependency commits, not first-party blobs. Trying to
+        # read one with `git show commit:path` fails on recursive checkouts.
+        entries = git("ls-tree", "-rz", commit).decode().split("\0")
+        paths = "\0".join(entry.split("\t", 1)[1] for entry in entries if entry and entry.split()[1] == "blob").encode()
     files = []
     binary = []
     for path in sorted(set(paths.decode().strip("\0").split("\0"))):

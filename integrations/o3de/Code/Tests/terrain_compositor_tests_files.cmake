@@ -1,4 +1,5 @@
 set(FILES
+    ProceduralHillReference.h
     InternalHelperTests.cpp
     ImageRegistrationStateTests.cpp
     MeshRegistrationStateTests.cpp

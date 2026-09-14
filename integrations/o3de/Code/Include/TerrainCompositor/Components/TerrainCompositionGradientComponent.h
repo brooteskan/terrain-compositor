@@ -151,6 +151,8 @@ namespace TerrainCompositor
             const AZStd::vector<AZ::Aabb>& surfaceRegions);
         QueryStatePtr GetQueryState() const;
         static bool CanSampleSource(const QueryState& state);
+        static void GetNormalizedHeights(
+            const QueryState& state, AZStd::span<const AZ::Vector3> positions, AZStd::span<float> outValues);
         static float GetNormalizedHeight(const QueryState& state, const AZ::Vector3& position,
             const TerrainProceduralSnapshotPtr& source = {});
         static TerrainRenderGeometryQuery CreateRenderGeometryQuery(QueryStatePtr state,
@@ -199,6 +201,7 @@ namespace TerrainCompositor
         AZ::Aabb GetTargetRegionBounds() const override;
 
         void OnShapeChanged(LmbrCentral::ShapeComponentNotifications::ShapeChangeReasons reason) override;
+        void OnRegionActivationChanged(const AZ::EntityId& entityId, bool deactivating);
         void OnEntityActivated(const AZ::EntityId& entityId) override;
         void OnEntityDeactivated(const AZ::EntityId& entityId) override;
 

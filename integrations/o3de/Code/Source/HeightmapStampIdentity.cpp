@@ -28,6 +28,18 @@ namespace TerrainCompositor
         return key;
     }
 
+    void AssignNewStampOrderingIdentity(AZ::Uuid& id, AZStd::string& key)
+    {
+        id = AZ::Uuid::CreateRandom();
+        key = MakeUuidStampOrderKey(id);
+    }
+
+    AZStd::string GetRuntimeStampOrderKey(const AZ::Uuid& id, const AZStd::string& key)
+    {
+        if (!key.empty()) return IsValidStampOrderKey(key) ? key : AZStd::string{};
+        return MakeUuidStampOrderKey(id);
+    }
+
     AZStd::string MakeUuidStampOrderKey(const AZ::Uuid& id)
     {
         return id.IsNull() ? AZStd::string{} : "uuid-v1:" + id.ToString<AZStd::string>(false, false);
@@ -87,6 +99,11 @@ namespace TerrainCompositor
             }
         }
         return false;
+    }
+
+    bool StampPriorityLess(AZ::s32 leftPriority, AZStd::string_view leftKey, AZ::s32 rightPriority, AZStd::string_view rightKey)
+    {
+        return leftPriority != rightPriority ? leftPriority < rightPriority : StampOrderKeyLess(leftKey, rightKey);
     }
 
     bool StampOrderKeyLess(AZStd::string_view left, AZStd::string_view right)

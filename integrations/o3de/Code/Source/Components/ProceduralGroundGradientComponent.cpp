@@ -24,77 +24,6 @@ namespace TerrainCompositor
         "Cache hill cells and reject distant hills. Disable to compare against the previous zero-profile-pruned kernel.");
     namespace
     {
-        constexpr AZ::u64 NoiseSeed = 0x9E3779B97F4A7C15ULL;
-        constexpr float HillRadiusInCells = 0.85f;
-
-        float SmoothCurve(float value)
-        {
-            const float clampedValue = AZ::GetClamp(value, 0.0f, 1.0f);
-            return clampedValue * clampedValue * (3.0f - (2.0f * clampedValue));
-        }
-
-        AZ::u64 MixBits(AZ::u64 value)
-        {
-            value ^= value >> 30;
-            value *= 0xBF58476D1CE4E5B9ULL;
-            value ^= value >> 27;
-            value *= 0x94D049BB133111EBULL;
-            value ^= value >> 31;
-            return value;
-        }
-
-        float CoordinateValue(AZ::s64 x, AZ::s64 y, AZ::u64 salt)
-        {
-            const AZ::u64 xBits = static_cast<AZ::u64>(x);
-            const AZ::u64 yBits = static_cast<AZ::u64>(y);
-            const AZ::u64 hash = MixBits(NoiseSeed ^ salt ^ MixBits(xBits) ^ (MixBits(yBits) << 1));
-            constexpr float HashScale = 1.0f / static_cast<float>(0x00FFFFFFu);
-            return static_cast<float>(hash & 0x00FFFFFFu) * HashScale;
-        }
-
-        float EvaluateHillField(float x, float y, float density, float riseFrequency, bool pruneZeroProfiles)
-        {
-            const float cellX = x * density;
-            const float cellY = y * density;
-            const AZ::s64 baseCellX = static_cast<AZ::s64>(std::floor(cellX));
-            const AZ::s64 baseCellY = static_cast<AZ::s64>(std::floor(cellY));
-            float blendedBumps = 0.0f;
-            float blendedDepressions = 0.0f;
-
-            // Each cell contains exactly one deterministically jittered hill center. Searching neighboring cells keeps the field
-            // continuous at cell boundaries while density remains a direct hills-per-meter spacing control.
-            for (AZ::s64 offsetY = -1; offsetY <= 1; ++offsetY)
-            {
-                for (AZ::s64 offsetX = -1; offsetX <= 1; ++offsetX)
-                {
-                    const AZ::s64 hillCellX = baseCellX + offsetX;
-                    const AZ::s64 hillCellY = baseCellY + offsetY;
-                    const float hillCenterX = static_cast<float>(hillCellX) +
-                        (0.15f + (CoordinateValue(hillCellX, hillCellY, 0xA24BAED4963EE407ULL) * 0.7f));
-                    const float hillCenterY = static_cast<float>(hillCellY) +
-                        (0.15f + (CoordinateValue(hillCellX, hillCellY, 0x9FB21C651E98DF25ULL) * 0.7f));
-                    const float deltaX = cellX - hillCenterX;
-                    const float deltaY = cellY - hillCenterY;
-                    const float normalizedDistance = std::sqrt((deltaX * deltaX) + (deltaY * deltaY)) / HillRadiusInCells;
-                    const float baseProfile = SmoothCurve(1.0f - normalizedDistance);
-                    // Frequency is clamped positive. pow(+0, frequency) is +0,
-                    // and adding a zero-weight feature leaves either union intact.
-                    // Preserve the exact distance/profile operations at the rim.
-                    if (pruneZeroProfiles && baseProfile == 0.0f) continue;
-                    const float hillProfile = std::pow(baseProfile, riseFrequency);
-
-                    // Randomly assign each feature as a bump or depression, then combine each group as a smooth bounded union.
-                    // Subtracting the two smooth fields also gives smooth transitions where opposite feature types overlap.
-                    const bool isDepression =
-                        CoordinateValue(hillCellX, hillCellY, 0xD1B54A32D192ED03ULL) < 0.5f;
-                    float& blendedFeature = isDepression ? blendedDepressions : blendedBumps;
-                    blendedFeature += (1.0f - blendedFeature) * hillProfile;
-                }
-            }
-
-            return blendedBumps - blendedDepressions;
-        }
-
         bool HoleSamplerEqual(const GradientSignal::GradientSampler& a, const GradientSignal::GradientSampler& b)
         {
             return a.m_gradientId == b.m_gradientId && a.m_opacity == b.m_opacity &&
@@ -467,11 +396,7 @@ namespace TerrainCompositor
 
     bool ProceduralGroundGradientComponent::ReadInConfig(const AZ::ComponentConfig* baseConfig)
     {
-        return Internal::ReadConfiguration<ProceduralGroundGradientConfig>(baseConfig, [this](const auto& value)
-        {
-            m_configuration = value;
-            OnConfigurationChanged();
-        });
+        return Internal::ReadConfiguration(baseConfig, m_configuration, [this] { OnConfigurationChanged(); });
     }
 
     bool ProceduralGroundGradientComponent::WriteOutConfig(AZ::ComponentConfig* outBaseConfig) const
@@ -490,7 +415,7 @@ namespace TerrainCompositor
         }
 
         const float riseFrequency = AZ::GetClamp(configuration.m_frequency, 0.1f, 16.0f);
-        const float hillAmount = EvaluateHillField(position.GetX(), position.GetY(), density, riseFrequency, pruneZeroProfiles);
+        const float hillAmount = ProceduralHillKernel::EvaluateReferenceField(position.GetX(), position.GetY(), density, riseFrequency, pruneZeroProfiles);
         const float normalizedAmplitude = amplitudeMeters / TerrainHeightRangeMeters;
         return AZ::GetClamp(NormalizedGroundHeight + (hillAmount * normalizedAmplitude), 0.0f, 1.0f);
     }

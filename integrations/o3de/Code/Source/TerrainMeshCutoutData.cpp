@@ -1,3 +1,4 @@
+#include "MeshCutoutTraversal.h"
 #include <TerrainCompositor/TerrainMeshCutoutData.h>
 
 #include <AzCore/Casting/numeric_cast.h>
@@ -214,30 +215,10 @@ namespace TerrainCompositor
             for (AZ::u32 triangleIndex = 0; triangleIndex < data.m_triangles.size(); ++triangleIndex)
             {
                 const auto& triangle = data.m_triangles[triangleIndex];
-                AZ::u32 nodeIndex = 0;
-                while (nodeIndex < data.m_bvh.size())
-                {
-                    const auto& node = data.m_bvh[nodeIndex];
-                    if (!node.m_bounds.Overlaps(triangle.m_bounds))
-                    {
-                        nodeIndex = node.m_escapeIndex;
-                        continue;
-                    }
-                    if (node.m_triangleCount == 0)
-                    {
-                        ++nodeIndex;
-                        continue;
-                    }
-                    for (AZ::u32 offset = 0; offset < node.m_triangleCount; ++offset)
-                    {
-                        const AZ::u32 candidate = node.m_firstTriangle + offset;
-                        if (candidate > triangleIndex && TrianglesIntersect(triangle, data.m_triangles[candidate]))
-                        {
-                            return true;
-                        }
-                    }
-                    nodeIndex = node.m_escapeIndex;
-                }
+                if (Internal::VisitMeshCutoutTriangles(data,
+                    [&](const AZ::Aabb& bounds) { return bounds.Overlaps(triangle.m_bounds); },
+                    [&](AZ::u32 candidate) { return candidate > triangleIndex && TrianglesIntersect(triangle, data.m_triangles[candidate]); }))
+                    return true;
             }
             return false;
         }

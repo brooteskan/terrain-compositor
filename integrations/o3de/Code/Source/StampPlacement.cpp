@@ -7,12 +7,6 @@
 
 namespace TerrainCompositor
 {
-    namespace
-    {
-        constexpr double RotationTolerance = 1.0e-4;
-
-    } // namespace
-
     HeightmapStampValidation PrepareStampPlacement(
         const HeightmapStampRegistrationData& registration, bool hasNonUniformScale, PreparedStampPlacement& result)
     {
@@ -49,26 +43,11 @@ namespace TerrainCompositor
         {
             return HeightmapStampValidation::UniformScale;
         }
-        const auto& rotation = transform.GetRotation();
-        const double x = rotation.GetX();
-        const double y = rotation.GetY();
-        const double z = rotation.GetZ();
-        const double w = rotation.GetW();
-        const double lengthSquared = x * x + y * y + z * z + w * w;
-        // Test the effective world orientation, not local Euler angles. Accept only numerical drift from yaw.
-        if (std::abs(lengthSquared - 1.0) > RotationTolerance)
+        double yaw;
+        if (!Internal::TryGetStampYaw(transform.GetRotation(), yaw))
         {
             return HeightmapStampValidation::Rotation;
         }
-        // Normalize only accepted rounding drift, not arbitrary malformed quaternions.
-        if (std::abs(2.0 * (x * z + w * y) / lengthSquared) > RotationTolerance ||
-            std::abs(2.0 * (y * z - w * x) / lengthSquared) > RotationTolerance ||
-            2.0 * (x * x + y * y) / lengthSquared > RotationTolerance)
-        {
-            return HeightmapStampValidation::Rotation;
-        }
-
-        const double yaw = std::atan2(2.0 * (x * y + w * z), lengthSquared - 2.0 * (y * y + z * z));
         PreparedStampPlacement prepared;
         prepared.m_centerX = transform.GetTranslation().GetX();
         prepared.m_centerY = transform.GetTranslation().GetY();

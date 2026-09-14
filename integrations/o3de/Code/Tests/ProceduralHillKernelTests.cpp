@@ -1,3 +1,4 @@
+#include "ProceduralHillReference.h"
 #include "ProceduralSnapshotTestSupport.h"
 #include <TerrainCompositor/TerrainBatchCandidates.h>
 #include <TerrainCompositor/TerrainSectorSampleReuse.h>
@@ -18,7 +19,7 @@ namespace TerrainCompositor
             for (int i = 0; i < 1025; ++i)
             {
                 const AZ::Vector3 point(float(i % 31) * 0.1329f - 2.125f, float(i / 31) * 0.771f - 3.3f, 0);
-                const float expected = ProceduralGroundGradientComponent::EvaluateReference(point, config);
+                const float expected = TestSupport::HillReference::Evaluate(point, config);
                 const float actual = kernel.Sample(point.GetX(), point.GetY(), scratch);
                 ASSERT_EQ(std::memcmp(&expected, &actual, sizeof(float)), 0);
             }
@@ -41,7 +42,7 @@ namespace TerrainCompositor
                     ProceduralHillKernel::Scratch b;
                     for (const auto& p : positions)
                     {
-                        const float expected = ProceduralGroundGradientComponent::EvaluateReference(p, config);
+                        const float expected = TestSupport::HillReference::Evaluate(p, config);
                         const float actual = cached.Sample(p.GetX(), p.GetY(), b);
                         ASSERT_EQ(std::memcmp(&expected, &actual, sizeof(float)), 0)
                             << density << "," << frequency << "," << amplitude << "," << p.GetX();

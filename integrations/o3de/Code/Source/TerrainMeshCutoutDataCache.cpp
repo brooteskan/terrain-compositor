@@ -61,27 +61,16 @@ namespace TerrainCompositor
             TerrainMeshCutoutValidation validation = TerrainMeshCutoutValidation::Valid,
             TerrainMeshCutoutDataPtr data = {})
         {
-            if (!m_active)
-                return;
-            const AZ::u64 revision = data ? data->m_revision : ++s_nextCutoutRevision;
-            m_snapshot = { status, validation, revision, AZStd::move(data), m_assetId };
-            const auto snapshot = m_snapshot;
-            m_changed.Signal(snapshot);
+            PublishPreparedSnapshot(data, s_nextCutoutRevision, [&](AZ::u64 revision)
+            {
+                return TerrainMeshCutoutDataSnapshot{ status, validation, revision, AZStd::move(data), m_assetId };
+            });
         }
 
         void OnReady(AZ::u64 generation, const AZ::Data::Asset<AZ::RPI::ModelAsset>& model)
         {
-            if (!m_controlThread.Check() || generation != m_generation || model.GetId() != m_assetId || !model.IsReady())
-            {
-                return;
-            }
-            m_model = model;
-            // Retire older preparations before Loading subscribers can reenter.
-            const AZ::u64 preparationTicket = ++m_latestPreparationTicket;
-            Publish(TerrainMeshCutoutDataStatus::Loading);
-            const auto weak = m_weakSelf;
-            AZ::Job* job = AZ::CreateJobFunction(
-                [weak, generation, preparationTicket, model]() mutable
+            PrepareModel(generation, model, Internal::PreparationTicketTiming::BeforeLoading, m_latestPreparationTicket,
+                [](const AZ::Data::Asset<AZ::RPI::ModelAsset>& model)
                 {
                     AZStd::vector<AZ::Vector3> positions;
                     AZStd::vector<AZ::u32> indices;
@@ -92,36 +81,21 @@ namespace TerrainCompositor
                     {
                         validation = BuildTerrainMeshCutoutData(positions, indices, *data);
                     }
-                    AZ::SystemTickBus::QueueFunction(
-                        [weak, generation, preparationTicket, model, data, validation]()
+                    return [data, validation](TerrainMeshCutoutDataSource& source) mutable
+                    {
+                        if (validation == TerrainMeshCutoutValidation::Valid)
                         {
-                            if (auto source = weak.lock(); source && source->m_active && source->m_generation == generation &&
-                                source->m_latestPreparationTicket == preparationTicket &&
-                                source->m_model.GetId() == model.GetId())
-                            {
-                                if (validation == TerrainMeshCutoutValidation::Valid)
-                                {
-                                    data->m_revision = ++s_nextCutoutRevision;
-                                    source->Publish(TerrainMeshCutoutDataStatus::Ready, validation, data);
-                                }
-                                else
-                                {
-                                    source->Publish(TerrainMeshCutoutDataStatus::InvalidGeometry, validation);
-                                }
-                            }
-                        });
-                },
-                true);
-            job->Start();
+                            data->m_revision = ++s_nextCutoutRevision;
+                            source.Publish(TerrainMeshCutoutDataStatus::Ready, validation, data);
+                        }
+                        else
+                        {
+                            source.Publish(TerrainMeshCutoutDataStatus::InvalidGeometry, validation);
+                        }
+                    };
+                });
         }
 
-        void QueueFailure()
-        {
-            // Retire queued ready callbacks and completions before the control thread publishes the error.
-            QueueStatus(TerrainMeshCutoutDataStatus::Error, ++m_generation);
-        }
-
-        AZ::u64 m_latestPreparationTicket = 0;
     };
 
     TerrainMeshCutoutDataCache::TerrainMeshCutoutDataCache()
@@ -132,29 +106,23 @@ namespace TerrainCompositor
     TerrainMeshCutoutDataCache::~TerrainMeshCutoutDataCache()
     {
         TerrainMeshCutoutDataCacheInterface::Unregister(this);
-        for (const auto& [id, weak] : m_sources)
-        {
-            (void)id;
-            if (auto source = weak.lock())
-                source->Stop();
-        }
+        Internal::StopAssetSources(m_sources);
     }
 
     TerrainMeshCutoutDataCache::Handle TerrainMeshCutoutDataCache::Acquire(const AZ::Data::AssetId& assetId)
     {
         if (!m_controlThread.Check() || !assetId.IsValid())
             return {};
-        return Internal::AcquireModelSource<TerrainMeshCutoutDataSource>(m_sources, assetId);
+        return Internal::AcquireAssetSource<TerrainMeshCutoutDataSource>(m_sources, assetId);
     }
 
     TerrainMeshCutoutDataSnapshot TerrainMeshCutoutDataCache::GetSnapshot(const Handle& handle)
     {
-        return handle && handle->m_controlThread.Check() ? handle->m_snapshot : TerrainMeshCutoutDataSnapshot{};
+        return Internal::GetAssetSourceSnapshot<TerrainMeshCutoutDataSnapshot>(handle);
     }
 
     void TerrainMeshCutoutDataCache::ConnectChangedHandler(const Handle& handle, ChangedEvent::Handler& handler)
     {
-        if (handle && handle->m_controlThread.Check())
-            handler.Connect(handle->m_changed);
+        Internal::ConnectAssetSourceChanged(handle, handler);
     }
 } // namespace TerrainCompositor

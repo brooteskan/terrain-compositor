@@ -33,17 +33,12 @@ namespace TerrainCompositor
 
     void TerrainMeshCutoutConfig::AssignNewPersistentOrderingIdentity()
     {
-        m_orderingId = AZ::Uuid::CreateRandom();
-        m_stableOrderKey = MakeUuidStampOrderKey(m_orderingId);
+        AssignNewStampOrderingIdentity(m_orderingId, m_stableOrderKey);
     }
 
     AZStd::string TerrainMeshCutoutConfig::GetRuntimeOrderKey() const
     {
-        if (!m_stableOrderKey.empty())
-        {
-            return IsValidStampOrderKey(m_stableOrderKey) ? m_stableOrderKey : AZStd::string{};
-        }
-        return MakeUuidStampOrderKey(m_orderingId);
+        return GetRuntimeStampOrderKey(m_orderingId, m_stableOrderKey);
     }
 
     void TerrainMeshCutoutConfig::Reflect(AZ::ReflectContext* context)

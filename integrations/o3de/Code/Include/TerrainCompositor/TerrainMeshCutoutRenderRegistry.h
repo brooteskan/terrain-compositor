@@ -107,43 +107,54 @@ namespace TerrainCompositor
         }
     }
 
-    inline bool TryGetTerrainRenderGeometryHeight(
-        const TerrainMeshCutoutRenderSnapshot& snapshot, const AZ::Vector3& position, float& height)
+    // Terrain ownership is inclusive XY and rejects NaNs through ordered comparisons.
+    inline bool TerrainRenderRegionContains(const AZ::Aabb& bounds, const AZ::Vector3& position)
+    {
+        return bounds.IsValid() && position.GetX() >= bounds.GetMin().GetX() && position.GetX() <= bounds.GetMax().GetX() &&
+            position.GetY() >= bounds.GetMin().GetY() && position.GetY() <= bounds.GetMax().GetY();
+    }
+
+    template<class Value, class Callback>
+    bool TryGetTerrainRenderValue(const TerrainMeshCutoutRenderSnapshot& snapshot, const AZ::Vector3& position,
+        Value& value, Callback TerrainRenderGeometryQuery::* member)
     {
         for (const auto& query : snapshot.m_renderGeometryQueries)
         {
-            const auto& bounds = query.m_regionBounds;
-            if (query.m_getHeight && bounds.IsValid() && position.GetX() >= bounds.GetMin().GetX() &&
-                position.GetX() <= bounds.GetMax().GetX() && position.GetY() >= bounds.GetMin().GetY() &&
-                position.GetY() <= bounds.GetMax().GetY())
+            const auto& callback = query.*member;
+            if (callback && TerrainRenderRegionContains(query.m_regionBounds, position))
             {
-                height = query.m_getHeight(position);
+                value = callback(position);
                 return true;
             }
         }
         return false;
     }
 
-    //! Resolve the terrain-existence value used to build render mesh topology.
-    //! Terrain regions are heightfields, so ownership is determined in XY. The
-    //! sampled Z value can be outside the region bounds when the ordinary terrain
-    //! query reports a collision-only hole; using a three-dimensional containment
-    //! test there would leak that coarse hole into render geometry.
+    inline bool TryGetTerrainRenderGeometryHeight(
+        const TerrainMeshCutoutRenderSnapshot& snapshot, const AZ::Vector3& position, float& height)
+    {
+        return TryGetTerrainRenderValue(snapshot, position, height, &TerrainRenderGeometryQuery::m_getHeight);
+    }
+
+    //! Z may be outside region bounds when ordinary queries report collision-only holes.
     inline bool TryGetTerrainRenderGeometryExists(
         const TerrainMeshCutoutRenderSnapshot& snapshot, const AZ::Vector3& position, bool& terrainExists)
     {
-        for (const auto& query : snapshot.m_renderGeometryQueries)
+        return TryGetTerrainRenderValue(snapshot, position, terrainExists, &TerrainRenderGeometryQuery::m_getTerrainExists);
+    }
+
+    using TerrainRenderOwners = AZStd::pair<const TerrainRenderGeometryQuery*, const TerrainRenderGeometryQuery*>;
+    inline TerrainRenderOwners FindTerrainRenderOwners(AZStd::span<const TerrainRenderGeometryQuery> queries, const AZ::Vector3& position)
+    {
+        TerrainRenderOwners owners{ nullptr, nullptr };
+        for (const auto& query : queries)
         {
-            const AZ::Aabb& bounds = query.m_regionBounds;
-            if (query.m_getTerrainExists && bounds.IsValid() && position.GetX() >= bounds.GetMin().GetX() &&
-                position.GetX() <= bounds.GetMax().GetX() && position.GetY() >= bounds.GetMin().GetY() &&
-                position.GetY() <= bounds.GetMax().GetY())
-            {
-                terrainExists = query.m_getTerrainExists(position);
-                return true;
-            }
+            if (!TerrainRenderRegionContains(query.m_regionBounds, position)) continue;
+            if (!owners.first && query.m_getHeight) owners.first = &query;
+            if (!owners.second && query.m_getTerrainExists) owners.second = &query;
+            if (owners.first && owners.second) break;
         }
-        return false;
+        return owners;
     }
 
     //! Overlay retained render geometry on ordinary terrain results. Unowned
@@ -161,27 +172,10 @@ namespace TerrainCompositor
             AZ_Assert(false, "Render geometry input/output lists have different sizes.");
             return;
         }
-        using Owners = AZStd::pair<const TerrainRenderGeometryQuery*, const TerrainRenderGeometryQuery*>;
+        using Owners = TerrainRenderOwners;
         const auto findOwners = [&snapshot](const AZ::Vector3& position)
         {
-            Owners owners{ nullptr, nullptr };
-            for (const auto& query : snapshot.m_renderGeometryQueries)
-            {
-                const auto& bounds = query.m_regionBounds;
-                if (!bounds.IsValid() ||
-                    !(position.GetX() >= bounds.GetMin().GetX() && position.GetX() <= bounds.GetMax().GetX() &&
-                      position.GetY() >= bounds.GetMin().GetY() && position.GetY() <= bounds.GetMax().GetY()))
-                {
-                    continue;
-                }
-                if (!owners.first && query.m_getHeight)
-                    owners.first = &query;
-                if (!owners.second && query.m_getTerrainExists)
-                    owners.second = &query;
-                if (owners.first && owners.second)
-                    break;
-            }
-            return owners;
+            return FindTerrainRenderOwners(snapshot.m_renderGeometryQueries, position);
         };
         size_t start = 0;
         Owners owners = positions.empty() ? Owners{} : findOwners(positions.front());
@@ -257,16 +251,10 @@ namespace TerrainCompositor
             TerrainRenderQueryRun run;
             if (plan.m_publication)
             {
-                for (const auto& query : plan.m_sources ? plan.m_sources->m_queries : plan.m_publication->m_renderGeometryQueries)
-                {
-                    const auto& bounds = query.m_regionBounds;
-                    if (!bounds.IsValid() || !(position.GetX() >= bounds.GetMin().GetX() &&
-                        position.GetX() <= bounds.GetMax().GetX() && position.GetY() >= bounds.GetMin().GetY() &&
-                        position.GetY() <= bounds.GetMax().GetY())) continue;
-                    if (!run.m_height && query.m_getHeight) run.m_height = &query;
-                    if (!run.m_existence && query.m_getTerrainExists) run.m_existence = &query;
-                    if (run.m_height && run.m_existence) break;
-                }
+                const auto owners = FindTerrainRenderOwners(
+                    plan.m_sources ? plan.m_sources->m_queries : plan.m_publication->m_renderGeometryQueries, position);
+                run.m_height = owners.first;
+                run.m_existence = owners.second;
             }
             return run;
         };
@@ -427,15 +415,7 @@ namespace TerrainCompositor
             : AZStd::span<const PreparedTerrainMeshHeightGap>{};
         for (const PreparedTerrainMeshHeightGap& gap : snapshot.m_meshHeightGaps)
         {
-            const bool gapAdmitted = !gap.m_affectTerrainRendering || AZStd::any_of(
-                admitted.begin(), admitted.end(), [&gap](const PreparedTerrainMeshHeightGap& candidate)
-                {
-                    return gap.m_data == candidate.m_data && gap.m_compositionSession == candidate.m_compositionSession &&
-                        gap.m_entityId == candidate.m_entityId && gap.m_originX == candidate.m_originX &&
-                        gap.m_originY == candidate.m_originY && gap.m_inverseScale == candidate.m_inverseScale &&
-                        gap.m_cosYaw == candidate.m_cosYaw && gap.m_sinYaw == candidate.m_sinYaw &&
-                        gap.m_affectTerrainRendering == candidate.m_affectTerrainRendering;
-                });
+            const bool gapAdmitted = IsTerrainMeshHeightGapAdmitted(gap, admitted);
             const auto& cells = gap.m_collisionCells;
             if (!gapAdmitted || !gap.m_affectTerrainCollisionQueries || !cells || cells->m_cells.empty() ||
                 !worldCellMinimum.IsFinite() || !gridSpacing.IsFinite() ||

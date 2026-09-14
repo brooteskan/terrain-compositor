@@ -1,5 +1,6 @@
 #include "EditorHeightmapStampComponent.h"
 #include "../ComponentConfiguration.h"
+#include "EditorConfiguration.h"
 
 #include <AzCore/Component/NonUniformScaleBus.h>
 #include <AzCore/Math/Color.h>
@@ -16,27 +17,12 @@ namespace TerrainCompositor
     {
         // Ensure shared config metadata exists even when this descriptor is reflected first.
         // Runtime owns its unreflection; removing the editor descriptor must not remove shared config data.
-        if (auto* serialize = azrtti_cast<AZ::SerializeContext*>(context))
-        {
-            if (!serialize->IsRemovingReflection()) { HeightmapStampConfig::Reflect(context); }
-            serialize->Class<EditorHeightmapStampComponent, BaseClass>()
-                ->Version(1)
-                ->Field("Configuration", &EditorHeightmapStampComponent::m_configuration);
-            if (auto* edit = serialize->GetEditContext())
-            {
-                edit->Class<EditorHeightmapStampComponent>("Heightmap Stamp",
-                    "Place a yaw-only heightmap over procedural ground using feathered Replace blending.")
-                    ->ClassElement(AZ::Edit::ClassElements::EditorData, "")
-                    ->Attribute(AZ::Edit::Attributes::Category, "Terrain")
-                    ->Attribute(AZ::Edit::Attributes::AppearsInAddComponentMenu, AZ_CRC_CE("Game"))
-                    ->Attribute(AZ::Edit::Attributes::AutoExpand, true)
-                    ->DataElement(AZ::Edit::UIHandlers::Default, &EditorHeightmapStampComponent::m_configuration,
-                        "Configuration", "Local-meter controls. XYZ, yaw and positive uniform scale come from Transform.")
-                    ->Attribute(AZ::Edit::Attributes::ChangeNotify, &EditorHeightmapStampComponent::OnConfigurationChanged)
-                    ->UIElement(AZ::Edit::UIHandlers::Label, "Status", "Read-only preview status; invalid or unavailable stamps contribute nothing.")
-                    ->Attribute(AZ::Edit::Attributes::ValueText, &EditorHeightmapStampComponent::GetStatusText);
-            }
-        }
+        Internal::ReflectEditorConfiguration<EditorHeightmapStampComponent, BaseClass>(context,
+            &EditorHeightmapStampComponent::m_configuration, &EditorHeightmapStampComponent::OnConfigurationChanged,
+            &EditorHeightmapStampComponent::GetStatusText, "Heightmap Stamp",
+            "Place a yaw-only heightmap over procedural ground using feathered Replace blending.",
+            "Local-meter controls. XYZ, yaw and positive uniform scale come from Transform.",
+            "Read-only preview status; invalid or unavailable stamps contribute nothing.");
     }
 
     void EditorHeightmapStampComponent::GetProvidedServices(AZ::ComponentDescriptor::DependencyArrayType& services)
@@ -67,30 +53,21 @@ namespace TerrainCompositor
 
     void EditorHeightmapStampComponent::SetExportOrderKey(const AZStd::string& key)
     {
-        AZ_Assert(!m_preview, "Ordering export must only modify inactive conversion copies.");
-        if (!m_preview) { m_configuration.m_stableOrderKey = key; }
+        Internal::SetEditorExportKey(m_preview, m_configuration, key, "Ordering export must only modify inactive conversion copies.");
     }
 
     void EditorHeightmapStampComponent::BuildGameEntity(AZ::Entity* gameEntity)
     {
         // The prefab processor already baked the exact alias path on this conversion copy. Never use
         // the live editor mapper here; normal conversion remaps all EntityId fields after this step.
-        if (!IsValidStampOrderKey(m_configuration.m_stableOrderKey))
-        {
-            AZ_Error("HeightmapStampExport", false,
-                "Missing baked stamp identity. Enable the TG stamp ordering processor before Editor info remover.");
-            return;
-        }
-        gameEntity->CreateComponent<HeightmapStampComponent>(m_configuration);
+        Internal::BuildOrderedGameEntity<HeightmapStampComponent>(gameEntity, m_configuration,
+            "HeightmapStampExport",
+            "Missing baked stamp identity. Enable the TG stamp ordering processor before Editor info remover.");
     }
 
     bool EditorHeightmapStampComponent::ReadInConfig(const AZ::ComponentConfig* configuration)
     {
-        return Internal::ReadConfiguration<HeightmapStampConfig>(configuration, [this](const auto& value)
-        {
-            m_configuration = value;
-            OnConfigurationChanged();
-        });
+        return Internal::ReadConfiguration(configuration, m_configuration, [this] { OnConfigurationChanged(); });
     }
 
     bool EditorHeightmapStampComponent::WriteOutConfig(AZ::ComponentConfig* configuration) const
@@ -100,8 +77,7 @@ namespace TerrainCompositor
 
     AZ::u32 EditorHeightmapStampComponent::OnConfigurationChanged()
     {
-        m_preview.Refresh(m_configuration);
-        return AZ::Edit::PropertyRefreshLevels::AttributesAndValues;
+        return Internal::RefreshEditorConfiguration(m_preview, m_configuration);
     }
 
     void EditorHeightmapStampComponent::DisplayEntityViewport(

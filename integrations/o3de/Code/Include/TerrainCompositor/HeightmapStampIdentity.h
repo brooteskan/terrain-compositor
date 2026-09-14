@@ -13,7 +13,10 @@ namespace TerrainCompositor
     //! Canonical, case-sensitive, length-prefixed aliases. The root instance alias is deliberately omitted.
     AZStd::string MakePrefabStampOrderKey(AZStd::span<const AZStd::string> instanceAliases, AZStd::string_view entityAlias);
     AZStd::string MakeUuidStampOrderKey(const AZ::Uuid& id);
+    void AssignNewStampOrderingIdentity(AZ::Uuid& id, AZStd::string& key);
+    AZStd::string GetRuntimeStampOrderKey(const AZ::Uuid& id, const AZStd::string& key);
     bool IsValidStampOrderKey(AZStd::string_view key);
+    bool StampPriorityLess(AZ::s32 leftPriority, AZStd::string_view leftKey, AZ::s32 rightPriority, AZStd::string_view rightKey);
     bool StampOrderKeyLess(AZStd::string_view left, AZStd::string_view right);
 
     //! Implemented only by Tools/Builders. Runtime stamps never consult this interface.

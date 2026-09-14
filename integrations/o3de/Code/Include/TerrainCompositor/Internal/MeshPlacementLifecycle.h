@@ -31,6 +31,7 @@ namespace TerrainCompositor::Internal
         bool IsActive() const { return m_entityId.IsValid(); }
         size_t GetMatchingMeshCount() const { return m_matchingMeshCount; }
         bool IsWaitingForPlacement() const { return m_placementRetriesRemaining > 0; }
+        const char* GetPlacementStatus(const char* waiting, const char* missing, const char* ambiguous) const;
 
         template<class Registration, class Configuration>
         void UpdateRegistration(Registration& registration, Configuration configuration) const

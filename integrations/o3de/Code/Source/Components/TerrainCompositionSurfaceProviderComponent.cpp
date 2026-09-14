@@ -2,6 +2,7 @@
 
 #include "TerrainCompositionQueryHelpers.h"
 
+#include "../ProviderReflection.h"
 #include <AzCore/Serialization/EditContext.h>
 #include <AzCore/Serialization/SerializeContext.h>
 #include <TerrainSystem/TerrainSystemBus.h>
@@ -13,39 +14,14 @@ namespace TerrainCompositor
 
     void TerrainCompositionSurfaceProviderConfig::Reflect(AZ::ReflectContext* context)
     {
-        if (auto* serialize = azrtti_cast<AZ::SerializeContext*>(context))
-        {
-            if (!serialize->IsRemovingReflection() &&
-                serialize->FindClassData(azrtti_typeid<TerrainCompositionSurfaceProviderConfig>()))
-            {
-                return;
-            }
-            serialize->Class<TerrainCompositionSurfaceProviderConfig, AZ::ComponentConfig>()
-                ->Version(1)
-                ->Field("CompositionEntityId", &TerrainCompositionSurfaceProviderConfig::m_compositionEntityId);
-            if (auto* edit = serialize->GetEditContext())
-            {
-                edit->Class<TerrainCompositionSurfaceProviderConfig>(
-                    "Terrain Composition Surface Provider Configuration", "Composition reference for this terrain region.")
-                    ->ClassElement(AZ::Edit::ClassElements::EditorData, "")
-                    ->Attribute(AZ::Edit::Attributes::Visibility, AZ::Edit::PropertyVisibility::ShowChildrenOnly)
-                    ->DataElement(AZ::Edit::UIHandlers::Default,
-                        &TerrainCompositionSurfaceProviderConfig::m_compositionEntityId,
-                        "Terrain Composition", "Composition whose palette and surface stamps provide this region's weights.")
-                    ->Attribute(AZ::Edit::Attributes::RequiredService, AZ_CRC_CE("TerrainCompositionService"));
-            }
-        }
+        Internal::ReflectProviderConfiguration<TerrainCompositionSurfaceProviderConfig>(context,
+            "Terrain Composition Surface Provider Configuration",
+            "Composition whose palette and surface stamps provide this region's weights.");
     }
 
     void TerrainCompositionSurfaceProviderComponent::Reflect(AZ::ReflectContext* context)
     {
-        TerrainCompositionSurfaceProviderConfig::Reflect(context);
-        if (auto* serialize = azrtti_cast<AZ::SerializeContext*>(context))
-        {
-            serialize->Class<TerrainCompositionSurfaceProviderComponent, AZ::Component>()
-                ->Version(1)
-                ->Field("Configuration", &TerrainCompositionSurfaceProviderComponent::m_configuration);
-        }
+        Internal::ReflectConfiguredComponent(context, &TerrainCompositionSurfaceProviderComponent::m_configuration);
     }
 
     void TerrainCompositionSurfaceProviderComponent::GetProvidedServices(

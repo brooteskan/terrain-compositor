@@ -88,6 +88,24 @@ namespace TerrainCompositor::Internal
                 });
         }
 
+        bool IsClientActive() const { return m_controlThread.Check() && m_active; }
+        bool IsClientRegistered() const { return m_controlThread.Check() && m_registered; }
+
+        const char* GetOrderingStatus(const char* missingTarget, const char* unavailableTarget,
+            const char* pendingIdentity, const char* invalidIdentity, const char* duplicateIdentity) const
+        {
+            if (!m_address.second.IsValid()) return missingTarget;
+            if (m_address.first.IsNull()) return "Waiting for entity context ownership.";
+            if (!m_registered) return unavailableTarget;
+            if (m_registration.m_identityPending) return pendingIdentity;
+            const auto key = m_registration.m_configuration.GetRuntimeOrderKey();
+            if (key.empty()) return invalidIdentity;
+            size_t claims = 0;
+            TerrainCompositionRequestBus::EventResult(
+                claims, m_address, &TerrainCompositionRequestBus::Events::GetOrderingClaimCount, key);
+            return claims > 1 ? duplicateIdentity : nullptr;
+        }
+
         Registration m_registration;
         HeightmapControlThread m_controlThread;
         TerrainCompositionAddress m_address;
@@ -101,7 +119,7 @@ namespace TerrainCompositor::Internal
         virtual void ValidateUnavailable() {}
         virtual void BeforeRegister() {}
 
-        bool CanUpdate() const { return m_controlThread.Check() && m_active; }
+        bool CanUpdate() const { return IsClientActive(); }
 
         AzFramework::EntityContextId CurrentContext() const
         {

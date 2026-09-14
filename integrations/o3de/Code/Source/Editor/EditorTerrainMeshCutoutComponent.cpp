@@ -1,5 +1,6 @@
 #include "EditorTerrainMeshCutoutComponent.h"
 #include "../ComponentConfiguration.h"
+#include "EditorConfiguration.h"
 
 #include <AzCore/Component/NonUniformScaleBus.h>
 #include <AzCore/Math/Color.h>
@@ -13,29 +14,12 @@ namespace TerrainCompositor
 {
     void EditorTerrainMeshCutoutComponent::Reflect(AZ::ReflectContext* context)
     {
-        if (auto* serialize = azrtti_cast<AZ::SerializeContext*>(context))
-        {
-            if (!serialize->IsRemovingReflection()) { TerrainMeshCutoutConfig::Reflect(context); }
-            serialize->Class<EditorTerrainMeshCutoutComponent, BaseClass>()
-                ->Version(1)
-                ->Field("Configuration", &EditorTerrainMeshCutoutComponent::m_configuration);
-            if (auto* edit = serialize->GetEditContext())
-            {
-                edit->Class<EditorTerrainMeshCutoutComponent>("Terrain Mesh Cutout",
-                    "Remove or restore composed terrain where its final surface lies inside a closed static mesh volume.")
-                    ->ClassElement(AZ::Edit::ClassElements::EditorData, "")
-                    ->Attribute(AZ::Edit::Attributes::Category, "Terrain")
-                    ->Attribute(AZ::Edit::Attributes::AppearsInAddComponentMenu, AZ_CRC_CE("Game"))
-                    ->Attribute(AZ::Edit::Attributes::AutoExpand, true)
-                    ->DataElement(AZ::Edit::UIHandlers::Default, &EditorTerrainMeshCutoutComponent::m_configuration,
-                        "Configuration", "Closed cutter model, component placement, target composition, operation, and margins.")
-                    ->Attribute(AZ::Edit::Attributes::ChangeNotify,
-                        &EditorTerrainMeshCutoutComponent::OnConfigurationChanged)
-                    ->UIElement(AZ::Edit::UIHandlers::Label, "Status",
-                        "Read-only validation and registration status; invalid cutters fail open.")
-                    ->Attribute(AZ::Edit::Attributes::ValueText, &EditorTerrainMeshCutoutComponent::GetStatusText);
-            }
-        }
+        Internal::ReflectEditorConfiguration<EditorTerrainMeshCutoutComponent, BaseClass>(context,
+            &EditorTerrainMeshCutoutComponent::m_configuration, &EditorTerrainMeshCutoutComponent::OnConfigurationChanged,
+            &EditorTerrainMeshCutoutComponent::GetStatusText, "Terrain Mesh Cutout",
+            "Remove or restore composed terrain where its final surface lies inside a closed static mesh volume.",
+            "Closed cutter model, component placement, target composition, operation, and margins.",
+            "Read-only validation and registration status; invalid cutters fail open.");
     }
 
     void EditorTerrainMeshCutoutComponent::GetProvidedServices(AZ::ComponentDescriptor::DependencyArrayType& services)
@@ -66,31 +50,19 @@ namespace TerrainCompositor
 
     void EditorTerrainMeshCutoutComponent::SetExportData(const AZStd::string& key)
     {
-        AZ_Assert(!m_preview, "Export data must only modify inactive conversion copies.");
-        if (!m_preview)
-        {
-            m_configuration.m_stableOrderKey = key;
-        }
+        Internal::SetEditorExportKey(m_preview, m_configuration, key, "Export data must only modify inactive conversion copies.");
     }
 
     void EditorTerrainMeshCutoutComponent::BuildGameEntity(AZ::Entity* gameEntity)
     {
-        if (!IsValidStampOrderKey(m_configuration.m_stableOrderKey))
-        {
-            AZ_Error("TerrainMeshCutoutExport", false,
-                "Missing baked cutout ordering identity. Enable the TG ordering processor before Editor info remover.");
-            return;
-        }
-        gameEntity->CreateComponent<TerrainMeshCutoutComponent>(m_configuration);
+        Internal::BuildOrderedGameEntity<TerrainMeshCutoutComponent>(gameEntity, m_configuration,
+            "TerrainMeshCutoutExport",
+            "Missing baked cutout ordering identity. Enable the TG ordering processor before Editor info remover.");
     }
 
     bool EditorTerrainMeshCutoutComponent::ReadInConfig(const AZ::ComponentConfig* configuration)
     {
-        return Internal::ReadConfiguration<TerrainMeshCutoutConfig>(configuration, [this](const auto& value)
-        {
-            m_configuration = value;
-            OnConfigurationChanged();
-        });
+        return Internal::ReadConfiguration(configuration, m_configuration, [this] { OnConfigurationChanged(); });
     }
 
     bool EditorTerrainMeshCutoutComponent::WriteOutConfig(AZ::ComponentConfig* configuration) const
@@ -100,8 +72,7 @@ namespace TerrainCompositor
 
     AZ::u32 EditorTerrainMeshCutoutComponent::OnConfigurationChanged()
     {
-        m_preview.Refresh(m_configuration);
-        return AZ::Edit::PropertyRefreshLevels::AttributesAndValues;
+        return Internal::RefreshEditorConfiguration(m_preview, m_configuration);
     }
 
     void EditorTerrainMeshCutoutComponent::DisplayEntityViewport(

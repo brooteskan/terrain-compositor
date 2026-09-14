@@ -79,7 +79,7 @@ namespace TerrainCompositor
 
     bool HeightmapStampRegistration::IsRegistered() const
     {
-        return m_controlThread.Check() && m_registered;
+        return IsClientRegistered();
     }
 
     AZStd::string HeightmapStampRegistration::GetStatusMessage() const
@@ -93,19 +93,13 @@ namespace TerrainCompositor
         {
             return GetHeightmapStampValidationMessage(validation);
         }
-        if (!m_address.second.IsValid()) { return "Select a Target Composition entity with Terrain Composition Gradient."; }
-        if (m_address.first.IsNull()) { return "Waiting for entity context ownership."; }
-        if (!m_registered) { return "Target Composition is unavailable in this entity context. Check its component and enabled state."; }
-        if (m_registration.m_identityPending) { return "Waiting for prefab propagation/undo to resolve the saved ordering identity."; }
-        const auto key = m_registration.m_configuration.GetRuntimeOrderKey();
-        if (key.empty()) { return "Unresolved ordering identity. Check Tools support; runtime clones need a persistent identity before activation."; }
-
-        // This optional inspector diagnostic runs only on the control thread, not in publication or sampling.
-        // Count all claims, including zero-strength/unready stamps, to match collision suppression exactly.
-        size_t matches = 0;
-        TerrainCompositionRequestBus::EventResult(
-            matches, m_address, &TerrainCompositionRequestBus::Events::GetOrderingClaimCount, key);
-        if (matches > 1) { return "Duplicate ordering identity: all conflicting stamps are suppressed. See TerrainComposition diagnostics."; }
+        if (const char* status = GetOrderingStatus(
+            "Select a Target Composition entity with Terrain Composition Gradient.",
+            "Target Composition is unavailable in this entity context. Check its component and enabled state.",
+            "Waiting for prefab propagation/undo to resolve the saved ordering identity.",
+            "Unresolved ordering identity. Check Tools support; runtime clones need a persistent identity before activation.",
+            "Duplicate ordering identity: all conflicting stamps are suppressed. See TerrainComposition diagnostics."))
+            return status;
         AZ::Aabb region = AZ::Aabb::CreateNull();
         TerrainCompositionRequestBus::EventResult(region, m_address, &TerrainCompositionRequestBus::Events::GetTargetRegionBounds);
         if (PrepareHeightmapRegionMapping(region).m_range <= 0.0)

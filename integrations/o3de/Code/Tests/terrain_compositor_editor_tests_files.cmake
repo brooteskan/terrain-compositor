@@ -1,4 +1,5 @@
 set(FILES
+    ../Source/Editor/EditorConfiguration.h
     TestMain.cpp
     TerrainEditorPreviewLifecycleTests.cpp
     ../Source/Editor/EditorHeightmapStampComponent.cpp

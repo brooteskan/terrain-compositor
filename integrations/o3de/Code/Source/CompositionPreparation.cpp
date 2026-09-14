@@ -213,7 +213,7 @@ namespace TerrainCompositor::Internal
             {
                 const auto [priorityA, keyA] = order(a);
                 const auto [priorityB, keyB] = order(b);
-                return priorityA != priorityB ? priorityA < priorityB : StampOrderKeyLess(keyA, keyB);
+                return StampPriorityLess(priorityA, keyA, priorityB, keyB);
             });
         };
         const auto contributorOrder = [](const auto& value)

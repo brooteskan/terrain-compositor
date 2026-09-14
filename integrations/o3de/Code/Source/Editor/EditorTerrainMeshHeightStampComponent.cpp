@@ -1,5 +1,6 @@
 #include "EditorTerrainMeshHeightStampComponent.h"
 #include "../ComponentConfiguration.h"
+#include "EditorConfiguration.h"
 
 #include <AzCore/Math/Color.h>
 #include <AzCore/Serialization/EditContext.h>
@@ -13,30 +14,12 @@ namespace TerrainCompositor
 {
     void EditorTerrainMeshHeightStampComponent::Reflect(AZ::ReflectContext* context)
     {
-        if (auto* serialize = azrtti_cast<AZ::SerializeContext*>(context))
-        {
-            if (!serialize->IsRemovingReflection())
-                TerrainMeshHeightStampConfig::Reflect(context);
-            serialize->Class<EditorTerrainMeshHeightStampComponent, BaseClass>()->Version(1)->Field(
-                "Configuration", &EditorTerrainMeshHeightStampComponent::m_configuration);
-            if (auto* edit = serialize->GetEditContext())
-            {
-                edit->Class<EditorTerrainMeshHeightStampComponent>(
-                        "Terrain Mesh Height Stamp", "Use a regular-grid terrain mesh descendant as composed terrain height.")
-                    ->ClassElement(AZ::Edit::ClassElements::EditorData, "")
-                    ->Attribute(AZ::Edit::Attributes::Category, "Terrain")
-                    ->Attribute(AZ::Edit::Attributes::AppearsInAddComponentMenu, AZ_CRC_CE("Game"))
-                    ->Attribute(AZ::Edit::Attributes::AutoExpand, true)
-                    ->DataElement(
-                        AZ::Edit::UIHandlers::Default,
-                        &EditorTerrainMeshHeightStampComponent::m_configuration,
-                        "Configuration",
-                        "Terrain model, target composition, blending, and visibility.")
-                    ->Attribute(AZ::Edit::Attributes::ChangeNotify, &EditorTerrainMeshHeightStampComponent::OnConfigurationChanged)
-                    ->UIElement(AZ::Edit::UIHandlers::Label, "Status", "Read-only mesh preparation and registration status.")
-                    ->Attribute(AZ::Edit::Attributes::ValueText, &EditorTerrainMeshHeightStampComponent::GetStatusText);
-            }
-        }
+        Internal::ReflectEditorConfiguration<EditorTerrainMeshHeightStampComponent, BaseClass>(context,
+            &EditorTerrainMeshHeightStampComponent::m_configuration, &EditorTerrainMeshHeightStampComponent::OnConfigurationChanged,
+            &EditorTerrainMeshHeightStampComponent::GetStatusText, "Terrain Mesh Height Stamp",
+            "Use a regular-grid terrain mesh descendant as composed terrain height.",
+            "Terrain model, target composition, blending, and visibility.",
+            "Read-only mesh preparation and registration status.");
     }
 
     void EditorTerrainMeshHeightStampComponent::GetProvidedServices(AZ::ComponentDescriptor::DependencyArrayType& services)
@@ -77,31 +60,19 @@ namespace TerrainCompositor
 
     void EditorTerrainMeshHeightStampComponent::SetExportData(const AZStd::string& key)
     {
-        AZ_Assert(!m_preview, "Export data must only modify inactive conversion copies.");
-        if (!m_preview)
-            m_configuration.m_stableOrderKey = key;
+        Internal::SetEditorExportKey(m_preview, m_configuration, key, "Export data must only modify inactive conversion copies.");
     }
 
     void EditorTerrainMeshHeightStampComponent::BuildGameEntity(AZ::Entity* gameEntity)
     {
-        if (!IsValidStampOrderKey(m_configuration.m_stableOrderKey))
-        {
-            AZ_Error(
-                "TerrainMeshHeightStampExport",
-                false,
-                "Missing baked mesh-height ordering identity. Enable the TG ordering processor before Editor info remover.");
-            return;
-        }
-        gameEntity->CreateComponent<TerrainMeshHeightStampComponent>(m_configuration);
+        Internal::BuildOrderedGameEntity<TerrainMeshHeightStampComponent>(gameEntity, m_configuration,
+            "TerrainMeshHeightStampExport",
+            "Missing baked mesh-height ordering identity. Enable the TG ordering processor before Editor info remover.");
     }
 
     bool EditorTerrainMeshHeightStampComponent::ReadInConfig(const AZ::ComponentConfig* configuration)
     {
-        return Internal::ReadConfiguration<TerrainMeshHeightStampConfig>(configuration, [this](const auto& value)
-        {
-            m_configuration = value;
-            OnConfigurationChanged();
-        });
+        return Internal::ReadConfiguration(configuration, m_configuration, [this] { OnConfigurationChanged(); });
     }
 
     bool EditorTerrainMeshHeightStampComponent::WriteOutConfig(AZ::ComponentConfig* configuration) const
@@ -111,8 +82,7 @@ namespace TerrainCompositor
 
     AZ::u32 EditorTerrainMeshHeightStampComponent::OnConfigurationChanged()
     {
-        m_preview.Refresh(m_configuration);
-        return AZ::Edit::PropertyRefreshLevels::AttributesAndValues;
+        return Internal::RefreshEditorConfiguration(m_preview, m_configuration);
     }
 
     void EditorTerrainMeshHeightStampComponent::DisplayEntityViewport(

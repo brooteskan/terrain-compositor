@@ -8,12 +8,6 @@
 
 namespace TerrainCompositor
 {
-    namespace
-    {
-        constexpr double RotationTolerance = 1.0e-4;
-
-    } // namespace
-
     TerrainMeshHeightStampPlacementValidation PrepareTerrainMeshHeightStamp(
         const TerrainMeshHeightStampRegistrationData& registration, bool hasNonUniformScale, PreparedTerrainMeshHeightStamp& result)
     {
@@ -41,19 +35,12 @@ namespace TerrainCompositor
         {
             return TerrainMeshHeightStampPlacementValidation::UniformScale;
         }
-        const auto& rotation = transform.GetRotation();
-        const double x = rotation.GetX();
-        const double y = rotation.GetY();
-        const double z = rotation.GetZ();
-        const double w = rotation.GetW();
-        const double lengthSquared = x * x + y * y + z * z + w * w;
-        if (!std::isfinite(lengthSquared) || std::abs(lengthSquared - 1.0) > RotationTolerance ||
-            std::abs(2.0 * (x * z + w * y) / lengthSquared) > RotationTolerance ||
-            std::abs(2.0 * (y * z - w * x) / lengthSquared) > RotationTolerance ||
-            2.0 * (x * x + y * y) / lengthSquared > RotationTolerance)
+        double yaw;
+        if (!Internal::TryGetStampYaw(transform.GetRotation(), yaw))
         {
             return TerrainMeshHeightStampPlacementValidation::Rotation;
         }
+
         if (!std::isfinite(config.m_strength) || config.m_strength < 0.0f || config.m_strength > 1.0f)
         {
             return TerrainMeshHeightStampPlacementValidation::Strength;
@@ -80,7 +67,6 @@ namespace TerrainCompositor
             return TerrainMeshHeightStampPlacementValidation::Feather;
         }
 
-        const double yaw = std::atan2(2.0 * (x * y + w * z), lengthSquared - 2.0 * (y * y + z * z));
         PreparedTerrainMeshHeightStamp prepared;
         prepared.m_data = registration.m_mesh.m_data;
         prepared.m_stampEntityId = registration.m_stampEntityId;
@@ -106,35 +92,17 @@ namespace TerrainCompositor
         prepared.m_affectTerrainRendering = config.m_affectTerrainRendering;
         prepared.m_affectTerrainCollisionQueries = config.m_affectTerrainCollisionQueries;
 
-        double minimumX = std::numeric_limits<double>::max();
-        double maximumX = -std::numeric_limits<double>::max();
-        double minimumY = std::numeric_limits<double>::max();
-        double maximumY = -std::numeric_limits<double>::max();
-        for (const double localX : { prepared.m_localMinX, prepared.m_localMaxX })
-        {
-            for (const double localY : { prepared.m_localMinY, prepared.m_localMaxY })
-            {
-                const double worldX = prepared.m_originX + scale * (prepared.m_cosYaw * localX - prepared.m_sinYaw * localY);
-                const double worldY = prepared.m_originY + scale * (prepared.m_sinYaw * localX + prepared.m_cosYaw * localY);
-                minimumX = std::min(minimumX, worldX);
-                maximumX = std::max(maximumX, worldX);
-                minimumY = std::min(minimumY, worldY);
-                maximumY = std::max(maximumY, worldY);
-            }
-        }
+        const auto bounds = Internal::TransformStampXYBounds(data.m_localBounds,
+            prepared.m_originX, prepared.m_originY, scale, prepared.m_cosYaw, prepared.m_sinYaw);
         const double minimumHeight = prepared.m_heightOrigin + scale * data.m_localBounds.GetMin().GetZ();
         const double maximumHeight = prepared.m_heightOrigin + scale * data.m_localBounds.GetMax().GetZ();
         const double floatMaximum = std::numeric_limits<float>::max();
-        if (!std::isfinite(minimumX) || !std::isfinite(maximumX) || !std::isfinite(minimumY) || !std::isfinite(maximumY) ||
-            !std::isfinite(minimumHeight) || !std::isfinite(maximumHeight) || std::abs(minimumX) > floatMaximum ||
-            std::abs(maximumX) > floatMaximum || std::abs(minimumY) > floatMaximum || std::abs(maximumY) > floatMaximum ||
+        if (!bounds.IsRepresentable() || !std::isfinite(minimumHeight) || !std::isfinite(maximumHeight) ||
             std::abs(minimumHeight) > floatMaximum || std::abs(maximumHeight) > floatMaximum)
         {
             return TerrainMeshHeightStampPlacementValidation::Bounds;
         }
-        prepared.m_worldBounds = AZ::Aabb::CreateFromMinMax(
-            AZ::Vector3(Internal::RoundOutward(minimumX, true), Internal::RoundOutward(minimumY, true), 0.0f),
-            AZ::Vector3(Internal::RoundOutward(maximumX, false), Internal::RoundOutward(maximumY, false), 0.0f));
+        prepared.m_worldBounds = bounds.ToAabb();
         result = AZStd::move(prepared);
         return TerrainMeshHeightStampPlacementValidation::Valid;
     }

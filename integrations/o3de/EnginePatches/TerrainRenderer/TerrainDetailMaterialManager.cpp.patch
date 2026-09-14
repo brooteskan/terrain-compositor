@@ -1,6 +1,9 @@
 --- a/TerrainRenderer/TerrainDetailMaterialManager.cpp
 +++ b/TerrainRenderer/TerrainDetailMaterialManager.cpp
-@@ -11,6 +11,9 @@
+@@ -9,8 +9,12 @@
+ #include <TerrainRenderer/TerrainDetailMaterialManager.h>
++#include <TerrainCompositor/Internal/TerrainTiming.h>
+ #include <TerrainRenderer/Components/TerrainSurfaceMaterialsListComponent.h>
  
  #include <AzCore/Console/Console.h>
  #include <AzCore/std/parallel/semaphore.h>
@@ -10,7 +13,7 @@
  
  #include <Atom/RHI/RHISystemInterface.h>
  #include <Atom/RPI.Public/Image/AttachmentImagePool.h>
-@@ -100,6 +103,11 @@
+@@ -100,6 +104,11 @@
          "Turns on debugging for detail material update regions for terrain."
      );
  
@@ -22,7 +25,7 @@
      void TerrainDetailMaterialManager::Initialize(
          const AZ::Data::Instance<AZ::RPI::ShaderResourceGroup>& terrainSrg,
          const AZ::Data::Instance<AZ::RPI::Material>& terrainMaterial)
-@@ -230,11 +238,13 @@
+@@ -230,11 +239,13 @@
      {
          if (m_terrainMaterial->NeedsCompile())
          {
@@ -36,7 +39,7 @@
              m_detailMaterialBufferNeedsUpdate = false;
  
              AZStd::unordered_map<int, const void*> rawData;
-@@ -251,6 +261,7 @@
+@@ -251,6 +262,7 @@
          
          if (m_detailImageNeedsUpdate)
          {
@@ -44,7 +47,7 @@
              terrainSrg->SetConstant(m_detailScalePropertyIndex, 1.0f / m_detailTextureScale);
              terrainSrg->SetImage(m_detailMaterialIdPropertyIndex, m_detailTextureImage);
  
-@@ -830,23 +841,48 @@
+@@ -830,23 +842,47 @@
      
      void TerrainDetailMaterialManager::UpdateDetailTexture(const AZ::Aabb& worldUpdateAabb, const Aabb2i& textureUpdateAabb)
      {
@@ -71,8 +74,7 @@
 +        const bool timing = r_terrainDetailMaterialTiming;
 +        const auto timestamp = []()
 +        {
-+            return AZStd::chrono::duration<double, AZStd::micro>(
-+                AZStd::chrono::steady_clock::now().time_since_epoch()).count();
++            return TerrainCompositor::Internal::TerrainTimestampMicroseconds();
 +        };
 +        const double started = timing ? timestamp() : 0;
 +        std::optional<DetailMaterialPixel> uniform;

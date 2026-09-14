@@ -1,5 +1,8 @@
 #include <AzTest/AzTest.h>
 #include <Atom/RPI.Reflect/Model/ModelAsset.h>
+#include <Atom/RPI.Reflect/Model/ModelAssetCreator.h>
+#include <Atom/RPI.Reflect/Model/ModelLodAssetCreator.h>
+#include <Atom/RPI.Reflect/Buffer/BufferAssetCreator.h>
 #include <AzCore/Asset/AssetManager.h>
 #include <AzCore/Component/TickBus.h>
 #include <AzCore/Jobs/JobContext.h>
@@ -25,14 +28,18 @@ namespace TerrainCompositor
         class ModelHandler : public AZ::Data::AssetHandler
         {
         public:
-            AZ::Data::AssetPtr CreateAsset(const AZ::Data::AssetId&, const AZ::Data::AssetType&) override
+            AZ::Data::AssetPtr CreateAsset(const AZ::Data::AssetId&, const AZ::Data::AssetType& type) override
             {
+                if (type == azrtti_typeid<AZ::RPI::BufferAsset>()) return aznew AZ::RPI::BufferAsset;
+                if (type == azrtti_typeid<AZ::RPI::ModelLodAsset>()) return aznew AZ::RPI::ModelLodAsset;
                 return aznew Model;
             }
             void DestroyAsset(AZ::Data::AssetPtr asset) override { delete asset; }
             void GetHandledAssetTypes(AZStd::vector<AZ::Data::AssetType>& types) override
             {
                 types.push_back(azrtti_typeid<AZ::RPI::ModelAsset>());
+                types.push_back(azrtti_typeid<AZ::RPI::BufferAsset>());
+                types.push_back(azrtti_typeid<AZ::RPI::ModelLodAsset>());
             }
             LoadResult LoadAssetData(const AZ::Data::Asset<AZ::Data::AssetData>&,
                 AZStd::shared_ptr<AZ::Data::AssetDataStream>, const AZ::Data::AssetFilterCB&) override
@@ -93,6 +100,8 @@ namespace TerrainCompositor
             AZ::Data::AssetManager::Create(AZ::Data::AssetManager::Descriptor{});
             m_handler = AZStd::make_unique<ModelCacheTestSupport::ModelHandler>();
             AZ::Data::AssetManager::Instance().RegisterHandler(m_handler.get(), azrtti_typeid<AZ::RPI::ModelAsset>());
+            AZ::Data::AssetManager::Instance().RegisterHandler(m_handler.get(), azrtti_typeid<AZ::RPI::BufferAsset>());
+            AZ::Data::AssetManager::Instance().RegisterHandler(m_handler.get(), azrtti_typeid<AZ::RPI::ModelLodAsset>());
             // Zero workers run preparation synchronously; its publication still crosses the real SystemTick queue.
             m_jobs = AZStd::make_unique<AZ::JobManager>(AZ::JobManagerDesc{});
             m_jobContext = AZStd::make_unique<AZ::JobContext>(*m_jobs);
@@ -140,6 +149,57 @@ namespace TerrainCompositor
             m_handle = m_cache->Acquire(m_id);
             ASSERT_TRUE(m_handle);
             Cache::ConnectChangedHandler(m_handle, m_changed);
+        }
+
+        void MakeGeometryModel()
+        {
+            m_model.Reset();
+            AZ::Data::AssetManager::Instance().DispatchEvents();
+            AZStd::vector<float> positions;
+            AZStd::vector<AZ::u32> indices;
+            if constexpr (AZStd::is_same_v<Kind, ModelCacheTestSupport::Cutout>)
+            {
+                positions = { -1,-1,-1, 1,-1,-1, 1,1,-1, -1,1,-1, -1,-1,1, 1,-1,1, 1,1,1, -1,1,1 };
+                indices = { 0,2,1, 0,3,2, 4,5,6, 4,6,7, 0,1,5, 0,5,4, 3,7,6, 3,6,2, 0,4,7, 0,7,3, 1,2,6, 1,6,5 };
+            }
+            else
+            {
+                positions = { 0,0,1, 1,0,2, 0,1,3, 1,1,4 };
+                indices = { 0,1,3, 0,3,2 };
+            }
+            const auto buffer = [](const void* data, AZ::u32 count, AZ::u32 size)
+            {
+                AZ::RPI::BufferAssetCreator creator;
+                creator.Begin(AZ::Uuid::CreateRandom());
+                AZ::RHI::BufferDescriptor descriptor;
+                descriptor.m_bindFlags = AZ::RHI::BufferBindFlags::InputAssembly;
+                descriptor.m_byteCount = size_t(count) * size;
+                creator.SetBuffer(data, descriptor.m_byteCount, descriptor);
+                creator.SetBufferViewDescriptor(AZ::RHI::BufferViewDescriptor::CreateStructured(0, count, size));
+                creator.SetUseCommonPool(AZ::RPI::CommonBufferPoolType::StaticInputAssembly);
+                AZ::Data::Asset<AZ::RPI::BufferAsset> result;
+                EXPECT_TRUE(creator.End(result));
+                return result;
+            };
+            const auto vertexBuffer = buffer(positions.data(), aznumeric_cast<AZ::u32>(positions.size() / 3), 12);
+            const auto indexBuffer = buffer(indices.data(), aznumeric_cast<AZ::u32>(indices.size()), 4);
+            AZ::RPI::ModelLodAssetCreator lodCreator;
+            lodCreator.Begin(AZ::Uuid::CreateRandom());
+            lodCreator.SetLodIndexBuffer(indexBuffer);
+            lodCreator.AddLodStreamBuffer(vertexBuffer);
+            lodCreator.BeginMesh();
+            lodCreator.SetMeshAabb(AZ::Aabb::CreateFromMinMax(AZ::Vector3(-1), AZ::Vector3(4)));
+            lodCreator.SetMeshIndexBuffer({ indexBuffer, indexBuffer->GetBufferViewDescriptor() });
+            ASSERT_TRUE(lodCreator.AddMeshStreamBuffer(AZ::RHI::ShaderSemantic(AZ::Name("POSITION")), AZ::Name(),
+                { vertexBuffer, vertexBuffer->GetBufferViewDescriptor() }));
+            lodCreator.EndMesh();
+            AZ::Data::Asset<AZ::RPI::ModelLodAsset> lod;
+            ASSERT_TRUE(lodCreator.End(lod));
+            AZ::RPI::ModelAssetCreator creator;
+            creator.Begin(m_id);
+            creator.SetName("LifecycleGeometry");
+            creator.AddLodAsset(AZStd::move(lod));
+            ASSERT_TRUE(creator.End(m_model));
         }
 
         void SendReady() { AZ::Data::AssetBus::Event(m_id, &AZ::Data::AssetEvents::OnAssetReady, m_model); }
@@ -203,6 +263,57 @@ namespace TerrainCompositor
         ASSERT_EQ(this->Count(TypeParam::Status::Loading), 2);
         this->Drain();
         EXPECT_EQ(this->Count(TypeParam::Prepared), 1);
+    }
+
+    TYPED_TEST(TerrainModelCacheLifecycleTests, SuccessfulGeometrySurvivesFailureReplacementAndCacheRetirement)
+    {
+        this->MakeGeometryModel();
+        this->Acquire();
+        this->Drain();
+        const auto retained = this->Current();
+        ASSERT_EQ(retained.m_status, TypeParam::Status::Ready);
+        ASSERT_TRUE(retained.m_data);
+        EXPECT_EQ(retained.m_data->m_revision, retained.m_revision);
+        this->SendReady();
+        this->SendReady();
+        this->Drain();
+        EXPECT_EQ(this->Count(TypeParam::Status::Ready), 2); // The older overlapping completion was retired.
+        const auto replacement = this->Current();
+        EXPECT_GT(replacement.m_revision, retained.m_revision);
+        EXPECT_NE(replacement.m_data, retained.m_data);
+        this->SendFailure();
+        this->Drain();
+        EXPECT_EQ(this->Current().m_status, TypeParam::Status::Error);
+        EXPECT_EQ(retained.m_data->m_revision, retained.m_revision);
+        this->m_cache.reset();
+        this->Drain();
+        EXPECT_EQ(replacement.m_data->m_revision, replacement.m_revision);
+    }
+
+    TYPED_TEST(TerrainModelCacheLifecycleTests, LoadingReentryPreservesEachRolesPreparationTicketTiming)
+    {
+        this->Acquire();
+        this->SendReady(); // Both ready callbacks are in the outer tick's queue.
+        using Cache = typename TypeParam::Cache;
+        size_t preparedDuringLoading = 0;
+        size_t loadingCallbacks = 0;
+        typename Cache::ChangedEvent::Handler pumpOnLoading([&](const auto& snapshot)
+        {
+            if (snapshot.m_status == TypeParam::Status::Loading && ++loadingCallbacks == 2)
+            {
+                // The first ready callback queued its completion in the next tick's queue.
+                AZ::SystemTickBus::ExecuteQueuedEvents();
+                preparedDuringLoading = this->Count(TypeParam::Prepared);
+            }
+        });
+        Cache::ConnectChangedHandler(this->m_handle, pumpOnLoading);
+        AZ::SystemTickBus::ExecuteQueuedEvents();
+        this->Drain();
+        EXPECT_EQ(loadingCallbacks, 2);
+        constexpr size_t expectedDuringLoading = AZStd::is_same_v<TypeParam, ModelCacheTestSupport::Cutout> ? 0 : 1;
+        EXPECT_EQ(preparedDuringLoading, expectedDuringLoading);
+        EXPECT_EQ(this->Count(TypeParam::Prepared), expectedDuringLoading + 1);
+        EXPECT_EQ(this->Current().m_status, TypeParam::Prepared);
     }
 
     TYPED_TEST(TerrainModelCacheLifecycleTests, FailureRetiresPreparationAlreadyWaitingToPublish)

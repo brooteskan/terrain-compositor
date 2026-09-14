@@ -1,5 +1,6 @@
 #include "EditorTerrainCompositionHeightProviderComponent.h"
 #include "../ComponentConfiguration.h"
+#include "EditorConfiguration.h"
 
 #include <AzCore/Serialization/EditContext.h>
 #include <AzCore/Serialization/SerializeContext.h>
@@ -9,30 +10,12 @@ namespace TerrainCompositor
 {
     void EditorTerrainCompositionHeightProviderComponent::Reflect(AZ::ReflectContext* context)
     {
-        if (auto* serialize = azrtti_cast<AZ::SerializeContext*>(context))
-        {
-            if (!serialize->IsRemovingReflection()) { TerrainCompositionHeightProviderConfig::Reflect(context); }
-            serialize->Class<EditorTerrainCompositionHeightProviderComponent, BaseClass>()
-                ->Version(1)
-                ->Field("Configuration", &EditorTerrainCompositionHeightProviderComponent::m_configuration);
-            if (auto* edit = serialize->GetEditContext())
-            {
-                edit->Class<EditorTerrainCompositionHeightProviderComponent>("Terrain Composition Height Provider",
-                    "Provides the composition's world height and explicit terrain holes on this Terrain Layer Spawner region.")
-                    ->ClassElement(AZ::Edit::ClassElements::EditorData, "")
-                    ->Attribute(AZ::Edit::Attributes::Category, "Terrain")
-                    ->Attribute(AZ::Edit::Attributes::AppearsInAddComponentMenu, AZ_CRC_CE("Game"))
-                    ->Attribute(AZ::Edit::Attributes::AutoExpand, true)
-                    ->DataElement(AZ::Edit::UIHandlers::Default,
-                        &EditorTerrainCompositionHeightProviderComponent::m_configuration,
-                        "Configuration", "Composition to query for height and terrain existence.")
-                    ->Attribute(AZ::Edit::Attributes::ChangeNotify,
-                        &EditorTerrainCompositionHeightProviderComponent::OnConfigurationChanged)
-                    ->UIElement(AZ::Edit::UIHandlers::Label, "Status", "Read-only provider status.")
-                    ->Attribute(AZ::Edit::Attributes::ValueText,
-                        &EditorTerrainCompositionHeightProviderComponent::GetStatusText);
-            }
-        }
+        Internal::ReflectEditorConfiguration<EditorTerrainCompositionHeightProviderComponent, BaseClass>(context,
+            &EditorTerrainCompositionHeightProviderComponent::m_configuration, &EditorTerrainCompositionHeightProviderComponent::OnConfigurationChanged,
+            &EditorTerrainCompositionHeightProviderComponent::GetStatusText, "Terrain Composition Height Provider",
+            "Provides the composition's world height and explicit terrain holes on this Terrain Layer Spawner region.",
+            "Composition to query for height and terrain existence.",
+            "Read-only provider status.");
     }
 
     void EditorTerrainCompositionHeightProviderComponent::GetProvidedServices(
@@ -72,11 +55,7 @@ namespace TerrainCompositor
 
     bool EditorTerrainCompositionHeightProviderComponent::ReadInConfig(const AZ::ComponentConfig* configuration)
     {
-        return Internal::ReadConfiguration<TerrainCompositionHeightProviderConfig>(configuration, [this](const auto& value)
-        {
-            m_configuration = value;
-            OnConfigurationChanged();
-        });
+        return Internal::ReadConfiguration(configuration, m_configuration, [this] { OnConfigurationChanged(); });
     }
 
     bool EditorTerrainCompositionHeightProviderComponent::WriteOutConfig(AZ::ComponentConfig* configuration) const
@@ -86,8 +65,7 @@ namespace TerrainCompositor
 
     AZ::u32 EditorTerrainCompositionHeightProviderComponent::OnConfigurationChanged()
     {
-        m_preview.Refresh(m_configuration);
-        return AZ::Edit::PropertyRefreshLevels::AttributesAndValues;
+        return Internal::RefreshEditorConfiguration(m_preview, m_configuration);
     }
 
 } // namespace TerrainCompositor

@@ -69,6 +69,56 @@ namespace TerrainCompositor
             const float p = std::clamp(value, 0.0f, 1.0f);
             return p * p * (3.0f - (2.0f * p));
         }
+        static float EvaluateReferenceField(float x, float y, float density, float riseFrequency, bool pruneZeroProfiles,
+            ProceduralHillCounters* counters = nullptr)
+        {
+            const float cellX = x * density;
+            const float cellY = y * density;
+            const int64_t baseCellX = static_cast<int64_t>(std::floor(cellX));
+            const int64_t baseCellY = static_cast<int64_t>(std::floor(cellY));
+            float blendedBumps = 0.0f;
+            float blendedDepressions = 0.0f;
+
+            // Each cell contains exactly one deterministically jittered hill center. Searching neighboring cells keeps the field
+            // continuous at cell boundaries while density remains a direct hills-per-meter spacing control.
+            for (int64_t offsetY = -1; offsetY <= 1; ++offsetY)
+            {
+                for (int64_t offsetX = -1; offsetX <= 1; ++offsetX)
+                {
+                    const int64_t hillCellX = baseCellX + offsetX;
+                    const int64_t hillCellY = baseCellY + offsetY;
+                    const float hillCenterX = static_cast<float>(hillCellX) +
+                        (0.15f + (CoordinateValue(hillCellX, hillCellY, 0xA24BAED4963EE407ULL) * 0.7f));
+                    const float hillCenterY = static_cast<float>(hillCellY) +
+                        (0.15f + (CoordinateValue(hillCellX, hillCellY, 0x9FB21C651E98DF25ULL) * 0.7f));
+                    const float deltaX = cellX - hillCenterX;
+                    const float deltaY = cellY - hillCenterY;
+                    if (counters) { ++counters->m_cells; ++counters->m_sqrt; }
+                    const float normalizedDistance = std::sqrt((deltaX * deltaX) + (deltaY * deltaY)) / Radius;
+                    const float baseProfile = SmoothCurve(1.0f - normalizedDistance);
+                    // Frequency is clamped positive. pow(+0, frequency) is +0,
+                    // and adding a zero-weight feature leaves either union intact.
+                    // Preserve the exact distance/profile operations at the rim.
+                    if (pruneZeroProfiles && baseProfile == 0.0f)
+                    {
+                        if (counters) ++counters->m_rejected;
+                        continue;
+                    }
+                    if (counters) ++counters->m_pow;
+                    const float hillProfile = std::pow(baseProfile, riseFrequency);
+
+                    // Randomly assign each feature as a bump or depression, then combine each group as a smooth bounded union.
+                    // Subtracting the two smooth fields also gives smooth transitions where opposite feature types overlap.
+                    const bool isDepression =
+                        CoordinateValue(hillCellX, hillCellY, 0xD1B54A32D192ED03ULL) < 0.5f;
+                    float& blendedFeature = isDepression ? blendedDepressions : blendedBumps;
+                    blendedFeature += (1.0f - blendedFeature) * hillProfile;
+                }
+            }
+
+            return blendedBumps - blendedDepressions;
+        }
+
         float Frequency() const { return m_frequency; }
         ProceduralHillPolicy Policy() const { return m_policy; }
 
@@ -90,9 +140,14 @@ namespace TerrainCompositor
             // and +/-1 neighbors fit int64. The adjacent float below 2^63 leaves
             // ample integer headroom; equality at either endpoint is rejected.
             if (!std::isfinite(cx) || !std::isfinite(cy) || std::abs(cx) >= 0x1p63f || std::abs(cy) >= 0x1p63f) return 0.5f;
+            if (m_policy == ProceduralHillPolicy::Reference || m_policy == ProceduralHillPolicy::PrunedReference)
+            {
+                const float field = EvaluateReferenceField(x, y, m_density, m_frequency,
+                    m_policy == ProceduralHillPolicy::PrunedReference, Measure ? counters : nullptr);
+                return std::clamp(0.5f + (field * m_amplitude), 0.0f, 1.0f);
+            }
             const auto bx = int64_t(std::floor(cx)), by = int64_t(std::floor(cy));
-            const bool reference = m_policy == ProceduralHillPolicy::Reference || m_policy == ProceduralHillPolicy::PrunedReference;
-            if (!reference && (scratch.m_x != bx || scratch.m_y != by))
+            if (scratch.m_x != bx || scratch.m_y != by)
             {
                 size_t i = 0;
                 for (int64_t oy = -1; oy <= 1; ++oy)
@@ -110,30 +165,25 @@ namespace TerrainCompositor
                     }
                 scratch.m_x = bx; scratch.m_y = by;
             }
-            else if (!reference) { if constexpr (Measure) counters->m_cellHits += 9; }
+            else { if constexpr (Measure) counters->m_cellHits += 9; }
             float bumps = 0, depressions = 0;
             size_t i = 0;
             for (int64_t oy = -1; oy <= 1; ++oy)
                 for (int64_t ox = -1; ox <= 1; ++ox, ++i)
                 {
-                    const auto hx = bx + ox, hy = by + oy;
-                    const auto cell = reference ? Cell{
-                        float(hx) + (0.15f + CoordinateValue(hx, hy, 0xA24BAED4963EE407ULL) * 0.7f),
-                        float(hy) + (0.15f + CoordinateValue(hx, hy, 0x9FB21C651E98DF25ULL) * 0.7f), false }
-                        : scratch.m_neighborhood[i];
-                    if constexpr (Measure) { if (reference) ++counters->m_cells; }
+                    const auto& cell = scratch.m_neighborhood[i];
                     const float dx = cx - cell.m_x, dy = cy - cell.m_y;
                     const float d2 = (dx * dx) + (dy * dy);
                     // Deliberately loose: sqrt(d2) >= 1 is safely beyond 0.85.
                     // The entire floating-point support boundary uses the original
                     // sqrt/division/profile, never d2 >= rounded radius*radius.
-                    if (!reference && d2 >= 1.0f) { if constexpr (Measure) ++counters->m_rejected; continue; }
+                    if (d2 >= 1.0f) { if constexpr (Measure) ++counters->m_rejected; continue; }
                     if constexpr (Measure) ++counters->m_sqrt;
                     const float p = SmoothCurve(1.0f - std::sqrt(d2) / Radius);
-                    if (m_policy != ProceduralHillPolicy::Reference && p == 0) { if constexpr (Measure) ++counters->m_rejected; continue; }
+                    if (p == 0) { if constexpr (Measure) ++counters->m_rejected; continue; }
                     const float h = m_power(p, m_frequency);
                     if constexpr (Measure) { if (m_power == GeneralPower) ++counters->m_pow; }
-                    const bool depression = reference ? CoordinateValue(hx, hy, 0xD1B54A32D192ED03ULL) < 0.5f : cell.m_depression;
+                    const bool depression = cell.m_depression;
                     float& blend = depression ? depressions : bumps;
                     blend += (1.0f - blend) * h;
                 }

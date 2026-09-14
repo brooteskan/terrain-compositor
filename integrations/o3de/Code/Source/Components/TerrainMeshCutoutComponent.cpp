@@ -79,8 +79,7 @@ namespace TerrainCompositor
     void TerrainMeshCutoutComponent::SetCutoutConfiguration(const TerrainMeshCutoutConfig& configuration)
     {
         if (!m_controlThread.Check()) return;
-        m_configuration = configuration;
-        OnConfigurationChanged();
+        Internal::AssignConfiguration(m_configuration, configuration, [this] { OnConfigurationChanged(); });
     }
 
     TerrainMeshCutoutConfig TerrainMeshCutoutComponent::GetCutoutConfiguration() const
@@ -95,16 +94,11 @@ namespace TerrainCompositor
         {
             return "Select a closed Cutout Mesh model asset.";
         }
-        if (m_placement.GetMatchingMeshCount() == 0)
-        {
-            return m_placement.IsWaitingForPlacement()
-                ? "Waiting for the matching Cutout Mesh instance to activate in this entity hierarchy."
-                : "No Atom Mesh instance using Cutout Mesh exists on this entity or its descendants.";
-        }
-        if (m_placement.GetMatchingMeshCount() > 1)
-        {
-            return "More than one Atom Mesh instance uses Cutout Mesh in this entity hierarchy; placement is ambiguous.";
-        }
+        if (const char* status = m_placement.GetPlacementStatus(
+            "Waiting for the matching Cutout Mesh instance to activate in this entity hierarchy.",
+            "No Atom Mesh instance using Cutout Mesh exists on this entity or its descendants.",
+            "More than one Atom Mesh instance uses Cutout Mesh in this entity hierarchy; placement is ambiguous."))
+            return status;
         return m_registration.GetStatusMessage();
     }
 

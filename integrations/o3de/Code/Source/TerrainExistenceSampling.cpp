@@ -1,5 +1,6 @@
 #include <TerrainCompositor/TerrainExistenceSampling.h>
 #include "StampMath.h"
+#include "ImageSampling.h"
 #include <TerrainCompositor/TerrainMeshHeightMapping.h>
 
 #include <AzCore/std/containers/array.h>
@@ -14,27 +15,9 @@ namespace TerrainCompositor
     {
         bool HasValidImage(const HeightmapDataPtr& image)
         {
-            return image && image->m_width > 0 && image->m_height > 0 &&
-                size_t(image->m_height) <= std::numeric_limits<size_t>::max() / image->m_width &&
-                image->m_samples.size() == size_t(image->m_width) * image->m_height;
+            return image && Internal::HasCompleteImageBuffer(image->m_width, image->m_height, image->m_samples.size());
         }
 
-        double SampleBilinear(const HeightmapData& image, double u, double v)
-        {
-            const double pixelX = std::clamp(u, 0.0, 1.0) * (image.m_width - 1);
-            const double pixelY = std::clamp(1.0 - v, 0.0, 1.0) * (image.m_height - 1);
-            const size_t x0 = static_cast<size_t>(pixelX);
-            const size_t y0 = static_cast<size_t>(pixelY);
-            const size_t x1 = std::min(x0 + 1, size_t(image.m_width - 1));
-            const size_t y1 = std::min(y0 + 1, size_t(image.m_height - 1));
-            const double tx = pixelX - double(x0);
-            const double ty = pixelY - double(y0);
-            const size_t row0 = y0 * size_t(image.m_width);
-            const size_t row1 = y1 * size_t(image.m_width);
-            const double top = image.m_samples[row0 + x0] * (1.0 - tx) + image.m_samples[row0 + x1] * tx;
-            const double bottom = image.m_samples[row1 + x0] * (1.0 - tx) + image.m_samples[row1 + x1] * tx;
-            return top * (1.0 - ty) + bottom * ty;
-        }
 
         bool HeightfieldCellLess(const TerrainHeightfieldCellAddress& left, const TerrainHeightfieldCellAddress& right)
         {
@@ -352,7 +335,7 @@ namespace TerrainCompositor
         {
             return false;
         }
-        if (SampleBilinear(*stamp.m_mask, mapped.m_u, mapped.m_v) < stamp.m_threshold)
+        if (Internal::SampleBilinear(stamp.m_mask->m_samples.data(), stamp.m_mask->m_width, stamp.m_mask->m_height, mapped.m_u, mapped.m_v) < stamp.m_threshold)
         {
             return false;
         }
@@ -374,29 +357,9 @@ namespace TerrainCompositor
             return false;
         }
 
-        const AZ::Aabb& localBounds = preparedHeight.m_data->m_localUncoveredBounds;
-        double minimumX = std::numeric_limits<double>::max();
-        double maximumX = -std::numeric_limits<double>::max();
-        double minimumY = std::numeric_limits<double>::max();
-        double maximumY = -std::numeric_limits<double>::max();
-        for (const double localX : { double(localBounds.GetMin().GetX()), double(localBounds.GetMax().GetX()) })
-        {
-            for (const double localY : { double(localBounds.GetMin().GetY()), double(localBounds.GetMax().GetY()) })
-            {
-                const double worldX = preparedHeight.m_originX +
-                    preparedHeight.m_scale * (preparedHeight.m_cosYaw * localX - preparedHeight.m_sinYaw * localY);
-                const double worldY = preparedHeight.m_originY +
-                    preparedHeight.m_scale * (preparedHeight.m_sinYaw * localX + preparedHeight.m_cosYaw * localY);
-                minimumX = std::min(minimumX, worldX);
-                maximumX = std::max(maximumX, worldX);
-                minimumY = std::min(minimumY, worldY);
-                maximumY = std::max(maximumY, worldY);
-            }
-        }
-        const double floatMaximum = std::numeric_limits<float>::max();
-        if (!std::isfinite(minimumX) || !std::isfinite(maximumX) || !std::isfinite(minimumY) || !std::isfinite(maximumY) ||
-            std::abs(minimumX) > floatMaximum || std::abs(maximumX) > floatMaximum || std::abs(minimumY) > floatMaximum ||
-            std::abs(maximumY) > floatMaximum)
+        const auto bounds = Internal::TransformStampXYBounds(preparedHeight.m_data->m_localUncoveredBounds,
+            preparedHeight.m_originX, preparedHeight.m_originY, preparedHeight.m_scale, preparedHeight.m_cosYaw, preparedHeight.m_sinYaw);
+        if (!bounds.IsRepresentable())
         {
             return false;
         }
@@ -413,9 +376,7 @@ namespace TerrainCompositor
         gap.m_sinYaw = preparedHeight.m_sinYaw;
         gap.m_affectTerrainRendering = preparedHeight.m_affectTerrainRendering;
         gap.m_affectTerrainCollisionQueries = preparedHeight.m_affectTerrainCollisionQueries;
-        gap.m_worldBounds = AZ::Aabb::CreateFromMinMax(
-            AZ::Vector3(Internal::RoundOutward(minimumX, true), Internal::RoundOutward(minimumY, true), 0.0f),
-            AZ::Vector3(Internal::RoundOutward(maximumX, false), Internal::RoundOutward(maximumY, false), 0.0f));
+        gap.m_worldBounds = bounds.ToAabb();
         gap.m_collisionWorldBounds = gap.m_worldBounds;
         AZ::Aabb collisionRegion = terrainRegionBounds;
         if (!collisionRegion.IsValid() && std::isfinite(worldHeightfieldGridSpacing) && worldHeightfieldGridSpacing > 0.0f)
@@ -610,34 +571,33 @@ namespace TerrainCompositor
         return AZStd::any_of(admitted.begin(), admitted.end(), [&](const auto& candidate) { return SameTerrainMeshHeightGap(gap, candidate); });
     }
 
-    bool ComposeTerrainRenderGeometryExists(
-        const AZ::Vector3& surfacePoint, bool baseExists, AZStd::span<const PreparedTerrainExistenceContributor> contributors)
+    namespace
     {
-        bool result = baseExists;
-        for (const auto& contributor : contributors)
+        template<class Contributor, class Dereference>
+        bool ComposeRenderImageMasks(const AZ::Vector3& position, bool result,
+            AZStd::span<Contributor> contributors, Dereference dereference)
         {
-            if (contributor.m_type != PreparedTerrainExistenceContributor::Type::ImageMask)
+            for (const auto& item : contributors)
             {
-                continue;
+                const auto& contributor = dereference(item);
+                if (contributor.m_type != PreparedTerrainExistenceContributor::Type::ImageMask) continue;
+                bool authored = result;
+                if (SampleTerrainExistenceStamp(position, contributor.m_imageMask, authored)) result = authored;
             }
-            bool authored = result;
-            if (SampleTerrainExistenceStamp(surfacePoint, contributor.m_imageMask, authored))
-            {
-                result = authored;
-            }
+            return result;
         }
-        return result;
     }
+
+    bool ComposeTerrainRenderGeometryExists(const AZ::Vector3& position, bool baseExists,
+        AZStd::span<const PreparedTerrainExistenceContributor> contributors)
+    {
+        return ComposeRenderImageMasks(position, baseExists, contributors, [](const auto& item) -> const auto& { return item; });
+    }
+
     bool ComposeTerrainRenderGeometryExists(const AZ::Vector3& position, bool baseExists,
         AZStd::span<const PreparedTerrainExistenceContributor* const> contributors)
     {
-        bool result = baseExists;
-        for (const auto* contributor : contributors)
-        {
-            if (contributor->m_type != PreparedTerrainExistenceContributor::Type::ImageMask) continue;
-            bool authored = result;
-            if (SampleTerrainExistenceStamp(position, contributor->m_imageMask, authored)) result = authored;
-        }
-        return result;
+        return ComposeRenderImageMasks(position, baseExists, contributors, [](const auto* item) -> const auto& { return *item; });
     }
+
 } // namespace TerrainCompositor

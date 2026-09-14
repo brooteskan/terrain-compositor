@@ -1,5 +1,7 @@
 #pragma once
 
+#include <TerrainCompositor/Internal/AssetPreparation.h>
+
 #include <AzCore/EBus/Event.h>
 #include <AzCore/Interface/Interface.h>
 #include <AzCore/std/containers/unordered_map.h>
@@ -18,7 +20,8 @@ namespace TerrainCompositor
         AZ::u64 currentLifecycleGeneration,
         AZ::u64 latestPreparationTicket)
     {
-        return expectedLifecycleGeneration == currentLifecycleGeneration && expectedPreparationTicket == latestPreparationTicket;
+        return Internal::IsAssetPreparationCurrent(
+            expectedLifecycleGeneration, expectedPreparationTicket, currentLifecycleGeneration, latestPreparationTicket);
     }
 
     class TerrainMeshHeightDataSource;

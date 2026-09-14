@@ -21,7 +21,7 @@ namespace TerrainCompositor
         void Update(const TerrainMeshCutoutConfig& configuration, const AZ::Transform& worldTransform,
             bool transformAvailable = true, bool identityPending = false, bool hasNonUniformScale = false);
         void Deactivate();
-        bool IsActive() const { return m_controlThread.Check() && m_active; }
+        bool IsActive() const { return IsClientActive(); }
         bool IsRegistered() const;
         AZStd::string GetStatusMessage() const;
 

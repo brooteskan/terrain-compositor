@@ -1,5 +1,6 @@
 #include <TerrainCompositor/HeightmapStampSampling.h>
 #include "StampMath.h"
+#include "ImageSampling.h"
 
 #include <algorithm>
 #include <cmath>
@@ -26,33 +27,15 @@ namespace TerrainCompositor
             return 0.0;
         }
 
-        double SampleBilinear(const float* samples, AZ::u32 width, AZ::u32 height, double u, double v)
-        {
-            // Preparation checked nonzero dimensions and the complete row-major buffer size.
-            // A one-pixel dimension gives coordinate 0 and identical neighbors, without division.
-            const double pixelX = std::clamp(u, 0.0, 1.0) * (width - 1);
-            const double pixelY = std::clamp(1.0 - v, 0.0, 1.0) * (height - 1);
-            const size_t x0 = static_cast<size_t>(pixelX);
-            const size_t y0 = static_cast<size_t>(pixelY);
-            const size_t x1 = std::min(x0 + 1, size_t(width - 1));
-            const size_t y1 = std::min(y0 + 1, size_t(height - 1));
-            const double tx = pixelX - static_cast<double>(x0);
-            const double ty = pixelY - static_cast<double>(y0);
-            const size_t row0 = y0 * size_t(width);
-            const size_t row1 = y1 * size_t(width);
-            const double top = samples[row0 + x0] * (1.0 - tx) + samples[row0 + x1] * tx;
-            const double bottom = samples[row1 + x0] * (1.0 - tx) + samples[row1 + x1] * tx;
-            return top * (1.0 - ty) + bottom * ty;
-        }
 
         double SampleHeightmap(const PreparedHeightmapStamp& stamp, double u, double v)
         {
             if (stamp.m_reconstruction)
             {
-                return SampleBilinear(
+                return Internal::SampleBilinear(
                     stamp.m_reconstruction->m_samples.data(), stamp.m_reconstruction->m_width, stamp.m_reconstruction->m_height, u, v);
             }
-            return SampleBilinear(stamp.m_image->m_samples.data(), stamp.m_image->m_width, stamp.m_image->m_height, u, v);
+            return Internal::SampleBilinear(stamp.m_image->m_samples.data(), stamp.m_image->m_width, stamp.m_image->m_height, u, v);
         }
 
         struct ContributionSample

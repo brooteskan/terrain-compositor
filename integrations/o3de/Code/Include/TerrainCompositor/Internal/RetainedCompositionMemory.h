@@ -7,25 +7,33 @@ namespace TerrainCompositor::Internal
     // Conservative capacity accounting: repeated shared values are counted again.
     // The dispatcher rejects a generation above its allowance before acquisition.
     template<class T> size_t CapacityBytes(const T& values) { return values.capacity() * sizeof(typename T::value_type); }
+    template<class Data, class... Members>
+    size_t RetainedAllocationBytes(const Data& data, Members... members)
+    {
+        return data ? sizeof(*data) + (CapacityBytes(data.get()->*members) + ... + size_t{ 0 }) + 128 : 0;
+    }
+
     inline size_t RetainedBytes(const HeightmapDataPtr& data)
     {
-        return data ? sizeof(*data) + CapacityBytes(data->m_samples) + CapacityBytes(data->m_rawSamples) +
-            CapacityBytes(data->m_uniqueNonzeroValues) + 128 : 0;
+        return RetainedAllocationBytes(data,
+            &HeightmapData::m_samples, &HeightmapData::m_rawSamples, &HeightmapData::m_uniqueNonzeroValues);
     }
     inline size_t RetainedBytes(const TerrainMeshHeightDataPtr& data)
     {
-        return data ? sizeof(*data) + CapacityBytes(data->m_localHeights) + CapacityBytes(data->m_uncoveredCellBits) +
-            CapacityBytes(data->m_cellDiagonalBits) + CapacityBytes(data->m_gapTileOccupancy) + 128 : 0;
+        return RetainedAllocationBytes(data,
+            &TerrainMeshHeightData::m_localHeights, &TerrainMeshHeightData::m_uncoveredCellBits,
+            &TerrainMeshHeightData::m_cellDiagonalBits, &TerrainMeshHeightData::m_gapTileOccupancy);
     }
     inline size_t RetainedBytes(const TerrainMeshCutoutDataPtr& data)
     {
-        return data ? sizeof(*data) + CapacityBytes(data->m_vertices) + CapacityBytes(data->m_indices) +
-            CapacityBytes(data->m_triangles) + CapacityBytes(data->m_bvh) + 128 : 0;
+        return RetainedAllocationBytes(data,
+            &TerrainMeshCutoutData::m_vertices, &TerrainMeshCutoutData::m_indices,
+            &TerrainMeshCutoutData::m_triangles, &TerrainMeshCutoutData::m_bvh);
     }
     inline size_t RetainedBytes(const PreparedTerrainMeshHeightGap& gap)
     {
-        return RetainedBytes(gap.m_data) + gap.m_stableOrderKey.capacity() + (gap.m_collisionCells ?
-            sizeof(*gap.m_collisionCells) + CapacityBytes(gap.m_collisionCells->m_cells) + 128 : 0);
+        return RetainedBytes(gap.m_data) + gap.m_stableOrderKey.capacity() +
+            RetainedAllocationBytes(gap.m_collisionCells, &PreparedTerrainHeightfieldCellMask::m_cells);
     }
     inline size_t RetainedBytes(const PreparedTerrainMeshCutout& cutout)
     {
@@ -43,8 +51,7 @@ namespace TerrainCompositor::Internal
         {
             bytes += RetainedBytes(item.m_image.m_image) + item.m_image.m_placement.m_stableOrderKey.capacity() +
                 RetainedBytes(item.m_mesh.m_data) + item.m_mesh.m_stableOrderKey.capacity();
-            if (item.m_image.m_reconstruction)
-                bytes += sizeof(*item.m_image.m_reconstruction) + CapacityBytes(item.m_image.m_reconstruction->m_samples) + 128;
+            bytes += RetainedAllocationBytes(item.m_image.m_reconstruction, &HeightmapReconstructionData::m_samples);
         }
         for (const auto& item : state.m_existenceContributors)
             bytes += RetainedBytes(item.m_imageMask.m_mask) + item.m_imageMask.m_placement.m_stableOrderKey.capacity() +

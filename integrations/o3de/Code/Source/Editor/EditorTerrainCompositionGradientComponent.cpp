@@ -1,5 +1,6 @@
 #include "EditorTerrainCompositionGradientComponent.h"
 #include "../ComponentConfiguration.h"
+#include "EditorConfiguration.h"
 
 #include <AzCore/Serialization/EditContext.h>
 #include <AzCore/Serialization/SerializeContext.h>
@@ -81,27 +82,12 @@ namespace TerrainCompositor
     void EditorTerrainCompositionGradientComponent::Reflect(AZ::ReflectContext* context)
     {
         // Config reflection is idempotent; runtime owns its removal when descriptors are unreflected.
-        if (auto* serialize = azrtti_cast<AZ::SerializeContext*>(context))
-        {
-            if (!serialize->IsRemovingReflection()) { TerrainCompositionConfig::Reflect(context); }
-            serialize->Class<EditorTerrainCompositionGradientComponent, BaseClass>()
-                ->Version(1)
-                ->Field("Configuration", &EditorTerrainCompositionGradientComponent::m_configuration);
-            if (auto* edit = serialize->GetEditContext())
-            {
-                edit->Class<EditorTerrainCompositionGradientComponent>("Terrain Composition Gradient",
-                    "One height source combining procedural ground and scoped heightmap stamps. Use a separate entity from Terrain Region.")
-                    ->ClassElement(AZ::Edit::ClassElements::EditorData, "")
-                    ->Attribute(AZ::Edit::Attributes::Category, "Terrain")
-                    ->Attribute(AZ::Edit::Attributes::AppearsInAddComponentMenu, AZ_CRC_CE("Game"))
-                    ->Attribute(AZ::Edit::Attributes::AutoExpand, true)
-                    ->DataElement(AZ::Edit::UIHandlers::Default, &EditorTerrainCompositionGradientComponent::m_configuration,
-                        "Configuration", "References to the existing procedural source and target terrain region.")
-                    ->Attribute(AZ::Edit::Attributes::ChangeNotify, &EditorTerrainCompositionGradientComponent::OnConfigurationChanged)
-                    ->UIElement(AZ::Edit::UIHandlers::Label, "Status", "Read-only composition preview status.")
-                    ->Attribute(AZ::Edit::Attributes::ValueText, &EditorTerrainCompositionGradientComponent::GetStatusText);
-            }
-        }
+        Internal::ReflectEditorConfiguration<EditorTerrainCompositionGradientComponent, BaseClass>(context,
+            &EditorTerrainCompositionGradientComponent::m_configuration, &EditorTerrainCompositionGradientComponent::OnConfigurationChanged,
+            &EditorTerrainCompositionGradientComponent::GetStatusText, "Terrain Composition Gradient",
+            "One height source combining procedural ground and scoped heightmap stamps. Use a separate entity from Terrain Region.",
+            "References to the existing procedural source and target terrain region.",
+            "Read-only composition preview status.");
     }
 
     void EditorTerrainCompositionGradientComponent::GetProvidedServices(AZ::ComponentDescriptor::DependencyArrayType& services)
@@ -142,11 +128,7 @@ namespace TerrainCompositor
 
     bool EditorTerrainCompositionGradientComponent::ReadInConfig(const AZ::ComponentConfig* configuration)
     {
-        return Internal::ReadConfiguration<TerrainCompositionConfig>(configuration, [this](const auto& value)
-        {
-            m_configuration = value;
-            OnConfigurationChanged();
-        });
+        return Internal::ReadConfiguration(configuration, m_configuration, [this] { OnConfigurationChanged(); });
     }
 
     bool EditorTerrainCompositionGradientComponent::WriteOutConfig(AZ::ComponentConfig* configuration) const
@@ -156,8 +138,7 @@ namespace TerrainCompositor
 
     AZ::u32 EditorTerrainCompositionGradientComponent::OnConfigurationChanged()
     {
-        m_preview.Refresh(m_configuration);
-        return AZ::Edit::PropertyRefreshLevels::AttributesAndValues;
+        return Internal::RefreshEditorConfiguration(m_preview, m_configuration);
     }
 
     void EditorTerrainCompositionGradientComponent::DisplayEntityViewport(

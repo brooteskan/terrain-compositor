@@ -11,6 +11,14 @@
 
 namespace TerrainCompositor
 {
+    // Each domain retains its own process-local sequence and original atomic ordering.
+    template<class Domain>
+    AZ::u64 NextTerrainIdentity()
+    {
+        static std::atomic<AZ::u64> next{ 0 };
+        return ++next;
+    }
+
     //! A lifetime-safe invalidation authority, not a lease on a live bus handler.
     //! Notifications advance the revision immediately, before deferred terrain refresh.
     class TerrainPreparationDependency
@@ -52,6 +60,20 @@ namespace TerrainCompositor
         AZ::u64 m_revision = 0;
     };
 
+    inline std::vector<std::shared_ptr<TerrainPreparationDependency>> CollectTerrainPreparationDependencies(
+        const AZStd::vector<TerrainPreparationDependencyTicket>& tickets)
+    {
+        std::vector<std::shared_ptr<TerrainPreparationDependency>> dependencies;
+        for (const auto& ticket : tickets)
+            if (ticket.m_dependency) dependencies.push_back(ticket.m_dependency);
+        std::sort(dependencies.begin(), dependencies.end(), [](const auto& left, const auto& right)
+        {
+            return std::less<TerrainPreparationDependency*>{}(left.get(), right.get());
+        });
+        dependencies.erase(std::unique(dependencies.begin(), dependencies.end()), dependencies.end());
+        return dependencies;
+    }
+
     //! Immutable lock order and exact tickets. Preparing metadata never refreshes a
     //! revision or grants admission. Equal sets may be shared by committed sectors.
     class TerrainPreparationDependencySet
@@ -60,13 +82,7 @@ namespace TerrainCompositor
         explicit TerrainPreparationDependencySet(const AZStd::vector<TerrainPreparationDependencyTicket>& tickets)
             : m_tickets(tickets)
         {
-            for (const auto& ticket : tickets)
-                if (ticket.m_dependency) m_dependencies.push_back(ticket.m_dependency);
-            std::sort(m_dependencies.begin(), m_dependencies.end(), [](const auto& left, const auto& right)
-            {
-                return std::less<TerrainPreparationDependency*>{}(left.get(), right.get());
-            });
-            m_dependencies.erase(std::unique(m_dependencies.begin(), m_dependencies.end()), m_dependencies.end());
+            m_dependencies = CollectTerrainPreparationDependencies(tickets);
         }
         const AZStd::vector<TerrainPreparationDependencyTicket>& GetTickets() const { return m_tickets; }
         //! A fresh observation of every exact ticket, including conflicting
@@ -110,13 +126,7 @@ namespace TerrainCompositor
     public:
         explicit TerrainPreparationAdmission(const AZStd::vector<TerrainPreparationDependencyTicket>& tickets)
         {
-            for (const auto& ticket : tickets)
-                if (ticket.m_dependency) m_dependencies.push_back(ticket.m_dependency);
-            std::sort(m_dependencies.begin(), m_dependencies.end(), [](const auto& left, const auto& right)
-            {
-                return std::less<TerrainPreparationDependency*>{}(left.get(), right.get());
-            });
-            m_dependencies.erase(std::unique(m_dependencies.begin(), m_dependencies.end()), m_dependencies.end());
+            m_dependencies = CollectTerrainPreparationDependencies(tickets);
             for (const auto& dependency : m_dependencies) m_locks.emplace_back(dependency->m_mutex);
             for (const auto& ticket : tickets)
                 m_valid = m_valid && ticket.m_dependency && ticket.m_dependency->m_active &&

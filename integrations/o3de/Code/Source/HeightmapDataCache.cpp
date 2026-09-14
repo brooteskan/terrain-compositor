@@ -1,4 +1,5 @@
 #include <TerrainCompositor/HeightmapDataCache.h>
+#include "AssetSource.h"
 
 #include <Atom/RPI.Public/RPIUtils.h>
 #include <Atom/RPI.Reflect/Image/StreamingImageAsset.h>
@@ -24,13 +25,6 @@ namespace TerrainCompositor
             "power-of-two dimensions, resolution reduction 0, and full image-tag quality (mip 0). "
             "Reprocess the image and check Asset Processor errors and its streamingimage/mip-chain products.";
 
-        AZ::Data::AssetInfo GetAssetInfo(const AZ::Data::AssetId& id)
-        {
-            AZ::Data::AssetInfo info;
-            AZ::Data::AssetCatalogRequestBus::BroadcastResult(
-                info, &AZ::Data::AssetCatalogRequestBus::Events::GetAssetInfoById, id);
-            return info;
-        }
 
         bool IsPowerOfTwo(AZ::u32 value)
         {
@@ -165,7 +159,7 @@ namespace TerrainCompositor
             m_waitingForImageReload = false;
             m_lastImageToken = -1;
 
-            const auto info = GetAssetInfo(m_assetId);
+            const auto info = Internal::GetAssetInfo(m_assetId);
             m_assetPath = info.m_relativePath;
             // Check the catalog before GetAsset: StreamingImageAsset's missing-asset fallback is a color image,
             // and its handler can even synchronously compile a fallback. It must never become terrain height data.
@@ -223,7 +217,7 @@ namespace TerrainCompositor
             }
 
             const auto& reference = m_image->GetMipChainAsset(chainIndex);
-            const auto info = GetAssetInfo(reference.GetId());
+            const auto info = Internal::GetAssetInfo(reference.GetId());
             if (!info.m_assetId.IsValid())
             {
                 Publish(HeightmapDataStatus::Missing, "Required mip-zero product is missing from the asset catalog.");
@@ -456,10 +450,10 @@ namespace TerrainCompositor
             {
                 // Catalog callbacks are queued without touching mutable load state on asset threads.
                 // An older removal cannot discard a product which has since reappeared in the catalog.
-                if (GetAssetInfo(id).m_assetId.IsValid()) { return; }
+                if (Internal::GetAssetInfo(id).m_assetId.IsValid()) { return; }
                 InvalidateRemoved(id == m_assetId);
             }
-            else if (event == CatalogEvent::Available && !GetAssetInfo(id).m_assetId.IsValid())
+            else if (event == CatalogEvent::Available && !Internal::GetAssetInfo(id).m_assetId.IsValid())
             {
                 return; // A stale availability event cannot restart a product already removed again.
             }
@@ -525,13 +519,7 @@ namespace TerrainCompositor
     HeightmapDataCache::~HeightmapDataCache()
     {
         HeightmapDataCacheInterface::Unregister(this);
-        for (const auto& [id, weakSource] : m_sources)
-        {
-            if (auto source = weakSource.lock())
-            {
-                source->Stop();
-            }
-        }
+        Internal::StopAssetSources(m_sources);
     }
 
     HeightmapDataCache::Handle HeightmapDataCache::Acquire(const AZ::Data::AssetId& assetId)
@@ -541,40 +529,16 @@ namespace TerrainCompositor
         {
             return {};
         }
-        // Canonicalize legacy aliases so they share data too. Missing IDs remain subscribed for later catalog discovery.
-        const auto info = GetAssetInfo(assetId);
-        const auto id = info.m_assetId.IsValid() ? info.m_assetId : assetId;
-        for (auto it = m_sources.begin(); it != m_sources.end();)
-        {
-            if (it->second.expired())
-            {
-                it = m_sources.erase(it);
-            }
-            else
-            {
-                ++it;
-            }
-        }
-        if (auto existing = m_sources[id].lock())
-        {
-            return existing;
-        }
-        auto source = AZStd::make_shared<HeightmapDataSource>(id);
-        m_sources[id] = source;
-        source->Start();
-        return source;
+        return Internal::AcquireAssetSource<HeightmapDataSource>(m_sources, assetId);
     }
 
     HeightmapDataSnapshot HeightmapDataCache::GetSnapshot(const Handle& handle)
     {
-        return handle && handle->m_controlThread.Check() ? handle->m_snapshot : HeightmapDataSnapshot{};
+        return Internal::GetAssetSourceSnapshot<HeightmapDataSnapshot>(handle);
     }
 
     void HeightmapDataCache::ConnectChangedHandler(const Handle& handle, ChangedEvent::Handler& handler)
     {
-        if (handle && handle->m_controlThread.Check())
-        {
-            handler.Connect(handle->m_changed);
-        }
+        Internal::ConnectAssetSourceChanged(handle, handler);
     }
 } // namespace TerrainCompositor

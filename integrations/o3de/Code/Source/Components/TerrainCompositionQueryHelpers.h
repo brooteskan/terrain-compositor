@@ -28,6 +28,15 @@ namespace TerrainCompositor
 namespace TerrainCompositor::Internal
 {
     template<class Registrations>
+    size_t CountOrderingClaims(const Registrations& registrations, AZStd::string_view key)
+    {
+        size_t count = 0;
+        for (const auto& [id, registration] : registrations)
+            count += registration.m_configuration.GetRuntimeOrderKey() == key;
+        return count;
+    }
+
+    template<class Registrations>
     AZStd::vector<typename Registrations::mapped_type> RegistrationValues(const Registrations& registrations)
     {
         AZStd::vector<typename Registrations::mapped_type> values;

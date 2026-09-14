@@ -5,6 +5,12 @@
 
 namespace TerrainCompositor::Internal
 {
+    const char* MeshPlacementLifecycle::GetPlacementStatus(const char* waiting, const char* missing, const char* ambiguous) const
+    {
+        if (m_matchingMeshCount == 0) return IsWaitingForPlacement() ? waiting : missing;
+        return m_matchingMeshCount > 1 ? ambiguous : nullptr;
+    }
+
     MeshPlacementLifecycle::MeshPlacementLifecycle(AZStd::function<void()> updateRegistration)
         : m_updateRegistration(AZStd::move(updateRegistration))
         , m_scaleChangedHandler([this](const AZ::Vector3&) { m_updateRegistration(); })

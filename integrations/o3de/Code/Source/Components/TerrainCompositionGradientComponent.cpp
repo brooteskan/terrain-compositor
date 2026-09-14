@@ -1,3 +1,4 @@
+#include <TerrainCompositor/Internal/AssetSnapshot.h>
 #include <TerrainCompositor/Components/TerrainCompositionGradientComponent.h>
 #include <TerrainCompositor/TerrainBatchCandidates.h>
 #include <TerrainCompositor/Internal/RetainedCompositionMemory.h>
@@ -59,11 +60,6 @@ namespace TerrainCompositor
             return currentContext.IsNull() || currentContext == address.first;
         }
 
-        bool SnapshotsEqual(const HeightmapDataSnapshot& left, const HeightmapDataSnapshot& right)
-        {
-            return left.m_status == right.m_status && left.m_revision == right.m_revision && left.m_assetId == right.m_assetId &&
-                left.m_data == right.m_data;
-        }
 
         bool CommonStampDataEqual(const HeightmapStampRegistrationData& left, const HeightmapStampRegistrationData& right)
         {
@@ -89,33 +85,28 @@ namespace TerrainCompositor
             if (a.m_heightmapAsset.GetId() != b.m_heightmapAsset.GetId() || a.m_heightScale != b.m_heightScale ||
                 a.m_verticalOffset != b.m_verticalOffset || a.m_samplingMode != b.m_samplingMode ||
                 a.m_reconstructionRadius != b.m_reconstructionRadius || a.m_relativeEdgeBlend != b.m_relativeEdgeBlend ||
-                !SnapshotsEqual(previous->m_heightmap, current.m_heightmap))
+                !Internal::AssetSnapshotsEqual(previous->m_heightmap, current.m_heightmap))
             {
                 dirty |= DirtyHeight;
             }
             if (a.m_surfaceMaps.m_surfaceIdAAsset.GetId() != b.m_surfaceMaps.m_surfaceIdAAsset.GetId() ||
                 a.m_surfaceMaps.m_surfaceIdBAsset.GetId() != b.m_surfaceMaps.m_surfaceIdBAsset.GetId() ||
                 a.m_surfaceMaps.m_blendMaskAsset.GetId() != b.m_surfaceMaps.m_blendMaskAsset.GetId() ||
-                !SnapshotsEqual(previous->m_surfaceIdA, current.m_surfaceIdA) ||
-                !SnapshotsEqual(previous->m_surfaceIdB, current.m_surfaceIdB) ||
-                !SnapshotsEqual(previous->m_surfaceBlend, current.m_surfaceBlend))
+                !Internal::AssetSnapshotsEqual(previous->m_surfaceIdA, current.m_surfaceIdA) ||
+                !Internal::AssetSnapshotsEqual(previous->m_surfaceIdB, current.m_surfaceIdB) ||
+                !Internal::AssetSnapshotsEqual(previous->m_surfaceBlend, current.m_surfaceBlend))
             {
                 dirty |= DirtySurface;
             }
             if (a.m_holeMask.m_maskAsset.GetId() != b.m_holeMask.m_maskAsset.GetId() ||
                 a.m_holeMask.m_threshold != b.m_holeMask.m_threshold || a.m_holeMask.m_operation != b.m_holeMask.m_operation ||
-                !SnapshotsEqual(previous->m_holeMask, current.m_holeMask))
+                !Internal::AssetSnapshotsEqual(previous->m_holeMask, current.m_holeMask))
             {
                 dirty |= DirtyExistence;
             }
             return dirty;
         }
 
-        bool MeshSnapshotsEqual(const TerrainMeshCutoutDataSnapshot& left, const TerrainMeshCutoutDataSnapshot& right)
-        {
-            return left.m_status == right.m_status && left.m_validation == right.m_validation && left.m_revision == right.m_revision &&
-                left.m_assetId == right.m_assetId && left.m_data == right.m_data;
-        }
 
         bool MeshCutoutRegistrationsEqual(const TerrainMeshCutoutRegistrationData& left, const TerrainMeshCutoutRegistrationData& right)
         {
@@ -128,15 +119,9 @@ namespace TerrainCompositor
                 a.m_collisionMargin == b.m_collisionMargin && a.m_orderingId == b.m_orderingId &&
                 a.m_stableOrderKey == b.m_stableOrderKey && left.m_worldTransform == right.m_worldTransform &&
                 left.m_transformAvailable == right.m_transformAvailable && left.m_hasNonUniformScale == right.m_hasNonUniformScale &&
-                left.m_identityPending == right.m_identityPending && MeshSnapshotsEqual(left.m_mesh, right.m_mesh);
+                left.m_identityPending == right.m_identityPending && Internal::AssetSnapshotsEqual(left.m_mesh, right.m_mesh);
         }
 
-        bool MeshHeightSnapshotsEqual(const TerrainMeshHeightDataSnapshot& left, const TerrainMeshHeightDataSnapshot& right)
-        {
-            return left.m_status == right.m_status && left.m_modelValidation == right.m_modelValidation &&
-                left.m_validation == right.m_validation && left.m_revision == right.m_revision && left.m_assetId == right.m_assetId &&
-                left.m_data == right.m_data;
-        }
 
         AZ::u8 ClassifyMeshHeightChange(
             const TerrainMeshHeightStampRegistrationData* previous, const TerrainMeshHeightStampRegistrationData& current)
@@ -152,7 +137,7 @@ namespace TerrainCompositor
                 a.m_orderingId != b.m_orderingId || a.m_stableOrderKey != b.m_stableOrderKey ||
                 previous->m_worldTransform != current.m_worldTransform || previous->m_transformAvailable != current.m_transformAvailable ||
                 previous->m_hasNonUniformScale != current.m_hasNonUniformScale ||
-                previous->m_identityPending != current.m_identityPending || !MeshHeightSnapshotsEqual(previous->m_mesh, current.m_mesh))
+                previous->m_identityPending != current.m_identityPending || !Internal::AssetSnapshotsEqual(previous->m_mesh, current.m_mesh))
             {
                 return DirtyMeshHeightAll;
             }
@@ -676,21 +661,18 @@ namespace TerrainCompositor
 
     void TerrainCompositionGradientComponent::OnEntityActivated(const AZ::EntityId& entityId)
     {
-        if (!m_controlThread.Check() || !m_active || entityId != m_configuration.m_targetTerrainRegionEntityId)
-        {
-            return;
-        }
-        m_regionDeactivating = false;
-        OnShapeChanged(LmbrCentral::ShapeComponentNotifications::ShapeChangeReasons::ShapeChanged);
+        OnRegionActivationChanged(entityId, false);
     }
 
     void TerrainCompositionGradientComponent::OnEntityDeactivated(const AZ::EntityId& entityId)
     {
-        if (!m_controlThread.Check() || !m_active || entityId != m_configuration.m_targetTerrainRegionEntityId)
-        {
-            return;
-        }
-        m_regionDeactivating = true;
+        OnRegionActivationChanged(entityId, true);
+    }
+
+    void TerrainCompositionGradientComponent::OnRegionActivationChanged(const AZ::EntityId& entityId, bool deactivating)
+    {
+        if (!m_controlThread.Check() || !m_active || entityId != m_configuration.m_targetTerrainRegionEntityId) return;
+        m_regionDeactivating = deactivating;
         OnShapeChanged(LmbrCentral::ShapeComponentNotifications::ShapeChangeReasons::ShapeChanged);
     }
 
@@ -1250,25 +1232,31 @@ namespace TerrainCompositor
         {
             return;
         }
-        AZStd::fill(outValues.begin(), outValues.end(), 0.0f);
         const auto state = GetQueryState(); // Exactly one retained state for the whole batch.
+        GetNormalizedHeights(*state, positions, outValues);
+    }
+
+    void TerrainCompositionGradientComponent::GetNormalizedHeights(
+        const QueryState& state, AZStd::span<const AZ::Vector3> positions, AZStd::span<float> outValues)
+    {
+        AZStd::fill(outValues.begin(), outValues.end(), 0.0f);
         if (GradientSignal::GradientRequestBus::HasReentrantEBusUseThisThread() ||
-            !GradientSignal::GradientRequestBus::HasHandlers(state->m_sourceEntityId) || !CanSampleSource(*state))
+            !GradientSignal::GradientRequestBus::HasHandlers(state.m_sourceEntityId) || !CanSampleSource(state) || positions.empty())
         {
             return;
         }
         GradientSignal::GradientRequestBus::Event(
-            state->m_sourceEntityId, &GradientSignal::GradientRequestBus::Events::GetValues, positions, outValues);
-        if (state->m_heightContributors.empty())
+            state.m_sourceEntityId, &GradientSignal::GradientRequestBus::Events::GetValues, positions, outValues);
+        if (state.m_heightContributors.empty())
         {
             return; // Exact batched procedural pass-through, without a per-position
                     // composition loop.
         }
         const AZStd::span<const PreparedHeightContributor> contributors(
-            state->m_heightContributors.data(), state->m_heightContributors.size());
+            state.m_heightContributors.data(), state.m_heightContributors.size());
         for (size_t index = 0; index < positions.size(); ++index)
         {
-            outValues[index] = ComposeHeightContributors(positions[index], outValues[index], state->m_regionMapping, contributors);
+            outValues[index] = ComposeHeightContributors(positions[index], outValues[index], state.m_regionMapping, contributors);
         }
     }
 
@@ -1307,20 +1295,7 @@ namespace TerrainCompositor
             AZStd::fill(terrainExists.begin(), terrainExists.end(), false);
             return;
         }
-        AZStd::fill(outHeights.begin(), outHeights.end(), 0.0f);
-        const bool sampleable = !GradientSignal::GradientRequestBus::HasReentrantEBusUseThisThread() &&
-            GradientSignal::GradientRequestBus::HasHandlers(state->m_sourceEntityId) && CanSampleSource(*state);
-        if (sampleable && !positions.empty())
-        {
-            GradientSignal::GradientRequestBus::Event(
-                state->m_sourceEntityId, &GradientSignal::GradientRequestBus::Events::GetValues, positions, outHeights);
-            const AZStd::span<const PreparedHeightContributor> contributors(
-                state->m_heightContributors.data(), state->m_heightContributors.size());
-            for (size_t index = 0; index < positions.size(); ++index)
-            {
-                outHeights[index] = ComposeHeightContributors(positions[index], outHeights[index], state->m_regionMapping, contributors);
-            }
-        }
+        GetNormalizedHeights(*state, positions, outHeights);
         constexpr size_t ExistenceBatchSize = 256;
         const auto activation = CaptureGapActivation(*state);
         const AZStd::span<const PreparedTerrainMeshHeightGap> admitted = activation
@@ -1666,23 +1641,9 @@ namespace TerrainCompositor
     {
         if (!m_controlThread.Check() || stableOrderKey.empty())
             return 0;
-        size_t count = 0;
-        for (const auto& [id, registration] : m_registrations.Get<HeightmapStampRegistrationData>())
-        {
-            (void)id;
-            count += registration.m_configuration.GetRuntimeOrderKey() == stableOrderKey;
-        }
-        for (const auto& [id, registration] : m_registrations.Get<TerrainMeshCutoutRegistrationData>())
-        {
-            (void)id;
-            count += registration.m_configuration.GetRuntimeOrderKey() == stableOrderKey;
-        }
-        for (const auto& [id, registration] : m_registrations.Get<TerrainMeshHeightStampRegistrationData>())
-        {
-            (void)id;
-            count += registration.m_configuration.GetRuntimeOrderKey() == stableOrderKey;
-        }
-        return count;
+        return Internal::CountOrderingClaims(m_registrations.Get<HeightmapStampRegistrationData>(), stableOrderKey) +
+            Internal::CountOrderingClaims(m_registrations.Get<TerrainMeshCutoutRegistrationData>(), stableOrderKey) +
+            Internal::CountOrderingClaims(m_registrations.Get<TerrainMeshHeightStampRegistrationData>(), stableOrderKey);
     }
 
     AZ::Aabb TerrainCompositionGradientComponent::GetTargetRegionBounds() const

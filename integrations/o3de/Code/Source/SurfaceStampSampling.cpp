@@ -1,5 +1,6 @@
 #include <TerrainCompositor/SurfaceStampSampling.h>
 #include "StampMath.h"
+#include "ImageSampling.h"
 
 #include <AzCore/std/algorithm.h>
 #include <AzCore/std/limits.h>
@@ -45,9 +46,7 @@ namespace TerrainCompositor
 
         bool HasValidRawImage(const HeightmapDataPtr& image)
         {
-            return image && image->m_width > 0 && image->m_height > 0 &&
-                size_t(image->m_height) <= AZStd::numeric_limits<size_t>::max() / image->m_width &&
-                image->m_rawSamples.size() == size_t(image->m_width) * image->m_height;
+            return image && Internal::HasCompleteImageBuffer(image->m_width, image->m_height, image->m_rawSamples.size());
         }
 
         bool AllIdsResolve(const HeightmapData& image, const PreparedSurfacePalette& palette)
@@ -62,71 +61,49 @@ namespace TerrainCompositor
             return true;
         }
 
+        void AddDecodedId(const PreparedSurfacePalette& palette, AZ::u16 id, double weight,
+            const char* diagnostic, AZStd::vector<AccumulatedWeight>& sampled, double& sampleMass)
+        {
+            if (id == 0) return;
+            const auto* mapped = FindPaletteEntry(palette, id);
+            AZ_Assert(mapped, "%s", diagnostic);
+            if (mapped)
+            {
+                AddWeight(sampled, mapped->m_surfaceTag, weight);
+                sampleMass += weight;
+            }
+        }
+
         void AddDecodedPixel(const PreparedSurfaceStamp& stamp, const PreparedSurfacePalette& palette,
             size_t index, double spatialWeight, AZStd::vector<AccumulatedWeight>& sampled, double& sampleMass)
         {
             const AZ::u16 idA = stamp.m_surfaceIdA->m_rawSamples[index];
+            constexpr const char* InvalidA = "Prepared surface stamp contains an unresolved ID A value.";
+            constexpr const char* InvalidB = "Prepared surface stamp contains an unresolved ID B value.";
             if (!stamp.m_surfaceIdB)
             {
-                if (idA != 0)
-                {
-                    const auto* mapped = FindPaletteEntry(palette, idA);
-                    AZ_Assert(mapped, "Prepared surface stamp contains an unresolved ID A value.");
-                    if (mapped)
-                    {
-                        AddWeight(sampled, mapped->m_surfaceTag, spatialWeight);
-                        sampleMass += spatialWeight;
-                    }
-                }
+                AddDecodedId(palette, idA, spatialWeight, InvalidA, sampled, sampleMass);
                 return;
             }
-
             const AZ::u16 idB = stamp.m_surfaceIdB->m_rawSamples[index];
             const double blend = double(stamp.m_surfaceBlend->m_rawSamples[index]) / 65535.0;
             const double weightA = spatialWeight * (1.0 - blend);
             const double weightB = spatialWeight * blend;
-            if (idA != 0 && weightA > 0.0)
-            {
-                const auto* mapped = FindPaletteEntry(palette, idA);
-                AZ_Assert(mapped, "Prepared surface stamp contains an unresolved ID A value.");
-                if (mapped)
-                {
-                    AddWeight(sampled, mapped->m_surfaceTag, weightA);
-                    sampleMass += weightA;
-                }
-            }
-            if (idB != 0 && weightB > 0.0)
-            {
-                const auto* mapped = FindPaletteEntry(palette, idB);
-                AZ_Assert(mapped, "Prepared surface stamp contains an unresolved ID B value.");
-                if (mapped)
-                {
-                    AddWeight(sampled, mapped->m_surfaceTag, weightB);
-                    sampleMass += weightB;
-                }
-            }
+            if (weightA > 0.0) AddDecodedId(palette, idA, weightA, InvalidA, sampled, sampleMass);
+            if (weightB > 0.0) AddDecodedId(palette, idB, weightB, InvalidB, sampled, sampleMass);
         }
 
         void SampleSurface(const PreparedSurfaceStamp& stamp, const PreparedSurfacePalette& palette,
             double u, double v, AZStd::vector<AccumulatedWeight>& sampled, double& sampleMass)
         {
             const auto& image = *stamp.m_surfaceIdA;
-            const double pixelX = std::clamp(u, 0.0, 1.0) * (image.m_width - 1);
-            const double pixelY = std::clamp(1.0 - v, 0.0, 1.0) * (image.m_height - 1);
-            const size_t x0 = static_cast<size_t>(pixelX);
-            const size_t y0 = static_cast<size_t>(pixelY);
-            const size_t x1 = AZStd::min(x0 + 1, size_t(image.m_width - 1));
-            const size_t y1 = AZStd::min(y0 + 1, size_t(image.m_height - 1));
-            const double tx = pixelX - double(x0);
-            const double ty = pixelY - double(y0);
-            const size_t row0 = y0 * size_t(image.m_width);
-            const size_t row1 = y1 * size_t(image.m_width);
+            const auto c = Internal::GetBilinearCoordinates(image.m_width, image.m_height, u, v);
 
             // Fixed neighbor order keeps scalar and batch accumulation bit-identical.
-            AddDecodedPixel(stamp, palette, row0 + x0, (1.0 - tx) * (1.0 - ty), sampled, sampleMass);
-            AddDecodedPixel(stamp, palette, row0 + x1, tx * (1.0 - ty), sampled, sampleMass);
-            AddDecodedPixel(stamp, palette, row1 + x0, (1.0 - tx) * ty, sampled, sampleMass);
-            AddDecodedPixel(stamp, palette, row1 + x1, tx * ty, sampled, sampleMass);
+            AddDecodedPixel(stamp, palette, c.m_topLeft, (1.0 - c.m_tx) * (1.0 - c.m_ty), sampled, sampleMass);
+            AddDecodedPixel(stamp, palette, c.m_topRight, c.m_tx * (1.0 - c.m_ty), sampled, sampleMass);
+            AddDecodedPixel(stamp, palette, c.m_bottomLeft, (1.0 - c.m_tx) * c.m_ty, sampled, sampleMass);
+            AddDecodedPixel(stamp, palette, c.m_bottomRight, c.m_tx * c.m_ty, sampled, sampleMass);
         }
     } // namespace
 

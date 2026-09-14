@@ -36,7 +36,7 @@ namespace TerrainCompositor
 
     bool TerrainMeshCutoutRegistration::IsRegistered() const
     {
-        return m_controlThread.Check() && m_registered;
+        return IsClientRegistered();
     }
 
     AZStd::string TerrainMeshCutoutRegistration::GetStatusMessage() const
@@ -44,16 +44,13 @@ namespace TerrainCompositor
         if (!m_controlThread.Check()) return "Unavailable off the control thread.";
         if (!m_active) return "Inactive: no terrain cutout contribution.";
         if (!m_registration.m_configuration.m_cutoutMeshAsset.GetId().IsValid()) return "Select a closed Cutout Mesh model asset.";
-        if (!m_address.second.IsValid()) return "Select a Target Composition entity.";
-        if (m_address.first.IsNull()) return "Waiting for entity context ownership.";
-        if (!m_registered) return "Target Composition is unavailable in this entity context.";
-        if (m_registration.m_identityPending) return "Waiting for prefab propagation/undo to resolve ordering identity.";
-        const auto key = m_registration.m_configuration.GetRuntimeOrderKey();
-        if (key.empty()) return "Ordering identity is unresolved or malformed.";
-        size_t claims = 0;
-        TerrainCompositionRequestBus::EventResult(
-            claims, m_address, &TerrainCompositionRequestBus::Events::GetOrderingClaimCount, key);
-        if (claims > 1) return "Duplicate ordering identity: all conflicting contributors are suppressed.";
+        if (const char* status = GetOrderingStatus(
+            "Select a Target Composition entity.",
+            "Target Composition is unavailable in this entity context.",
+            "Waiting for prefab propagation/undo to resolve ordering identity.",
+            "Ordering identity is unresolved or malformed.",
+            "Duplicate ordering identity: all conflicting contributors are suppressed."))
+            return status;
         switch (m_registration.m_mesh.m_status)
         {
         case TerrainMeshCutoutDataStatus::Unassigned: return "Select a closed Cutout Mesh model asset.";

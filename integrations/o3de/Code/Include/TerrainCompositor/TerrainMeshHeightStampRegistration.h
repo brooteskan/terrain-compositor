@@ -31,7 +31,7 @@ namespace TerrainCompositor
         void Deactivate();
         bool IsActive() const
         {
-            return m_controlThread.Check() && m_active;
+            return IsClientActive();
         }
         bool IsRegistered() const;
         AZStd::string GetStatusMessage() const;

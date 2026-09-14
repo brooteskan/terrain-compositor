@@ -1,6 +1,7 @@
 #include <TerrainCompositor/Components/TerrainCompositionHeightProviderComponent.h>
 
 #include <AzCore/Math/MathUtils.h>
+#include "../ProviderReflection.h"
 #include <AzCore/Serialization/EditContext.h>
 #include <AzCore/Serialization/SerializeContext.h>
 #include <AzCore/std/containers/array.h>
@@ -12,39 +13,14 @@ namespace TerrainCompositor
 
     void TerrainCompositionHeightProviderConfig::Reflect(AZ::ReflectContext* context)
     {
-        if (auto* serialize = azrtti_cast<AZ::SerializeContext*>(context))
-        {
-            if (!serialize->IsRemovingReflection() &&
-                serialize->FindClassData(azrtti_typeid<TerrainCompositionHeightProviderConfig>()))
-            {
-                return;
-            }
-            serialize->Class<TerrainCompositionHeightProviderConfig, AZ::ComponentConfig>()
-                ->Version(1)
-                ->Field("CompositionEntityId", &TerrainCompositionHeightProviderConfig::m_compositionEntityId);
-            if (auto* edit = serialize->GetEditContext())
-            {
-                edit->Class<TerrainCompositionHeightProviderConfig>(
-                    "Terrain Composition Height Provider Configuration", "Composition reference for this terrain region.")
-                    ->ClassElement(AZ::Edit::ClassElements::EditorData, "")
-                    ->Attribute(AZ::Edit::Attributes::Visibility, AZ::Edit::PropertyVisibility::ShowChildrenOnly)
-                    ->DataElement(AZ::Edit::UIHandlers::Default,
-                        &TerrainCompositionHeightProviderConfig::m_compositionEntityId,
-                        "Terrain Composition", "Composition whose height and terrain-existence snapshot provides this region.")
-                    ->Attribute(AZ::Edit::Attributes::RequiredService, AZ_CRC_CE("TerrainCompositionService"));
-            }
-        }
+        Internal::ReflectProviderConfiguration<TerrainCompositionHeightProviderConfig>(context,
+            "Terrain Composition Height Provider Configuration",
+            "Composition whose height and terrain-existence snapshot provides this region.");
     }
 
     void TerrainCompositionHeightProviderComponent::Reflect(AZ::ReflectContext* context)
     {
-        TerrainCompositionHeightProviderConfig::Reflect(context);
-        if (auto* serialize = azrtti_cast<AZ::SerializeContext*>(context))
-        {
-            serialize->Class<TerrainCompositionHeightProviderComponent, AZ::Component>()
-                ->Version(1)
-                ->Field("Configuration", &TerrainCompositionHeightProviderComponent::m_configuration);
-        }
+        Internal::ReflectConfiguredComponent(context, &TerrainCompositionHeightProviderComponent::m_configuration);
     }
 
     void TerrainCompositionHeightProviderComponent::GetProvidedServices(

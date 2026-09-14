@@ -62,12 +62,19 @@ set(FILES
     Code/Include/TerrainCompositor/TerrainMeshHeightStampSampling.h
     Code/Include/TerrainCompositor/TerrainModelGeometry.h
     Code/Include/TerrainCompositor/TerrainQuality.h
+    Code/Source/ProviderReflection.h
     Code/Source/ComponentConfiguration.h
     Code/Source/PublicationState.h
     Code/Include/TerrainCompositor/Internal/CompositionRegistrationState.h
     Code/Include/TerrainCompositor/Internal/CompositionRegistrations.h
+    Code/Include/TerrainCompositor/Internal/TerrainTiming.h
+    Code/Include/TerrainCompositor/Internal/AssetSnapshot.h
+    Code/Source/AssetSource.h
+    Code/Include/TerrainCompositor/Internal/AssetPreparation.h
     Code/Source/ModelAssetSource.h
     Code/Source/MeshPlacementLifecycle.cpp
+    Code/Source/ImageSampling.h
+    Code/Source/MeshCutoutTraversal.h
     Code/Source/StampMath.h
     Code/Source/Components/MeshPlacementHelpers.h
     Code/Source/Components/HeightmapStampComponent.cpp

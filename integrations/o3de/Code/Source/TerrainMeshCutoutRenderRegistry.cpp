@@ -166,16 +166,14 @@ namespace TerrainCompositor
             replacement->m_cutouts.end(),
             [](const auto& left, const auto& right)
             {
-                return left.m_priority != right.m_priority ? left.m_priority < right.m_priority
-                                                           : StampOrderKeyLess(left.m_stableOrderKey, right.m_stableOrderKey);
+                return StampPriorityLess(left.m_priority, left.m_stableOrderKey, right.m_priority, right.m_stableOrderKey);
             });
         AZStd::sort(
             replacement->m_meshHeightGaps.begin(),
             replacement->m_meshHeightGaps.end(),
             [](const auto& left, const auto& right)
             {
-                return left.m_priority != right.m_priority ? left.m_priority < right.m_priority
-                                                           : StampOrderKeyLess(left.m_stableOrderKey, right.m_stableOrderKey);
+                return StampPriorityLess(left.m_priority, left.m_stableOrderKey, right.m_priority, right.m_stableOrderKey);
             });
         AZStd::sort(
             replacement->m_compositionGenerations.begin(),

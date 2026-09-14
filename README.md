@@ -57,3 +57,7 @@ selection and resource-aware raster/RT change batches.
 The [architecture refactoring plan](docs/ArchitectureOptimizationReadiness.md)
 ranks the work needed to prepare for terrain-query and sector-scheduling
 optimization, using the camera-flight investigation in TG #37.
+
+The [production function audit](docs/ProductionFunctionAudit.md) records shared
+implementations, retained policy differences, verification, and commands for
+checking exact and near duplicates.
