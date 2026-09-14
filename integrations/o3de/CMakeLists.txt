@@ -118,6 +118,17 @@ o3de_add_variant_dependencies_for_gem_dependencies(
 )
 
 if(PAL_TRAIT_BUILD_TESTS_SUPPORTED)
+    # Match Terrain.dll's dependency boundary. Linking the regular compositor
+    # tests also links TerrainCompositor.Static and can hide engine-only failures.
+    ly_add_target(
+        NAME ${gem_name}.EngineBoundary.Tests ${PAL_TRAIT_TEST_TARGET_TYPE}
+        NAMESPACE Gem
+        FILES_CMAKE Code/Tests/terrain_compositor_engine_boundary_tests_files.cmake
+        INCLUDE_DIRECTORIES PRIVATE Code/Include
+        BUILD_DEPENDENCIES PRIVATE AZ::AzTest AZ::AzCore Gem::Terrain.Static
+    )
+    ly_add_googletest(NAME Gem::${gem_name}.EngineBoundary.Tests LABELS REQUIRES_tiaf)
+
     ly_add_target(
         NAME ${gem_name}.Tests ${PAL_TRAIT_TEST_TARGET_TYPE}
         NAMESPACE Gem

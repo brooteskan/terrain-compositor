@@ -557,20 +557,6 @@ namespace TerrainCompositor
         return result;
     }
 
-    bool SameTerrainMeshHeightGap(const PreparedTerrainMeshHeightGap& left, const PreparedTerrainMeshHeightGap& right)
-    {
-        return left.m_data == right.m_data && left.m_compositionSession == right.m_compositionSession &&
-            left.m_entityId == right.m_entityId && left.m_originX == right.m_originX && left.m_originY == right.m_originY &&
-            left.m_inverseScale == right.m_inverseScale && left.m_cosYaw == right.m_cosYaw && left.m_sinYaw == right.m_sinYaw &&
-            left.m_affectTerrainRendering == right.m_affectTerrainRendering;
-    }
-
-    bool IsTerrainMeshHeightGapAdmitted(const PreparedTerrainMeshHeightGap& gap, AZStd::span<const PreparedTerrainMeshHeightGap> admitted)
-    {
-        if (!gap.m_affectTerrainRendering) return true;
-        return AZStd::any_of(admitted.begin(), admitted.end(), [&](const auto& candidate) { return SameTerrainMeshHeightGap(gap, candidate); });
-    }
-
     namespace
     {
         template<class Contributor, class Dereference>

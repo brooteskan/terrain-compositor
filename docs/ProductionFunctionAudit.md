@@ -47,7 +47,7 @@ Paths below are relative to `integrations/o3de/Code`. `Source/` contains private
 | Editor configuration reflection | `Source/Editor/EditorConfiguration.h::ReflectEditorConfiguration` | All six editor `Reflect` adapters | 5 | `TerrainEditorPreviewLifecycleTests` reflection/removal/metadata tests |
 | Editor refresh | `EditorConfiguration.h::RefreshEditorConfiguration` | All six `OnConfigurationChanged` adapters | 5 | `TerrainEditorPreviewLifecycleTests` |
 | Normalized batch heights | `Source/Components/TerrainCompositionGradientComponent.cpp::GetNormalizedHeights` | `GetValues` and `GetHeights` with their already-retained state | 1 | Scalar/batch/boundary/source-call/reentrant composition tests |
-| Gap admission | `Source/TerrainExistenceSampling.cpp::IsTerrainMeshHeightGapAdmitted` | Collision-cell removal and existing render gap consumers | 1 | `TerrainMeshHeightGapGpuTests`, `TerrainMeshCutoutTests` collision admission |
+| Gap admission | `TerrainExistenceSampling.h::IsTerrainMeshHeightGapAdmitted` | Collision-cell removal and existing render gap consumers | 1 | `TerrainMeshHeightGapGpuTests`, `TerrainMeshCutoutTests` collision admission, `TerrainEngineBoundaryTests` |
 | Model job dispatch | `Source/ModelAssetSource.h::PrepareModel` | Both model caches with explicit ticket timing | 1 | Typed `TerrainModelCacheLifecycleTests`, including reentrant Loading |
 | Prepared model publication | `ModelAssetSource.h::PublishPreparedSnapshot` | Both model cache `Publish` adapters | 1 | Successful/rejected geometry, immutable retained data, failure and replacement tests |
 | Canonical source acquisition | `Source/AssetSource.h::AcquireAssetSource` | Image and both model caches | 1 | Catalog aliases, last-handle release, recovery and cache retirement tests |
@@ -125,13 +125,13 @@ Physical lines include blanks/comments and every new helper/header. Engine patch
 
 | Category | Baseline | After | Change |
 | --- | ---: | ---: | ---: |
-| Production C++ under `Code/Source` | 13,395 | 13,113 | -282 |
-| Public/internal headers under `Code/Include` | 5,865 | 5,979 | +114 |
-| C++ and headers subtotal | 19,260 | 19,092 | **-168** |
+| Production C++ under `Code/Source` | 13,395 | 13,099 | -296 |
+| Public/internal headers under `Code/Include` | 5,865 | 5,992 | +127 |
+| C++ and headers subtotal | 19,260 | 19,091 | **-169** |
 | Maintained engine patches/overrides | 4,017 | 4,012 | -5 |
 | Shaders/assets | 1,074 | 1,074 | 0 |
-| Production scope total | 24,351 | 24,178 | **-173** |
-| C++ tests and test file lists (outside production scope) | 12,606 | 12,864 | +258 |
+| Production scope total | 24,351 | 24,177 | **-174** |
+| C++ tests and test file lists (outside production scope) | 12,606 | 12,901 | +295 |
 
 The test increase includes preservation of the independent procedural reference plus focused sampling/cache lifecycle coverage. Moving the original reference to a test oracle is not counted as deleting that maintained algorithm. Audit tooling, its unit tests, this document, and the explicit exception manifest are outside production scope and add maintenance lines; the production subtotal is not a claim that total repository text shrank.
 
@@ -150,3 +150,11 @@ No public UUID, serialized field/version, default configuration, component servi
 The maintained patches were regenerated from the pinned engine inputs. `EngineOverrides.cmake` pins the new output hashes. `Code/Tests/EngineOverridesTests.cmake` validates successful generation and rejection of wrong input, wrong output, and wrong query-header contents. Generated build output is not checked in.
 
 Local evidence is under ignored `build/issue11`: `audit-checked.json`, `audit-baseline-final.json`, `loc-before.json`, `loc-after.json`, `build-all.log`, `build-completion.log`, `runtime-final.xml`, `editor-final.xml`, and `override-tests-final.log`. The standalone build uses the installed O3DE engine and already-built engine dependencies; its copy steps warn that some dependency DLLs are absent from the standalone output directory. Tests therefore run the rebuilt standalone test DLLs with the matching engine runner/dependencies from the existing TG project on `PATH`.
+
+### Engine DLL linkage correction
+
+The initial validation built `Terrain.Static` but did not link `Terrain.dll`. The regular compositor tests link both static libraries and therefore masked the dependency introduced when the engine collider began calling `IsTerrainMeshHeightGapAdmitted`. The gap admission and identity predicates now have their single inline implementation in `TerrainExistenceSampling.h`, available to both modules without a reverse dependency on the compositor library. Their comparisons and admission behavior are unchanged.
+
+`TerrainCompositor.EngineBoundary.Tests` links `Terrain.Static` and the test framework, deliberately excluding `TerrainCompositor.Static`. It calls the engine-facing collision helper with matching, mismatched, stale, and collision-only activations. This target catches a regression to an out-of-line compositor dependency at link time. Consumer validation must also include the `Terrain` DLL target, not just `Terrain.Static`.
+
+The correction was verified in TG's Windows profile build: `Terrain`, `Terrain.Editor`, `TerrainCompositor`, `TerrainCompositor.Editor`, and `TGProject` all linked successfully with rebuilt static/object dependencies. All 425 runtime tests and the new engine-boundary test passed; the four existing profiling tests remain disabled. The generated boundary-test link inputs were also checked to exclude `TerrainCompositor.Static`. Logs and XML results are under TG's ignored `TGProject/build/windows/terrain-link-*.log`, `terrain-link-runtime.xml`, and `terrain-engine-boundary.xml`.

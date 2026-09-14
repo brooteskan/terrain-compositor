@@ -1,5 +1,6 @@
 #pragma once
 
+#include <AzCore/std/algorithm.h>
 #include <AzCore/std/containers/span.h>
 #include <AzCore/std/containers/vector.h>
 #include <TerrainCompositor/HeightmapStampSampling.h>
@@ -86,9 +87,21 @@ namespace TerrainCompositor
         AZStd::vector<PreparedTerrainMeshHeightGap> m_gaps;
     };
     using TerrainMeshHeightGapActivationPtr = std::shared_ptr<const TerrainMeshHeightGapActivation>;
-    bool SameTerrainMeshHeightGap(const PreparedTerrainMeshHeightGap& left, const PreparedTerrainMeshHeightGap& right);
-    bool IsTerrainMeshHeightGapAdmitted(
-        const PreparedTerrainMeshHeightGap& gap, AZStd::span<const PreparedTerrainMeshHeightGap> admitted);
+    // Terrain's engine overrides consume these predicates without linking the
+    // compositor module. Keep their single implementation available to both DLLs.
+    inline bool SameTerrainMeshHeightGap(const PreparedTerrainMeshHeightGap& left, const PreparedTerrainMeshHeightGap& right)
+    {
+        return left.m_data == right.m_data && left.m_compositionSession == right.m_compositionSession &&
+            left.m_entityId == right.m_entityId && left.m_originX == right.m_originX && left.m_originY == right.m_originY &&
+            left.m_inverseScale == right.m_inverseScale && left.m_cosYaw == right.m_cosYaw && left.m_sinYaw == right.m_sinYaw &&
+            left.m_affectTerrainRendering == right.m_affectTerrainRendering;
+    }
+
+    inline bool IsTerrainMeshHeightGapAdmitted(const PreparedTerrainMeshHeightGap& gap, AZStd::span<const PreparedTerrainMeshHeightGap> admitted)
+    {
+        if (!gap.m_affectTerrainRendering) return true;
+        return AZStd::any_of(admitted.begin(), admitted.end(), [&](const auto& candidate) { return SameTerrainMeshHeightGap(gap, candidate); });
+    }
 
     struct PreparedTerrainExistenceContributor
     {
