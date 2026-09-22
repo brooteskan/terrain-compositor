@@ -21,18 +21,10 @@ checked-out revisions that differ from their gitlinks, and conflicting existing
 targets fail configuration. Compatible shared targets must come from an
 initialized submodule at the same pinned revision.
 
-The scene-first and terrain-first compositions use matching pins and work in
-either order without parent-level dependency bootstrapping. The scene-polytree
-submodule under `tests/dependencies/scene-polytree` is test-only: production
-terrain does not add it to the build. GoogleTest is also pinned in the upstream
-repositories' test submodules. The installed package exports remain available
-for downstream binary-package consumers; repository source acquisition is
-exclusively through submodules.
-
 CMake 3.24 and target-scoped C++20 requirements remain. The coverage source is
 isolated from unity compilation and enables exception cleanup only for that
 translation unit. Engine hash checks, compiler/include scope and MIT notices
-in licenses/ remain. No scene-polytree runtime or global compiler flags are added.
+in licenses/ remain. No global compiler flags are added.
 
 ## Identity and topology
 

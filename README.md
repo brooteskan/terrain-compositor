@@ -7,8 +7,7 @@ cutouts, and publishes matching render, raycast, and heightfield-collision
 state.
 
 The repository is intentionally separate from any consuming game project.
-Its O3DE adapter lives at `integrations/o3de`, matching the external-Gem
-layout used by `scene-polytree`.
+Its O3DE adapter lives at `integrations/o3de` as an external Gem.
 
 ## Source checkout
 

@@ -1,6 +1,3 @@
 [submodule "external/polytree"]
 	path = external/polytree
 	url = https://github.com/brooteskan/polytree.git
-[submodule "tests/dependencies/scene-polytree"]
-	path = tests/dependencies/scene-polytree
-	url = https://github.com/brooteskan/scene-polytree.git
