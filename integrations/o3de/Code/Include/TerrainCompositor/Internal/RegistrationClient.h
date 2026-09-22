@@ -1,6 +1,7 @@
 #pragma once
 
 #include <AzCore/Component/TickBus.h>
+#include <AzFramework/Entity/EntityContextBus.h>
 #include <TerrainCompositor/HeightmapControlThread.h>
 #include <TerrainCompositor/Internal/AssetSubscription.h>
 #include <TerrainCompositor/TerrainCompositionBus.h>
@@ -11,6 +12,7 @@ namespace TerrainCompositor::Internal
     template<class Registration, auto EntityMember, auto Register, auto Unregister>
     class RegistrationClient
         : private TerrainCompositionNotificationBus::Handler
+        , private AzFramework::EntityContextEventBus::Handler
         , private AZ::SystemTickBus::Handler
     {
     protected:
@@ -26,7 +28,6 @@ namespace TerrainCompositor::Internal
             DeactivateClient();
             m_active = true;
             m_registration.*EntityMember = entityId;
-            AZ::SystemTickBus::Handler::BusConnect();
             UpdateClient(configuration, worldTransform, transformAvailable, identityPending, nonUniformScale);
         }
 
@@ -35,7 +36,16 @@ namespace TerrainCompositor::Internal
         {
             if (!CanUpdate())
                 return;
-            const auto context = CurrentContext();
+            UpdateClientForContext(configuration, worldTransform, transformAvailable, identityPending,
+                nonUniformScale, CurrentContext());
+        }
+
+        void UpdateClientForContext(const Configuration& configuration, const AZ::Transform& worldTransform,
+            bool transformAvailable, bool identityPending, bool nonUniformScale,
+            const AzFramework::EntityContextId& context)
+        {
+            if (!CanUpdate())
+                return;
             const TerrainCompositionAddress address{ context, configuration.m_targetCompositionEntityId };
             if (address != m_address)
             {
@@ -51,6 +61,7 @@ namespace TerrainCompositor::Internal
             if constexpr (requires { m_registration.m_hasNonUniformScale; })
                 m_registration.m_hasNonUniformScale = nonUniformScale;
             m_address = address;
+            ObserveContext(context);
             UpdateAssets();
             if (!context.IsNull() && address.second.IsValid() && (m_registration.*EntityMember).IsValid())
             {
@@ -71,6 +82,7 @@ namespace TerrainCompositor::Internal
                 return;
             m_active = false;
             AZ::SystemTickBus::Handler::BusDisconnect();
+            AzFramework::EntityContextEventBus::Handler::BusDisconnect();
             ResetAssets();
             DisconnectTarget();
             m_registration = {};
@@ -95,7 +107,10 @@ namespace TerrainCompositor::Internal
             const char* pendingIdentity, const char* invalidIdentity, const char* duplicateIdentity) const
         {
             if (!m_address.second.IsValid()) return missingTarget;
-            if (m_address.first.IsNull()) return "Waiting for entity context ownership.";
+            if (m_address.first.IsNull())
+                return AZ::SystemTickBus::Handler::BusIsConnected()
+                    ? "Waiting for entity context ownership."
+                    : "Entity context ownership remains unresolved after 8 retry ticks; edit or reactivate to retry.";
             if (!m_registered) return unavailableTarget;
             if (m_registration.m_identityPending) return pendingIdentity;
             const auto key = m_registration.m_configuration.GetRuntimeOrderKey();
@@ -115,7 +130,6 @@ namespace TerrainCompositor::Internal
     private:
         virtual void UpdateAssets() = 0;
         virtual void ResetAssets() = 0;
-        virtual bool NeedsAssetRetry() const = 0;
         virtual void ValidateUnavailable() {}
         virtual void BeforeRegister() {}
 
@@ -172,15 +186,57 @@ namespace TerrainCompositor::Internal
 
         void OnSystemTick() override
         {
-            if (!CanUpdate() || (CurrentContext() == m_address.first && !NeedsAssetRetry()))
+            if (!CanUpdate())
+                return;
+            const auto context = CurrentContext();
+            if (context.IsNull())
+            {
+                if (m_contextRetriesRemaining > 0) --m_contextRetriesRemaining;
+                if (m_contextRetriesRemaining == 0) AZ::SystemTickBus::Handler::BusDisconnect();
+                return;
+            }
+            if (context == m_address.first)
                 return;
             // Copy current configuration so retries cannot replay a captured old target or placement.
             const auto configuration = m_registration.m_configuration;
             bool nonUniformScale = false;
             if constexpr (requires { m_registration.m_hasNonUniformScale; })
                 nonUniformScale = m_registration.m_hasNonUniformScale;
-            UpdateClient(configuration, m_registration.m_worldTransform, m_registration.m_transformAvailable,
-                m_registration.m_identityPending, nonUniformScale);
+            UpdateClientForContext(configuration, m_registration.m_worldTransform, m_registration.m_transformAvailable,
+                m_registration.m_identityPending, nonUniformScale, context);
         }
+
+        void ObserveContext(const AzFramework::EntityContextId& context)
+        {
+            AZ::SystemTickBus::Handler::BusDisconnect();
+            AzFramework::EntityContextEventBus::Handler::BusDisconnect();
+            if (context.IsNull())
+            {
+                m_contextRetriesRemaining = ContextResolutionAttempts;
+                AZ::SystemTickBus::Handler::BusConnect();
+            }
+            else
+                AzFramework::EntityContextEventBus::Handler::BusConnect(context);
+        }
+
+        void OnEntityContextDestroyEntity(const AZ::EntityId& entityId) override
+        {
+            if (!CanUpdate() || entityId != m_registration.*EntityMember)
+                return;
+            const auto configuration = m_registration.m_configuration;
+            bool nonUniformScale = false;
+            if constexpr (requires { m_registration.m_hasNonUniformScale; })
+                nonUniformScale = m_registration.m_hasNonUniformScale;
+            UpdateClientForContext(configuration, m_registration.m_worldTransform, m_registration.m_transformAvailable,
+                m_registration.m_identityPending, nonUniformScale, {});
+        }
+
+        void OnEntityContextReset() override
+        {
+            OnEntityContextDestroyEntity(m_registration.*EntityMember);
+        }
+
+        static constexpr unsigned ContextResolutionAttempts = 8;
+        unsigned m_contextRetriesRemaining = 0;
     };
 }

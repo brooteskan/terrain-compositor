@@ -14,14 +14,21 @@ namespace TerrainCompositor
     void TerrainCompositionProviderBinding::Activate(
         AZ::EntityId terrainRegionEntityId, AZ::EntityId compositionEntityId)
     {
+        AzFramework::EntityContextId context{};
+        AzFramework::EntityIdContextQueryBus::EventResult(
+            context, terrainRegionEntityId,
+            &AzFramework::EntityIdContextQueryBus::Events::GetOwningContextId);
+        Activate(terrainRegionEntityId, compositionEntityId, context);
+    }
+
+    void TerrainCompositionProviderBinding::Activate(AZ::EntityId terrainRegionEntityId,
+        AZ::EntityId compositionEntityId, const AzFramework::EntityContextId& context)
+    {
         AZ_Assert(m_controlThread.Check() && !m_active,
             "Terrain composition provider binding must be inactive on its control thread before activation.");
         m_active = true;
         m_terrainRegionEntityId = terrainRegionEntityId;
-        m_compositionAddress = { AzFramework::EntityContextId::CreateNull(), compositionEntityId };
-        AzFramework::EntityIdContextQueryBus::EventResult(
-            m_compositionAddress.first, terrainRegionEntityId,
-            &AzFramework::EntityIdContextQueryBus::Events::GetOwningContextId);
+        m_compositionAddress = { context, compositionEntityId };
     }
 
     bool TerrainCompositionProviderBinding::BeginStop()

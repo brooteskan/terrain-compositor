@@ -1,4 +1,5 @@
 #include <TerrainCompositor/HeightmapDataCache.h>
+#include <TerrainCompositor/Internal/CacheLifecycle.h>
 #include "AssetSource.h"
 
 #include <Atom/RPI.Public/RPIUtils.h>
@@ -514,11 +515,13 @@ namespace TerrainCompositor
     HeightmapDataCache::HeightmapDataCache()
     {
         HeightmapDataCacheInterface::Register(this);
+        Internal::CacheLifecycle<HeightmapDataCache>::Signal(true);
     }
 
     HeightmapDataCache::~HeightmapDataCache()
     {
         HeightmapDataCacheInterface::Unregister(this);
+        Internal::CacheLifecycle<HeightmapDataCache>::Signal(false);
         Internal::StopAssetSources(m_sources);
     }
 

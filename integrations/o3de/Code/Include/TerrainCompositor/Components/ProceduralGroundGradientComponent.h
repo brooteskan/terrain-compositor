@@ -5,12 +5,15 @@
 #include <AzCore/Component/TickBus.h>
 #include <AzCore/std/parallel/shared_mutex.h>
 #include <AzFramework/Components/EditorEntityEvents.h>
+#include <AzFramework/Entity/EntityContextBus.h>
 #include <Atom/RPI.Public/Material/Material.h>
 #include <GradientSignal/Ebuses/GradientRequestBus.h>
 #include <GradientSignal/GradientSampler.h>
 #include <LmbrCentral/Dependency/DependencyMonitor.h>
 #include <TerrainCompositor/TerrainExistenceBus.h>
 #include <TerrainCompositor/TerrainProceduralSnapshot.h>
+#include <TerrainCompositor/TerrainMeshCutoutRenderRegistry.h>
+#include <atomic>
 
 namespace TerrainCompositor
 {
@@ -51,7 +54,8 @@ namespace TerrainCompositor
         , private GradientSignal::GradientRequestBus::Handler
         , private TerrainExistenceSourceRequestBus::Handler
         , private TerrainProceduralSnapshotRequestBus::Handler
-        , private AZ::TickBus::Handler
+        , private AzFramework::EntityContextEventBus::Handler
+        , private AZ::SystemTickBus::Handler
     {
     public:
         AZ_COMPONENT_DECL(ProceduralGroundGradientComponent);
@@ -100,7 +104,12 @@ namespace TerrainCompositor
         std::shared_ptr<const ProceduralHillKernel> GetQueryKernel() const;
 
         void StopNoiseTintUpdates();
-        void OnTick(float deltaTime, AZ::ScriptTimePoint time) override;
+        void BindTerrainMaterial();
+        void BindTerrainMaterialForContext(const AzFramework::EntityContextId& context);
+        void ApplyNoiseTint(const AZ::Data::Instance<AZ::RPI::Material>& material);
+        void OnSystemTick() override;
+        void OnEntityContextDestroyEntity(const AZ::EntityId& entityId) override;
+        void OnEntityContextReset() override;
 
         static constexpr float NormalizedGroundHeight = 0.5f;
         static constexpr float TerrainHeightRangeMeters = 2048.0f;
@@ -115,7 +124,17 @@ namespace TerrainCompositor
         AZ::EntityId m_snapshotEntityId;
         AZ::EntityId m_activeEntityId;
         AZ::Data::Instance<AZ::RPI::Material> m_terrainMaterial;
+        struct MaterialUpdateState
+        {
+            std::atomic<ProceduralGroundGradientComponent*> m_owner = nullptr;
+            std::atomic<AZ::u64> m_generation = 0;
+        };
+        std::shared_ptr<MaterialUpdateState> m_materialUpdateState;
+        std::weak_ptr<TerrainMeshCutoutRenderChannel> m_materialChannel;
+        TerrainMeshCutoutRenderChannel::MaterialChangedEvent::Handler m_materialChangedHandler;
         LmbrCentral::DependencyMonitor m_holeDependencyMonitor;
         bool m_reportedMissingTintProperty = false;
+        static constexpr unsigned MaterialResolutionAttempts = 8;
+        unsigned m_materialRetriesRemaining = 0;
     };
 } // namespace TerrainCompositor

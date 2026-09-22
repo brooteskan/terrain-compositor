@@ -48,6 +48,8 @@ C++ APIs now use the `TerrainCompositor` namespace and
 
 See [the O3DE integration notes](integrations/o3de/README.md) and the
 [composition contract](docs/TerrainComposition.md) for details.
+The [tick subscription inventory](docs/TerrainTickSubscriptions.md) records
+every remaining regular or system-tick use and its disconnect condition.
 
 The [coverage traversal contract](docs/TerrainCoverageTraversal.md) documents
 pinned polytree/algo submodules, incremental

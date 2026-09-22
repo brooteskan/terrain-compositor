@@ -78,6 +78,7 @@ namespace TerrainCompositor
         TerrainMeshCutoutRenderSnapshotPtr m_gapPreparedSnapshot;
         TerrainMeshCutoutRenderSnapshotPtr m_gapBoundSnapshot;
         AZ::Data::Instance<AZ::RPI::Material> m_gapBoundMaterial;
+        AZ::Data::Instance<AZ::RPI::Material> m_observedTerrainMaterial;
         AZ::Data::Instance<AZ::RPI::ShaderResourceGroup> m_gapBoundSrg;
         AZ::Data::Instance<AZ::RPI::Buffer> m_gapDescriptorsBuffer;
         AZ::Data::Instance<AZ::RPI::Buffer> m_gapMaskBuffer;

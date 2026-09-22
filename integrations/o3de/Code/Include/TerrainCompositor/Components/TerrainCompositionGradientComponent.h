@@ -7,6 +7,7 @@
 #include <AzCore/std/containers/unordered_map.h>
 #include <AzCore/std/smart_ptr/weak_ptr.h>
 #include <AzFramework/Components/EditorEntityEvents.h>
+#include <AzFramework/Entity/EntityContextBus.h>
 #include <GradientSignal/Ebuses/GradientRequestBus.h>
 #include <LmbrCentral/Dependency/DependencyMonitor.h>
 #include <LmbrCentral/Shape/ShapeComponentBus.h>
@@ -60,6 +61,7 @@ namespace TerrainCompositor
         , private TerrainCompositionSurfaceRequestBus::Handler
         , private LmbrCentral::ShapeComponentNotificationsBus::Handler
         , private AZ::EntityBus::Handler
+        , private AzFramework::EntityContextEventBus::Handler
         , private AZ::SystemTickBus::Handler
         , private AZ::TickBus::Handler
     {
@@ -124,7 +126,16 @@ namespace TerrainCompositor
             bool m_wholeRegion = false;
         };
 
+        struct GapActivationChanges
+        {
+            std::mutex m_mutex;
+            AZ::u64 m_generation = 0;
+            bool m_pending = false;
+            TerrainMeshHeightGapActivationPtr m_activation;
+        };
+
         void StartComposition(AZ::EntityId entityId);
+        void StartCompositionForContext(AZ::EntityId entityId, const AzFramework::EntityContextId& context);
         AZ::u32 OnConfigurationChanged();
         void ConnectDependencies();
         void RefreshRegionBounds();
@@ -139,6 +150,11 @@ namespace TerrainCompositor
         HeightmapReconstructionDataPtr AcquireHeightmapReconstruction(
             const HeightmapDataPtr& source, HeightmapSamplingMode mode, float radius);
         void OnSystemTick() override;
+        void OnEntityContextDestroyEntity(const AZ::EntityId& entityId) override;
+        void OnEntityContextReset() override;
+        void ObserveContext(const AzFramework::EntityContextId& context);
+        void ObserveGapActivation(const TerrainMeshCutoutRenderChannelPtr& channel);
+        void CollectGapActivationChanges();
         void OnTick(float deltaTime, AZ::ScriptTimePoint time) override;
         int GetTickOrder() override
         {
@@ -237,5 +253,9 @@ namespace TerrainCompositor
         float m_publishedCollisionGridSpacing = 0.0f;
         std::atomic<QueryStatePtr> m_queryState{ std::make_shared<const QueryState>() };
         TerrainMeshHeightGapActivationPtr m_observedGapActivation;
+        std::shared_ptr<GapActivationChanges> m_gapActivationChanges = std::make_shared<GapActivationChanges>();
+        TerrainMeshCutoutRenderChannel::ActivationChangedEvent::Handler m_gapActivationHandler;
+        static constexpr unsigned ContextResolutionAttempts = 8;
+        unsigned m_contextRetriesRemaining = 0;
     };
 } // namespace TerrainCompositor

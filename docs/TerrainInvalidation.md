@@ -65,8 +65,8 @@ height list interprets null bounds as `RefreshArea`, which would defeat granular
 
 ## Frame coalescing
 
-SystemTick continues to reconcile entity context and process asset lifecycle work. It can fire more than once
-per frame in tools, so normal outbound footprint/dependency notifications now flush from `AZ::TickBus` at
+Entity-context and asset/cache lifecycle changes are event-driven. A bounded SystemTick subscription is used only
+while initial context ownership is unresolved. Normal outbound footprint/dependency notifications flush from `AZ::TickBus` at
 `AZ::TICK_DEFAULT - 1`, before the installed terrain system's default-order tick. Edits after that flush wait
 until the next regular tick. When tools pause regular ticking while unfocused, pending work remains queued.
 

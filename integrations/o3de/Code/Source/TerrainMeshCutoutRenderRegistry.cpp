@@ -14,13 +14,26 @@ namespace TerrainCompositor
     TerrainMeshCutoutRenderRegistry::~TerrainMeshCutoutRenderRegistry()
     {
         AZ::Interface<TerrainMeshCutoutRenderRegistry>::Unregister(this);
-        std::lock_guard lock(m_updateMutex);
-        for (const auto& [key, channel] : m_sceneChannels)
+        AZStd::vector<TerrainMeshCutoutRenderChannelPtr> retired;
         {
-            std::lock_guard publicationLock(channel->m_publicationMutex);
-            channel->m_active = false;
-            channel->m_snapshot.store({}, std::memory_order_release);
-            channel->m_activation.store({}, std::memory_order_release);
+            std::lock_guard lock(m_updateMutex);
+            retired.reserve(m_sceneChannels.size());
+            for (const auto& [key, channel] : m_sceneChannels)
+            {
+                (void)key;
+                std::lock_guard publicationLock(channel->m_publicationMutex);
+                channel->m_active = false;
+                channel->m_snapshot.store({}, std::memory_order_release);
+                channel->m_activation.store({}, std::memory_order_release);
+                retired.push_back(channel);
+            }
+            m_sceneChannels.clear();
+            m_byComposition.clear();
+        }
+        for (const auto& channel : retired)
+        {
+            channel->m_activationChanged.Signal({});
+            channel->m_materialChanged.Signal({});
         }
     }
 
@@ -85,38 +98,61 @@ namespace TerrainCompositor
     bool TerrainMeshCutoutRenderRegistry::ActivateGaps(const void* sceneKey,
         const TerrainMeshCutoutRenderSnapshotPtr& expected, AZStd::vector<PreparedTerrainMeshHeightGap> admitted)
     {
-        std::lock_guard lock(m_updateMutex);
-        const auto channel = m_sceneChannels.find(sceneKey);
-        if (!expected || channel == m_sceneChannels.end() || channel->second->m_snapshot.load(std::memory_order_acquire) != expected) return false;
-        auto activation = std::make_shared<TerrainMeshHeightGapActivation>();
-        activation->m_revision = expected->m_revision;
-        activation->m_gaps = AZStd::move(admitted);
-        channel->second->m_activation.store(AZStd::move(activation), std::memory_order_release);
+        TerrainMeshCutoutRenderChannelPtr target;
+        TerrainMeshHeightGapActivationPtr activation;
+        {
+            std::lock_guard lock(m_updateMutex);
+            const auto channel = m_sceneChannels.find(sceneKey);
+            if (!expected || channel == m_sceneChannels.end() || channel->second->m_snapshot.load(std::memory_order_acquire) != expected) return false;
+            target = channel->second;
+            auto replacement = std::make_shared<TerrainMeshHeightGapActivation>();
+            replacement->m_revision = expected->m_revision;
+            replacement->m_gaps = AZStd::move(admitted);
+            activation = AZStd::move(replacement);
+            target->m_activation.store(activation, std::memory_order_release);
+        }
+        target->m_activationChanged.Signal(activation);
         return true;
     }
 
     void TerrainMeshCutoutRenderRegistry::ClearGapActivation(const void* sceneKey)
     {
-        std::lock_guard lock(m_updateMutex);
-        const auto channel = m_sceneChannels.find(sceneKey);
-        if (channel != m_sceneChannels.end()) channel->second->m_activation.store({}, std::memory_order_release);
+        TerrainMeshCutoutRenderChannelPtr target;
+        {
+            std::lock_guard lock(m_updateMutex);
+            const auto channel = m_sceneChannels.find(sceneKey);
+            if (channel != m_sceneChannels.end())
+            {
+                target = channel->second;
+                if (!target->m_activation.exchange({}, std::memory_order_acq_rel)) target.reset();
+            }
+        }
+        if (target) target->m_activationChanged.Signal({});
     }
 
     void TerrainMeshCutoutRenderRegistry::RemoveScene(const void* sceneKey, bool removeRegistrations)
     {
-        std::lock_guard lock(m_updateMutex);
-        const auto found = m_sceneChannels.find(sceneKey);
-        if (found != m_sceneChannels.end())
+        TerrainMeshCutoutRenderChannelPtr retired;
         {
-            const auto channel = found->second;
-            std::lock_guard publicationLock(channel->m_publicationMutex);
-            channel->m_active = false;
-            channel->m_snapshot.store({}, std::memory_order_release);
-            channel->m_activation.store({}, std::memory_order_release);
-            m_sceneChannels.erase(found);
+            std::lock_guard lock(m_updateMutex);
+            const auto found = m_sceneChannels.find(sceneKey);
+            if (found != m_sceneChannels.end())
+            {
+                retired = found->second;
+                std::lock_guard publicationLock(retired->m_publicationMutex);
+                retired->m_active = false;
+                retired->m_snapshot.store({}, std::memory_order_release);
+                retired->m_activation.store({}, std::memory_order_release);
+                m_sceneChannels.erase(found);
+            }
+            if (removeRegistrations)
+                AZStd::erase_if(m_byComposition, [sceneKey](const auto& entry) { return entry.second.m_sceneKey == sceneKey; });
         }
-        if (removeRegistrations)
-            AZStd::erase_if(m_byComposition, [sceneKey](const auto& entry) { return entry.second.m_sceneKey == sceneKey; });
+        if (retired)
+        {
+            retired->m_activationChanged.Signal({});
+            retired->m_materialChanged.Signal({});
+        }
     }
 
     void TerrainMeshCutoutRenderRegistry::RebuildSnapshot(const void* sceneKey)

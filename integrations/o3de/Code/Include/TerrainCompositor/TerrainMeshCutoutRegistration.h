@@ -28,7 +28,6 @@ namespace TerrainCompositor
     private:
         void UpdateAssets() override;
         void ResetAssets() override { m_meshAsset.Reset(); }
-        bool NeedsAssetRetry() const override { return m_meshAsset.NeedsRetry(); }
 
         Internal::AssetSubscription<TerrainMeshCutoutDataCache> m_meshAsset;
     };

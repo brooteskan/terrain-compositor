@@ -32,6 +32,7 @@ namespace TerrainCompositor
         void BeforeUndoRedo() override;
         void AfterUndoRedo() override;
         void OnSystemTick() override;
+        void ScheduleRefresh();
 
         unsigned m_propagationDepth = 0;
         bool m_undoRedo = false;

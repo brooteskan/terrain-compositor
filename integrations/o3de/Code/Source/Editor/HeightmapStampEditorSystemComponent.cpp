@@ -23,7 +23,7 @@ namespace TerrainCompositor
         HeightmapStampIdentityInterface::Register(this);
         AzToolsFramework::Prefab::PrefabPublicNotificationBus::Handler::BusConnect();
         AzToolsFramework::ToolsApplicationNotificationBus::Handler::BusConnect();
-        AZ::SystemTickBus::Handler::BusConnect();
+        ScheduleRefresh();
     }
 
     void HeightmapStampEditorSystemComponent::Deactivate()
@@ -59,6 +59,7 @@ namespace TerrainCompositor
     {
         ++m_propagationDepth;
         m_refreshPending = true;
+        AZ::SystemTickBus::Handler::BusDisconnect();
         // Fail closed while aliases are being replaced; copies must not briefly reuse their parent's baked key.
         HeightmapStampIdentityNotificationBus::Broadcast(&HeightmapStampIdentityNotificationBus::Events::OnStampIdentitiesChanged);
     }
@@ -69,23 +70,31 @@ namespace TerrainCompositor
         {
             --m_propagationDepth;
         }
-        m_refreshPending = true;
+        ScheduleRefresh();
     }
 
-    void HeightmapStampEditorSystemComponent::OnRootPrefabInstanceLoaded() { m_refreshPending = true; }
-    void HeightmapStampEditorSystemComponent::OnAllTemplatesRemoved() { m_refreshPending = true; }
+    void HeightmapStampEditorSystemComponent::OnRootPrefabInstanceLoaded() { ScheduleRefresh(); }
+    void HeightmapStampEditorSystemComponent::OnAllTemplatesRemoved() { ScheduleRefresh(); }
 
     void HeightmapStampEditorSystemComponent::BeforeUndoRedo()
     {
         m_undoRedo = true;
         m_refreshPending = true;
+        AZ::SystemTickBus::Handler::BusDisconnect();
         HeightmapStampIdentityNotificationBus::Broadcast(&HeightmapStampIdentityNotificationBus::Events::OnStampIdentitiesChanged);
     }
 
     void HeightmapStampEditorSystemComponent::AfterUndoRedo()
     {
         m_undoRedo = false;
+        ScheduleRefresh();
+    }
+
+    void HeightmapStampEditorSystemComponent::ScheduleRefresh()
+    {
         m_refreshPending = true;
+        if (m_active && !m_undoRedo && m_propagationDepth == 0 && !AZ::SystemTickBus::Handler::BusIsConnected())
+            AZ::SystemTickBus::Handler::BusConnect();
     }
 
     void HeightmapStampEditorSystemComponent::OnSystemTick()
@@ -93,6 +102,7 @@ namespace TerrainCompositor
         if (m_active && m_refreshPending && !m_undoRedo && m_propagationDepth == 0)
         {
             m_refreshPending = false;
+            AZ::SystemTickBus::Handler::BusDisconnect();
             HeightmapStampIdentityNotificationBus::Broadcast(&HeightmapStampIdentityNotificationBus::Events::OnStampIdentitiesChanged);
         }
     }

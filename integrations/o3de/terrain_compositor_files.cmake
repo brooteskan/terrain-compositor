@@ -6,6 +6,7 @@ set(FILES
     Code/Source/CompositionPreparation.h
     Code/Source/CompositionPreparation.cpp
     Code/Include/TerrainCompositor/Internal/AssetSubscription.h
+    Code/Include/TerrainCompositor/Internal/CacheLifecycle.h
     Code/Include/TerrainCompositor/Internal/RegistrationClient.h
     Code/Include/TerrainCompositor/Internal/MeshPlacementLifecycle.h
     Code/Include/TerrainCompositor/Internal/ProviderLifecycle.h

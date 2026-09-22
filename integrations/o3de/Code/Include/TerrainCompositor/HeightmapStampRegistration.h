@@ -30,7 +30,6 @@ namespace TerrainCompositor
     private:
         void UpdateAssets() override;
         void ResetAssets() override;
-        bool NeedsAssetRetry() const override;
         void ValidateUnavailable() override;
         void BeforeRegister() override { m_registered = false; }
 

@@ -64,19 +64,6 @@ namespace TerrainCompositor
         m_validation = HeightmapStampValidation::Valid;
     }
 
-    bool HeightmapStampRegistration::NeedsAssetRetry() const
-    {
-        if (HeightmapDataCacheInterface::Get())
-        {
-            for (const auto& image : m_images)
-            {
-                if (image.NeedsRetry())
-                    return true;
-            }
-        }
-        return false;
-    }
-
     bool HeightmapStampRegistration::IsRegistered() const
     {
         return IsClientRegistered();

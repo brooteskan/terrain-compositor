@@ -43,6 +43,9 @@ namespace TerrainCompositor
 
     void TerrainMeshCutoutFeatureProcessor::Deactivate()
     {
+        if (m_sceneChannel && m_observedTerrainMaterial)
+            m_sceneChannel->m_materialChanged.Signal({});
+        m_observedTerrainMaterial.reset();
         DisableSceneNotification();
         if (auto* registry = AZ::Interface<TerrainMeshCutoutRenderRegistry>::Get())
             registry->RemoveScene(GetParentScene(), false);
@@ -205,6 +208,11 @@ namespace TerrainCompositor
         RebuildGpuData();
         auto* terrain = GetParentScene()->GetFeatureProcessor<Terrain::TerrainFeatureProcessor>();
         const auto material = terrain ? terrain->GetMaterial() : nullptr;
+        if (material != m_observedTerrainMaterial)
+        {
+            m_observedTerrainMaterial = material;
+            if (m_sceneChannel) m_sceneChannel->m_materialChanged.Signal(material);
+        }
         const auto cutoutSrg = material ? material->GetShaderResourceGroup() : nullptr;
         auto* registry = AZ::Interface<TerrainMeshCutoutRenderRegistry>::Get();
         if (!cutoutSrg || !material->CanCompile())

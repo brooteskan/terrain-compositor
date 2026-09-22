@@ -126,7 +126,8 @@ Direct bus clients must supply these tokens and revisions; prefer `HeightmapStam
 
 Stamps subscribe before registration and replay current data when a composition becomes available.
 Availability notifications carry a session token; an old unavailability event cannot clear a newer session.
-Late context ownership and cache restarts are retried on SystemTick using current data. Target/context
+Late context ownership uses at most eight SystemTick attempts with current data. Cache restarts notify active
+subscriptions directly and reacquire their selected assets. Target/context
 changes remove the old registration before establishing a new lease. Composition restarts create a new
 session and reject all operations carrying its predecessor's token.
 
@@ -179,7 +180,7 @@ so obsolete catalog events cannot restart/remove a product contrary to current c
 `OnStampFootprintChanged` carries old/new XY bounds, the corresponding region IDs/AABBs, and captured composition
 address, session, and snapshot revision. Phase five keeps immediate publication but **defers outbound notifications
 to regular TickBus at `TICK_DEFAULT - 1`**, outside the registration EBus's implicit recursive dispatch mutex.
-SystemTick still services context/asset lifecycle work; it is not a once-per-frame boundary. Pending movement/removal
+SystemTick is not a once-per-frame boundary and is used only during bounded unresolved-context retries. Pending movement/removal
 coverage survives subsequent edits, including intermediate drag positions and source/region changes.
 
 Shutdown queues value-only removal metadata and whole-region cleanup, including the departing composition's base.

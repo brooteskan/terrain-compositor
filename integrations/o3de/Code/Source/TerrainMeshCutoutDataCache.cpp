@@ -1,4 +1,5 @@
 #include <TerrainCompositor/TerrainMeshCutoutDataCache.h>
+#include <TerrainCompositor/Internal/CacheLifecycle.h>
 #include "ModelAssetSource.h"
 #include <TerrainCompositor/TerrainModelGeometry.h>
 
@@ -101,11 +102,13 @@ namespace TerrainCompositor
     TerrainMeshCutoutDataCache::TerrainMeshCutoutDataCache()
     {
         TerrainMeshCutoutDataCacheInterface::Register(this);
+        Internal::CacheLifecycle<TerrainMeshCutoutDataCache>::Signal(true);
     }
 
     TerrainMeshCutoutDataCache::~TerrainMeshCutoutDataCache()
     {
         TerrainMeshCutoutDataCacheInterface::Unregister(this);
+        Internal::CacheLifecycle<TerrainMeshCutoutDataCache>::Signal(false);
         Internal::StopAssetSources(m_sources);
     }
 

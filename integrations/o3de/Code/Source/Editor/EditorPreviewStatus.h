@@ -12,7 +12,9 @@ namespace TerrainCompositor
 
     // The editor owns serialized configuration; this owner creates its runtime preview only during activation.
     template<class Preview>
-    class EditorPreview final : private AZ::TickBus::Handler
+    class EditorPreview final
+        : private AZ::TickBus::Handler
+        , private AzToolsFramework::EntitySelectionEvents::Bus::Handler
     {
     public:
         EditorPreview(AzToolsFramework::Components::EditorComponentBase& editor, const char* inactiveStatus)
@@ -30,12 +32,14 @@ namespace TerrainCompositor
             m_preview->EditorActivate(m_editor.GetEntityId());
             m_status = m_preview->GetStatusMessage();
             m_statusElapsed = 0.0f;
-            AZ::TickBus::Handler::BusConnect();
+            AzToolsFramework::EntitySelectionEvents::Bus::Handler::BusConnect(m_editor.GetEntityId());
+            if (m_editor.IsSelected()) OnSelected();
         }
 
         void Deactivate()
         {
             AZ::TickBus::Handler::BusDisconnect();
+            AzToolsFramework::EntitySelectionEvents::Bus::Handler::BusDisconnect();
             if (m_preview)
             {
                 m_preview->EditorDeactivate(m_editor.GetEntityId());
@@ -60,6 +64,18 @@ namespace TerrainCompositor
         const AZStd::string& GetStatus() const { return m_status; }
 
     private:
+        void OnSelected() override
+        {
+            m_statusElapsed = 0.0f;
+            if (!AZ::TickBus::Handler::BusIsConnected()) AZ::TickBus::Handler::BusConnect();
+        }
+
+        void OnDeselected() override
+        {
+            AZ::TickBus::Handler::BusDisconnect();
+            m_statusElapsed = 0.0f;
+        }
+
         void OnTick(float deltaTime, [[maybe_unused]] AZ::ScriptTimePoint time) override
         {
             if (!m_preview || !m_editor.IsSelected())

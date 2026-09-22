@@ -255,11 +255,15 @@ namespace TerrainCompositor
         this->Tick(0.125f);
         EXPECT_EQ(this->Status(), before);
         this->m_selection.m_selected = false;
+        AzToolsFramework::EntitySelectionEvents::Bus::Event(
+            this->m_owner, &AzToolsFramework::EntitySelectionEvents::OnDeselected);
         this->Tick(10.0f);
         EXPECT_EQ(this->Status(), before);
         EXPECT_EQ(this->m_display.m_count, 0);
         this->m_selection.m_selected = true;
-        this->Tick(0.125f);
+        AzToolsFramework::EntitySelectionEvents::Bus::Event(
+            this->m_owner, &AzToolsFramework::EntitySelectionEvents::OnSelected);
+        this->Tick(EditorPreviewStatusPollIntervalSeconds);
         EXPECT_EQ(this->Status(), after);
         EXPECT_EQ(this->m_display.m_count, 1);
         EXPECT_EQ(this->m_display.m_lastId, AZ::EntityComponentIdPair(this->m_owner, this->m_editor->GetId()));

@@ -68,7 +68,8 @@ and lifecycle operations run on the main thread. A missing transform fails close
 
 The request and notification buses are addressed by `(entity context UUID, composition entity ID)`.
 Only the compositor owns its registration map. No process-wide stamp list exists, and all records are value copies.
-Unknown contexts fail closed; the registration helper retries late context ownership on SystemTick.
+Unknown contexts fail closed; the registration helper retries late context ownership for at most eight
+system ticks, then disconnects. Resolved contexts are observed through entity-context lifecycle events.
 
 - A stamp subscribes before attempting registration. If the compositor is absent, it waits at that address.
 - A compositor connects its request handler, then announces availability so waiting stamps replay current data.
@@ -224,8 +225,8 @@ and is excluded from the query snapshot.
 
 Updates, asset readiness/reloads, and removal publish complete immutable query snapshots before notifying dependents.
 Outbound stamp/dependency notifications are deferred to regular TickBus at `TICK_DEFAULT - 1`, before the installed
-terrain system's tick and outside control-bus dispatch mutexes. SystemTick remains for context/asset lifecycle work;
-it can run multiple times per frame. A valid stamp becoming invalid is removed from the query list immediately.
+terrain system's tick and outside control-bus dispatch mutexes. SystemTick is used only during bounded
+unresolved-context work; cache and asset lifecycle recovery is event-driven. A valid stamp becoming invalid is removed from the query list immediately.
 The previous snapshot supplies its old footprint and region context, retained in pending value-owned work until
 dispatch. Further invalid-to-invalid edits do not repeatedly invalidate that already-removed contribution.
 `OnStampFootprintChanged` includes previous/current XY bounds, previous/current region IDs and AABBs, composition

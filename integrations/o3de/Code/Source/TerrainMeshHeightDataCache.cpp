@@ -1,4 +1,5 @@
 #include <TerrainCompositor/TerrainMeshHeightDataCache.h>
+#include <TerrainCompositor/Internal/CacheLifecycle.h>
 #include "ModelAssetSource.h"
 
 #include <AzCore/Jobs/JobFunction.h>
@@ -84,11 +85,13 @@ namespace TerrainCompositor
     TerrainMeshHeightDataCache::TerrainMeshHeightDataCache()
     {
         TerrainMeshHeightDataCacheInterface::Register(this);
+        Internal::CacheLifecycle<TerrainMeshHeightDataCache>::Signal(true);
     }
 
     TerrainMeshHeightDataCache::~TerrainMeshHeightDataCache()
     {
         TerrainMeshHeightDataCacheInterface::Unregister(this);
+        Internal::CacheLifecycle<TerrainMeshHeightDataCache>::Signal(false);
         Internal::StopAssetSources(m_sources);
     }
 

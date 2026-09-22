@@ -300,6 +300,15 @@ namespace TerrainCompositor
 
     void TerrainCompositionGradientComponent::StartComposition(AZ::EntityId entityId)
     {
+        AzFramework::EntityContextId context{};
+        AzFramework::EntityIdContextQueryBus::EventResult(
+            context, entityId, &AzFramework::EntityIdContextQueryBus::Events::GetOwningContextId);
+        StartCompositionForContext(entityId, context);
+    }
+
+    void TerrainCompositionGradientComponent::StartCompositionForContext(
+        AZ::EntityId entityId, const AzFramework::EntityContextId& context)
+    {
         if (!m_active)
         {
             m_controlThread.BindForActivation();
@@ -312,9 +321,7 @@ namespace TerrainCompositor
         m_active = true;
         m_session = AZ::Uuid::CreateRandom(); // A lifetime token, never persistent
                                               // ordering identity.
-        m_address = { AzFramework::EntityContextId::CreateNull(), entityId };
-        AzFramework::EntityIdContextQueryBus::EventResult(
-            m_address.first, entityId, &AzFramework::EntityIdContextQueryBus::Events::GetOwningContextId);
+        m_address = { context, entityId };
         if (AZ::RPI::Scene* scene = AZ::RPI::Scene::GetSceneForEntityContextId(m_address.first))
         {
             if (!scene->GetFeatureProcessor<TerrainMeshCutoutFeatureProcessor>())
@@ -325,7 +332,7 @@ namespace TerrainCompositor
         m_qualityController.Activate(m_address.first, entityId, m_hasQualityBaseline ? &m_qualityBaseline : nullptr);
         OnConfigurationChanged();
         GradientSignal::GradientRequestBus::Handler::BusConnect(entityId);
-        AZ::SystemTickBus::Handler::BusConnect();
+        ObserveContext(context);
         AZ::TickBus::Handler::BusConnect();
         if (!m_address.first.IsNull())
         {
@@ -353,7 +360,9 @@ namespace TerrainCompositor
         // update/publication lock here.
         GradientSignal::GradientRequestBus::Handler::BusDisconnect();
         AZ::SystemTickBus::Handler::BusDisconnect();
+        AzFramework::EntityContextEventBus::Handler::BusDisconnect();
         AZ::TickBus::Handler::BusDisconnect();
+        m_gapActivationHandler.Disconnect();
         if (m_sourceChanges) m_sourceChanges->m_preparationDependency->Retire();
         m_sourceChanges.reset();
         m_sourceMonitor.Reset();
@@ -370,6 +379,7 @@ namespace TerrainCompositor
         // retained.
         m_queryState.exchange(std::make_shared<const QueryState>(), std::memory_order_acq_rel);
         m_observedGapActivation.reset();
+        m_gapActivationChanges = std::make_shared<GapActivationChanges>();
         for (const auto& contributor : previous->m_heightContributors)
         {
             HeightmapStampFootprintChange change;
@@ -467,7 +477,9 @@ namespace TerrainCompositor
         const auto state = GetQueryState();
         if (state->m_address.first.IsNull())
         {
-            return "Waiting for entity context ownership.";
+            return AZ::SystemTickBus::Handler::BusIsConnected()
+                ? "Waiting for entity context ownership."
+                : "Entity context ownership remains unresolved after 8 retry ticks; edit or reactivate to retry.";
         }
         if (!state->m_sourceEntityId.IsValid())
         {
@@ -799,8 +811,82 @@ namespace TerrainCompositor
         {
             return;
         }
+        AzFramework::EntityContextId context{};
+        AzFramework::EntityIdContextQueryBus::EventResult(
+            context, m_address.second, &AzFramework::EntityIdContextQueryBus::Events::GetOwningContextId);
+        if (!context.IsNull() && context != m_address.first)
+        {
+            StartCompositionForContext(m_address.second, context);
+            return;
+        }
+        if (context.IsNull())
+        {
+            if (m_contextRetriesRemaining > 0) --m_contextRetriesRemaining;
+            if (m_contextRetriesRemaining == 0) AZ::SystemTickBus::Handler::BusDisconnect();
+        }
+    }
+
+    void TerrainCompositionGradientComponent::ObserveContext(const AzFramework::EntityContextId& context)
+    {
+        AZ::SystemTickBus::Handler::BusDisconnect();
+        AzFramework::EntityContextEventBus::Handler::BusDisconnect();
+        if (context.IsNull())
+        {
+            m_contextRetriesRemaining = ContextResolutionAttempts;
+            AZ::SystemTickBus::Handler::BusConnect();
+        }
+        else
+            AzFramework::EntityContextEventBus::Handler::BusConnect(context);
+    }
+
+    void TerrainCompositionGradientComponent::OnEntityContextDestroyEntity(const AZ::EntityId& entityId)
+    {
+        if (m_active && entityId == m_address.second)
+            StartCompositionForContext(entityId, {});
+    }
+
+    void TerrainCompositionGradientComponent::OnEntityContextReset()
+    {
+        OnEntityContextDestroyEntity(m_address.second);
+    }
+
+    void TerrainCompositionGradientComponent::ObserveGapActivation(const TerrainMeshCutoutRenderChannelPtr& channel)
+    {
+        m_gapActivationHandler.Disconnect();
+        AZ::u64 generation;
+        {
+            std::lock_guard lock(m_gapActivationChanges->m_mutex);
+            generation = ++m_gapActivationChanges->m_generation;
+        }
+        if (!channel) return;
+        const std::weak_ptr<GapActivationChanges> weak = m_gapActivationChanges;
+        m_gapActivationHandler = TerrainMeshCutoutRenderChannel::ActivationChangedEvent::Handler(
+            [weak, generation](TerrainMeshHeightGapActivationPtr activation)
+            {
+                if (const auto changes = weak.lock())
+                {
+                    std::lock_guard lock(changes->m_mutex);
+                    if (changes->m_generation != generation) return;
+                    changes->m_activation = AZStd::move(activation);
+                    changes->m_pending = true;
+                }
+            });
+        m_gapActivationHandler.Connect(channel->m_activationChanged);
+        std::lock_guard lock(m_gapActivationChanges->m_mutex);
+        m_gapActivationChanges->m_activation = channel->m_activation.load(std::memory_order_acquire);
+        m_gapActivationChanges->m_pending = true;
+    }
+
+    void TerrainCompositionGradientComponent::CollectGapActivationChanges()
+    {
+        TerrainMeshHeightGapActivationPtr activation;
+        {
+            std::lock_guard lock(m_gapActivationChanges->m_mutex);
+            if (!m_gapActivationChanges->m_pending) return;
+            activation = AZStd::move(m_gapActivationChanges->m_activation);
+            m_gapActivationChanges->m_pending = false;
+        }
         const auto state = GetQueryState();
-        const auto activation = CaptureGapActivation(*state);
         if (activation != m_observedGapActivation)
         {
             const AZStd::span<const PreparedTerrainMeshHeightGap> oldGaps = m_observedGapActivation
@@ -817,18 +903,6 @@ namespace TerrainCompositor
             }
             m_observedGapActivation = activation;
         }
-        AzFramework::EntityContextId context{};
-        AzFramework::EntityIdContextQueryBus::EventResult(
-            context, m_address.second, &AzFramework::EntityIdContextQueryBus::Events::GetOwningContextId);
-        if (context != m_address.first)
-        {
-            // This also handles context ownership becoming available after activation.
-            // A new session prevents any old-context callback/lease from being replayed
-            // into the replacement registry.
-            const auto owner = m_address.second;
-            StartComposition(owner);
-            return;
-        }
     }
 
     void TerrainCompositionGradientComponent::OnTick([[maybe_unused]] float deltaTime, [[maybe_unused]] AZ::ScriptTimePoint time)
@@ -837,6 +911,7 @@ namespace TerrainCompositor
         {
             return;
         }
+        CollectGapActivationChanges();
         m_qualityController.Tick();
         const bool heightSettingsChanged = m_qualityController.ConsumeHeightSettingsChanged();
         float liveCollisionGridSpacing = 0.0f;
@@ -884,8 +959,6 @@ namespace TerrainCompositor
             }
         }
         const auto session = m_session;
-        OnSystemTick(); // Do not dispatch into a context that changed since the last
-                        // system tick.
         if (!m_active || session != m_session)
         {
             return;
@@ -1553,7 +1626,14 @@ namespace TerrainCompositor
 
         const auto* scene = renderRegistry ? AZ::RPI::Scene::GetSceneForEntityContextId(replacement->m_address.first) : nullptr;
         if (renderRegistry)
+        {
             replacement->m_renderChannel = renderRegistry->AcquireSceneChannel(scene);
+            ObserveGapActivation(replacement->m_renderChannel.lock());
+        }
+        else
+        {
+            ObserveGapActivation({});
+        }
         // Consume the only mutable candidate before any render query can retain it.
         const QueryStatePtr publication = AZStd::move(replacement);
         if (renderRegistry)

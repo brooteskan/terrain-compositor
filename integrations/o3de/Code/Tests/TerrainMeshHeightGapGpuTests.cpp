@@ -225,12 +225,23 @@ namespace TerrainCompositor
         int sceneA = 0, sceneB = 0;
         const auto a = registry.AcquireSceneChannel(&sceneA);
         const auto b = registry.AcquireSceneChannel(&sceneB);
+        int activationChanges = 0;
+        TerrainMeshHeightGapActivationPtr lastActivation;
+        TerrainMeshCutoutRenderChannel::ActivationChangedEvent::Handler activationChanged(
+            [&](TerrainMeshHeightGapActivationPtr activation)
+            {
+                ++activationChanges;
+                lastActivation = AZStd::move(activation);
+            });
+        activationChanged.Connect(a->m_activationChanged);
         const auto session = AZ::Uuid::CreateRandom();
         auto gap = MakeGpuGap(MakeGpuGapGrid());
         gap.m_compositionSession = session;
         ASSERT_TRUE(registry.Publish(&sceneA, session, {}, {}, 1, { gap }));
         const auto first = a->m_snapshot.load();
         ASSERT_TRUE(registry.ActivateGaps(&sceneA, first, { gap }));
+        EXPECT_EQ(activationChanges, 1);
+        EXPECT_TRUE(lastActivation);
         const auto batch = a->m_activation.load();
         ASSERT_TRUE(batch);
         ASSERT_EQ(batch->m_gaps.size(), 1);
@@ -239,6 +250,10 @@ namespace TerrainCompositor
         EXPECT_FALSE(registry.ActivateGaps(&sceneB, a->m_snapshot.load(), { gap }));
         EXPECT_TRUE(b->m_activation.load()->m_gaps.empty());
         registry.ClearGapActivation(&sceneA);
+        EXPECT_EQ(activationChanges, 2);
+        EXPECT_FALSE(lastActivation);
+        registry.ClearGapActivation(&sceneA);
+        EXPECT_EQ(activationChanges, 2);
         EXPECT_FALSE(a->m_activation.load());
         EXPECT_TRUE(IsTerrainMeshHeightGapAdmitted(gap, batch->m_gaps));
         const auto beforeRemoval = a->m_snapshot.load();

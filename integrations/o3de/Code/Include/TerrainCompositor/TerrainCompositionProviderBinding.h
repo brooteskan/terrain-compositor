@@ -11,6 +11,8 @@ namespace TerrainCompositor
     public:
         bool PrepareToStart();
         void Activate(AZ::EntityId terrainRegionEntityId, AZ::EntityId compositionEntityId);
+        void Activate(AZ::EntityId terrainRegionEntityId, AZ::EntityId compositionEntityId,
+            const AzFramework::EntityContextId& context);
         bool BeginStop();
         void Clear();
 

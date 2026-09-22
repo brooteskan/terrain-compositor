@@ -8,6 +8,7 @@
 #include <AzCore/Serialization/SerializeContext.h>
 #include <AzCore/std/containers/array.h>
 #include <AzFramework/Entity/EntityContextBus.h>
+#include <AzFramework/Scene/SceneSystemInterface.h>
 #include <LmbrCentral/Dependency/DependencyNotificationBus.h>
 #include <TerrainRenderer/TerrainFeatureProcessor.h>
 
@@ -208,7 +209,9 @@ namespace TerrainCompositor
         GradientSignal::GradientRequestBus::Handler::BusConnect(entityId);
         TerrainExistenceSourceRequestBus::Handler::BusConnect(entityId);
         TerrainProceduralSnapshotRequestBus::Handler::BusConnect(entityId);
-        AZ::TickBus::Handler::BusConnect();
+        m_materialUpdateState = std::make_shared<MaterialUpdateState>();
+        m_materialUpdateState->m_owner.store(this, std::memory_order_release);
+        BindTerrainMaterial();
         if (entityId.IsValid())
             LmbrCentral::DependencyNotificationBus::Event(
                 entityId, &LmbrCentral::DependencyNotificationBus::Events::OnCompositionChanged);
@@ -267,6 +270,7 @@ namespace TerrainCompositor
             LmbrCentral::DependencyNotificationBus::Event(
                 m_activeEntityId, &LmbrCentral::DependencyNotificationBus::Events::OnCompositionChanged);
         }
+        if (m_terrainMaterial) ApplyNoiseTint(m_terrainMaterial);
         return AZ::Edit::PropertyRefreshLevels::None;
     }
 
@@ -343,26 +347,101 @@ namespace TerrainCompositor
 
     void ProceduralGroundGradientComponent::StopNoiseTintUpdates()
     {
-        AZ::TickBus::Handler::BusDisconnect();
+        if (m_materialUpdateState)
+        {
+            m_materialUpdateState->m_owner.store(nullptr, std::memory_order_release);
+            ++m_materialUpdateState->m_generation;
+        }
+        m_materialChangedHandler.Disconnect();
+        m_materialChannel.reset();
+        AzFramework::EntityContextEventBus::Handler::BusDisconnect();
+        AZ::SystemTickBus::Handler::BusDisconnect();
+        m_materialUpdateState.reset();
         m_terrainMaterial.reset();
         m_reportedMissingTintProperty = false;
     }
 
-    void ProceduralGroundGradientComponent::OnTick(
-        [[maybe_unused]] float deltaTime, [[maybe_unused]] AZ::ScriptTimePoint time)
+    void ProceduralGroundGradientComponent::BindTerrainMaterial()
     {
-        const auto* rpiSystem = AZ::RPI::RPISystemInterface::Get();
-        if (!rpiSystem || !rpiSystem->IsInitialized())
-        {
-            return;
-        }
-
         AzFramework::EntityContextId context{};
         AzFramework::EntityIdContextQueryBus::EventResult(
             context, m_activeEntityId, &AzFramework::EntityIdContextQueryBus::Events::GetOwningContextId);
+        BindTerrainMaterialForContext(context);
+    }
+
+    void ProceduralGroundGradientComponent::BindTerrainMaterialForContext(const AzFramework::EntityContextId& context)
+    {
+        const AZ::u64 generation = ++m_materialUpdateState->m_generation;
+        m_materialChangedHandler.Disconnect();
+        m_materialChannel.reset();
+        AzFramework::EntityContextEventBus::Handler::BusDisconnect();
+        AZ::SystemTickBus::Handler::BusDisconnect();
+        if (!context.IsNull())
+            AzFramework::EntityContextEventBus::Handler::BusConnect(context);
+        const auto* rpiSystem = AZ::RPI::RPISystemInterface::Get();
+        auto* registry = AZ::Interface<TerrainMeshCutoutRenderRegistry>::Get();
+        const auto* sceneSystem = AzFramework::SceneSystemInterface::Get();
+        if (!rpiSystem || !rpiSystem->IsInitialized() || !registry || !sceneSystem)
+        {
+            m_materialRetriesRemaining = MaterialResolutionAttempts;
+            AZ::SystemTickBus::Handler::BusConnect();
+            return;
+        }
         const auto* scene = AZ::RPI::Scene::GetSceneForEntityContextId(context);
+        if (!scene)
+        {
+            m_materialRetriesRemaining = MaterialResolutionAttempts;
+            AZ::SystemTickBus::Handler::BusConnect();
+            return;
+        }
+        const auto channel = registry->AcquireSceneChannel(scene);
+        m_materialChannel = channel;
+        const std::weak_ptr<MaterialUpdateState> weak = m_materialUpdateState;
+        m_materialChangedHandler = TerrainMeshCutoutRenderChannel::MaterialChangedEvent::Handler(
+            [weak, generation](AZ::Data::Instance<AZ::RPI::Material> material)
+            {
+                AZ::SystemTickBus::QueueFunction([weak, generation, material = AZStd::move(material)]() mutable
+                {
+                    if (const auto state = weak.lock())
+                    {
+                        if (state->m_generation.load(std::memory_order_acquire) != generation) return;
+                        if (auto* owner = state->m_owner.load(std::memory_order_acquire))
+                            owner->ApplyNoiseTint(material);
+                    }
+                });
+            });
+        m_materialChangedHandler.Connect(channel->m_materialChanged);
         const auto* terrain = scene ? scene->GetFeatureProcessor<Terrain::TerrainFeatureProcessor>() : nullptr;
-        const auto material = terrain ? terrain->GetMaterial() : nullptr;
+        ApplyNoiseTint(terrain ? terrain->GetMaterial() : nullptr);
+    }
+
+    void ProceduralGroundGradientComponent::OnSystemTick()
+    {
+        if (!m_activeEntityId.IsValid()) return;
+        if (m_materialRetriesRemaining > 0) --m_materialRetriesRemaining;
+        const unsigned remaining = m_materialRetriesRemaining;
+        BindTerrainMaterial();
+        m_materialRetriesRemaining = remaining;
+        if (AZ::SystemTickBus::Handler::BusIsConnected() && remaining == 0)
+            AZ::SystemTickBus::Handler::BusDisconnect();
+    }
+
+    void ProceduralGroundGradientComponent::OnEntityContextDestroyEntity(const AZ::EntityId& entityId)
+    {
+        if (entityId == m_activeEntityId)
+        {
+            ApplyNoiseTint({});
+            BindTerrainMaterialForContext({});
+        }
+    }
+
+    void ProceduralGroundGradientComponent::OnEntityContextReset()
+    {
+        OnEntityContextDestroyEntity(m_activeEntityId);
+    }
+
+    void ProceduralGroundGradientComponent::ApplyNoiseTint(const AZ::Data::Instance<AZ::RPI::Material>& material)
+    {
         if (material != m_terrainMaterial)
         {
             // Scene-local mask bindings require a unique material. Follow the terrain

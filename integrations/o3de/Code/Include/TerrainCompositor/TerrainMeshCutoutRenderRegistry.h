@@ -7,6 +7,7 @@
 #include <AzCore/std/containers/unordered_map.h>
 #include <AzCore/std/containers/vector.h>
 #include <AzCore/std/function/function_template.h>
+#include <Atom/RPI.Public/Material/Material.h>
 #include <TerrainCompositor/TerrainExistenceSampling.h>
 #include <TerrainCompositor/TerrainRenderQuery.h>
 #include <TerrainCompositor/TerrainPreparationDependency.h>
@@ -449,11 +450,15 @@ namespace TerrainCompositor
 
     struct TerrainMeshCutoutRenderChannel
     {
+        using ActivationChangedEvent = AZ::Event<TerrainMeshHeightGapActivationPtr>;
+        using MaterialChangedEvent = AZ::Event<AZ::Data::Instance<AZ::RPI::Material>>;
         std::mutex m_publicationMutex;
         // Protected by the publication mutex; a removed scene channel is never revived.
         bool m_active = true;
         std::atomic<TerrainMeshCutoutRenderSnapshotPtr> m_snapshot{ std::make_shared<const TerrainMeshCutoutRenderSnapshot>() };
         std::atomic<TerrainMeshHeightGapActivationPtr> m_activation{ std::make_shared<const TerrainMeshHeightGapActivation>() };
+        ActivationChangedEvent m_activationChanged;
+        MaterialChangedEvent m_materialChanged;
     };
     using TerrainMeshCutoutRenderChannelPtr = std::shared_ptr<TerrainMeshCutoutRenderChannel>;
 

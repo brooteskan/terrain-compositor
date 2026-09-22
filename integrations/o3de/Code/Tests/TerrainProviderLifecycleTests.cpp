@@ -254,7 +254,14 @@ namespace TerrainCompositor
             if (action == 0) { Stop(); }
             else if (action == 1) { Configure(m_otherTarget); }
             else if (action == 2) { m_component->EditorActivate(m_otherRegion); }
-            else { m_context.m_context = AZ::Uuid::CreateRandom(); Tick(); }
+            else
+            {
+                const auto previous = m_context.m_context;
+                AzFramework::EntityContextEventBus::Event(previous,
+                    &AzFramework::EntityContextEvents::OnEntityContextDestroyEntity, m_region);
+                m_context.m_context = AZ::Uuid::CreateRandom();
+                Tick();
+            }
             {
                 std::lock_guard lock(mutex);
                 completed = true;
@@ -375,17 +382,24 @@ namespace TerrainCompositor
         typename TypeParam::Queries first({ this->m_context.m_context, this->m_target });
         EXPECT_EQ(this->m_component->GetStatusMessage(), TypeParam::Ready);
         this->ExpectSamples(first.m_value);
+        const auto previous = this->m_context.m_context;
+        AzFramework::EntityContextEventBus::Event(previous,
+            &AzFramework::EntityContextEvents::OnEntityContextDestroyEntity, this->m_region);
         this->m_context.m_context = AZ::Uuid::CreateRandom();
         typename TypeParam::Queries second({ this->m_context.m_context, this->m_target });
         second.m_value = 5.0f;
         this->Tick();
         this->ExpectSamples(second.m_value);
         this->Tick();
-        EXPECT_EQ(this->m_refresh.m_areas.size(), 5);
+        // Context removal first invalidates/rebinds to an unresolved address;
+        // resolution then invalidates/rebinds to the replacement context.
+        EXPECT_EQ(this->m_refresh.m_areas.size(), 7);
+        AzFramework::EntityContextEventBus::Event(this->m_context.m_context,
+            &AzFramework::EntityContextEvents::OnEntityContextDestroyEntity, this->m_region);
         this->m_context.BusDisconnect();
         this->Tick();
         EXPECT_EQ(this->m_component->GetStatusMessage(), "Waiting for entity context ownership.");
-        EXPECT_EQ(this->m_refresh.m_areas.size(), 7);
+        EXPECT_EQ(this->m_refresh.m_areas.size(), 9);
     }
 
     TYPED_TEST(TerrainProviderLifecycleTests, ActiveWorkerControlCallsAreRejectedWithoutChangingRouting)
@@ -404,7 +418,9 @@ namespace TerrainCompositor
             this->Tick();
         });
         worker.join();
-        AZ_TEST_STOP_TRACE_SUPPRESSION(6);
+        // Resolved providers are no longer SystemTick handlers, so the worker tick
+        // produces no additional control-thread assertion.
+        AZ_TEST_STOP_TRACE_SUPPRESSION(5);
         EXPECT_EQ(this->Binding().GetCompositionAddress().second, this->m_target);
         EXPECT_EQ(this->m_refresh.m_areas.size(), 1);
         EXPECT_TRUE(TypeParam::AreaBus::HasHandlers(this->m_region));

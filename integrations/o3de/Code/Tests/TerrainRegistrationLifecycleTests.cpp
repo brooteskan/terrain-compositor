@@ -472,6 +472,22 @@ namespace TerrainCompositor
         EXPECT_TRUE(records[0].m_identityPending);
     }
 
+    TYPED_TEST(TerrainRegistrationLifecycleTests, UnresolvedContextRetryExhaustionDisconnectsUntilExplicitUpdate)
+    {
+        auto config = this->MakeRecord(this->m_stamp).m_configuration;
+        this->m_context.BusDisconnect(this->m_stamp);
+        typename TypeParam::Lease lease;
+        lease.Activate(this->m_stamp, config, AZ::Transform::CreateIdentity());
+        for (int attempt = 0; attempt < 8; ++attempt)
+            AZ::SystemTickBus::Broadcast(&AZ::SystemTickEvents::OnSystemTick);
+        this->m_context.BusConnect(this->m_stamp);
+        AZ::SystemTickBus::Broadcast(&AZ::SystemTickEvents::OnSystemTick);
+        EXPECT_FALSE(lease.IsRegistered());
+        config.m_priority = 11;
+        lease.Update(config, AZ::Transform::CreateIdentity());
+        EXPECT_TRUE(lease.IsRegistered());
+    }
+
     TYPED_TEST(TerrainRegistrationLifecycleTests, PlacementUpdatesKeepTheLeaseAndReactivationRetiresIt)
     {
         auto config = this->MakeRecord(this->m_stamp).m_configuration;
@@ -537,7 +553,6 @@ namespace TerrainCompositor
         const auto originalLease = this->Records()[0].m_registrationId;
         cache.reset();
         cache = AZStd::make_unique<Cache>();
-        AZ::SystemTickBus::Broadcast(&AZ::SystemTickEvents::OnSystemTick);
         auto record = this->Records()[0];
         EXPECT_EQ(record.m_registrationId, originalLease);
         for (const auto* snapshot : TypeParam::Snapshots(record))
