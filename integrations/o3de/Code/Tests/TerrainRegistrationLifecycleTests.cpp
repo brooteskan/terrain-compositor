@@ -327,6 +327,29 @@ namespace TerrainCompositor
         EXPECT_FALSE(this->IsCompositionTickConnected());
     }
 
+    TYPED_TEST(TerrainRegistrationLifecycleTests, FootprintListenerCanDestroyCompositionDuringTick)
+    {
+        this->TickComposition();
+        auto retired = this->DeferredTickState();
+        int notifications = 0;
+        RegistrationTestSupport::CompositionListener listener(this->m_address, [&]()
+        {
+            ++notifications;
+            EXPECT_FALSE(this->IsCompositionTickConnected());
+            this->StopComposition();
+        });
+        this->AddMetadataChange();
+        this->TickComposition();
+        EXPECT_EQ(notifications, 1);
+        EXPECT_EQ(retired->m_owner.load(), nullptr);
+        EXPECT_FALSE(this->m_composition);
+
+        AZ::TickBus::ExecuteQueuedEvents();
+        AZ::SystemTickBus::ExecuteQueuedEvents();
+        this->TickComposition();
+        EXPECT_EQ(notifications, 1);
+    }
+
     TYPED_TEST(TerrainRegistrationLifecycleTests, QueuedWakeCannotReviveStoppedOrReactivatedComposition)
     {
         this->TickComposition();

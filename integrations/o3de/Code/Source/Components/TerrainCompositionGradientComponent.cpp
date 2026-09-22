@@ -1095,17 +1095,17 @@ namespace TerrainCompositor
         auto diagnostics = AZStd::move(m_pendingDiagnostics);
         m_pendingInvalidation.m_changes.clear();
         m_pendingDiagnostics.clear();
+        if (!m_tickRequested)
+        {
+            AZ::TickBus::Handler::BusDisconnect();
+        }
         // Only local copies are used after external calls: listeners can
-        // retarget/deactivate components.
+        // destroy this component or request another tick by reconnecting it.
         for (const auto& diagnostic : diagnostics)
         {
             AZ_Warning("TerrainComposition", false, "%s", diagnostic.c_str());
         }
         DispatchChanges(address, changes, heightRegions, surfaceRegions);
-        if (m_active && session == m_session && !m_tickRequested)
-        {
-            AZ::TickBus::Handler::BusDisconnect();
-        }
     }
 
     TerrainCompositionGradientComponent::QueryStatePtr TerrainCompositionGradientComponent::GetQueryState() const
