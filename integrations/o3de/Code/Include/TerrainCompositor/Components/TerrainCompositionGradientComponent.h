@@ -8,6 +8,7 @@
 #include <AzCore/std/smart_ptr/weak_ptr.h>
 #include <AzFramework/Components/EditorEntityEvents.h>
 #include <AzFramework/Entity/EntityContextBus.h>
+#include <AzFramework/Terrain/TerrainDataRequestBus.h>
 #include <GradientSignal/Ebuses/GradientRequestBus.h>
 #include <LmbrCentral/Dependency/DependencyMonitor.h>
 #include <LmbrCentral/Shape/ShapeComponentBus.h>
@@ -62,6 +63,7 @@ namespace TerrainCompositor
         , private LmbrCentral::ShapeComponentNotificationsBus::Handler
         , private AZ::EntityBus::Handler
         , private AzFramework::EntityContextEventBus::Handler
+        , private AzFramework::Terrain::TerrainDataNotificationBus::Handler
         , private AZ::SystemTickBus::Handler
         , private AZ::TickBus::Handler
     {
@@ -134,6 +136,12 @@ namespace TerrainCompositor
             TerrainMeshHeightGapActivationPtr m_activation;
         };
 
+        struct DeferredTickState
+        {
+            std::atomic<TerrainCompositionGradientComponent*> m_owner{ nullptr };
+            std::atomic_bool m_queued{ false };
+        };
+
         void StartComposition(AZ::EntityId entityId);
         void StartCompositionForContext(AZ::EntityId entityId, const AzFramework::EntityContextId& context);
         AZ::u32 OnConfigurationChanged();
@@ -155,6 +163,13 @@ namespace TerrainCompositor
         void ObserveContext(const AzFramework::EntityContextId& context);
         void ObserveGapActivation(const TerrainMeshCutoutRenderChannelPtr& channel);
         void CollectGapActivationChanges();
+        void RequestCompositionTick();
+        static void QueueCompositionTick(const std::weak_ptr<DeferredTickState>& weak);
+        void OnTerrainDataCreateEnd() override;
+        void OnTerrainDataDestroyEnd() override;
+        void OnTerrainDataChanged(
+            const AZ::Aabb& dirtyRegion,
+            AzFramework::Terrain::TerrainDataNotifications::TerrainDataChangedMask dataChangedMask) override;
         void OnTick(float deltaTime, AZ::ScriptTimePoint time) override;
         int GetTickOrder() override
         {
@@ -254,7 +269,10 @@ namespace TerrainCompositor
         std::atomic<QueryStatePtr> m_queryState{ std::make_shared<const QueryState>() };
         TerrainMeshHeightGapActivationPtr m_observedGapActivation;
         std::shared_ptr<GapActivationChanges> m_gapActivationChanges = std::make_shared<GapActivationChanges>();
+        std::shared_ptr<DeferredTickState> m_deferredTickState;
         TerrainMeshCutoutRenderChannel::ActivationChangedEvent::Handler m_gapActivationHandler;
+        bool m_tickRequested = false;
+        bool m_terrainSettingsDirty = true;
         static constexpr unsigned ContextResolutionAttempts = 8;
         unsigned m_contextRetriesRemaining = 0;
     };

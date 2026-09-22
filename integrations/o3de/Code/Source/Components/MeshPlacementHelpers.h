@@ -38,19 +38,19 @@ namespace TerrainCompositor::Internal
         return matchingMeshCount == 1 ? match : AZ::EntityId{};
     }
 
-    inline void HideMatchingModel(AZ::EntityId candidate, const AZ::Data::AssetId& assetId,
+    inline bool HideMatchingModel(AZ::EntityId candidate, const AZ::Data::AssetId& assetId,
         AZStd::unordered_map<AZ::EntityId, bool>& previousVisibility)
     {
         if (!candidate.IsValid() || !AZ::Render::MeshComponentRequestBus::HasHandlers(candidate))
         {
-            return;
+            return false;
         }
         AZ::Data::AssetId modelAssetId;
         AZ::Render::MeshComponentRequestBus::EventResult(
             modelAssetId, candidate, &AZ::Render::MeshComponentRequestBus::Events::GetModelAssetId);
         if (modelAssetId != assetId)
         {
-            return;
+            return false;
         }
         if (!previousVisibility.contains(candidate))
         {
@@ -61,6 +61,7 @@ namespace TerrainCompositor::Internal
         }
         AZ::Render::MeshComponentRequestBus::Event(
             candidate, &AZ::Render::MeshComponentRequestBus::Events::SetVisibility, false);
+        return true;
     }
 
     inline void RestoreModelVisibility(AZStd::unordered_map<AZ::EntityId, bool>& previousVisibility)

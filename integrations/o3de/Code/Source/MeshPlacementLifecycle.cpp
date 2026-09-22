@@ -31,9 +31,9 @@ namespace TerrainCompositor::Internal
         m_deferredUpdateState = AZStd::make_shared<DeferredUpdateState>();
         m_deferredUpdateState->m_owner.store(this);
         if (editor) HeightmapStampIdentityNotificationBus::Handler::BusConnect();
-        BindPlacementEntity();
+        const bool placementReady = BindPlacementEntity();
         m_updateRegistration();
-        SchedulePlacementUpdate();
+        if (!placementReady) SchedulePlacementUpdate();
         ScheduleVisibilityUpdate();
     }
 
@@ -55,9 +55,10 @@ namespace TerrainCompositor::Internal
     {
         m_assetId = assetId;
         if (!m_editor) RestoreModelVisibility(m_previousVisibility);
-        BindPlacementEntity();
+        const bool placementReady = BindPlacementEntity();
         m_updateRegistration();
-        SchedulePlacementUpdate();
+        if (!placementReady) SchedulePlacementUpdate();
+        else m_placementRetriesRemaining = 0;
         ScheduleVisibilityUpdate();
     }
 
@@ -107,26 +108,44 @@ namespace TerrainCompositor::Internal
         }
         if (m_placementRetriesRemaining > 0)
         {
-            BindPlacementEntity();
+            const AZ::EntityId previousPlacement = m_placementEntityId;
+            const bool placementReady = BindPlacementEntity();
             m_updateRegistration();
-            --m_placementRetriesRemaining;
+            if (placementReady)
+            {
+                m_placementRetriesRemaining = 0;
+                if (!m_editor && previousPlacement != m_placementEntityId)
+                {
+                    ScheduleVisibilityUpdate();
+                }
+            }
+            else
+            {
+                --m_placementRetriesRemaining;
+            }
         }
         if (m_visibilityRetriesRemaining > 0)
         {
-            HideMatchingModel(m_placementEntityId, m_assetId, m_previousVisibility);
-            --m_visibilityRetriesRemaining;
+            if (HideMatchingModel(m_placementEntityId, m_assetId, m_previousVisibility))
+            {
+                m_visibilityRetriesRemaining = 0;
+            }
+            else
+            {
+                --m_visibilityRetriesRemaining;
+            }
         }
         if (m_placementRetriesRemaining == 0 && m_visibilityRetriesRemaining == 0)
             AZ::SystemTickBus::Handler::BusDisconnect();
     }
 
-    void MeshPlacementLifecycle::BindPlacementEntity()
+    bool MeshPlacementLifecycle::BindPlacementEntity()
     {
-        if (!IsActive()) return;
+        if (!IsActive()) return false;
         size_t matchingMeshCount = 0;
         const AZ::EntityId desired = ResolveUniqueModelEntity(m_entityId, m_assetId, matchingMeshCount);
         if (desired == m_placementEntityId && matchingMeshCount == m_matchingMeshCount && m_transformNotificationsBound)
-            return;
+            return desired.IsValid() && matchingMeshCount == 1 && AZ::TransformBus::HasHandlers(desired);
 
         if (!m_editor) RestoreModelVisibility(m_previousVisibility);
         UnbindPlacementEntity();
@@ -134,7 +153,7 @@ namespace TerrainCompositor::Internal
         m_placementEntityId = desired;
         AZ::TransformNotificationBus::MultiHandler::BusConnect(m_entityId);
         m_transformNotificationsBound = true;
-        if (!m_placementEntityId.IsValid()) return;
+        if (!m_placementEntityId.IsValid()) return false;
         if (m_placementEntityId != m_entityId)
             AZ::TransformNotificationBus::MultiHandler::BusConnect(m_placementEntityId);
         AZ::Render::MeshComponentNotificationBus::Handler::BusConnect(m_placementEntityId);
@@ -143,6 +162,7 @@ namespace TerrainCompositor::Internal
             AZ::NonUniformScaleRequestBus::Event(m_placementEntityId,
                 &AZ::NonUniformScaleRequests::RegisterScaleChangedEvent, m_scaleChangedHandler);
         }
+        return AZ::TransformBus::HasHandlers(m_placementEntityId);
     }
 
     void MeshPlacementLifecycle::UnbindPlacementEntity()

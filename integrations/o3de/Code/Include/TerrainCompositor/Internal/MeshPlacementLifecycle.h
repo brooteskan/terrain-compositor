@@ -61,7 +61,7 @@ namespace TerrainCompositor::Internal
         }
 
     private:
-        void BindPlacementEntity();
+        bool BindPlacementEntity();
         void UnbindPlacementEntity();
         void SchedulePlacementUpdate();
         void ScheduleVisibilityUpdate();

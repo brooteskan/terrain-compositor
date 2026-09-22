@@ -66,9 +66,18 @@ height list interprets null bounds as `RefreshArea`, which would defeat granular
 ## Frame coalescing
 
 Entity-context and asset/cache lifecycle changes are event-driven. A bounded SystemTick subscription is used only
-while initial context ownership is unresolved. Normal outbound footprint/dependency notifications flush from `AZ::TickBus` at
-`AZ::TICK_DEFAULT - 1`, before the installed terrain system's default-order tick. Edits after that flush wait
-until the next regular tick. When tools pause regular ticking while unfocused, pending work remains queued.
+while initial context ownership is unresolved. Source, gap, configuration, publication, and terrain settings events
+connect the composition to `AZ::TickBus` only while an ordered pass is pending. Normal outbound
+footprint/dependency notifications flush at `AZ::TICK_DEFAULT - 1`, before the installed terrain system's
+default-order tick, and the composition disconnects after actionable work drains. Edits after that flush and edits
+created reentrantly by listeners wait until the next regular tick. When tools pause regular ticking while
+unfocused, pending work remains queued.
+
+Terrain creation and post-application `Settings` notifications wake retained work. If a footprint needs query
+spacing while the terrain service is unavailable, it remains value-owned and the composition waits disconnected;
+there is no idle resolution query. Worker-originated source and gap callbacks fill activation-scoped mailboxes and
+queue one SystemTick control-thread wakeup. Weak ownership and activation replacement prevent stopped or stale
+callbacks from reconnecting a component.
 
 The accumulator removes contained/redundant regions and merges overlapping/touching rectangles when the merged
 rectangle adds at most 10% area over their combined covered area for that merge. Disjoint rectangles stay separate.

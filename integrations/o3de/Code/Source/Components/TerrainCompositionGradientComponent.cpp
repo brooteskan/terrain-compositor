@@ -319,6 +319,10 @@ namespace TerrainCompositor
         }
         Deactivate();
         m_active = true;
+        m_deferredTickState = std::make_shared<DeferredTickState>();
+        m_deferredTickState->m_owner.store(this);
+        m_tickRequested = false;
+        m_terrainSettingsDirty = true;
         m_session = AZ::Uuid::CreateRandom(); // A lifetime token, never persistent
                                               // ordering identity.
         m_address = { context, entityId };
@@ -333,7 +337,7 @@ namespace TerrainCompositor
         OnConfigurationChanged();
         GradientSignal::GradientRequestBus::Handler::BusConnect(entityId);
         ObserveContext(context);
-        AZ::TickBus::Handler::BusConnect();
+        AzFramework::Terrain::TerrainDataNotificationBus::Handler::BusConnect();
         if (!m_address.first.IsNull())
         {
             TerrainCompositionRequestBus::Handler::BusConnect(m_address);
@@ -343,6 +347,7 @@ namespace TerrainCompositor
             TerrainCompositionNotificationBus::Event(
                 m_address, &TerrainCompositionNotificationBus::Events::OnCompositionAvailable, session);
         }
+        RequestCompositionTick();
     }
 
     void TerrainCompositionGradientComponent::Deactivate()
@@ -352,6 +357,7 @@ namespace TerrainCompositor
             return;
         }
         m_active = false; // Close registrations before any external call.
+        if (m_deferredTickState) m_deferredTickState->m_owner.store(nullptr);
         m_qualityController.Deactivate();
         TerrainCompositionRequestBus::Handler::BusDisconnect();
         TerrainCompositionHeightRequestBus::Handler::BusDisconnect();
@@ -362,6 +368,7 @@ namespace TerrainCompositor
         AZ::SystemTickBus::Handler::BusDisconnect();
         AzFramework::EntityContextEventBus::Handler::BusDisconnect();
         AZ::TickBus::Handler::BusDisconnect();
+        AzFramework::Terrain::TerrainDataNotificationBus::Handler::BusDisconnect();
         m_gapActivationHandler.Disconnect();
         if (m_sourceChanges) m_sourceChanges->m_preparationDependency->Retire();
         m_sourceChanges.reset();
@@ -380,6 +387,9 @@ namespace TerrainCompositor
         m_queryState.exchange(std::make_shared<const QueryState>(), std::memory_order_acq_rel);
         m_observedGapActivation.reset();
         m_gapActivationChanges = std::make_shared<GapActivationChanges>();
+        m_deferredTickState.reset();
+        m_tickRequested = false;
+        m_terrainSettingsDirty = true;
         for (const auto& contributor : previous->m_heightContributors)
         {
             HeightmapStampFootprintChange change;
@@ -585,7 +595,8 @@ namespace TerrainCompositor
         m_sourceMonitor.ConnectOwner(owner);
         m_sourceChanges = std::make_shared<SourceChanges>();
         m_sourceMonitor.SetEntityNotificationFunction(
-            [inbox = std::weak_ptr<SourceChanges>(m_sourceChanges), owner, source](
+            [inbox = std::weak_ptr<SourceChanges>(m_sourceChanges),
+             wake = std::weak_ptr<DeferredTickState>(m_deferredTickState), owner, source](
                 const AZ::EntityId& ownerId, const AZ::EntityId& dependentId, const AZ::Aabb& dirtyRegion)
             {
                 if (ownerId != owner || dependentId != source)
@@ -625,6 +636,7 @@ namespace TerrainCompositor
                         changes->m_regions.push_back(dirtyRegion);
                     }
                 }
+                QueueCompositionTick(wake);
             });
         if (source != owner && source != region)
         {
@@ -860,8 +872,9 @@ namespace TerrainCompositor
         }
         if (!channel) return;
         const std::weak_ptr<GapActivationChanges> weak = m_gapActivationChanges;
+        const std::weak_ptr<DeferredTickState> wake = m_deferredTickState;
         m_gapActivationHandler = TerrainMeshCutoutRenderChannel::ActivationChangedEvent::Handler(
-            [weak, generation](TerrainMeshHeightGapActivationPtr activation)
+            [weak, wake, generation](TerrainMeshHeightGapActivationPtr activation)
             {
                 if (const auto changes = weak.lock())
                 {
@@ -870,11 +883,75 @@ namespace TerrainCompositor
                     changes->m_activation = AZStd::move(activation);
                     changes->m_pending = true;
                 }
+                QueueCompositionTick(wake);
             });
         m_gapActivationHandler.Connect(channel->m_activationChanged);
         std::lock_guard lock(m_gapActivationChanges->m_mutex);
         m_gapActivationChanges->m_activation = channel->m_activation.load(std::memory_order_acquire);
         m_gapActivationChanges->m_pending = true;
+        QueueCompositionTick(m_deferredTickState);
+    }
+
+    void TerrainCompositionGradientComponent::RequestCompositionTick()
+    {
+        if (!m_active)
+        {
+            return;
+        }
+        if (!m_controlThread.Check())
+        {
+            QueueCompositionTick(m_deferredTickState);
+            return;
+        }
+        m_tickRequested = true;
+        if (!AZ::TickBus::Handler::BusIsConnected())
+        {
+            AZ::TickBus::Handler::BusConnect();
+        }
+    }
+
+    void TerrainCompositionGradientComponent::QueueCompositionTick(const std::weak_ptr<DeferredTickState>& weak)
+    {
+        const auto state = weak.lock();
+        if (!state || state->m_queued.exchange(true))
+        {
+            return;
+        }
+        AZ::SystemTickBus::QueueFunction([weak]()
+        {
+            if (const auto state = weak.lock())
+            {
+                state->m_queued.store(false);
+                if (auto* owner = state->m_owner.load())
+                {
+                    owner->RequestCompositionTick();
+                }
+            }
+        });
+    }
+
+    void TerrainCompositionGradientComponent::OnTerrainDataCreateEnd()
+    {
+        m_terrainSettingsDirty = true;
+        RequestCompositionTick();
+    }
+
+    void TerrainCompositionGradientComponent::OnTerrainDataDestroyEnd()
+    {
+        m_terrainSettingsDirty = true;
+        RequestCompositionTick();
+    }
+
+    void TerrainCompositionGradientComponent::OnTerrainDataChanged(
+        [[maybe_unused]] const AZ::Aabb& dirtyRegion,
+        AzFramework::Terrain::TerrainDataNotifications::TerrainDataChangedMask dataChangedMask)
+    {
+        using Mask = AzFramework::Terrain::TerrainDataNotifications::TerrainDataChangedMask;
+        if ((dataChangedMask & Mask::Settings) == Mask::Settings)
+        {
+            m_terrainSettingsDirty = true;
+            RequestCompositionTick();
+        }
     }
 
     void TerrainCompositionGradientComponent::CollectGapActivationChanges()
@@ -909,14 +986,26 @@ namespace TerrainCompositor
     {
         if (!m_controlThread.Check() || !m_active || m_configurationUpdateDepth != 0)
         {
+            if (!m_active)
+            {
+                AZ::TickBus::Handler::BusDisconnect();
+            }
             return;
         }
+        m_tickRequested = false;
         CollectGapActivationChanges();
-        m_qualityController.Tick();
         const bool heightSettingsChanged = m_qualityController.ConsumeHeightSettingsChanged();
         float liveCollisionGridSpacing = 0.0f;
-        AzFramework::Terrain::TerrainDataRequestBus::BroadcastResult(
-            liveCollisionGridSpacing, &AzFramework::Terrain::TerrainDataRequests::GetTerrainHeightQueryResolution);
+        if (m_terrainSettingsDirty || heightSettingsChanged)
+        {
+            AzFramework::Terrain::TerrainDataRequestBus::BroadcastResult(
+                liveCollisionGridSpacing, &AzFramework::Terrain::TerrainDataRequests::GetTerrainHeightQueryResolution);
+        }
+        else
+        {
+            liveCollisionGridSpacing = m_publishedCollisionGridSpacing;
+        }
+        m_terrainSettingsDirty = false;
         if (!std::isfinite(liveCollisionGridSpacing) || liveCollisionGridSpacing <= 0.0f)
         {
             liveCollisionGridSpacing = 0.0f;
@@ -1013,6 +1102,10 @@ namespace TerrainCompositor
             AZ_Warning("TerrainComposition", false, "%s", diagnostic.c_str());
         }
         DispatchChanges(address, changes, heightRegions, surfaceRegions);
+        if (m_active && session == m_session && !m_tickRequested)
+        {
+            AZ::TickBus::Handler::BusDisconnect();
+        }
     }
 
     TerrainCompositionGradientComponent::QueryStatePtr TerrainCompositionGradientComponent::GetQueryState() const
@@ -1664,6 +1757,7 @@ namespace TerrainCompositor
         m_queryState.exchange(publication, std::memory_order_acq_rel);
         m_pendingInvalidation = AZStd::move(pending);
         m_publishedCollisionGridSpacing = std::isfinite(collisionGridSpacing) && collisionGridSpacing > 0.0f ? collisionGridSpacing : 0.0f;
+        RequestCompositionTick();
     }
 
     HeightmapReconstructionDataPtr TerrainCompositionGradientComponent::AcquireHeightmapReconstruction(

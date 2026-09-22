@@ -204,9 +204,9 @@ namespace TerrainCompositor
         EXPECT_TRUE(this->m_mesh.m_visible);
         this->Tick(8);
         EXPECT_FALSE(this->m_mesh.m_visible);
-        EXPECT_EQ(this->m_mesh.m_visibilityWrites, 8);
+        EXPECT_EQ(this->m_mesh.m_visibilityWrites, 1);
         this->Tick();
-        EXPECT_EQ(this->m_mesh.m_visibilityWrites, 8);
+        EXPECT_EQ(this->m_mesh.m_visibilityWrites, 1);
         this->Stop();
         EXPECT_TRUE(this->Records().empty());
         EXPECT_TRUE(this->m_mesh.m_visible);
@@ -430,10 +430,12 @@ namespace TerrainCompositor
         this->ChildrenChanged();
         this->Tick();
         ASSERT_EQ(this->Records().size(), 1);
-        // Hierarchy events only restart placement retries; model notifications also restart visibility retries.
-        EXPECT_TRUE(this->m_mesh.m_visible);
+        // A newly resolved placement independently schedules and completes visibility work.
+        EXPECT_FALSE(this->m_mesh.m_visible);
+        const int writes = this->m_mesh.m_visibilityWrites;
         this->ModelReady();
         this->Tick();
         EXPECT_FALSE(this->m_mesh.m_visible);
+        EXPECT_EQ(this->m_mesh.m_visibilityWrites, writes + 1);
     }
 }

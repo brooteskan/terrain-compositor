@@ -31,6 +31,12 @@ The controller waits for Terrain World and the owning context's Terrain Feature 
 the requested values, and verifies height-resolution readback. It restores the captured values when disabled, deactivated, made
 invalid, or placed into conflict. It never enables a feature processor or creates a second Terrain World/renderer component.
 
+Readiness is notification-driven. Terrain creation/destruction and post-application settings changes, renderer entity lifecycle,
+and scene/subsystem changes wake reevaluation. A claim that remains Pending uses at most eight ordered regular-frame
+attempts as a compatibility fallback, then waits disconnected for one of those events, a configuration edit, or reactivation.
+The count is an attempt budget rather than elapsed time. Terrain settings are read after O3DE has applied them and emitted its
+`Settings` notification, so a stable applied composition performs no recurring resolution readback.
+
 The terrain height setting is process-global in the current O3DE bus, so exactly one active compositor may claim the profile.
 If multiple valid compositors opt in, every override is suppressed and `TerrainQuality` reports each claimant entity/context.
 Removing or disabling claims leaves the sole remaining owner pending until stock restoration is observed, then reapplies it.

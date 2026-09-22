@@ -14,7 +14,10 @@ namespace TerrainCompositor::Internal
     public:
         using Snapshot = decltype(Cache::GetSnapshot(typename Cache::Handle{}));
 
-        AssetSubscription() = default;
+        AssetSubscription()
+            : m_cacheChanged([this](bool available) { OnCacheAvailabilityChanged(available); })
+        {
+        }
         AssetSubscription(const AssetSubscription&) = delete;
         AssetSubscription& operator=(const AssetSubscription&) = delete;
         ~AssetSubscription() { Reset(); }
@@ -42,8 +45,6 @@ namespace TerrainCompositor::Internal
             m_onChanged = AZStd::move(changed);
             if (!m_cacheChanged.IsConnected())
             {
-                m_cacheChanged = typename CacheLifecycle<Cache>::Event::Handler(
-                    [this](bool available) { OnCacheAvailabilityChanged(available); });
                 CacheLifecycle<Cache>::Connect(m_cacheChanged);
             }
             if (assetId == m_selectedAssetId && ((m_source && m_changed.IsConnected()) || !assetId.IsValid()))
@@ -107,7 +108,7 @@ namespace TerrainCompositor::Internal
 
         typename Cache::Handle m_source;
         typename Cache::ChangedEvent::Handler m_changed;
-        typename CacheLifecycle<Cache>::Event::Handler m_cacheChanged;
+        typename CacheLifecycle<Cache>::Handler m_cacheChanged;
         AZ::Data::AssetId m_selectedAssetId;
         Snapshot* m_target = nullptr;
         AZStd::function<bool()> m_canPublish;

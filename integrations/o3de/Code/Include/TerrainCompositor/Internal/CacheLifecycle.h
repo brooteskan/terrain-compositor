@@ -1,9 +1,25 @@
 #pragma once
 
-#include <AzCore/EBus/Event.h>
+#include <AzCore/EBus/EBus.h>
+#include <AzCore/std/function/function_template.h>
 
 namespace TerrainCompositor::Internal
 {
+    template<class Cache>
+    class CacheLifecycleNotifications
+        : public AZ::EBusTraits
+    {
+    public:
+        static constexpr AZ::EBusHandlerPolicy HandlerPolicy = AZ::EBusHandlerPolicy::Multiple;
+        static constexpr AZ::EBusAddressPolicy AddressPolicy = AZ::EBusAddressPolicy::Single;
+
+        virtual ~CacheLifecycleNotifications() = default;
+        virtual void OnCacheAvailabilityChanged(bool available) = 0;
+    };
+
+    template<class Cache>
+    using CacheLifecycleNotificationBus = AZ::EBus<CacheLifecycleNotifications<Cache>>;
+
     //! Process-local lifecycle notification for one cache interface type.
     //! Constructors signal after interface registration; destructors signal after
     //! interface removal, so observers can safely probe AZ::Interface from the callback.
@@ -11,12 +27,48 @@ namespace TerrainCompositor::Internal
     class CacheLifecycle
     {
     public:
-        using Event = AZ::Event<bool>;
+        class Handler final
+            : private CacheLifecycleNotificationBus<Cache>::Handler
+        {
+        public:
+            using Callback = AZStd::function<void(bool)>;
 
-        static void Connect(typename Event::Handler& handler) { handler.Connect(s_changed); }
-        static void Signal(bool available) { s_changed.Signal(available); }
+            Handler() = default;
+            explicit Handler(Callback callback)
+                : m_callback(AZStd::move(callback))
+            {
+            }
+            Handler(const Handler&) = delete;
+            Handler& operator=(const Handler&) = delete;
+            ~Handler() { Disconnect(); }
 
-    private:
-        inline static Event s_changed;
+            void Connect()
+            {
+                if (!IsConnected())
+                {
+                    CacheLifecycleNotificationBus<Cache>::Handler::BusConnect();
+                }
+            }
+            void Disconnect() { CacheLifecycleNotificationBus<Cache>::Handler::BusDisconnect(); }
+            bool IsConnected() const { return CacheLifecycleNotificationBus<Cache>::Handler::BusIsConnected(); }
+
+        private:
+            void OnCacheAvailabilityChanged(bool available) override
+            {
+                if (m_callback)
+                {
+                    m_callback(available);
+                }
+            }
+
+            Callback m_callback;
+        };
+
+        static void Connect(Handler& handler) { handler.Connect(); }
+        static void Signal(bool available)
+        {
+            CacheLifecycleNotificationBus<Cache>::Broadcast(
+                &CacheLifecycleNotifications<Cache>::OnCacheAvailabilityChanged, available);
+        }
     };
 }

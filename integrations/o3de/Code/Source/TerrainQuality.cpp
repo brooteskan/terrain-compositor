@@ -6,6 +6,7 @@
 #include <AzCore/std/algorithm.h>
 #include <AzCore/std/containers/vector.h>
 #include <AzFramework/Terrain/TerrainDataRequestBus.h>
+#include <AzFramework/Entity/EntityContext.h>
 #include <Atom/RPI.Public/Scene.h>
 #include <Components/TerrainWorldRendererComponent.h>
 #include <TerrainRenderer/TerrainFeatureProcessor.h>
@@ -34,6 +35,28 @@ namespace TerrainCompositor
                 return scene->GetFeatureProcessor<Terrain::TerrainFeatureProcessor>();
             }
             return nullptr;
+        }
+
+        bool IsTerrainRendererEntity(AZ::EntityId entityId, AzFramework::EntityContextId contextId)
+        {
+            AZ::Entity* entity = nullptr;
+            AZ::ComponentApplicationBus::BroadcastResult(
+                entity, &AZ::ComponentApplicationRequests::FindEntity, entityId);
+            if (!entity)
+            {
+                return false;
+            }
+            AzFramework::EntityContextId ownerContext{};
+            AzFramework::EntityIdContextQueryBus::EventResult(
+                ownerContext, entityId, &AzFramework::EntityIdContextQueryBus::Events::GetOwningContextId);
+            if (ownerContext != contextId)
+            {
+                return false;
+            }
+            return AZStd::any_of(entity->GetComponents().begin(), entity->GetComponents().end(), [](AZ::Component* component)
+            {
+                return azrtti_cast<Terrain::TerrainWorldRendererComponent*>(component) != nullptr;
+            });
         }
     } // namespace
 
@@ -321,6 +344,20 @@ namespace TerrainCompositor
         m_contextId = contextId;
         m_ownerEntityId = ownerEntityId;
         m_active = true;
+        AzFramework::Terrain::TerrainDataNotificationBus::Handler::BusConnect();
+        AZ::EntitySystemBus::Handler::BusConnect();
+        m_sceneEventHandler = AzFramework::ISceneSystem::SceneEvent::Handler(
+            [this](AzFramework::ISceneSystem::EventType, const AZStd::shared_ptr<AzFramework::Scene>&)
+            {
+                m_applyIssued = false;
+                RefreshSceneSubscription();
+                WakeReadiness();
+            });
+        if (auto* sceneSystem = AzFramework::SceneSystemInterface::Get())
+        {
+            sceneSystem->ConnectToEvents(m_sceneEventHandler);
+        }
+        RefreshSceneSubscription();
         if (baseline)
         {
             m_preferredBaseline = *baseline;
@@ -336,6 +373,13 @@ namespace TerrainCompositor
             return;
         }
         m_active = false;
+        AZ::TickBus::Handler::BusDisconnect();
+        AZ::EntitySystemBus::Handler::BusDisconnect();
+        AzFramework::Terrain::TerrainDataNotificationBus::Handler::BusDisconnect();
+        m_sceneEventHandler.Disconnect();
+        m_sceneSubsystemEventHandler.Disconnect();
+        m_observedScene.reset();
+        m_readinessAttemptsRemaining = 0;
         TerrainQualityRegistry::Get().Unregister(*this);
         m_contextId = {};
         m_ownerEntityId.SetInvalid();
@@ -352,15 +396,104 @@ namespace TerrainCompositor
         m_configuration = configuration;
         if (m_active)
         {
+            m_readinessAttemptsRemaining = ReadinessAttempts;
             TerrainQualityRegistry::Get().ConfigurationChanged(*this);
+            if (m_status == TerrainQualityStatus::Pending && !AZ::TickBus::Handler::BusIsConnected())
+            {
+                AZ::TickBus::Handler::BusConnect();
+            }
         }
     }
 
-    void TerrainQualityController::Tick()
+    void TerrainQualityController::WakeReadiness()
     {
-        if (m_active && m_status == TerrainQualityStatus::Pending)
+        if (!m_active)
         {
-            TerrainQualityRegistry::Get().Reevaluate();
+            return;
+        }
+        m_readinessAttemptsRemaining = ReadinessAttempts;
+        TerrainQualityRegistry::Get().Reevaluate();
+        if (m_status == TerrainQualityStatus::Pending && !AZ::TickBus::Handler::BusIsConnected())
+        {
+            AZ::TickBus::Handler::BusConnect();
+        }
+    }
+
+    void TerrainQualityController::RefreshSceneSubscription()
+    {
+        m_sceneSubsystemEventHandler.Disconnect();
+        m_observedScene.reset();
+        if (!m_active || !AzFramework::SceneSystemInterface::Get())
+        {
+            return;
+        }
+        if (auto scene = AzFramework::EntityContext::FindContainingScene(m_contextId))
+        {
+            m_sceneSubsystemEventHandler = AzFramework::Scene::SubsystemEvent::Handler(
+                [this](AzFramework::Scene&, AzFramework::Scene::SubsystemEventType, const AZ::TypeId&)
+                {
+                    m_applyIssued = false;
+                    WakeReadiness();
+                });
+            scene->ConnectToEvents(m_sceneSubsystemEventHandler);
+            m_observedScene = scene;
+        }
+    }
+
+    void TerrainQualityController::OnTick(
+        [[maybe_unused]] float deltaTime, [[maybe_unused]] AZ::ScriptTimePoint time)
+    {
+        if (!m_active || m_status != TerrainQualityStatus::Pending || m_readinessAttemptsRemaining == 0)
+        {
+            AZ::TickBus::Handler::BusDisconnect();
+            return;
+        }
+        --m_readinessAttemptsRemaining;
+        TerrainQualityRegistry::Get().Reevaluate();
+        if (m_status != TerrainQualityStatus::Pending || m_readinessAttemptsRemaining == 0)
+        {
+            AZ::TickBus::Handler::BusDisconnect();
+        }
+    }
+
+    void TerrainQualityController::OnEntityActivated(const AZ::EntityId& entityId)
+    {
+        if (IsTerrainRendererEntity(entityId, m_contextId))
+        {
+            m_applyIssued = false;
+            WakeReadiness();
+        }
+    }
+
+    void TerrainQualityController::OnEntityDeactivated(const AZ::EntityId& entityId)
+    {
+        if (IsTerrainRendererEntity(entityId, m_contextId))
+        {
+            m_applyIssued = false;
+            SetStatus(TerrainQualityStatus::Pending, "Waiting for Terrain World Renderer reactivation.");
+        }
+    }
+
+    void TerrainQualityController::OnTerrainDataCreateEnd()
+    {
+        m_applyIssued = false;
+        WakeReadiness();
+    }
+
+    void TerrainQualityController::OnTerrainDataDestroyEnd()
+    {
+        m_applyIssued = false;
+        WakeReadiness();
+    }
+
+    void TerrainQualityController::OnTerrainDataChanged(
+        [[maybe_unused]] const AZ::Aabb& dirtyRegion,
+        AzFramework::Terrain::TerrainDataNotifications::TerrainDataChangedMask dataChangedMask)
+    {
+        using Mask = AzFramework::Terrain::TerrainDataNotifications::TerrainDataChangedMask;
+        if ((dataChangedMask & Mask::Settings) == Mask::Settings)
+        {
+            WakeReadiness();
         }
     }
 
@@ -515,8 +648,25 @@ namespace TerrainCompositor
 
     void TerrainQualityController::SetStatus(TerrainQualityStatus status, AZStd::string message)
     {
+        const TerrainQualityStatus previous = m_status;
         m_status = status;
         m_statusDetail = AZStd::move(message);
+        if (m_active && status == TerrainQualityStatus::Pending)
+        {
+            if (previous != TerrainQualityStatus::Pending)
+            {
+                m_readinessAttemptsRemaining = ReadinessAttempts;
+            }
+            if (m_readinessAttemptsRemaining > 0 && !AZ::TickBus::Handler::BusIsConnected())
+            {
+                AZ::TickBus::Handler::BusConnect();
+            }
+        }
+        else
+        {
+            m_readinessAttemptsRemaining = 0;
+            AZ::TickBus::Handler::BusDisconnect();
+        }
     }
 
     AZStd::string TerrainQualityController::GetStatusMessage() const

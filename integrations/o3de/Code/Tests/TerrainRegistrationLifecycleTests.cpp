@@ -3,9 +3,11 @@
 #include <AzCore/Component/TickBus.h>
 #include <AzCore/std/smart_ptr/make_shared.h>
 #include <AzCore/std/smart_ptr/unique_ptr.h>
+#include <AzCore/std/parallel/thread.h>
 #include <AzFramework/Scene/SceneSystemComponent.h>
 #include <AzFramework/Asset/AssetCatalogBus.h>
 #include <LmbrCentral/Shape/MockShapes.h>
+#include <Tests/Mocks/Terrain/MockTerrainDataRequestBus.h>
 #include <TerrainCompositor/Components/TerrainCompositionGradientComponent.h>
 #include <TerrainCompositor/HeightmapStampRegistration.h>
 #include <TerrainCompositor/TerrainMeshCutoutRegistration.h>
@@ -102,6 +104,19 @@ namespace TerrainCompositor
             AzFramework::EntityContextId GetOwningContextId() override { return m_context; }
             AzFramework::EntityContextId m_context = AZ::Uuid::CreateRandom();
         };
+
+        class CompositionListener : public TerrainCompositionNotificationBus::Handler
+        {
+        public:
+            CompositionListener(const TerrainCompositionAddress& address, AZStd::function<void()> callback)
+                : m_callback(AZStd::move(callback))
+            {
+                BusConnect(address);
+            }
+            ~CompositionListener() override { BusDisconnect(); }
+            void OnStampFootprintChanged(const HeightmapStampFootprintChange&) override { m_callback(); }
+            AZStd::function<void()> m_callback;
+        };
     }
 
     template<class Kind>
@@ -196,6 +211,32 @@ namespace TerrainCompositor
             m_composition->m_queryState.store(state);
         }
         void DispatchPending() { m_composition->OnTick(0.0f, {}); }
+        void TickComposition()
+        {
+            AZ::TickBus::Broadcast(&AZ::TickEvents::OnTick, 0.0f, AZ::ScriptTimePoint{});
+        }
+        bool IsCompositionTickConnected() const
+        {
+            return m_composition->AZ::TickBus::Handler::BusIsConnected();
+        }
+        void QueueWake()
+        {
+            TerrainCompositionGradientComponent::QueueCompositionTick(m_composition->m_deferredTickState);
+        }
+        auto DeferredTickState() const { return m_composition->m_deferredTickState; }
+        void AddMetadataChange()
+        {
+            HeightmapStampFootprintChange change;
+            change.m_address = m_address;
+            change.m_compositionSession = Session();
+            m_composition->m_pendingInvalidation.m_changes.push_back(change);
+            m_composition->RequestCompositionTick();
+        }
+        void SetSource(AZ::EntityId source)
+        {
+            m_configuration.m_proceduralSourceEntityId = source;
+            EXPECT_TRUE(m_composition->ReadInConfig(&m_configuration));
+        }
         auto Prepare(float gridSpacing = 0.0f, const AZStd::unordered_set<AZ::EntityId>& nonUniformScale = {}) const
         {
             return Internal::PrepareComposition(m_composition->m_registrations, m_configuration,
@@ -220,6 +261,104 @@ namespace TerrainCompositor
     using RegistrationKinds = ::testing::Types<
         RegistrationTestSupport::Image, RegistrationTestSupport::Cutout, RegistrationTestSupport::MeshHeight>;
     TYPED_TEST_SUITE(TerrainRegistrationLifecycleTests, RegistrationKinds);
+
+    TYPED_TEST(TerrainRegistrationLifecycleTests, IdleCompositionDisconnectsAndPublicationWakesOneOrderedPass)
+    {
+        EXPECT_TRUE(this->IsCompositionTickConnected());
+        this->TickComposition();
+        EXPECT_FALSE(this->IsCompositionTickConnected());
+
+        ASSERT_TRUE(this->Register(this->MakeRecord(this->m_stamp)));
+        EXPECT_TRUE(this->IsCompositionTickConnected());
+        this->TickComposition();
+        EXPECT_FALSE(this->IsCompositionTickConnected());
+        this->TickComposition();
+        EXPECT_FALSE(this->IsCompositionTickConnected());
+    }
+
+    TYPED_TEST(TerrainRegistrationLifecycleTests, IdleCompositionDoesNotRepeatTerrainResolutionQueries)
+    {
+        this->StopComposition();
+        int resolutionReads = 0;
+        ::testing::NiceMock<UnitTest::MockTerrainDataRequests> terrain;
+        ON_CALL(terrain, GetTerrainHeightQueryResolution).WillByDefault([&]()
+        {
+            ++resolutionReads;
+            return 1.0f;
+        });
+        this->StartComposition();
+        this->TickComposition();
+        const int readsAfterDrain = resolutionReads;
+        for (int idleFrame = 0; idleFrame < 4; ++idleFrame)
+        {
+            this->TickComposition();
+        }
+        EXPECT_EQ(resolutionReads, readsAfterDrain);
+        EXPECT_FALSE(this->IsCompositionTickConnected());
+
+        AzFramework::Terrain::TerrainDataNotificationBus::Broadcast(
+            &AzFramework::Terrain::TerrainDataNotifications::OnTerrainDataChanged,
+            AZ::Aabb::CreateNull(),
+            AzFramework::Terrain::TerrainDataNotifications::TerrainDataChangedMask::Settings);
+        EXPECT_TRUE(this->IsCompositionTickConnected());
+        this->TickComposition();
+        EXPECT_GT(resolutionReads, readsAfterDrain);
+        EXPECT_FALSE(this->IsCompositionTickConnected());
+    }
+
+    TYPED_TEST(TerrainRegistrationLifecycleTests, ReentrantPublicationSchedulesASeparatePass)
+    {
+        this->TickComposition();
+        auto record = this->MakeRecord(this->m_stamp);
+        bool reentered = false;
+        RegistrationTestSupport::CompositionListener listener(this->m_address, [&]()
+        {
+            if (!reentered)
+            {
+                reentered = true;
+                EXPECT_TRUE(this->Register(record));
+            }
+        });
+        this->AddMetadataChange();
+        this->TickComposition();
+        EXPECT_TRUE(reentered);
+        EXPECT_TRUE(this->IsCompositionTickConnected());
+        this->TickComposition();
+        EXPECT_FALSE(this->IsCompositionTickConnected());
+    }
+
+    TYPED_TEST(TerrainRegistrationLifecycleTests, QueuedWakeCannotReviveStoppedOrReactivatedComposition)
+    {
+        this->TickComposition();
+        auto retired = this->DeferredTickState();
+        this->QueueWake();
+        this->StopComposition();
+        this->StartComposition();
+        this->TickComposition();
+        ASSERT_FALSE(this->IsCompositionTickConnected());
+        AZ::SystemTickBus::ExecuteQueuedEvents();
+        EXPECT_FALSE(this->IsCompositionTickConnected());
+        EXPECT_EQ(retired->m_owner.load(), nullptr);
+    }
+
+    TYPED_TEST(TerrainRegistrationLifecycleTests, WorkerSourceChangeMarshalsOneWakeToTheControlThread)
+    {
+        this->SetSource(this->m_peer);
+        this->TickComposition();
+        ASSERT_FALSE(this->IsCompositionTickConnected());
+
+        AZStd::thread worker([this]
+        {
+            LmbrCentral::DependencyNotificationBus::Event(
+                this->m_peer, &LmbrCentral::DependencyNotifications::OnCompositionChanged);
+        });
+        worker.join();
+        EXPECT_FALSE(this->IsCompositionTickConnected());
+        AZ::SystemTickBus::ExecuteQueuedEvents();
+        EXPECT_TRUE(this->IsCompositionTickConnected());
+        this->TickComposition();
+        EXPECT_FALSE(this->IsCompositionTickConnected());
+    }
 
     TYPED_TEST(TerrainRegistrationLifecycleTests, RejectsWrongContextTargetSessionAndInvalidLease)
     {

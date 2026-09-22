@@ -175,4 +175,51 @@ namespace TerrainCompositor
         EXPECT_EQ(first.GetStatus(), TerrainQualityStatus::Pending);
         first.Deactivate();
     }
+
+    TEST(TerrainQualityControllerTests, DelayedSettingsReadbackHasBoundedFallbackAndRecoversFromNotification)
+    {
+        float activeResolution = 1.0f;
+        float requestedResolution = activeResolution;
+        int resolutionReads = 0;
+        NiceMock<UnitTest::MockTerrainDataRequests> terrain;
+        ON_CALL(terrain, GetTerrainHeightQueryResolution).WillByDefault([&]()
+        {
+            ++resolutionReads;
+            return activeResolution;
+        });
+        ON_CALL(terrain, SetTerrainHeightQueryResolution).WillByDefault(
+            [&](float value) { requestedResolution = value; });
+
+        TerrainQualityController controller;
+        controller.Activate(AzFramework::EntityContextId::CreateRandom(), AZ::EntityId(1001));
+        TerrainQualityConfig enabled;
+        enabled.m_overrideTerrainQuality = true;
+        enabled.m_heightQueryResolution = 0.5f;
+        controller.Update(enabled);
+        EXPECT_EQ(controller.GetStatus(), TerrainQualityStatus::Pending);
+        EXPECT_FLOAT_EQ(requestedResolution, 0.5f);
+
+        for (int attempt = 0; attempt < 8; ++attempt)
+        {
+            AZ::TickBus::Broadcast(&AZ::TickEvents::OnTick, 0.0f, AZ::ScriptTimePoint{});
+        }
+        const int readsAtExhaustion = resolutionReads;
+        for (int idleFrame = 0; idleFrame < 4; ++idleFrame)
+        {
+            AZ::TickBus::Broadcast(&AZ::TickEvents::OnTick, 0.0f, AZ::ScriptTimePoint{});
+        }
+        EXPECT_EQ(resolutionReads, readsAtExhaustion);
+
+        activeResolution = requestedResolution;
+        AzFramework::Terrain::TerrainDataNotificationBus::Broadcast(
+            &AzFramework::Terrain::TerrainDataNotifications::OnTerrainDataChanged,
+            AZ::Aabb::CreateNull(),
+            AzFramework::Terrain::TerrainDataNotifications::TerrainDataChangedMask::Settings);
+        EXPECT_EQ(controller.GetStatus(), TerrainQualityStatus::Applied);
+        EXPECT_TRUE(controller.ConsumeHeightSettingsChanged());
+        const int readsAfterRecovery = resolutionReads;
+        AZ::TickBus::Broadcast(&AZ::TickEvents::OnTick, 0.0f, AZ::ScriptTimePoint{});
+        EXPECT_EQ(resolutionReads, readsAfterRecovery);
+        controller.Deactivate();
+    }
 } // namespace TerrainCompositor
