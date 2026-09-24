@@ -1,0 +1,28 @@
+#pragma once
+#include <TerrainCompositor/TerrainMaterialSrg.azsli>
+#include <TerrainCanvas/LatticeNoise.azsli>
+// O3DE_GENERATED_INCLUDES_BEGIN
+// O3DE_GENERATED_INCLUDES_END
+// O3DE_GENERATED_CLASSES_BEGIN
+// O3DE_GENERATED_CLASSES_END
+// O3DE_GENERATED_FUNCTIONS_BEGIN
+// O3DE_GENERATED_FUNCTIONS_END
+float3 TC_CanvasTint(float3 worldPosition)
+{
+    const float3 O3DE_MC_POSITION_WS = worldPosition;
+    // O3DE_GENERATED_INSTRUCTIONS_BEGIN: inTint
+float node1_terrain_tint_parameters_strength = saturate(TerrainMaterialSrg::m_canvasTintStrength);
+float3 node2_world_position_outPosition = O3DE_MC_POSITION_WS;
+float3 node3_world_xy_scale_position = node2_world_position_outPosition;
+float node3_world_xy_scale_scale = 64;
+float2 node3_world_xy_scale_value = node3_world_xy_scale_position.xy / max(node3_world_xy_scale_scale, 0.0001);
+float2 node4_terrain_tint_texture_uv = node3_world_xy_scale_value;
+float3 node4_terrain_tint_texture_color = TerrainMaterialSrg::m_canvasTintTexture.Sample(TerrainMaterialSrg::m_canvasTintSampler, node4_terrain_tint_texture_uv).rgb;
+float3 node5_lerp_rgb_a = {1, 1, 1};
+float3 node5_lerp_rgb_b = node4_terrain_tint_texture_color;
+float node5_lerp_rgb_weight = node1_terrain_tint_parameters_strength;
+float3 node5_lerp_rgb_result = lerp(node5_lerp_rgb_a, node5_lerp_rgb_b, node5_lerp_rgb_weight);
+float3 inTint = node5_lerp_rgb_result;
+    // O3DE_GENERATED_INSTRUCTIONS_END
+    return inTint;
+}

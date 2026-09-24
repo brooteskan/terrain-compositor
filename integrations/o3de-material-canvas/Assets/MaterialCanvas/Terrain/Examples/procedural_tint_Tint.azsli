@@ -1,0 +1,51 @@
+#pragma once
+#include <TerrainCompositor/TerrainMaterialSrg.azsli>
+#include <TerrainCanvas/LatticeNoise.azsli>
+// O3DE_GENERATED_INCLUDES_BEGIN
+// O3DE_GENERATED_INCLUDES_END
+// O3DE_GENERATED_CLASSES_BEGIN
+// O3DE_GENERATED_CLASSES_END
+// O3DE_GENERATED_FUNCTIONS_BEGIN
+// O3DE_GENERATED_FUNCTIONS_END
+float3 TC_CanvasTint(float3 worldPosition)
+{
+    const float3 O3DE_MC_POSITION_WS = worldPosition;
+    // O3DE_GENERATED_INSTRUCTIONS_BEGIN: inTint
+float node1_terrain_tint_parameters_strength = saturate(TerrainMaterialSrg::m_canvasTintStrength);
+float3 node1_terrain_tint_parameters_color = TerrainMaterialSrg::m_canvasTintColor;
+float3 node2_world_position_outPosition = O3DE_MC_POSITION_WS;
+float node2_world_position_outZ = O3DE_MC_POSITION_WS.z;
+float node8_smoothstep_scalar_low = -3;
+float node8_smoothstep_scalar_high = 3;
+float node8_smoothstep_scalar_value = node2_world_position_outZ;
+float node8_smoothstep_scalar_result = smoothstep(node8_smoothstep_scalar_low, node8_smoothstep_scalar_high, node8_smoothstep_scalar_value);
+float3 node3_world_xy_scale_position = node2_world_position_outPosition;
+float node3_world_xy_scale_scale = 64;
+float2 node3_world_xy_scale_value = node3_world_xy_scale_position.xy / max(node3_world_xy_scale_scale, 0.0001);
+float node9_multiply_scalar_a = node1_terrain_tint_parameters_strength;
+float node9_multiply_scalar_b = node8_smoothstep_scalar_result;
+float node9_multiply_scalar_result = node9_multiply_scalar_a * node9_multiply_scalar_b;
+float2 node4_lattice_value_noise_2_d_position = node3_world_xy_scale_value;
+uint node4_lattice_value_noise_2_d_seed = 1337;
+float node4_lattice_value_noise_2_d_value = TC_LatticeNoise2D(node4_lattice_value_noise_2_d_position, node4_lattice_value_noise_2_d_seed);
+float2 node5_pixel_footprint_position = node3_world_xy_scale_value;
+float node5_pixel_footprint_value = max(length(ddx(node5_pixel_footprint_position)), length(ddy(node5_pixel_footprint_position)));
+float node6_smoothstep_scalar_low = 0.5;
+float node6_smoothstep_scalar_high = 1;
+float node6_smoothstep_scalar_value = node5_pixel_footprint_value;
+float node6_smoothstep_scalar_result = smoothstep(node6_smoothstep_scalar_low, node6_smoothstep_scalar_high, node6_smoothstep_scalar_value);
+float node7_lerp_scalar_a = node4_lattice_value_noise_2_d_value;
+float node7_lerp_scalar_b = 0.5;
+float node7_lerp_scalar_weight = node6_smoothstep_scalar_result;
+float node7_lerp_scalar_result = lerp(node7_lerp_scalar_a, node7_lerp_scalar_b, node7_lerp_scalar_weight);
+float node10_multiply_scalar_a = node9_multiply_scalar_result;
+float node10_multiply_scalar_b = node7_lerp_scalar_result;
+float node10_multiply_scalar_result = node10_multiply_scalar_a * node10_multiply_scalar_b;
+float3 node11_lerp_rgb_a = {1, 1, 1};
+float3 node11_lerp_rgb_b = node1_terrain_tint_parameters_color;
+float node11_lerp_rgb_weight = node10_multiply_scalar_result;
+float3 node11_lerp_rgb_result = lerp(node11_lerp_rgb_a, node11_lerp_rgb_b, node11_lerp_rgb_weight);
+float3 inTint = node11_lerp_rgb_result;
+    // O3DE_GENERATED_INSTRUCTIONS_END
+    return inTint;
+}

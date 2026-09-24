@@ -1,0 +1,53 @@
+{
+    "Type": "JsonSerialization",
+    "Version": 1,
+    "ClassName": "DynamicNodeConfig",
+    "ClassData": {
+        "id": "{EB039C35-AA34-58D2-9992-BF88368F5DFB}",
+        "category": "Terrain Tint",
+        "title": "Terrain Tint Output",
+        "titlePaletteName": "MathNodeTitlePalette",
+        "description": "Terrain Tint Output",
+        "inputSlots": [
+            {
+                "name": "inTint",
+                "allowNameSubstitution": false,
+                "displayName": "inTint",
+                "description": "inTint",
+                "supportedDataTypeRegex": "float3",
+                "defaultDataType": "float3",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "Vector3",
+                    "Value": [
+                        1,
+                        1,
+                        1
+                    ]
+                }
+            }
+        ],
+        "outputSlots": [],
+        "propertySlots": [
+            {
+                "name": "inDescription",
+                "displayName": "inDescription",
+                "description": "inDescription",
+                "supportedDataTypeRegex": "string",
+                "defaultDataType": "string"
+            }
+        ],
+        "settings": {
+            "templatePaths": [
+                "@gemroot:TerrainCompositorCanvas@/Assets/MaterialCanvas/Terrain/Templates/MaterialGraphName_Tint.azsli",
+                "@gemroot:TerrainCompositorCanvas@/Assets/MaterialCanvas/Terrain/Templates/MaterialGraphName_Forward.azsl",
+                "@gemroot:TerrainCompositorCanvas@/Assets/MaterialCanvas/Terrain/Templates/MaterialGraphName_Forward.shader",
+                "@gemroot:TerrainCompositorCanvas@/Assets/MaterialCanvas/Terrain/Templates/MaterialGraphName.materialtype"
+            ]
+        }
+    }
+}

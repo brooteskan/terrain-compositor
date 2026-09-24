@@ -1,0 +1,3 @@
+#include "world_bands_Tint.azsli"
+#define TC_EvaluateTerrainTint TC_CanvasTint
+#include <TerrainCompositor/TerrainForward.azsli>

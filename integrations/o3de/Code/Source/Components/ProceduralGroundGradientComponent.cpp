@@ -94,7 +94,7 @@ namespace TerrainCompositor
                         AZ::Edit::UIHandlers::Slider,
                         &ProceduralGroundGradientConfig::m_noiseTintStrength,
                         "Noise Tint Strength",
-                        "Strength of the terrain-wide procedural base-color tint. Zero disables tint; does not change terrain height.")
+                        "Strength of the legacy terrain tint. Inactive while a Terrain Tint Material is selected; does not change terrain height.")
                     ->Attribute(AZ::Edit::Attributes::Min, 0.0f)
                     ->Attribute(AZ::Edit::Attributes::Max, 1.0f)
                     ->Attribute(AZ::Edit::Attributes::Step, 0.01f)
@@ -450,6 +450,10 @@ namespace TerrainCompositor
             m_reportedMissingTintProperty = false;
         }
         if (!m_terrainMaterial) return;
+
+        // Canvas material parameters have one owner: the selected material asset.
+        // Preserve the serialized legacy value and reapply it when the override clears.
+        if (m_terrainMaterial->FindPropertyIndex(AZ::Name("tint.contractVersion")).IsValid()) return;
 
         const auto propertyIndex = m_terrainMaterial->FindPropertyIndex(AZ::Name("settings.noiseTintStrength"));
         if (!propertyIndex.IsValid())

@@ -1,0 +1,20 @@
+{
+    "gem_name": "TerrainCompositorCanvas",
+    "version": "0.1.0",
+    "display_name": "Terrain Compositor Canvas",
+    "summary": "Material Canvas authoring of scene-wide terrain tint.",
+    "type": "Code",
+    "license": "MIT",
+    "canonical_tags": [
+        "Gem"
+    ],
+    "user_tags": [
+        "Terrain",
+        "Material Canvas",
+        "Rendering"
+    ],
+    "dependencies": [
+        "TerrainCompositor",
+        "MaterialCanvas"
+    ]
+}

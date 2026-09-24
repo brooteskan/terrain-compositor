@@ -71,6 +71,20 @@ ShaderResourceGroup TerrainMaterialSrg : SRG_PerMaterial
     // TG project: shared terrain-wide procedural base-color tint.
     float m_noiseTintStrength;
 
+    // Canvas tint ABI v1. Shared by forward, depth, shadow and clipmap passes.
+    // Graph edits never add members to this layout.
+    float m_canvasTintStrength;
+    float3 m_canvasTintColor;
+    Texture2D<float4> m_canvasTintTexture;
+    Sampler m_canvasTintSampler
+    {
+        AddressU = Wrap;
+        AddressV = Wrap;
+        MinFilter = Linear;
+        MagFilter = Linear;
+        MipFilter = Linear;
+    };
+
     // Immutable mesh-cutout publication. Buffers are rebuilt only when the snapshot revision changes.
     uint m_meshCutoutCount;
     // Material-connected publication revision. Its value is not shaded; changing it dirties the material SRG.

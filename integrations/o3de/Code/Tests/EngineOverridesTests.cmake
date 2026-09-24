@@ -19,7 +19,8 @@ file(WRITE "${TC_TEST_ROOT}/wrong-output/EngineOverrides.cmake" "${altered_gener
 file(COPY "${integration}/EnginePatches" DESTINATION "${TC_TEST_ROOT}/wrong-output")
 
 file(MAKE_DIRECTORY "${TC_TEST_ROOT}/wrong-query/TerrainSystem")
-foreach(relative IN ITEMS TerrainRenderer/TerrainMeshManager.h TerrainRenderer/TerrainMeshManager.cpp
+foreach(relative IN ITEMS TerrainRenderer/TerrainFeatureProcessor.h TerrainRenderer/TerrainDetailMaterialManager.h
+    TerrainRenderer/TerrainMeshManager.h TerrainRenderer/TerrainMeshManager.cpp
     TerrainRenderer/TerrainDetailMaterialManager.cpp
     TerrainRenderer/TerrainFeatureProcessor.cpp TerrainRaycast/TerrainRaycastContext.cpp
     Components/TerrainPhysicsColliderComponent.h Components/TerrainPhysicsColliderComponent.cpp

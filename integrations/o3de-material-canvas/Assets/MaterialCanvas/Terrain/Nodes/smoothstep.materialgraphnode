@@ -1,0 +1,77 @@
+{
+    "Type": "JsonSerialization",
+    "Version": 1,
+    "ClassName": "DynamicNodeConfig",
+    "ClassData": {
+        "id": "{B7B9EC6B-A0E9-56D3-98E3-FF3721AA38B7}",
+        "category": "Terrain Tint",
+        "title": "Smoothstep Scalar",
+        "titlePaletteName": "MathNodeTitlePalette",
+        "description": "Smoothstep Scalar",
+        "inputSlots": [
+            {
+                "name": "low",
+                "displayName": "low",
+                "description": "low",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 0
+                }
+            },
+            {
+                "name": "high",
+                "displayName": "high",
+                "description": "high",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 1
+                }
+            },
+            {
+                "name": "value",
+                "displayName": "value",
+                "description": "value",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 0
+                }
+            }
+        ],
+        "outputSlots": [
+            {
+                "name": "result",
+                "displayName": "result",
+                "description": "result",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = smoothstep(low, high, value);"
+                    ]
+                }
+            }
+        ],
+        "propertySlots": []
+    }
+}

@@ -1,24 +1,63 @@
 --- a/TerrainRenderer/TerrainFeatureProcessor.cpp
 +++ b/TerrainRenderer/TerrainFeatureProcessor.cpp
-@@ -77,7 +77,7 @@
+@@ -65,7 +65,7 @@
+         {
+             m_materialAsset.Create(materialAssetId);
+             m_materialAsset.QueueLoad();
+-            AZ::Data::AssetBus::Handler::BusConnect(materialAssetId);
++            AZ::Data::AssetBus::MultiHandler::BusConnect(materialAssetId);
+         }
+
+         OnTerrainDataChanged(
+@@ -75,12 +75,18 @@
+
+     void TerrainFeatureProcessor::Deactivate()
      {
-         AZ::Data::AssetBus::Handler::BusDisconnect();
+-        AZ::Data::AssetBus::Handler::BusDisconnect();
++        AZ::Data::AssetBus::MultiHandler::BusDisconnect();
          AzFramework::Terrain::TerrainDataNotificationBus::Handler::BusDisconnect();
 -        
 +
          DisableSceneNotification();
          OnTerrainDataDestroyBegin();
- 
-@@ -107,7 +107,7 @@
+
++        m_tintAsset = {};
++        m_tintOwner = AZ::EntityId{};
++        m_pendingTintMaterial = {};
++        m_defaultMaterial = {};
++        m_tintStageSource = {};
++        m_tintStageTarget = {};
+         m_materialAsset = {};
+         m_materialInstance = {};
+
+@@ -100,6 +106,15 @@
+
+     void TerrainFeatureProcessor::OnAssetReady(AZ::Data::Asset<AZ::Data::AssetData> asset)
+     {
++        if (m_tintOwner.IsValid() && asset.GetId() == m_tintAsset.GetId())
++        {
++            m_tintAsset = asset;
++            m_pendingTintMaterial = AZ::RPI::Material::Create(m_tintAsset);
++            m_tintStageSource = {};
++            m_tintStatus = "Validating terrain tint material";
++            return;
++        }
++        if (asset.GetId() != m_materialAsset.GetId()) return;
+         m_materialAsset = asset;
+         if (!m_materialAsset->GetObjectSrgLayout())
+         {
+@@ -107,7 +122,9 @@
          }
          else
          {
 -            m_materialInstance = AZ::RPI::Material::FindOrCreate(m_materialAsset);
-+            m_materialInstance = AZ::RPI::Material::Create(m_materialAsset);
++            m_defaultMaterial = AZ::RPI::Material::Create(m_materialAsset);
++            if (m_tintOwner.IsValid() && m_materialInstance) return;
++            m_materialInstance = m_defaultMaterial;
              PrepareMaterialData();
              m_terrainBoundsNeedUpdate = true;
          }
-@@ -122,7 +122,7 @@
+@@ -122,7 +139,7 @@
      {
          m_zBounds = {};
      }
@@ -27,16 +66,16 @@
      void TerrainFeatureProcessor::OnTerrainDataChanged([[maybe_unused]] const AZ::Aabb& dirtyRegion, TerrainDataChangedMask dataChangedMask)
      {
          if ((dataChangedMask & TerrainDataChangedMask::Settings) == TerrainDataChangedMask::Settings)
-@@ -173,7 +173,7 @@
+@@ -173,7 +190,7 @@
                      // skip the rest of shader items
                      return false;
                  }
 -                return true;                     
 +                return true;
              });
- 
+
          AZ_Error(TerrainFPName, m_terrainSrg, "Terrain Srg not found on any shader in the terrain material");
-@@ -188,7 +188,7 @@
+@@ -188,7 +205,7 @@
              {
                  m_macroMaterialManager.Initialize(m_terrainSrg);
              }
@@ -45,7 +84,7 @@
              if (m_detailMaterialManager.IsInitialized())
              {
                  m_detailMaterialManager.UpdateSrgIndices(m_terrainSrg);
-@@ -225,7 +225,7 @@
+@@ -225,7 +242,7 @@
      void TerrainFeatureProcessor::ProcessSurfaces(const FeatureProcessor::RenderPacket& process)
      {
          AZ_PROFILE_FUNCTION(AzRender);
@@ -54,27 +93,27 @@
          if (m_zBounds.m_min == 0.0f && m_zBounds.m_max == 0.0f)
          {
              return;
-@@ -249,16 +249,19 @@
+@@ -249,16 +266,19 @@
              {
                  if (m_meshManager.IsInitialized())
                  {
 +                    AZ_PROFILE_SCOPE(AzRender, "Terrain::MeshUpdate");
                      m_meshManager.Update(mainView, m_terrainSrg);
                  }
- 
+
                  if (m_macroMaterialManager.IsInitialized())
                  {
 +                    AZ_PROFILE_SCOPE(AzRender, "Terrain::MacroMaterialUpdate");
                      m_macroMaterialManager.Update(mainView, m_terrainSrg);
                  }
- 
+
                  if (m_detailMaterialManager.IsInitialized())
                  {
 +                    AZ_PROFILE_SCOPE(AzRender, "Terrain::DetailMaterialUpdate");
                      m_detailMaterialManager.Update(cameraPosition, m_terrainSrg);
                  }
- 
-@@ -266,6 +269,7 @@
+
+@@ -266,6 +286,7 @@
                  {
                      if (m_clipmapManager.IsInitialized())
                      {
@@ -82,29 +121,30 @@
                          m_clipmapManager.Update(cameraPosition, GetParentScene(), m_terrainSrg);
                      }
                  }
-@@ -273,6 +277,7 @@
- 
+@@ -273,6 +294,8 @@
+
              if (m_meshManager.IsInitialized())
              {
 +                AZ_PROFILE_SCOPE(AzRender, "Terrain::DrawMeshes");
++                m_meshManager.SetMaterial(m_materialInstance);
                  m_meshManager.DrawMeshes(process, mainView);
              }
          }
-@@ -292,11 +297,13 @@
- 
+@@ -292,11 +315,13 @@
+
          if (m_materialInstance)
          {
 +            AZ_PROFILE_SCOPE(AzRender, "Terrain::MaterialCompile");
              m_materialInstance->Compile();
          }
- 
+
          if (m_terrainSrg && m_passes.size() > 0)
          {
 +            AZ_PROFILE_SCOPE(AzRender, "Terrain::TerrainSrgCompileAndBind");
              m_terrainSrg->Compile();
              for (auto* pass : m_passes)
              {
-@@ -309,7 +316,7 @@
+@@ -309,7 +334,7 @@
      {
          m_detailMaterialManager.SetDetailMaterialConfiguration(config);
      }
@@ -113,7 +153,7 @@
      void TerrainFeatureProcessor::SetMeshConfiguration(const MeshConfiguration& config)
      {
          m_meshManager.SetConfiguration(config);
-@@ -320,7 +327,7 @@
+@@ -320,7 +345,7 @@
      {
          m_clipmapManager.SetConfiguration(config);
      }
@@ -122,3 +162,9 @@
      void TerrainFeatureProcessor::CachePasses()
      {
          m_passes.clear();
+@@ -366,3 +391,5 @@
+         return m_clipmapManager;
+     }
+ }
++
++#include <TerrainRenderer/TerrainTintMaterial.inl>

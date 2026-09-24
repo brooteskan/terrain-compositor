@@ -1,0 +1,11 @@
+{
+    "Amazon": {
+        "AssetProcessor": {
+            "Settings": {
+                "Exclude Terrain Canvas Templates": {
+                    "pattern": "(^|.*/)MaterialCanvas/Terrain/Templates/.*"
+                }
+            }
+        }
+    }
+}

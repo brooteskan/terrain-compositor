@@ -1,0 +1,48 @@
+{
+    "Type": "JsonSerialization",
+    "Version": 1,
+    "ClassName": "DynamicNodeConfig",
+    "ClassData": {
+        "id": "{1A4AFAD9-4D91-5A16-B9F9-754869679E87}",
+        "category": "Terrain Tint",
+        "title": "Pixel Footprint",
+        "titlePaletteName": "MathNodeTitlePalette",
+        "description": "Pixel Footprint",
+        "inputSlots": [
+            {
+                "name": "position",
+                "displayName": "position",
+                "description": "position",
+                "supportedDataTypeRegex": "float2",
+                "defaultDataType": "float2",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "Vector2",
+                    "Value": [
+                        0,
+                        0
+                    ]
+                }
+            }
+        ],
+        "outputSlots": [
+            {
+                "name": "value",
+                "displayName": "value",
+                "description": "value",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = max(length(ddx(position)), length(ddy(position)));"
+                    ]
+                }
+            }
+        ],
+        "propertySlots": []
+    }
+}

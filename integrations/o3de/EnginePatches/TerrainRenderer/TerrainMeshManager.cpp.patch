@@ -2,13 +2,13 @@
 +++ b/TerrainRenderer/TerrainMeshManager.cpp
 @@ -7,13 +7,21 @@
   */
- 
+
  #include <TerrainRenderer/TerrainMeshManager.h>
 +#include <TerrainCompositor/Internal/TerrainTiming.h>
 +#include <map>
 +#include <set>
 +#include <TerrainCompositor/TerrainMeshCutoutRenderRegistry.h>
- 
+
  #include <AzCore/Console/Console.h>
 -#include <AzCore/Math/Frustum.h>
 -#include <AzCore/Math/ShapeIntersection.h>
@@ -21,7 +21,7 @@
 +#include <TerrainCompositor/Internal/RetainedCompositionMemory.h>
 +#include <AzCore/Math/Frustum.h>
 +#include <AzCore/Math/ShapeIntersection.h>
- 
+
  #include <Atom/RHI.Reflect/BufferViewDescriptor.h>
  #include <Atom/RHI.Reflect/IndexFormat.h>
 @@ -34,9 +42,47 @@
@@ -30,7 +30,7 @@
  #include <Atom/Feature/RenderCommon.h>
 +#include <chrono>
 +#include <AzCore/std/string/string.h>
- 
+
  namespace Terrain
  {
 +    AZ_CVAR(
@@ -73,20 +73,20 @@
      {
          [[maybe_unused]] static const char* TerrainMeshManagerName = "TerrainMeshManager";
 @@ -67,11 +113,15 @@
- 
+
      TerrainMeshManager::~TerrainMeshManager()
      {
 +        m_preparationLifetime->Retire();
          AzFramework::Terrain::TerrainDataNotificationBus::Handler::BusDisconnect();
 +        ClearSectorBuffers();
      }
- 
+
      void TerrainMeshManager::Initialize(AZ::RPI::Scene& parentScene)
      {
 +        m_preparationLifetime->Retire();
 +        m_preparationLifetime = std::make_shared<TerrainCompositor::TerrainPreparationDependency>();
          m_parentScene = &parentScene;
- 
+
          AzFramework::Terrain::TerrainDataNotificationBus::Handler::BusConnect();
 @@ -81,19 +131,26 @@
              [this](const AZ::Name&, AZ::RPI::ShaderOptionValue) { m_rebuildDrawPackets = true; }
@@ -95,18 +95,18 @@
 -        
 +
          m_meshMovedFlag = m_parentScene->GetViewTagBitRegistry().AcquireTag(AZ::Render::MeshCommon::MeshMovedName);
- 
+
          m_meshfeatureProcessor = m_parentScene->GetFeatureProcessor<AZ::Render::MeshFeatureProcessorInterface>();
- 
+
          m_rayTracingFeatureProcessor = m_parentScene->GetFeatureProcessor<AZ::Render::RayTracingFeatureProcessorInterface>();
 -        m_rayTracingEnabled = (AZ::RHI::RHISystemInterface::Get()->GetRayTracingSupport() != AZ::RHI::MultiDevice::NoDevices) && m_rayTracingFeatureProcessor;
 +        m_rayTracingEnabled = r_terrainEnableRayTracing &&
 +            (AZ::RHI::RHISystemInterface::Get()->GetRayTracingSupport() != AZ::RHI::MultiDevice::NoDevices) &&
 +            m_rayTracingFeatureProcessor;
- 
+
          m_isInitialized = true;
      }
- 
+
      void TerrainMeshManager::SetConfiguration(const MeshConfiguration& config)
      {
 +        if (m_config != config)
@@ -115,12 +115,30 @@
 +            RefreshCommittedCoverage();
 +        }
          bool requireRebuild = m_config.CheckWouldRequireRebuild(config);
- 
+
          m_config = config;
-@@ -153,6 +210,12 @@
+@@ -132,7 +189,16 @@
+
+     void TerrainMeshManager::SetMaterial(MaterialInstance materialInstance)
+     {
+-        if (m_materialInstance != materialInstance || m_materialInstance->GetCurrentChangeId() != m_lastMaterialChangeId)
++        if (!materialInstance) return;
++        if (m_materialInstance != materialInstance)
++        {
++            m_materialVariantHandler.Disconnect();
++            m_materialVariantHandler = AZ::RPI::Material::OnMaterialShaderVariantReadyEvent::Handler(
++                [this]() { m_materialVariantChanged.store(true, std::memory_order_release); });
++            materialInstance->ConnectEvent(m_materialVariantHandler);
++        }
++        const bool variantChanged = m_materialVariantChanged.exchange(false, std::memory_order_acq_rel);
++        if (m_materialInstance != materialInstance || materialInstance->GetCurrentChangeId() != m_lastMaterialChangeId || variantChanged)
+         {
+             m_lastMaterialChangeId = materialInstance->GetCurrentChangeId();
+             m_materialInstance = materialInstance;
+@@ -153,6 +219,12 @@
          }
      }
- 
+
 +    AZ_CVAR(bool, r_terrainBoundedRecovery, true, nullptr, AZ::ConsoleFunctorFlags::Null,
 +        "Enable certified coarse-first recovery with four requests per frame and bounded staging.");
 +
@@ -130,8 +148,8 @@
      bool TerrainMeshManager::IsInitialized() const
      {
          return m_isInitialized;
-@@ -160,15 +223,39 @@
- 
+@@ -160,15 +232,39 @@
+
      void TerrainMeshManager::ClearSectorBuffers()
      {
 +        DrainDeferredGroups();
@@ -163,7 +181,7 @@
 +        m_coverageSectors.clear();
 +        m_selectedCoverage.clear();
      }
- 
+
      void TerrainMeshManager::Reset()
      {
 +        m_preparationLifetime->Retire();
@@ -171,8 +189,8 @@
          if (m_meshMovedFlag.IsValid())
          {
              m_parentScene->GetViewTagBitRegistry().ReleaseTag(m_meshMovedFlag);
-@@ -188,18 +275,15 @@
- 
+@@ -188,18 +284,15 @@
+
          for (RayTracedItem& item : m_rayTracedItems)
          {
 -            if (auto& rtData = item.m_sector->m_rtData; rtData)
@@ -190,10 +208,10 @@
          m_rayTracedItems.clear();
 +        m_appliedCoveragePlan = 0;
      }
- 
+
      void TerrainMeshManager::Update(const AZ::RPI::ViewPtr mainView, AZ::Data::Instance<AZ::RPI::ShaderResourceGroup>& terrainSrg)
-@@ -213,6 +297,13 @@
- 
+@@ -213,6 +306,13 @@
+
          if (m_rebuildSectors)
          {
 +            // DrawMeshes polls cancelled completions/fences. Defer rebuild until
@@ -206,10 +224,10 @@
              // Rebuild the sectors when the configuration or terrain world changes
              CreateCommonBuffers();
              RebuildSectors();
-@@ -228,76 +319,501 @@
+@@ -228,76 +328,501 @@
          terrainSrg->SetConstant(m_srgMeshDataIndex, meshData);
      }
- 
+
 -    void TerrainMeshManager::CheckLodGridsForUpdate(AZ::Vector3 newPosition)
 -    {
 -        // lods of sectors that need updating, separated by LOD level.
@@ -772,10 +790,10 @@
 +        m_previousSectorCamera = position;
 +        m_previousSectorCameraUs = now;
      }
- 
+
      AZ::RHI::StreamBufferView TerrainMeshManager::CreateStreamBufferView(AZ::Data::Instance<AZ::RPI::Buffer>& buffer, uint32_t offset)
-@@ -313,17 +829,20 @@
- 
+@@ -313,17 +838,20 @@
+
      void TerrainMeshManager::BuildDrawPacket(Sector& sector)
      {
 +        // Withdraw borrowed draw pointers before replacing their owning packets.
@@ -787,29 +805,29 @@
 -        sector.m_geometryView.SetIndexBufferView(m_indexBufferView);
 +        sector.m_committed.m_geometryView.SetDrawArguments(AZ::RHI::DrawIndexed(0, indexCount, 0));
 +        sector.m_committed.m_geometryView.SetIndexBufferView(m_indexBufferView);
- 
+
          drawPacketBuilder.Begin(nullptr);
 -        drawPacketBuilder.SetGeometryView(&sector.m_geometryView);
 -        drawPacketBuilder.AddShaderResourceGroup(sector.m_srg->GetRHIShaderResourceGroup());
 +        drawPacketBuilder.SetGeometryView(&sector.m_committed.m_geometryView);
 +        drawPacketBuilder.AddShaderResourceGroup(sector.m_committed.m_srg->GetRHIShaderResourceGroup());
          drawPacketBuilder.AddShaderResourceGroup(m_materialInstance->GetRHIShaderResourceGroup());
- 
+
 -        sector.m_perDrawSrgs.clear();
 +        sector.m_committed.m_perDrawSrgs.clear();
- 
+
          for (CachedDrawData& drawData : m_cachedDrawData)
          {
-@@ -332,7 +851,7 @@
+@@ -332,7 +860,7 @@
              AZ::RHI::DrawPacketBuilder::DrawRequest drawRequest;
              drawRequest.m_listTag = drawData.m_drawListTag;
              drawRequest.m_pipelineState = drawData.m_pipelineState;
 -            drawRequest.m_streamIndices = sector.m_geometryView.GetFullStreamBufferIndices();
 +            drawRequest.m_streamIndices = sector.m_committed.m_geometryView.GetFullStreamBufferIndices();
              drawRequest.m_stencilRef = AZ::Render::StencilRefs::UseDiffuseGIPass | AZ::Render::StencilRefs::UseIBLSpecularPass;
- 
+
              if (drawData.m_materialPipelineName != AZ::RPI::MaterialPipelineNone)
-@@ -357,13 +876,13 @@
+@@ -357,13 +885,13 @@
              if (drawSrg)
              {
                  drawRequest.m_uniqueShaderResourceGroup = drawSrg->GetRHIShaderResourceGroup();
@@ -818,14 +836,14 @@
              }
              drawPacketBuilder.AddDrawItem(drawRequest);
          }
- 
+
          AZ::RHI::DrawPacketBuilder commonQuadrantDrawPacketBuilder = drawPacketBuilder; // Copy of the draw packet builder to use later.
 -        sector.m_rhiDrawPacket = drawPacketBuilder.End();
 +        sector.m_committed.m_rhiDrawPacket = drawPacketBuilder.End();
- 
+
          // Generate draw packets for each of the quadrants so they can be used to fill in places where the previous LOD didn't draw.
          // Due to z-ordered index buffer, no additional data is needed, just a different index offset and index count. Each quarter of
-@@ -371,12 +890,12 @@
+@@ -371,12 +899,12 @@
          uint32_t lowerLodIndexCount = indexCount / 4;
          for (uint32_t i = 0; i < 4; ++i)
          {
@@ -833,7 +851,7 @@
 -            sector.m_quadrantGeometryViews[i].SetDrawArguments( AZ::RHI::DrawIndexed(0, lowerLodIndexCount, lowerLodIndexCount * i) );
 +            sector.m_committed.m_quadrantGeometryViews[i] = sector.m_committed.m_geometryView;
 +            sector.m_committed.m_quadrantGeometryViews[i].SetDrawArguments( AZ::RHI::DrawIndexed(0, lowerLodIndexCount, lowerLodIndexCount * i) );
- 
+
              AZ::RHI::DrawPacketBuilder quadrantDrawPacketBuilder = commonQuadrantDrawPacketBuilder;
 -            quadrantDrawPacketBuilder.SetGeometryView(&sector.m_quadrantGeometryViews[i]);
 -            sector.m_rhiDrawPacketQuadrant[i] = quadrantDrawPacketBuilder.End();
@@ -841,11 +859,11 @@
 +            sector.m_committed.m_rhiDrawPacketQuadrant[i] = quadrantDrawPacketBuilder.End();
          }
      }
- 
-@@ -386,12 +905,18 @@
+
+@@ -386,12 +914,18 @@
          // The position for a BLAS supports only R32G32B32_FLOAT or R16G16B16A16_FLOAT, but the normal could be octahedron - encoded with
          // various bit-sizes (N32_OCT, N16_OCT and N8_OCT). Similarily, the Index-Buffer supports 32 and 16 bit indices.
- 
+
 -        RtSector& rtSector = *sector.m_rtData;
 -
 -        AZStd::string positionName = AZStd::string::format("Terrain Positions-  Lod %u, Sector (%u, %u)", lodLevel, sector.m_worldCoord.m_x, sector.m_worldCoord.m_x);
@@ -862,21 +880,21 @@
 +
 +    void TerrainMeshManager::BuildRtSectorViews(RtSector& rtSector, uint32_t lodLevel)
 +    {
- 
+
          // setup the stream and shader buffer views
          AZ::RHI::Buffer& rhiPositionsBuffer = *rtSector.m_positionsBuffer->GetRHIBuffer();
-@@ -463,9 +988,6 @@
+@@ -463,9 +997,6 @@
      {
          const float gridMeters = m_gridSize * m_sampleSpacing;
- 
+
 -        const auto& materialAsset = m_materialInstance->GetAsset();
 -        const auto& shaderAsset = materialAsset->GetMaterialTypeAsset()->GetShaderAssetForObjectSrg();
 -
          // Calculate the largest potential number of sectors needed per dimension at any lod level.
          const float firstLodDiameter = m_config.m_firstLodDistance * 2.0f;
          m_1dSectorCount = aznumeric_cast<uint32_t>(AZStd::ceilf(firstLodDiameter / gridMeters));
-@@ -479,7 +1001,7 @@
- 
+@@ -479,7 +1010,7 @@
+
          const uint8_t lodCount = aznumeric_cast<uint8_t>(AZStd::ceilf(log2f(AZStd::GetMax(1.0f, m_config.m_renderDistance / m_config.m_firstLodDistance)) + 1.0f));
          m_sectorLods.reserve(lodCount);
 -        
@@ -884,8 +902,8 @@
          // Create all the sectors with uninitialized SRGs. The SRGs will be updated later by CheckLodGridsForUpdate().
          m_indexBufferView =
          {
-@@ -498,57 +1020,75 @@
- 
+@@ -498,57 +1029,75 @@
+
              for (Sector& sector : lodGrid.m_sectors)
              {
 -                sector.m_srg = AZ::RPI::ShaderResourceGroup::Create(shaderAsset, materialAsset->GetObjectSrgLayout()->GetName());
@@ -965,7 +983,7 @@
 +            BuildRtSector(sector, lodLevel);
          }
      }
- 
+
      void TerrainMeshManager::DrawMeshes(const AZ::RPI::FeatureProcessor::RenderPacket& process, const AZ::RPI::ViewPtr mainView)
      {
          AZ::Vector3 mainCameraPosition = mainView->GetCameraTransform().GetTranslation();
@@ -976,7 +994,7 @@
 +        }
 +        RefreshCommittedCoverage();
          CheckLodGridsForUpdate(mainCameraPosition);
- 
+
 -        for (Sector* sector : m_sectorsThatNeedSrgCompiled)
 -        {
 -            sector->m_srg->Compile();
@@ -992,7 +1010,7 @@
 +            }
 +            m_sectorsThatNeedSrgCompiled.clear();
 +        }
- 
+
          // Only update candidate sectors if the camera has moved. This could probably be relaxed further, but is a good starting point.
          const float minMovedDistanceSq = m_sampleSpacing * m_sampleSpacing;
 -        bool terrainChanged = m_candidateSectors.empty(); // candidate sectors need to be recalculated any time the terrain changes
@@ -1000,24 +1018,24 @@
          if (terrainChanged || m_cameraPosition.GetDistanceSq(mainCameraPosition) > minMovedDistanceSq)
          {
              m_cameraPosition = mainCameraPosition;
-@@ -559,6 +1099,7 @@
+@@ -559,6 +1108,7 @@
              AZ::RPI::AuxGeomFeatureProcessorInterface::GetDrawQueueForScene(m_parentScene) :
              nullptr;
- 
+
 +        AZ_PROFILE_SCOPE(AzRender, "Terrain::SubmitDrawPackets");
          // Compare view frustums against the list of candidate sectors and submit those sectors to draw.
          for (auto& view : process.m_views)
          {
-@@ -592,7 +1133,7 @@
+@@ -592,7 +1142,7 @@
      {
          m_materialInstance->ApplyGlobalShaderOptions();
          m_cachedDrawData.clear();
 -        m_candidateSectors.clear();
 +        InvalidateCandidateSectors();
- 
+
          // Rebuild common draw packet data
          m_materialInstance->ForAllShaderItems(
-@@ -679,7 +1220,7 @@
+@@ -679,7 +1229,7 @@
          {
              for (auto& sector : lodGrid.m_sectors)
              {
@@ -1026,7 +1044,7 @@
              }
          }
      }
-@@ -699,6 +1240,11 @@
+@@ -699,6 +1249,11 @@
      {
          if ((dataChangedMask & (TerrainDataChangedMask::HeightData | TerrainDataChangedMask::Settings)) != TerrainDataChangedMask::None)
          {
@@ -1038,16 +1056,16 @@
              AzFramework::Terrain::FloatRange heightBounds = AzFramework::Terrain::FloatRange::CreateNull();
              AzFramework::Terrain::TerrainDataRequestBus::BroadcastResult(
                  heightBounds, &AzFramework::Terrain::TerrainDataRequests::GetTerrainHeightBounds);
-@@ -707,32 +1253,10 @@
+@@ -707,32 +1262,10 @@
              AzFramework::Terrain::TerrainDataRequestBus::BroadcastResult(
                  queryResolution, &AzFramework::Terrain::TerrainDataRequests::GetTerrainHeightQueryResolution);
- 
+
 -            bool gridSizeChanged = UpdateGridSize(m_config.m_firstLodDistance);
 -
 -            // Sectors need to be rebuilt when certain settings change.
 -            m_rebuildSectors = m_rebuildSectors || (m_sampleSpacing != queryResolution) || (heightBounds != m_worldHeightBounds) || gridSizeChanged;
 +            UpdateGridSize(m_config.m_firstLodDistance);
- 
+
              m_worldHeightBounds = heightBounds;
              m_sampleSpacing = queryResolution;
 -
@@ -1071,11 +1089,11 @@
 -            }
          }
      }
- 
-@@ -845,91 +1369,84 @@
+
+@@ -845,91 +1378,84 @@
          m_dummyLodHeightsNormalsBuffer = CreateMeshBufferInstance(sizeof(HeightNormalVertex), m_gridVerts2D, nullptr);
      }
- 
+
 -    void TerrainMeshManager::UpdateSectorBuffers(Sector& sector, const AZStd::span<const HeightNormalVertex> heightsNormals)
 -    {
 -        sector.m_heightsNormalsBuffer->UpdateData(heightsNormals.data(), heightsNormals.size_bytes());
@@ -1121,7 +1139,7 @@
 +                xyPosition.m_posy / xyPositionMax,
 +                heightNormal.m_height == NoTerrainVertexHeight ? 0.0f : heightNormal.m_height / maxHeight,
              };
- 
+
 -            AZStd::vector<RtVert> rtPositions(heightsNormals.size());
 -            AZStd::vector<RtVert> rtNormals(heightsNormals.size());
 -
@@ -1237,20 +1255,20 @@
 +                uint16_t index = yPos * settings.m_gridVerts1D + xPos;
                  uint16_t lodIndex1 = (yPos / 2) * lodGridVerts1D + (xPos / 2);
                  uint16_t lodIndex2 = lodIndex1;
- 
-@@ -944,7 +1461,7 @@
+
+@@ -944,7 +1470,7 @@
                      lodIndex2 += lodGridVerts1D;
                  }
- 
+
 -                const uint16_t zOrderIndex = m_vertexOrder.at(index);
 +                const uint16_t zOrderIndex = settings.m_vertexOrder.at(index);
- 
+
                  if (lodHeightsNormals[lodIndex1].m_height == NoTerrainVertexHeight || lodHeightsNormals[lodIndex2].m_height == NoTerrainVertexHeight)
                  {
-@@ -966,49 +1483,185 @@
+@@ -966,49 +1492,185 @@
              }
          }
- 
+
 -        sector.m_lodHeightsNormalsBuffer->UpdateData(clodHeightNormals.data(), clodHeightNormals.size() * sizeof(HeightNormalVertex), 0);
 -    }
 -
@@ -1293,10 +1311,10 @@
 +        const uint16_t querySamplesY = aznumeric_cast<uint16_t>(layout.Height());
 +        const uint16_t querySamplesCount = aznumeric_cast<uint16_t>(layout.Count());
          const uint16_t outputSamplesCount = request.m_samplesX * request.m_samplesY;
- 
+
          AZStd::vector<float> heights;
          heights.resize_no_construct(querySamplesCount);
- 
+
 -        meshHeightsNormals.resize_no_construct(outputSamplesCount);
 -
 -        auto perPositionCallback = [this, &heights, querySamplesX, &terrainExistsAnywhere]
@@ -1390,7 +1408,7 @@
 +            heights.at(yIndex * querySamplesX + xIndex) = renderTerrainExists ? height : HeightDoesNotExistValue;
 +            terrainExistsAnywhere = terrainExistsAnywhere || renderTerrainExists;
          };
- 
+
          AzFramework::Terrain::TerrainQueryRegion queryRegion(
 -            request.m_worldStartPosition - stepSize, querySamplesX, querySamplesY, stepSize);
 -
@@ -1448,7 +1466,7 @@
 +        }
 +
 +        } // Ordinary or unreused retained gather.
- 
+
          if (!terrainExistsAnywhere)
          {
              // No height data, so just return
@@ -1462,26 +1480,26 @@
 +        float zExtents = (settings.m_worldHeightBounds.m_max - settings.m_worldHeightBounds.m_min);
          const float rcpWorldZ = 1.0f / zExtents;
          const float vertexSpacing2 = request.m_vertexSpacing * 2.0f;
- 
-@@ -1016,6 +1669,8 @@
+
+@@ -1016,6 +1678,8 @@
          float minHeight = zExtents;
          float maxHeight = 0.0f;
- 
+
 +        AZ_PROFILE_SCOPE(AzRender, "Terrain::GatherMeshData::Packing");
 +        TerrainCompositor::TerrainRenderQueryTimer packingTimer(queryStatistics ? &queryStatistics->m_packingMicroseconds : nullptr);
          // float versions of int max to make sure a int->float conversion doesn't happen at each loop iteration.
          constexpr float MaxHeightHalf = float(AZStd::numeric_limits<HeightDataType>::max() / 2);
          constexpr float MaxNormal = AZStd::numeric_limits<NormalDataType>::max();
-@@ -1030,7 +1685,7 @@
+@@ -1030,7 +1694,7 @@
                  const uint16_t queryCoord = queryY * querySamplesX + queryX;
- 
+
                  uint16_t coord = y * request.m_samplesX + x;
 -                coord = request.m_useVertexOrderRemap ? m_vertexOrder.at(coord) : coord;
 +                coord = request.m_useVertexOrderRemap ? settings.m_vertexOrder.at(coord) : coord;
- 
+
                  const float height = heights.at(queryCoord);
                  if (height < 0.0f)
-@@ -1053,7 +1708,7 @@
+@@ -1053,7 +1717,7 @@
                  {
                      minHeight = height;
                  }
@@ -1490,12 +1508,12 @@
                  {
                      maxHeight = height;
                  }
-@@ -1088,12 +1743,16 @@
+@@ -1088,12 +1752,16 @@
                  const float leftHeight = heights.at(queryCoord - 1);
                  const float rightHeight = heights.at(queryCoord + 1);
                  const float xSlope = getSlope(leftHeight, rightHeight);
 -                const float normalX = xSlope / sqrt(xSlope * xSlope + 1); // sin(arctan(xSlope)
- 
+
                  const float upHeight = heights.at(queryCoord - querySamplesX);
                  const float downHeight = heights.at(queryCoord + querySamplesX);
                  const float ySlope = getSlope(upHeight, downHeight);
@@ -1506,10 +1524,10 @@
 +                const float inverseLength = 1.0f / sqrt(xSlope * xSlope + ySlope * ySlope + 1.0f);
 +                const float normalX = xSlope * inverseLength;
 +                const float normalY = ySlope * inverseLength;
- 
+
                  meshHeightsNormals.at(coord).m_normal =
                  {
-@@ -1112,295 +1771,1178 @@
+@@ -1112,295 +1780,1178 @@
          {
              float width = (request.m_samplesX - 1) * request.m_vertexSpacing;
              float height = (request.m_samplesY - 1) * request.m_vertexSpacing;
@@ -2457,7 +2475,7 @@
 +            }
 +        m_deferredGroups.clear();
      }
- 
+
      void TerrainMeshManager::ProcessSectorUpdates(AZStd::vector<AZStd::vector<Sector*>>& sectorUpdates)
      {
 +        AZ_PROFILE_SCOPE(AzRender, "Terrain::ProcessSectorUpdates");
@@ -2963,8 +2981,8 @@
 +                stats.m_policyChanges, stats.m_retainedBytes, m_coverageCandidateEdits, m_coverageCandidateShifts, m_coverageRtEdits);
          }
      }
- 
-@@ -1427,37 +2969,6 @@
+
+@@ -1427,37 +2978,6 @@
          else
          {
              AZStd::fill(quadrantAabb.begin(), quadrantAabb.end(), AZ::Aabb::CreateNull());
@@ -3001,4 +3019,4 @@
 -            }
          }
      }
- 
+

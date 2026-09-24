@@ -1,0 +1,128 @@
+#include "TerrainTintMaterialComponent.h"
+#include <AzCore/Serialization/SerializeContext.h>
+#include <AzCore/Asset/AssetSerializer.h>
+#include <AzCore/RTTI/BehaviorContext.h>
+#include <AzCore/Serialization/EditContext.h>
+#include <Atom/RPI.Public/RPISystemInterface.h>
+#include <AzFramework/Scene/SceneSystemInterface.h>
+#include <TerrainRenderer/TerrainFeatureProcessor.h>
+
+namespace TerrainCompositorCanvas
+{
+    namespace
+    {
+        Terrain::TerrainFeatureProcessor* FindTerrain(const AZ::RPI::SceneId& id)
+        {
+            auto* system = AZ::RPI::RPISystemInterface::Get();
+            auto* scene = system && system->IsInitialized() && !id.IsNull() ? system->GetScene(id) : nullptr;
+            return scene ? scene->GetFeatureProcessor<Terrain::TerrainFeatureProcessor>() : nullptr;
+        }
+    }
+
+    void TerrainTintMaterialComponent::Reflect(AZ::ReflectContext* context)
+    {
+        if (auto* behavior = azrtti_cast<AZ::BehaviorContext*>(context))
+        {
+            behavior->EBus<TerrainTintMaterialRequestBus>("TerrainTintMaterialRequestBus")
+                ->Attribute(AZ::Script::Attributes::Scope, AZ::Script::Attributes::ScopeFlags::Automation)
+                ->Attribute(AZ::Script::Attributes::Category, "Terrain")
+                ->Attribute(AZ::Script::Attributes::Module, "terrain_canvas")
+                ->Event("GetStatus", &TerrainTintMaterialRequests::GetStatus);
+        }
+        if (auto* serialize = azrtti_cast<AZ::SerializeContext*>(context))
+        {
+            serialize->Class<TerrainTintMaterialComponent, AZ::Component>()
+                ->Version(1)->Field("Material", &TerrainTintMaterialComponent::m_material);
+            if (auto* edit = serialize->GetEditContext())
+            {
+                edit->Class<TerrainTintMaterialComponent>("Terrain Tint Material", "Selects one Canvas terrain tint material for this scene.")
+                    ->ClassElement(AZ::Edit::ClassElements::EditorData, "")
+                    ->Attribute(AZ::Edit::Attributes::Category, "Terrain")
+                    ->Attribute(AZ::Edit::Attributes::AppearsInAddComponentMenu, AZ_CRC_CE("Game"))
+                    ->Attribute(AZ::Edit::Attributes::AutoExpand, true)
+                    ->DataElement(AZ::Edit::UIHandlers::Default, &TerrainTintMaterialComponent::m_material,
+                        "Tint Material", "A material using a Terrain Tint Output generated type. Empty restores legacy tint.")
+                    ->Attribute(AZ::Edit::Attributes::ChangeNotify, &TerrainTintMaterialComponent::OnConfigurationChanged)
+                    ->UIElement(AZ::Edit::UIHandlers::Label, "Status", "Selection and asset processing status.")
+                    ->Attribute(AZ::Edit::Attributes::ValueText, &TerrainTintMaterialComponent::GetStatus);
+            }
+        }
+    }
+
+    void TerrainTintMaterialComponent::GetProvidedServices(AZ::ComponentDescriptor::DependencyArrayType& services)
+    { services.push_back(AZ_CRC_CE("TerrainTintMaterialService")); }
+    void TerrainTintMaterialComponent::GetIncompatibleServices(AZ::ComponentDescriptor::DependencyArrayType& services)
+    { services.push_back(AZ_CRC_CE("TerrainTintMaterialService")); }
+    void TerrainTintMaterialComponent::Activate() { Start(GetEntityId()); }
+    void TerrainTintMaterialComponent::Deactivate() { Stop(); }
+    void TerrainTintMaterialComponent::EditorActivate(AZ::EntityId entityId) { Start(entityId); }
+    void TerrainTintMaterialComponent::EditorDeactivate([[maybe_unused]] AZ::EntityId entityId) { Stop(); }
+
+    void TerrainTintMaterialComponent::Start(AZ::EntityId entityId)
+    {
+        Stop();
+        m_owner = entityId;
+        TerrainTintMaterialRequestBus::Handler::BusConnect(m_owner);
+        OnConfigurationChanged();
+    }
+    void TerrainTintMaterialComponent::Stop()
+    {
+        TerrainTintMaterialRequestBus::Handler::BusDisconnect();
+        AZ::SystemTickBus::Handler::BusDisconnect();
+        AzFramework::EntityContextEventBus::Handler::BusDisconnect();
+        if (auto* terrain = FindTerrain(m_sceneId)) terrain->ClearTintMaterial(m_owner);
+        m_owner = AZ::EntityId{};
+        m_sceneId = {};
+        m_context = {};
+        m_conflict = false;
+        m_attemptsRemaining = 0;
+    }
+    bool TerrainTintMaterialComponent::Bind()
+    {
+        if (!m_owner.IsValid()) return true;
+        AzFramework::EntityContextId context;
+        AzFramework::EntityIdContextQueryBus::EventResult(context, m_owner,
+            &AzFramework::EntityIdContextQueryBus::Events::GetOwningContextId);
+        auto* system = AZ::RPI::RPISystemInterface::Get();
+        if (context.IsNull() || !system || !system->IsInitialized() || !AzFramework::SceneSystemInterface::Get()) return false;
+        if (context != m_context)
+        {
+            AzFramework::EntityContextEventBus::Handler::BusDisconnect();
+            m_context = context;
+            AzFramework::EntityContextEventBus::Handler::BusConnect(context);
+        }
+        auto* scene = AZ::RPI::Scene::GetSceneForEntityContextId(context);
+        if (!scene) return false;
+        auto* terrain = scene->GetFeatureProcessor<Terrain::TerrainFeatureProcessor>();
+        if (!terrain) return false;
+        if (m_sceneId != scene->GetId())
+        {
+            if (auto* previous = FindTerrain(m_sceneId)) previous->ClearTintMaterial(m_owner);
+            m_sceneId = scene->GetId();
+        }
+        m_conflict = !terrain->SetTintMaterial(m_owner, m_material);
+        if (m_conflict) AZ_Warning("TerrainTint", false, "Another Terrain Tint Material component already owns this scene.");
+        return true;
+    }
+    AZ::u32 TerrainTintMaterialComponent::OnConfigurationChanged()
+    {
+        AZ::SystemTickBus::Handler::BusDisconnect();
+        m_attemptsRemaining = 8;
+        if (!Bind()) AZ::SystemTickBus::Handler::BusConnect();
+        return AZ::Edit::PropertyRefreshLevels::AttributesAndValues;
+    }
+    void TerrainTintMaterialComponent::OnSystemTick()
+    {
+        if (m_attemptsRemaining) --m_attemptsRemaining;
+        if (Bind() || !m_attemptsRemaining) AZ::SystemTickBus::Handler::BusDisconnect();
+    }
+    void TerrainTintMaterialComponent::OnEntityContextReset() { Stop(); }
+    void TerrainTintMaterialComponent::OnEntityContextDestroyEntity(const AZ::EntityId& id)
+    { if (id == m_owner) Stop(); }
+    AZStd::string TerrainTintMaterialComponent::GetStatus() const
+    {
+        if (m_conflict) return "Conflict: another component owns this scene. Disable it and reselect the material.";
+        if (const auto* terrain = FindTerrain(m_sceneId)) return terrain->GetTintMaterialStatus();
+        return m_attemptsRemaining ? "Waiting for terrain scene" : "No terrain scene; reactivate or edit the component to retry";
+    }
+}

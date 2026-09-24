@@ -207,6 +207,7 @@ namespace TerrainCompositor
     {
         RebuildGpuData();
         auto* terrain = GetParentScene()->GetFeatureProcessor<Terrain::TerrainFeatureProcessor>();
+        if (terrain) terrain->ValidateActiveTintMaterial();
         const auto material = terrain ? terrain->GetMaterial() : nullptr;
         if (material != m_observedTerrainMaterial)
         {
@@ -361,6 +362,21 @@ namespace TerrainCompositor
         m_statistics.m_gapTileBytes = ready ? m_gapData.m_tileBytes : 0;
         // Material properties are compiled by TerrainFeatureProcessor, and the
         // material system queues the SRG later in FrameUpdate. Do not queue it twice.
+
+        // The renderer stages an ABI-compatible material with copies of the current
+        // publication's buffers and counts. Commit only after those bindings have
+        // compiled, preserving the already admitted CPU/render gap publication.
+        if (terrain && terrain->UpdateTintMaterial())
+        {
+            const auto replacement = terrain->GetMaterial();
+            if (m_gapBoundMaterial == material)
+            {
+                m_gapBoundMaterial = replacement;
+                m_gapBoundSrg = replacement->GetShaderResourceGroup();
+            }
+            m_observedTerrainMaterial = replacement;
+            if (m_sceneChannel) m_sceneChannel->m_materialChanged.Signal(replacement);
+        }
     }
 
     void TerrainMeshCutoutFeatureProcessor::OnRenderEnd()

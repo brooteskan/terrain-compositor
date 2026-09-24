@@ -1,0 +1,13 @@
+{
+    "Amazon": {
+        "AssetProcessor": {
+            "Settings": {
+                "ScanFolder TerrainCompositor/Assets": {
+                    "watch": "@GEMROOT:TerrainCompositor@/Assets",
+                    "recursive": 1,
+                    "order": 90
+                }
+            }
+        }
+    }
+}

@@ -1,6 +1,6 @@
 # Minimal terrain noise tint
 
-These project-local shader/material overrides start from O3DE revision
+These TerrainCompositor shader/material overrides start from O3DE revision
 `061180bf24f1666eb30315b35da292eb14f4659c`. The shader descriptors are unchanged.
 `TerrainSrg.azsli` and `TerrainDetailHelpers.azsli` forward to stock declarations;
 the terrain/detail texture-buffer layouts remain stock. The project also owns
@@ -20,7 +20,10 @@ to full strength at +3 meters. Unresolved noise is filtered toward its mean.
 0 restores the original base color, 1 gives full strength, and 0.75 preserves the
 prototype default. The value is saved with the component; old levels default to
 0.75 without changing their height settings. Scale, seed, tint color, and height
-modulation remain shader constants for now.
+modulation remain constants in the legacy shader. The optional
+[TerrainCompositorCanvas integration](../../../../o3de-material-canvas/README.md)
+provides an editable graph at the same tint call site. While its scene selector is
+active, `tint.strength` controls tint and the legacy strength control is inactive.
 
 The terrain renderer asynchronously loads `Materials/Terrain/DefaultPbrTerrain.azmaterial`
 and creates a distinct material/SRG for each scene. The component resolves its

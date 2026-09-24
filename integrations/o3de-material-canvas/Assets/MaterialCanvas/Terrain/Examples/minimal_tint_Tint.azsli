@@ -1,0 +1,23 @@
+#pragma once
+#include <TerrainCompositor/TerrainMaterialSrg.azsli>
+#include <TerrainCanvas/LatticeNoise.azsli>
+// O3DE_GENERATED_INCLUDES_BEGIN
+// O3DE_GENERATED_INCLUDES_END
+// O3DE_GENERATED_CLASSES_BEGIN
+// O3DE_GENERATED_CLASSES_END
+// O3DE_GENERATED_FUNCTIONS_BEGIN
+// O3DE_GENERATED_FUNCTIONS_END
+float3 TC_CanvasTint(float3 worldPosition)
+{
+    const float3 O3DE_MC_POSITION_WS = worldPosition;
+    // O3DE_GENERATED_INSTRUCTIONS_BEGIN: inTint
+float node1_terrain_tint_parameters_strength = saturate(TerrainMaterialSrg::m_canvasTintStrength);
+float3 node1_terrain_tint_parameters_color = TerrainMaterialSrg::m_canvasTintColor;
+float3 node2_lerp_rgb_a = {1, 1, 1};
+float3 node2_lerp_rgb_b = node1_terrain_tint_parameters_color;
+float node2_lerp_rgb_weight = node1_terrain_tint_parameters_strength;
+float3 node2_lerp_rgb_result = lerp(node2_lerp_rgb_a, node2_lerp_rgb_b, node2_lerp_rgb_weight);
+float3 inTint = node2_lerp_rgb_result;
+    // O3DE_GENERATED_INSTRUCTIONS_END
+    return inTint;
+}

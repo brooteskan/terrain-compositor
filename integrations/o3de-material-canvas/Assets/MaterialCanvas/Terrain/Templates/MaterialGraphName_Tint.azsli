@@ -1,0 +1,17 @@
+#pragma once
+#include <TerrainCompositor/TerrainMaterialSrg.azsli>
+#include <TerrainCanvas/LatticeNoise.azsli>
+// O3DE_GENERATED_INCLUDES_BEGIN
+// O3DE_GENERATED_INCLUDES_END
+// O3DE_GENERATED_CLASSES_BEGIN
+// O3DE_GENERATED_CLASSES_END
+// O3DE_GENERATED_FUNCTIONS_BEGIN
+// O3DE_GENERATED_FUNCTIONS_END
+float3 TC_CanvasTint(float3 worldPosition)
+{
+    const float3 O3DE_MC_POSITION_WS = worldPosition;
+    // O3DE_GENERATED_INSTRUCTIONS_BEGIN: inTint
+    float3 inTint = float3(1, 1, 1);
+    // O3DE_GENERATED_INSTRUCTIONS_END
+    return inTint;
+}

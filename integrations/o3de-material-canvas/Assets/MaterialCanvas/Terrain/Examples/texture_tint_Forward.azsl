@@ -1,0 +1,3 @@
+#include "texture_tint_Tint.azsli"
+#define TC_EvaluateTerrainTint TC_CanvasTint
+#include <TerrainCompositor/TerrainForward.azsli>

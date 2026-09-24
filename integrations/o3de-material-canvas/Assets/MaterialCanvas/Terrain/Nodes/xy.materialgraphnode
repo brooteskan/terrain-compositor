@@ -1,0 +1,65 @@
+{
+    "Type": "JsonSerialization",
+    "Version": 1,
+    "ClassName": "DynamicNodeConfig",
+    "ClassData": {
+        "id": "{1DCD7456-D868-5393-9573-4234C14D2142}",
+        "category": "Terrain Tint",
+        "title": "World XY / Scale",
+        "titlePaletteName": "MathNodeTitlePalette",
+        "description": "World XY / Scale",
+        "inputSlots": [
+            {
+                "name": "position",
+                "displayName": "position",
+                "description": "position",
+                "supportedDataTypeRegex": "float3",
+                "defaultDataType": "float3",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "Vector3",
+                    "Value": [
+                        0,
+                        0,
+                        0
+                    ]
+                }
+            },
+            {
+                "name": "scale",
+                "displayName": "scale",
+                "description": "scale",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 64
+                }
+            }
+        ],
+        "outputSlots": [
+            {
+                "name": "value",
+                "displayName": "value",
+                "description": "value",
+                "supportedDataTypeRegex": "float2",
+                "defaultDataType": "float2",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = position.xy / max(scale, 0.0001);"
+                    ]
+                }
+            }
+        ],
+        "propertySlots": []
+    }
+}

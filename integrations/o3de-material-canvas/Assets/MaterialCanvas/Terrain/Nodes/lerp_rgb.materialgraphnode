@@ -1,0 +1,85 @@
+{
+    "Type": "JsonSerialization",
+    "Version": 1,
+    "ClassName": "DynamicNodeConfig",
+    "ClassData": {
+        "id": "{841DF26B-4D1C-509A-9922-201E8BF92C8F}",
+        "category": "Terrain Tint",
+        "title": "Lerp RGB",
+        "titlePaletteName": "MathNodeTitlePalette",
+        "description": "Lerp RGB",
+        "inputSlots": [
+            {
+                "name": "a",
+                "displayName": "a",
+                "description": "a",
+                "supportedDataTypeRegex": "float3",
+                "defaultDataType": "float3",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "Vector3",
+                    "Value": [
+                        1,
+                        1,
+                        1
+                    ]
+                }
+            },
+            {
+                "name": "b",
+                "displayName": "b",
+                "description": "b",
+                "supportedDataTypeRegex": "float3",
+                "defaultDataType": "float3",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "Vector3",
+                    "Value": [
+                        1,
+                        1,
+                        1
+                    ]
+                }
+            },
+            {
+                "name": "weight",
+                "displayName": "weight",
+                "description": "weight",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 1
+                }
+            }
+        ],
+        "outputSlots": [
+            {
+                "name": "result",
+                "displayName": "result",
+                "description": "result",
+                "supportedDataTypeRegex": "float3",
+                "defaultDataType": "float3",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = lerp(a, b, weight);"
+                    ]
+                }
+            }
+        ],
+        "propertySlots": []
+    }
+}

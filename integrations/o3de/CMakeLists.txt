@@ -58,7 +58,7 @@ ly_add_target(
     FILES_CMAKE terrain_compositor_files.cmake
     INCLUDE_DIRECTORIES
         PUBLIC Code/Include
-        PRIVATE "${tc_generated_overrides}" EngineOverrides
+        PUBLIC "${tc_generated_overrides}" EngineOverrides
         PUBLIC ${LY_ROOT_FOLDER}/Gems/Terrain/Code/Source
     BUILD_DEPENDENCIES
         PRIVATE

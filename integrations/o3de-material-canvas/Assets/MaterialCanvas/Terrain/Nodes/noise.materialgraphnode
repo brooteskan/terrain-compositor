@@ -1,0 +1,64 @@
+{
+    "Type": "JsonSerialization",
+    "Version": 1,
+    "ClassName": "DynamicNodeConfig",
+    "ClassData": {
+        "id": "{4E766E79-7181-5F73-86DB-312997A31A13}",
+        "category": "Terrain Tint",
+        "title": "Lattice Value Noise 2D",
+        "titlePaletteName": "MathNodeTitlePalette",
+        "description": "Lattice Value Noise 2D",
+        "inputSlots": [
+            {
+                "name": "position",
+                "displayName": "position",
+                "description": "position",
+                "supportedDataTypeRegex": "float2",
+                "defaultDataType": "float2",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "Vector2",
+                    "Value": [
+                        0,
+                        0
+                    ]
+                }
+            },
+            {
+                "name": "seed",
+                "displayName": "seed",
+                "description": "seed",
+                "supportedDataTypeRegex": "uint",
+                "defaultDataType": "uint",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "unsigned int",
+                    "Value": 1337
+                }
+            }
+        ],
+        "outputSlots": [
+            {
+                "name": "value",
+                "displayName": "value",
+                "description": "value",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = TC_LatticeNoise2D(position, seed);"
+                    ]
+                }
+            }
+        ],
+        "propertySlots": []
+    }
+}
