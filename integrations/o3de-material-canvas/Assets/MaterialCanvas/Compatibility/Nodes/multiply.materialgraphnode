@@ -3,36 +3,16 @@
     "Version": 1,
     "ClassName": "DynamicNodeConfig",
     "ClassData": {
-        "id": "{1DCD7456-D868-5393-9573-4234C14D2142}",
-        "category": "Terrain",
-        "title": "World XY / Scale",
+        "id": "{DCF36928-754A-51DD-8DB5-1DCA5DAA84C7}",
+        "category": "Compatibility",
+        "title": "Multiply Scalar (Legacy)",
         "titlePaletteName": "MathNodeTitlePalette",
-        "description": "World XY / Scale",
+        "description": "Compatibility node for existing graphs. Use stock Canvas math/geometry or the explicit Normal From Height node for new graphs.",
         "inputSlots": [
             {
-                "name": "position",
-                "displayName": "position",
-                "description": "position",
-                "supportedDataTypeRegex": "float3",
-                "defaultDataType": "float3",
-                "settings": {
-                    "instructions": [
-                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
-                    ]
-                },
-                "defaultValue": {
-                    "$type": "Vector3",
-                    "Value": [
-                        0,
-                        0,
-                        0
-                    ]
-                }
-            },
-            {
-                "name": "scale",
-                "displayName": "scale",
-                "description": "scale",
+                "name": "a",
+                "displayName": "a",
+                "description": "a",
                 "supportedDataTypeRegex": "float",
                 "defaultDataType": "float",
                 "settings": {
@@ -42,20 +22,36 @@
                 },
                 "defaultValue": {
                     "$type": "float",
-                    "Value": 64
+                    "Value": 1
+                }
+            },
+            {
+                "name": "b",
+                "displayName": "b",
+                "description": "b",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 1
                 }
             }
         ],
         "outputSlots": [
             {
-                "name": "value",
-                "displayName": "value",
-                "description": "value",
-                "supportedDataTypeRegex": "float2",
-                "defaultDataType": "float2",
+                "name": "result",
+                "displayName": "result",
+                "description": "result",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
                 "settings": {
                     "instructions": [
-                        "SLOTTYPE SLOTNAME = position.xy / max(scale, 0.0001);"
+                        "SLOTTYPE SLOTNAME = a * b;"
                     ]
                 }
             }

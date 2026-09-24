@@ -4,10 +4,10 @@
     "ClassName": "DynamicNodeConfig",
     "ClassData": {
         "id": "{4E766E79-7181-5F73-86DB-312997A31A13}",
-        "category": "Terrain",
+        "category": "Procedural",
         "title": "Lattice Value Noise 2D",
         "titlePaletteName": "MathNodeTitlePalette",
-        "description": "Lattice Value Noise 2D",
+        "description": "Deterministic 2D lattice value noise in [0,1]. Coordinates and unsigned seed are explicit.",
         "inputSlots": [
             {
                 "name": "position",
@@ -59,6 +59,11 @@
                 }
             }
         ],
-        "propertySlots": []
+        "propertySlots": [],
+        "settings": {
+            "includePaths": [
+                "MaterialCanvas/Procedural/LatticeNoise.azsli"
+            ]
+        }
     }
 }

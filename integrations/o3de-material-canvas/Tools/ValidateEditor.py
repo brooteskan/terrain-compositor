@@ -32,7 +32,7 @@ def wait_for(predicate, seconds=60):
         if value:
             return value
         general.idle_wait_frames(1)
-    raise RuntimeError("Timed out waiting for terrain tint state")
+    raise RuntimeError("Timed out waiting for terrain material state")
 
 
 def status(owner):
@@ -180,7 +180,7 @@ def main():
     assert invalid.is_valid()
     rejected = editor.EditorComponentAPIBus(bus.Broadcast, "SetComponentProperty", component, "Material", invalid)
     assert rejected.IsSuccess()
-    wait_for(lambda: "Incompatible tint material" in status(owner))
+    wait_for(lambda: "Incompatible terrain material" in status(owner))
     RESULTS["invalid_contract"] = status(owner)
     screenshot("invalid_retains_active")
     restored = editor.EditorComponentAPIBus(bus.Broadcast, "SetComponentProperty", component, "Material", material)

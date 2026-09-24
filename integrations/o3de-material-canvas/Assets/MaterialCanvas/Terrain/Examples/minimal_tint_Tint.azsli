@@ -1,8 +1,6 @@
 #pragma once
 #include <TerrainCompositor/TerrainMaterialSrg.azsli>
 #include <TerrainCompositor/TerrainSurface.azsli>
-#include <TerrainCanvas/LatticeNoise.azsli>
-#include <TerrainCanvas/SurfaceHelpers.azsli>
 // O3DE_GENERATED_INCLUDES_BEGIN
 // O3DE_GENERATED_INCLUDES_END
 // O3DE_GENERATED_CLASSES_BEGIN
@@ -16,11 +14,11 @@ TerrainSurfaceChannels TC_CanvasSurface(TerrainSurfaceContext context, TerrainSu
     // O3DE_GENERATED_INSTRUCTIONS_BEGIN: inTint, inBaseColor, inNormal, inRoughness, inMetalness, inSpecularFactor, inAmbientOcclusion
 float node1_terrain_tint_parameters_strength = saturate(TerrainMaterialSrg::m_canvasTintStrength);
 float3 node1_terrain_tint_parameters_color = TerrainMaterialSrg::m_canvasTintColor;
-float3 node2_lerp_rgb_a = {1, 1, 1};
-float3 node2_lerp_rgb_b = node1_terrain_tint_parameters_color;
-float node2_lerp_rgb_weight = node1_terrain_tint_parameters_strength;
-float3 node2_lerp_rgb_result = lerp(node2_lerp_rgb_a, node2_lerp_rgb_b, node2_lerp_rgb_weight);
-float3 inTint = node2_lerp_rgb_result;
+float3 node2_linear_interpolate_inValue1 = {1, 1, 1};
+float3 node2_linear_interpolate_inValue2 = node1_terrain_tint_parameters_color;
+float node2_linear_interpolate_inValue3 = node1_terrain_tint_parameters_strength;
+float3 node2_linear_interpolate_outValue = lerp(node2_linear_interpolate_inValue1, node2_linear_interpolate_inValue2, node2_linear_interpolate_inValue3);
+float3 inTint = node2_linear_interpolate_outValue;
 float3 inBaseColor = incoming.baseColor;
 float3 inNormal = incoming.normal;
 float inRoughness = incoming.roughness;

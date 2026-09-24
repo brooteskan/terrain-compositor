@@ -1,8 +1,6 @@
 #pragma once
 #include <TerrainCompositor/TerrainMaterialSrg.azsli>
 #include <TerrainCompositor/TerrainSurface.azsli>
-#include <TerrainCanvas/LatticeNoise.azsli>
-#include <TerrainCanvas/SurfaceHelpers.azsli>
 // O3DE_GENERATED_INCLUDES_BEGIN
 // O3DE_GENERATED_INCLUDES_END
 // O3DE_GENERATED_CLASSES_BEGIN

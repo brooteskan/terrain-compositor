@@ -3,50 +3,42 @@
     "Version": 1,
     "ClassName": "DynamicNodeConfig",
     "ClassData": {
-        "id": "{841DF26B-4D1C-509A-9922-201E8BF92C8F}",
-        "category": "Terrain",
-        "title": "Lerp RGB",
+        "id": "{720F17E4-1A62-5B57-84D7-090D2A2DA9B0}",
+        "category": "Compatibility",
+        "title": "Lerp Scalar (Legacy)",
         "titlePaletteName": "MathNodeTitlePalette",
-        "description": "Lerp RGB",
+        "description": "Compatibility node for existing graphs. Use stock Canvas math/geometry or the explicit Normal From Height node for new graphs.",
         "inputSlots": [
             {
                 "name": "a",
                 "displayName": "a",
                 "description": "a",
-                "supportedDataTypeRegex": "float3",
-                "defaultDataType": "float3",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
                 "settings": {
                     "instructions": [
                         "SLOTTYPE SLOTNAME = SLOTVALUE;"
                     ]
                 },
                 "defaultValue": {
-                    "$type": "Vector3",
-                    "Value": [
-                        1,
-                        1,
-                        1
-                    ]
+                    "$type": "float",
+                    "Value": 0
                 }
             },
             {
                 "name": "b",
                 "displayName": "b",
                 "description": "b",
-                "supportedDataTypeRegex": "float3",
-                "defaultDataType": "float3",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
                 "settings": {
                     "instructions": [
                         "SLOTTYPE SLOTNAME = SLOTVALUE;"
                     ]
                 },
                 "defaultValue": {
-                    "$type": "Vector3",
-                    "Value": [
-                        1,
-                        1,
-                        1
-                    ]
+                    "$type": "float",
+                    "Value": 1
                 }
             },
             {
@@ -62,7 +54,7 @@
                 },
                 "defaultValue": {
                     "$type": "float",
-                    "Value": 1
+                    "Value": 0
                 }
             }
         ],
@@ -71,8 +63,8 @@
                 "name": "result",
                 "displayName": "result",
                 "description": "result",
-                "supportedDataTypeRegex": "float3",
-                "defaultDataType": "float3",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
                 "settings": {
                     "instructions": [
                         "SLOTTYPE SLOTNAME = lerp(a, b, weight);"

@@ -1,0 +1,404 @@
+[
+  {
+    "id": "{20D18D54-9A1D-4C4E-B676-F72097AC3A93}",
+    "category": "Vertex",
+    "title": "World Position",
+    "titlePaletteName": "VertexNodeTitlePalette",
+    "description": "The world position of the current vertex or fragment",
+    "slotDataTypeGroups": [
+      "outPosition",
+      "outX|outY|outZ"
+    ],
+    "outputSlots": [
+      {
+        "name": "outPosition",
+        "displayName": "Position",
+        "description": "Position",
+        "supportedDataTypeRegex": "float3",
+        "defaultDataType": "float3",
+        "settings": {
+          "instructions": [
+            "SLOTTYPE SLOTNAME = O3DE_MC_POSITION_WS;"
+          ]
+        }
+      },
+      {
+        "name": "outX",
+        "displayName": "X",
+        "description": "X",
+        "supportedDataTypeRegex": "float",
+        "defaultDataType": "float",
+        "settings": {
+          "instructions": [
+            "SLOTTYPE SLOTNAME = O3DE_MC_POSITION_WS.x;"
+          ]
+        }
+      },
+      {
+        "name": "outY",
+        "displayName": "Y",
+        "description": "Y",
+        "supportedDataTypeRegex": "float",
+        "defaultDataType": "float",
+        "settings": {
+          "instructions": [
+            "SLOTTYPE SLOTNAME = O3DE_MC_POSITION_WS.y;"
+          ]
+        }
+      },
+      {
+        "name": "outZ",
+        "displayName": "Z",
+        "description": "Z",
+        "supportedDataTypeRegex": "float",
+        "defaultDataType": "float",
+        "settings": {
+          "instructions": [
+            "SLOTTYPE SLOTNAME = O3DE_MC_POSITION_WS.z;"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "{7DE0F2F0-1ADC-4B4B-ADDB-CA21B8D97816}",
+    "category": "Math Functions",
+    "title": "Multiply",
+    "titlePaletteName": "MathNodeTitlePalette",
+    "description": "Returns x * y (per component)",
+    "slotDataTypeGroups": [
+      "inValue1|inValue2|outValue"
+    ],
+    "inputSlots": [
+      {
+        "name": "inValue1",
+        "displayName": "Value1",
+        "description": "Value1",
+        "supportedDataTypeRegex": "(color|bool|int|uint|float)([1-4])?",
+        "defaultDataType": "float4",
+        "defaultValue": {
+          "$type": "Vector4",
+          "Value": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        "settings": {
+          "instructions": [
+            "SLOTTYPE SLOTNAME = SLOTVALUE;"
+          ]
+        }
+      },
+      {
+        "name": "inValue2",
+        "displayName": "Value2",
+        "description": "Value2",
+        "supportedDataTypeRegex": "(color|bool|int|uint|float)([1-4])?",
+        "defaultDataType": "float4",
+        "defaultValue": {
+          "$type": "Vector4",
+          "Value": [
+            1.0,
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        "settings": {
+          "instructions": [
+            "SLOTTYPE SLOTNAME = SLOTVALUE;"
+          ]
+        }
+      }
+    ],
+    "outputSlots": [
+      {
+        "name": "outValue",
+        "displayName": "Value",
+        "description": "Value",
+        "supportedDataTypeRegex": "float4",
+        "defaultDataType": "float4",
+        "settings": {
+          "instructions": [
+            "SLOTTYPE SLOTNAME = inValue1 * inValue2;"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "{8C2C6CEF-76DB-4567-A9E5-F39491A23454}",
+    "category": "Math Functions",
+    "title": "Smooth Step",
+    "titlePaletteName": "MathNodeTitlePalette",
+    "description": "Returns a smooth Hermite interpolation between 0 and 1 (per component)",
+    "slotDataTypeGroups": [
+      "inValue1|inValue2|inValue3|outValue"
+    ],
+    "inputSlots": [
+      {
+        "name": "inValue1",
+        "displayName": "Value1",
+        "description": "Value1",
+        "supportedDataTypeRegex": "(color|bool|int|uint|float)([1-4])?",
+        "defaultDataType": "float4",
+        "settings": {
+          "instructions": [
+            "SLOTTYPE SLOTNAME = SLOTVALUE;"
+          ]
+        }
+      },
+      {
+        "name": "inValue2",
+        "displayName": "Value2",
+        "description": "Value2",
+        "supportedDataTypeRegex": "(color|bool|int|uint|float)([1-4])?",
+        "defaultDataType": "float4",
+        "settings": {
+          "instructions": [
+            "SLOTTYPE SLOTNAME = SLOTVALUE;"
+          ]
+        }
+      },
+      {
+        "name": "inValue3",
+        "displayName": "Value3",
+        "description": "Value3",
+        "supportedDataTypeRegex": "(color|bool|int|uint|float)([1-4])?",
+        "defaultDataType": "float4",
+        "settings": {
+          "instructions": [
+            "SLOTTYPE SLOTNAME = SLOTVALUE;"
+          ]
+        }
+      }
+    ],
+    "outputSlots": [
+      {
+        "name": "outValue",
+        "displayName": "Value",
+        "description": "Value",
+        "supportedDataTypeRegex": "float4",
+        "defaultDataType": "float4",
+        "settings": {
+          "instructions": [
+            "SLOTTYPE SLOTNAME = smoothstep(inValue1, inValue2, inValue3);"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "{8DD887CA-DA8E-4F55-9DFE-1B89EA0310AB}",
+    "category": "Math Functions",
+    "title": "Linear Interpolate",
+    "titlePaletteName": "MathNodeTitlePalette",
+    "description": "Returns x + s(y - x)",
+    "slotDataTypeGroups": [
+      "inValue1|inValue2|inValue3|outValue"
+    ],
+    "inputSlots": [
+      {
+        "name": "inValue1",
+        "displayName": "Value1",
+        "description": "Value1",
+        "supportedDataTypeRegex": "(color|bool|int|uint|float)([1-4])?",
+        "defaultDataType": "float4",
+        "settings": {
+          "instructions": [
+            "SLOTTYPE SLOTNAME = SLOTVALUE;"
+          ]
+        }
+      },
+      {
+        "name": "inValue2",
+        "displayName": "Value2",
+        "description": "Value2",
+        "supportedDataTypeRegex": "(color|bool|int|uint|float)([1-4])?",
+        "defaultDataType": "float4",
+        "settings": {
+          "instructions": [
+            "SLOTTYPE SLOTNAME = SLOTVALUE;"
+          ]
+        }
+      },
+      {
+        "name": "inValue3",
+        "displayName": "T",
+        "description": "T",
+        "supportedDataTypeRegex": "(color|bool|int|uint|float)([1-4])?",
+        "defaultDataType": "float4",
+        "settings": {
+          "instructions": [
+            "SLOTTYPE SLOTNAME = SLOTVALUE;"
+          ]
+        }
+      }
+    ],
+    "outputSlots": [
+      {
+        "name": "outValue",
+        "displayName": "Value",
+        "description": "Value",
+        "supportedDataTypeRegex": "float4",
+        "defaultDataType": "float4",
+        "settings": {
+          "instructions": [
+            "SLOTTYPE SLOTNAME = lerp(inValue1, inValue2, inValue3);"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "{B3EA186B-20DB-4D94-89FD-18AFA1454328}",
+    "category": "Math Functions",
+    "title": "Subtract",
+    "titlePaletteName": "MathNodeTitlePalette",
+    "description": "Returns x - y (per component) ",
+    "slotDataTypeGroups": [
+      "inValue1|inValue2|outValue"
+    ],
+    "inputSlots": [
+      {
+        "name": "inValue1",
+        "displayName": "Value1",
+        "description": "Value1",
+        "supportedDataTypeRegex": "(color|bool|int|uint|float)([1-4])?",
+        "defaultDataType": "float4",
+        "settings": {
+          "instructions": [
+            "SLOTTYPE SLOTNAME = SLOTVALUE;"
+          ]
+        }
+      },
+      {
+        "name": "inValue2",
+        "displayName": "Value2",
+        "description": "Value2",
+        "supportedDataTypeRegex": "(color|bool|int|uint|float)([1-4])?",
+        "defaultDataType": "float4",
+        "settings": {
+          "instructions": [
+            "SLOTTYPE SLOTNAME = SLOTVALUE;"
+          ]
+        }
+      }
+    ],
+    "outputSlots": [
+      {
+        "name": "outValue",
+        "displayName": "Value",
+        "description": "Value",
+        "supportedDataTypeRegex": "float4",
+        "defaultDataType": "float4",
+        "settings": {
+          "instructions": [
+            "SLOTTYPE SLOTNAME = inValue1 - inValue2;"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "{F1C815E8-0B44-43EA-8176-D075B5B2EA41}",
+    "category": "Vertex",
+    "title": "World Normal",
+    "titlePaletteName": "VertexNodeTitlePalette",
+    "description": "The surface normal of the current vertex or fragment in world space",
+    "slotDataTypeGroups": [
+      "outNormal",
+      "outX|outY|outZ"
+    ],
+    "outputSlots": [
+      {
+        "name": "outNormal",
+        "displayName": "Normal",
+        "description": "Normal",
+        "supportedDataTypeRegex": "float3",
+        "defaultDataType": "float3",
+        "settings": {
+          "instructions": [
+            "SLOTTYPE SLOTNAME = O3DE_MC_NORMAL_WS;"
+          ]
+        }
+      },
+      {
+        "name": "outX",
+        "displayName": "X",
+        "description": "X",
+        "supportedDataTypeRegex": "float",
+        "defaultDataType": "float",
+        "settings": {
+          "instructions": [
+            "SLOTTYPE SLOTNAME = O3DE_MC_NORMAL_WS.x;"
+          ]
+        }
+      },
+      {
+        "name": "outY",
+        "displayName": "Y",
+        "description": "Y",
+        "supportedDataTypeRegex": "float",
+        "defaultDataType": "float",
+        "settings": {
+          "instructions": [
+            "SLOTTYPE SLOTNAME = O3DE_MC_NORMAL_WS.y;"
+          ]
+        }
+      },
+      {
+        "name": "outZ",
+        "displayName": "Z",
+        "description": "Z",
+        "supportedDataTypeRegex": "float",
+        "defaultDataType": "float",
+        "settings": {
+          "instructions": [
+            "SLOTTYPE SLOTNAME = O3DE_MC_NORMAL_WS.z;"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "{FCACB52B-CE60-4092-A5C7-17C35E8E4292}",
+    "category": "Math Functions",
+    "title": "Saturate",
+    "titlePaletteName": "MathNodeTitlePalette",
+    "description": "Clamps the input value to the range [0, 1] (per component)",
+    "slotDataTypeGroups": [
+      "inValue|outValue"
+    ],
+    "inputSlots": [
+      {
+        "name": "inValue",
+        "displayName": "Value",
+        "description": "Value",
+        "supportedDataTypeRegex": "(color|bool|int|uint|float)([1-4])?",
+        "defaultDataType": "float4",
+        "settings": {
+          "instructions": [
+            "SLOTTYPE SLOTNAME = SLOTVALUE;"
+          ]
+        }
+      }
+    ],
+    "outputSlots": [
+      {
+        "name": "outValue",
+        "displayName": "Value",
+        "description": "Value",
+        "supportedDataTypeRegex": "float4",
+        "defaultDataType": "float4",
+        "settings": {
+          "instructions": [
+            "SLOTTYPE SLOTNAME = saturate(inValue);"
+          ]
+        }
+      }
+    ]
+  }
+]

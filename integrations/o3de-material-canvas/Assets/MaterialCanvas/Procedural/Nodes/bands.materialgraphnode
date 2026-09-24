@@ -3,29 +3,46 @@
     "Version": 1,
     "ClassName": "DynamicNodeConfig",
     "ClassData": {
-        "id": "{1A4AFAD9-4D91-5A16-B9F9-754869679E87}",
-        "category": "Terrain",
-        "title": "Pixel Footprint",
+        "id": "{890265DE-47BB-5824-80E3-1D16F85226C4}",
+        "category": "Procedural",
+        "title": "World Bands",
         "titlePaletteName": "MathNodeTitlePalette",
-        "description": "Pixel Footprint",
+        "description": "Sine bands along the input position X axis: 0.5 + 0.5 * sin(x / max(scale, 0.0001)).",
         "inputSlots": [
             {
                 "name": "position",
                 "displayName": "position",
                 "description": "position",
-                "supportedDataTypeRegex": "float2",
-                "defaultDataType": "float2",
+                "supportedDataTypeRegex": "float3",
+                "defaultDataType": "float3",
                 "settings": {
                     "instructions": [
                         "SLOTTYPE SLOTNAME = SLOTVALUE;"
                     ]
                 },
                 "defaultValue": {
-                    "$type": "Vector2",
+                    "$type": "Vector3",
                     "Value": [
+                        0,
                         0,
                         0
                     ]
+                }
+            },
+            {
+                "name": "scale",
+                "displayName": "scale",
+                "description": "scale",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 64
                 }
             }
         ],
@@ -38,7 +55,7 @@
                 "defaultDataType": "float",
                 "settings": {
                     "instructions": [
-                        "SLOTTYPE SLOTNAME = max(length(ddx(position)), length(ddy(position)));"
+                        "SLOTTYPE SLOTNAME = 0.5 + 0.5 * sin(position.x / max(scale, 0.0001));"
                     ]
                 }
             }

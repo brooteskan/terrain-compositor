@@ -1,0 +1,478 @@
+{
+    "Type": "JsonSerialization",
+    "Version": 1,
+    "ClassName": "Graph",
+    "ClassData": {
+        "m_nodes": [
+            {
+                "Key": 1,
+                "Value": {
+                    "$type": "DynamicNode",
+                    "toolId": 2034248906,
+                    "configId": "{1A73E777-16E3-5B32-B0DA-DAF3BB0BF1D8}"
+                }
+            },
+            {
+                "Key": 2,
+                "Value": {
+                    "$type": "DynamicNode",
+                    "toolId": 2034248906,
+                    "configId": "{B7B9EC6B-A0E9-56D3-98E3-FF3721AA38B7}",
+                    "m_inputDataSlots": [
+                        {
+                            "Key": {
+                                "m_name": "low"
+                            },
+                            "Value": {
+                                "m_value": {
+                                    "$type": "float",
+                                    "Value": 0.1
+                                }
+                            }
+                        },
+                        {
+                            "Key": {
+                                "m_name": "high"
+                            },
+                            "Value": {
+                                "m_value": {
+                                    "$type": "float",
+                                    "Value": 0.6
+                                }
+                            }
+                        },
+                        {
+                            "Key": {
+                                "m_name": "value"
+                            },
+                            "Value": {
+                                "m_value": {
+                                    "$type": "float",
+                                    "Value": 0
+                                }
+                            }
+                        }
+                    ]
+                }
+            },
+            {
+                "Key": 3,
+                "Value": {
+                    "$type": "DynamicNode",
+                    "toolId": 2034248906,
+                    "configId": "{B7B9EC6B-A0E9-56D3-98E3-FF3721AA38B7}",
+                    "m_inputDataSlots": [
+                        {
+                            "Key": {
+                                "m_name": "low"
+                            },
+                            "Value": {
+                                "m_value": {
+                                    "$type": "float",
+                                    "Value": 0
+                                }
+                            }
+                        },
+                        {
+                            "Key": {
+                                "m_name": "high"
+                            },
+                            "Value": {
+                                "m_value": {
+                                    "$type": "float",
+                                    "Value": 20
+                                }
+                            }
+                        },
+                        {
+                            "Key": {
+                                "m_name": "value"
+                            },
+                            "Value": {
+                                "m_value": {
+                                    "$type": "float",
+                                    "Value": 0
+                                }
+                            }
+                        }
+                    ]
+                }
+            },
+            {
+                "Key": 4,
+                "Value": {
+                    "$type": "DynamicNode",
+                    "toolId": 2034248906,
+                    "configId": "{841DF26B-4D1C-509A-9922-201E8BF92C8F}",
+                    "m_inputDataSlots": [
+                        {
+                            "Key": {
+                                "m_name": "a"
+                            },
+                            "Value": {
+                                "m_value": {
+                                    "$type": "Vector3",
+                                    "Value": [
+                                        0.08,
+                                        0.15,
+                                        0.035
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "Key": {
+                                "m_name": "b"
+                            },
+                            "Value": {
+                                "m_value": {
+                                    "$type": "Vector3",
+                                    "Value": [
+                                        0.32,
+                                        0.28,
+                                        0.23
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "Key": {
+                                "m_name": "weight"
+                            },
+                            "Value": {
+                                "m_value": {
+                                    "$type": "float",
+                                    "Value": 1
+                                }
+                            }
+                        }
+                    ]
+                }
+            },
+            {
+                "Key": 5,
+                "Value": {
+                    "$type": "DynamicNode",
+                    "toolId": 2034248906,
+                    "configId": "{841DF26B-4D1C-509A-9922-201E8BF92C8F}",
+                    "m_inputDataSlots": [
+                        {
+                            "Key": {
+                                "m_name": "a"
+                            },
+                            "Value": {
+                                "m_value": {
+                                    "$type": "Vector3",
+                                    "Value": [
+                                        1,
+                                        1,
+                                        1
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "Key": {
+                                "m_name": "b"
+                            },
+                            "Value": {
+                                "m_value": {
+                                    "$type": "Vector3",
+                                    "Value": [
+                                        0.8,
+                                        0.85,
+                                        0.9
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "Key": {
+                                "m_name": "weight"
+                            },
+                            "Value": {
+                                "m_value": {
+                                    "$type": "float",
+                                    "Value": 1
+                                }
+                            }
+                        }
+                    ]
+                }
+            },
+            {
+                "Key": 6,
+                "Value": {
+                    "$type": "DynamicNode",
+                    "toolId": 2034248906,
+                    "configId": "{EB039C35-AA34-58D2-9992-BF88368F5DFB}",
+                    "m_inputDataSlots": [
+                        {
+                            "Key": {
+                                "m_name": "inTint"
+                            },
+                            "Value": {
+                                "m_value": {
+                                    "$type": "Vector3",
+                                    "Value": [
+                                        1,
+                                        1,
+                                        1
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "Key": {
+                                "m_name": "inBaseColor"
+                            },
+                            "Value": {
+                                "m_value": {
+                                    "$type": "Vector3",
+                                    "Value": [
+                                        1,
+                                        1,
+                                        1
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "Key": {
+                                "m_name": "inNormal"
+                            },
+                            "Value": {
+                                "m_value": {
+                                    "$type": "Vector3",
+                                    "Value": [
+                                        0,
+                                        0,
+                                        1
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "Key": {
+                                "m_name": "inRoughness"
+                            },
+                            "Value": {
+                                "m_value": {
+                                    "$type": "float",
+                                    "Value": 1
+                                }
+                            }
+                        },
+                        {
+                            "Key": {
+                                "m_name": "inMetalness"
+                            },
+                            "Value": {
+                                "m_value": {
+                                    "$type": "float",
+                                    "Value": 0
+                                }
+                            }
+                        },
+                        {
+                            "Key": {
+                                "m_name": "inSpecularFactor"
+                            },
+                            "Value": {
+                                "m_value": {
+                                    "$type": "float",
+                                    "Value": 0.5
+                                }
+                            }
+                        },
+                        {
+                            "Key": {
+                                "m_name": "inAmbientOcclusion"
+                            },
+                            "Value": {
+                                "m_value": {
+                                    "$type": "float",
+                                    "Value": 1
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        ],
+        "m_connections": [
+            {
+                "m_sourceEndpoint": [
+                    1,
+                    {
+                        "m_name": "slope"
+                    }
+                ],
+                "m_targetEndpoint": [
+                    2,
+                    {
+                        "m_name": "value"
+                    }
+                ]
+            },
+            {
+                "m_sourceEndpoint": [
+                    1,
+                    {
+                        "m_name": "elevation"
+                    }
+                ],
+                "m_targetEndpoint": [
+                    3,
+                    {
+                        "m_name": "value"
+                    }
+                ]
+            },
+            {
+                "m_sourceEndpoint": [
+                    2,
+                    {
+                        "m_name": "result"
+                    }
+                ],
+                "m_targetEndpoint": [
+                    4,
+                    {
+                        "m_name": "weight"
+                    }
+                ]
+            },
+            {
+                "m_sourceEndpoint": [
+                    4,
+                    {
+                        "m_name": "result"
+                    }
+                ],
+                "m_targetEndpoint": [
+                    5,
+                    {
+                        "m_name": "a"
+                    }
+                ]
+            },
+            {
+                "m_sourceEndpoint": [
+                    3,
+                    {
+                        "m_name": "result"
+                    }
+                ],
+                "m_targetEndpoint": [
+                    5,
+                    {
+                        "m_name": "weight"
+                    }
+                ]
+            },
+            {
+                "m_sourceEndpoint": [
+                    5,
+                    {
+                        "m_name": "result"
+                    }
+                ],
+                "m_targetEndpoint": [
+                    6,
+                    {
+                        "m_name": "inBaseColor"
+                    }
+                ]
+            }
+        ],
+        "m_uiMetadata": {
+            "m_nodeMetadata": [
+                {
+                    "Key": 1,
+                    "Value": {
+                        "ComponentData": {
+                            "{7CC444B1-F9B3-41B5-841B-0C4F2179F111}": {
+                                "$type": "GeometrySaveData",
+                                "Position": [
+                                    0,
+                                    0
+                                ]
+                            }
+                        }
+                    }
+                },
+                {
+                    "Key": 2,
+                    "Value": {
+                        "ComponentData": {
+                            "{7CC444B1-F9B3-41B5-841B-0C4F2179F111}": {
+                                "$type": "GeometrySaveData",
+                                "Position": [
+                                    350,
+                                    -200
+                                ]
+                            }
+                        }
+                    }
+                },
+                {
+                    "Key": 3,
+                    "Value": {
+                        "ComponentData": {
+                            "{7CC444B1-F9B3-41B5-841B-0C4F2179F111}": {
+                                "$type": "GeometrySaveData",
+                                "Position": [
+                                    350,
+                                    200
+                                ]
+                            }
+                        }
+                    }
+                },
+                {
+                    "Key": 4,
+                    "Value": {
+                        "ComponentData": {
+                            "{7CC444B1-F9B3-41B5-841B-0C4F2179F111}": {
+                                "$type": "GeometrySaveData",
+                                "Position": [
+                                    700,
+                                    -150
+                                ]
+                            }
+                        }
+                    }
+                },
+                {
+                    "Key": 5,
+                    "Value": {
+                        "ComponentData": {
+                            "{7CC444B1-F9B3-41B5-841B-0C4F2179F111}": {
+                                "$type": "GeometrySaveData",
+                                "Position": [
+                                    1050,
+                                    0
+                                ]
+                            }
+                        }
+                    }
+                },
+                {
+                    "Key": 6,
+                    "Value": {
+                        "ComponentData": {
+                            "{7CC444B1-F9B3-41B5-841B-0C4F2179F111}": {
+                                "$type": "GeometrySaveData",
+                                "Position": [
+                                    1400,
+                                    0
+                                ]
+                            }
+                        }
+                    }
+                }
+            ]
+        }
+    }
+}

@@ -57,8 +57,8 @@ try
     context->OMSetRenderTargets(1, &view, nullptr);
     context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     const auto common = Read(TERRAIN_SHADERS "/TerrainSurface.azsli") +
-        Read(CANVAS_ROOT "/Assets/ShaderLib/TerrainCanvas/LatticeNoise.azsli") +
-        Read(CANVAS_ROOT "/Assets/ShaderLib/TerrainCanvas/SurfaceHelpers.azsli");
+        Read(CANVAS_ROOT "/Assets/ShaderLib/MaterialCanvas/Procedural/LatticeNoise.azsli") +
+        Read(CANVAS_ROOT "/Assets/ShaderLib/MaterialCanvas/Procedural/NormalFromHeight.azsli");
     const std::string vertex = R"(
 float4 VS(uint id : SV_VertexID) : SV_Position {
     return float4(id == 2 ? 3 : -1, id == 1 ? 3 : -1, 0, 1);
@@ -72,6 +72,10 @@ float4 VS(uint id : SV_VertexID) : SV_Position {
     struct Case { const char* name; std::string function; std::array<float, 12> expected; };
     const std::array<float, 12> incoming{.2f,.4f,.6f,.7f, 0,0,1,.3f, .45f,.8f,0,1};
     const float n = 1.0f / std::sqrt(1.25f);
+    const float tiltedX = -.5f * n - .24f;
+    const float tiltedZ = n - .12f;
+    const float tiltedLength = std::sqrt(tiltedX * tiltedX + .16f + tiltedZ * tiltedZ);
+    const float shadingLength = std::sqrt(.09f + .16f + 1.025f * 1.025f);
     const Case cases[]{
         {"native unconnected surface", Read(CANVAS_ROOT "/Assets/MaterialCanvas/Terrain/Examples/surface_passthrough_Tint.azsli"), incoming},
         {"native six connected channels", Read(CANVAS_ROOT "/Assets/MaterialCanvas/Terrain/Examples/surface_channels_Tint.azsli"),
@@ -81,6 +85,37 @@ TerrainSurfaceChannels TC_CanvasSurface(TerrainSurfaceContext ctx, TerrainSurfac
     s.normal = TC_NormalFromHeight(ctx.worldPosition, s.normal, 0.3 * ctx.worldPosition.x + 0.4 * ctx.worldPosition.y, 1);
     return s;
 })", {.2f,.4f,.6f,.7f, -.3f*n,-.4f*n,n,.3f, .45f,.8f,0,1}},
+        {"sloped position derivatives", R"(
+TerrainSurfaceChannels TC_CanvasSurface(TerrainSurfaceContext ctx, TerrainSurfaceChannels s) {
+    float3 p = float3(ctx.worldPosition.xy, .5 * ctx.worldPosition.x);
+    s.normal = TC_NormalFromHeight(p, normalize(float3(-.5,0,1)), .3*p.x + .4*p.y, 1);
+    return s;
+})", {.2f,.4f,.6f,.7f, tiltedX/tiltedLength,-.4f/tiltedLength,tiltedZ/tiltedLength,.3f, .45f,.8f,0,1}},
+        {"ordinary vertical mesh", R"(
+TerrainSurfaceChannels TC_CanvasSurface(TerrainSurfaceContext ctx, TerrainSurfaceChannels s) {
+    float3 p = float3(ctx.worldPosition.x, 0, ctx.worldPosition.y);
+    s.normal = TC_NormalFromHeight(p, float3(0,1,0), .3*p.x + .4*p.z, 1);
+    return s;
+})", {.2f,.4f,.6f,.7f, -.3f*n,n,-.4f*n,.3f, .45f,.8f,0,1}},
+        {"mirrored derivative orientation", R"(
+TerrainSurfaceChannels TC_CanvasSurface(TerrainSurfaceContext ctx, TerrainSurfaceChannels s) {
+    float3 p = float3(-ctx.worldPosition.x, ctx.worldPosition.y, 0);
+    s.normal = TC_NormalFromHeight(p, float3(0,0,1), .3*p.x + .4*p.y, 1);
+    return s;
+})", {.2f,.4f,.6f,.7f, -.3f*n,-.4f*n,n,.3f, .45f,.8f,0,1}},
+        {"explicit composed shading normal", R"(
+TerrainSurfaceChannels TC_CanvasSurface(TerrainSurfaceContext ctx, TerrainSurfaceChannels s) {
+    s.normal = TC_NormalFromHeight(ctx.worldPosition, float3(.6,0,.8), .3*ctx.worldPosition.x + .4*ctx.worldPosition.y, 1);
+    return s;
+})", {.2f,.4f,.6f,.7f, .3f/shadingLength,-.4f/shadingLength,1.025f/shadingLength,.3f, .45f,.8f,0,1}},
+        {"constant height preserves base normal", R"(
+TerrainSurfaceChannels TC_CanvasSurface(TerrainSurfaceContext ctx, TerrainSurfaceChannels s) {
+    s.normal = TC_NormalFromHeight(ctx.worldPosition, s.normal, 14.0, 1); return s;
+})", incoming},
+        {"invalid derivative height falls back", R"(
+TerrainSurfaceChannels TC_CanvasSurface(TerrainSurfaceContext ctx, TerrainSurfaceChannels s) {
+    s.normal = TC_NormalFromHeight(ctx.worldPosition, s.normal, asfloat(0x7fc00000), 1); return s;
+})", incoming},
         {"zero-strength normal", R"(
 TerrainSurfaceChannels TC_CanvasSurface(TerrainSurfaceContext ctx, TerrainSurfaceChannels s) {
     s.normal = TC_NormalFromHeight(ctx.worldPosition, s.normal, ctx.worldPosition.x, 0); return s;

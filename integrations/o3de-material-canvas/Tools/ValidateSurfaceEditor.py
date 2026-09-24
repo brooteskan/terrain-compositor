@@ -129,9 +129,12 @@ def graph_reload(owner, selector):
         previous = shader_job()[0]
         edited = json.loads(original)
         node = next(n['Value'] for n in edited['ClassData']['m_nodes'] if n['Key'] == 9)
+        changed = 0
         for slot in node['m_inputDataSlots']:
-            if slot['Key']['m_name'] in ('a', 'b'):
+            if slot['Key']['m_name'] in ('a', 'b', 'inValue1', 'inValue2'):
                 slot['Value']['m_value']['Value'] = [0.05, 0.2, 0.8]
+                changed += 1
+        assert changed == 2, 'Reload probe must change both color inputs'
         graph.write_text(json.dumps(edited, indent=4) + '\n', encoding='utf-8')
         compile_graph(previous)
         capture('reload-blue')
@@ -226,7 +229,7 @@ def main():
                     gpu_capture(f'{mode}-{name}-{sample}')
             invalid = asset.AssetCatalogRequestBus(bus.Broadcast, 'GetAssetIdByPath', 'materials/terrain/defaultpbrterrain.azmaterial', math.Uuid(), False)
             change(selector, 'Material', invalid)
-            wait(lambda: 'Incompatible tint material' in get_status(owner))
+            wait(lambda: 'Incompatible terrain material' in get_status(owner))
             RESULT[mode + '_invalid_candidate'] = get_status(owner)
             capture(mode + '-invalid-retains-surface')
             change(selector, 'Material', material)

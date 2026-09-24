@@ -1,8 +1,6 @@
 #pragma once
 #include <TerrainCompositor/TerrainMaterialSrg.azsli>
 #include <TerrainCompositor/TerrainSurface.azsli>
-#include <TerrainCanvas/LatticeNoise.azsli>
-#include <TerrainCanvas/SurfaceHelpers.azsli>
 // O3DE_GENERATED_INCLUDES_BEGIN
 // O3DE_GENERATED_INCLUDES_END
 // O3DE_GENERATED_CLASSES_BEGIN
@@ -21,11 +19,11 @@ float node3_world_xy_scale_scale = 64;
 float2 node3_world_xy_scale_value = node3_world_xy_scale_position.xy / max(node3_world_xy_scale_scale, 0.0001);
 float2 node4_terrain_tint_texture_uv = node3_world_xy_scale_value;
 float3 node4_terrain_tint_texture_color = TerrainMaterialSrg::m_canvasTintTexture.Sample(TerrainMaterialSrg::m_canvasTintSampler, node4_terrain_tint_texture_uv).rgb;
-float3 node5_lerp_rgb_a = {1, 1, 1};
-float3 node5_lerp_rgb_b = node4_terrain_tint_texture_color;
-float node5_lerp_rgb_weight = node1_terrain_tint_parameters_strength;
-float3 node5_lerp_rgb_result = lerp(node5_lerp_rgb_a, node5_lerp_rgb_b, node5_lerp_rgb_weight);
-float3 inTint = node5_lerp_rgb_result;
+float3 node5_linear_interpolate_inValue1 = {1, 1, 1};
+float3 node5_linear_interpolate_inValue2 = node4_terrain_tint_texture_color;
+float node5_linear_interpolate_inValue3 = node1_terrain_tint_parameters_strength;
+float3 node5_linear_interpolate_outValue = lerp(node5_linear_interpolate_inValue1, node5_linear_interpolate_inValue2, node5_linear_interpolate_inValue3);
+float3 inTint = node5_linear_interpolate_outValue;
 float3 inBaseColor = incoming.baseColor;
 float3 inNormal = incoming.normal;
 float inRoughness = incoming.roughness;

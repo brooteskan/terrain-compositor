@@ -9,7 +9,7 @@
                 "Value": {
                     "$type": "DynamicNode",
                     "toolId": 2034248906,
-                    "configId": "{1A73E777-16E3-5B32-B0DA-DAF3BB0BF1D8}"
+                    "configId": "{20D18D54-9A1D-4C4E-B676-F72097AC3A93}"
                 }
             },
             {
@@ -17,11 +17,11 @@
                 "Value": {
                     "$type": "DynamicNode",
                     "toolId": 2034248906,
-                    "configId": "{B7B9EC6B-A0E9-56D3-98E3-FF3721AA38B7}",
+                    "configId": "{8C2C6CEF-76DB-4567-A9E5-F39491A23454}",
                     "m_inputDataSlots": [
                         {
                             "Key": {
-                                "m_name": "low"
+                                "m_name": "inValue1"
                             },
                             "Value": {
                                 "m_value": {
@@ -32,7 +32,7 @@
                         },
                         {
                             "Key": {
-                                "m_name": "high"
+                                "m_name": "inValue2"
                             },
                             "Value": {
                                 "m_value": {
@@ -43,7 +43,7 @@
                         },
                         {
                             "Key": {
-                                "m_name": "value"
+                                "m_name": "inValue3"
                             },
                             "Value": {
                                 "m_value": {
@@ -60,11 +60,11 @@
                 "Value": {
                     "$type": "DynamicNode",
                     "toolId": 2034248906,
-                    "configId": "{B7B9EC6B-A0E9-56D3-98E3-FF3721AA38B7}",
+                    "configId": "{8C2C6CEF-76DB-4567-A9E5-F39491A23454}",
                     "m_inputDataSlots": [
                         {
                             "Key": {
-                                "m_name": "low"
+                                "m_name": "inValue1"
                             },
                             "Value": {
                                 "m_value": {
@@ -75,7 +75,7 @@
                         },
                         {
                             "Key": {
-                                "m_name": "high"
+                                "m_name": "inValue2"
                             },
                             "Value": {
                                 "m_value": {
@@ -86,7 +86,7 @@
                         },
                         {
                             "Key": {
-                                "m_name": "value"
+                                "m_name": "inValue3"
                             },
                             "Value": {
                                 "m_value": {
@@ -103,11 +103,11 @@
                 "Value": {
                     "$type": "DynamicNode",
                     "toolId": 2034248906,
-                    "configId": "{841DF26B-4D1C-509A-9922-201E8BF92C8F}",
+                    "configId": "{8DD887CA-DA8E-4F55-9DFE-1B89EA0310AB}",
                     "m_inputDataSlots": [
                         {
                             "Key": {
-                                "m_name": "a"
+                                "m_name": "inValue1"
                             },
                             "Value": {
                                 "m_value": {
@@ -122,7 +122,7 @@
                         },
                         {
                             "Key": {
-                                "m_name": "b"
+                                "m_name": "inValue2"
                             },
                             "Value": {
                                 "m_value": {
@@ -137,7 +137,7 @@
                         },
                         {
                             "Key": {
-                                "m_name": "weight"
+                                "m_name": "inValue3"
                             },
                             "Value": {
                                 "m_value": {
@@ -154,11 +154,11 @@
                 "Value": {
                     "$type": "DynamicNode",
                     "toolId": 2034248906,
-                    "configId": "{841DF26B-4D1C-509A-9922-201E8BF92C8F}",
+                    "configId": "{8DD887CA-DA8E-4F55-9DFE-1B89EA0310AB}",
                     "m_inputDataSlots": [
                         {
                             "Key": {
-                                "m_name": "a"
+                                "m_name": "inValue1"
                             },
                             "Value": {
                                 "m_value": {
@@ -173,7 +173,7 @@
                         },
                         {
                             "Key": {
-                                "m_name": "b"
+                                "m_name": "inValue2"
                             },
                             "Value": {
                                 "m_value": {
@@ -188,7 +188,7 @@
                         },
                         {
                             "Key": {
-                                "m_name": "weight"
+                                "m_name": "inValue3"
                             },
                             "Value": {
                                 "m_value": {
@@ -298,20 +298,81 @@
                         }
                     ]
                 }
+            },
+            {
+                "Key": 7,
+                "Value": {
+                    "$type": "DynamicNode",
+                    "toolId": 2034248906,
+                    "configId": "{F1C815E8-0B44-43EA-8176-D075B5B2EA41}"
+                }
+            },
+            {
+                "Key": 8,
+                "Value": {
+                    "$type": "DynamicNode",
+                    "toolId": 2034248906,
+                    "configId": "{FCACB52B-CE60-4092-A5C7-17C35E8E4292}",
+                    "m_inputDataSlots": [
+                        {
+                            "Key": {
+                                "m_name": "inValue"
+                            },
+                            "Value": {
+                                "m_value": {
+                                    "$type": "float",
+                                    "Value": 0
+                                }
+                            }
+                        }
+                    ]
+                }
+            },
+            {
+                "Key": 9,
+                "Value": {
+                    "$type": "DynamicNode",
+                    "toolId": 2034248906,
+                    "configId": "{B3EA186B-20DB-4D94-89FD-18AFA1454328}",
+                    "m_inputDataSlots": [
+                        {
+                            "Key": {
+                                "m_name": "inValue1"
+                            },
+                            "Value": {
+                                "m_value": {
+                                    "$type": "float",
+                                    "Value": 1
+                                }
+                            }
+                        },
+                        {
+                            "Key": {
+                                "m_name": "inValue2"
+                            },
+                            "Value": {
+                                "m_value": {
+                                    "$type": "float",
+                                    "Value": 0
+                                }
+                            }
+                        }
+                    ]
+                }
             }
         ],
         "m_connections": [
             {
                 "m_sourceEndpoint": [
-                    1,
+                    9,
                     {
-                        "m_name": "slope"
+                        "m_name": "outValue"
                     }
                 ],
                 "m_targetEndpoint": [
                     2,
                     {
-                        "m_name": "value"
+                        "m_name": "inValue3"
                     }
                 ]
             },
@@ -319,13 +380,13 @@
                 "m_sourceEndpoint": [
                     1,
                     {
-                        "m_name": "elevation"
+                        "m_name": "outZ"
                     }
                 ],
                 "m_targetEndpoint": [
                     3,
                     {
-                        "m_name": "value"
+                        "m_name": "inValue3"
                     }
                 ]
             },
@@ -333,13 +394,13 @@
                 "m_sourceEndpoint": [
                     2,
                     {
-                        "m_name": "result"
+                        "m_name": "outValue"
                     }
                 ],
                 "m_targetEndpoint": [
                     4,
                     {
-                        "m_name": "weight"
+                        "m_name": "inValue3"
                     }
                 ]
             },
@@ -347,13 +408,13 @@
                 "m_sourceEndpoint": [
                     4,
                     {
-                        "m_name": "result"
+                        "m_name": "outValue"
                     }
                 ],
                 "m_targetEndpoint": [
                     5,
                     {
-                        "m_name": "a"
+                        "m_name": "inValue1"
                     }
                 ]
             },
@@ -361,13 +422,13 @@
                 "m_sourceEndpoint": [
                     3,
                     {
-                        "m_name": "result"
+                        "m_name": "outValue"
                     }
                 ],
                 "m_targetEndpoint": [
                     5,
                     {
-                        "m_name": "weight"
+                        "m_name": "inValue3"
                     }
                 ]
             },
@@ -375,13 +436,41 @@
                 "m_sourceEndpoint": [
                     5,
                     {
-                        "m_name": "result"
+                        "m_name": "outValue"
                     }
                 ],
                 "m_targetEndpoint": [
                     6,
                     {
                         "m_name": "inBaseColor"
+                    }
+                ]
+            },
+            {
+                "m_sourceEndpoint": [
+                    7,
+                    {
+                        "m_name": "outZ"
+                    }
+                ],
+                "m_targetEndpoint": [
+                    8,
+                    {
+                        "m_name": "inValue"
+                    }
+                ]
+            },
+            {
+                "m_sourceEndpoint": [
+                    8,
+                    {
+                        "m_name": "outValue"
+                    }
+                ],
+                "m_targetEndpoint": [
+                    9,
+                    {
+                        "m_name": "inValue2"
                     }
                 ]
             }
@@ -467,6 +556,48 @@
                                 "Position": [
                                     1400,
                                     0
+                                ]
+                            }
+                        }
+                    }
+                },
+                {
+                    "Key": 7,
+                    "Value": {
+                        "ComponentData": {
+                            "{7CC444B1-F9B3-41B5-841B-0C4F2179F111}": {
+                                "$type": "GeometrySaveData",
+                                "Position": [
+                                    -280,
+                                    180
+                                ]
+                            }
+                        }
+                    }
+                },
+                {
+                    "Key": 8,
+                    "Value": {
+                        "ComponentData": {
+                            "{7CC444B1-F9B3-41B5-841B-0C4F2179F111}": {
+                                "$type": "GeometrySaveData",
+                                "Position": [
+                                    280,
+                                    160
+                                ]
+                            }
+                        }
+                    }
+                },
+                {
+                    "Key": 9,
+                    "Value": {
+                        "ComponentData": {
+                            "{7CC444B1-F9B3-41B5-841B-0C4F2179F111}": {
+                                "$type": "GeometrySaveData",
+                                "Position": [
+                                    560,
+                                    160
                                 ]
                             }
                         }

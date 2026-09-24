@@ -12,8 +12,9 @@ unconnected sockets; use that rebuilt MaterialCanvas, not another engine install
 
 1. Open `Assets/MaterialCanvas/Terrain/Examples/wet_terrain.materialgraph`, or start
    from `surface_passthrough.materialgraph`.
-2. Use **Terrain Geometry** for world position, slope and elevation, and **Terrain
-   Surface Inputs** for the existing composed material channels.
+2. Use stock **World Position** and **World Normal** under **Vertex**. World Position's
+   Z output supplies elevation; `1 - saturate(World Normal.Z)` supplies the existing
+   Z-up slope mask. Use **Terrain Surface Inputs** for composed material channels.
 3. Connect procedural results to **Terrain Output**. Unconnected channels preserve
    incoming terrain values. Connect a Constant node for an explicit fixed value.
 4. Compile the graph and let Asset Processor finish shader and material jobs.
@@ -45,8 +46,10 @@ owns its surface effect exclusively.
 | Ambient Occlusion | Existing diffuse ambient occlusion, clamped to 0-1. Inheritance preserves terrain's current fade policy. |
 
 World position is in meters. Use geometric normal for slope masks; composed shading
-normal includes the existing material detail. **Normal From Procedural Height** takes a
-scalar height in meters and dimensionless strength. Zero strength preserves the normal.
+normal includes the existing material detail. **Normal From Height** under **Math Functions**
+takes explicit world position and base world-space normal, scalar height in meters,
+and dimensionless strength. For terrain, wire World Position and Terrain Surface Inputs'
+Normal into those inputs. Zero strength preserves the normalized base normal.
 It changes shading only. Filter small noise features with Pixel Footprint to avoid distant
 shimmer, as demonstrated by the examples. Compatible stock World Position, World Normal,
 constant and math nodes work. Color vectors are working RGB, not display sRGB.
@@ -70,14 +73,41 @@ material-type paths and existing material parameter names are retained.
 To make the old connection visible as Base Color multiplication:
 
 ```text
-python Tools/MigrateTintGraphs.py path/to/graph.materialgraph
-python Tools/MigrateTintGraphs.py path/to/graph.materialgraph --write
+python Tools/MigrateTintGraphs.py path/to/graph.materialgraph --engine-root <o3de>
+python Tools/MigrateTintGraphs.py path/to/graph.materialgraph --engine-root <o3de> --write
 ```
 
 The first command is a dry run. Writing creates an exclusive `.materialgraph.bak` backup,
 rewires the tint expression through a multiply node, and resets the compatibility input.
 Existing explicit Base Color connections are preserved. Run on closed documents, reopen
 in Canvas and compile. Migration is idempotent and does not modify `.material` files.
+
+Use `Tools/MigrateReusableNodes.py` with the same arguments to replace legacy math,
+geometry, and implicit terrain normal nodes with stock math/geometry and explicit
+normal inputs. It preserves legacy defaults, typed values, connections, graph IDs,
+and layout metadata. Unsupported narrowing conversions are reported without changing
+that graph; add the explicit stock conversion before retrying. Both tools validate
+the selected engine's stock node contracts, default to dry-run, and refuse existing
+backup files. Run on closed documents. Existing graphs work without migration.
+
+Legacy UUIDs remain registered under **Compatibility**. New graphs use stock
+**Linear Interpolate**, **Multiply**, and **Smooth Step**. Noise and World Bands are
+under **Procedural**; Pixel Footprint, World XY / Scale, and Normal From Height are
+under **Math Functions**. Terrain Output is under **Material Outputs**. Procedural helpers
+declare their own includes and also work with ordinary mesh outputs. Pixel Footprint
+and Normal From Height require fragment derivatives and uniform evaluation across
+derivative quads; they are not vertex/displacement operations.
+
+For stock Standard PBR, transform the world-space normal to the world tangent basis
+and pack signed tangent XY in the decoder's Y/X order before connecting Normal.
+Enable the output's Normal input. See `Tests/Fixtures/Portable/normal_lit.materialgraph`
+for an analytic height example and `procedural_helpers.materialgraph` for portable
+noise/filtering. These are validation sources: compile copies into a disposable
+project scan folder because stock Standard PBR also generates a `.material` file.
+
+Generated `_Tint.azsli` names, `tint.*` material properties, and component/bus IDs
+remain stable for compatibility. Surface graphs still evaluate the full supported
+surface contract regardless of that retained filename.
 
 Compare pass-through against terrain with legacy tint disabled; compare migrated tint
 graphs against their original matching settings. These are distinct parity checks.
@@ -108,6 +138,11 @@ They normally reload without restarting Editor. Compiler/Gem changes require reb
 and restarting tools. After a scene ownership conflict, resolve it and reselect the
 material; scene discovery retains its bounded retry behavior.
 
+When changing the terrain engine override, rebuild all consumers that link it:
+`Terrain`, `Terrain.Editor`, `TerrainCompositor`, `TerrainCompositor.Editor`,
+`TerrainCompositorCanvas`, `TerrainCompositorCanvas.Editor`, and `MaterialCanvas`.
+Rebuilding only the Terrain DLL can leave old behavior in another loaded module.
+
 ## Validation tools
 
 ```text
@@ -119,6 +154,15 @@ ctest --test-dir build/canvas-parity -C Release -V
 
 `TC_CANVAS_GRAPH` restricts the filename glob; `TC_CANVAS_GRAPH_ROOT` selects another
 graph directory within project scan folders. The compiler report records generated hashes.
+`TC_CANVAS_REPORT_ROOT` selects a separate report directory, and `TC_CANVAS_ROUNDTRIP=1`
+enables native save/wiring checks on disposable graph copies. Reports include compiler
+provenance and reject incorrect disconnected terrain defaults. Configure standalone
+tests with `-DTC_CANVAS_ENGINE_ROOT=<o3de>` for compiler-patch compatibility checks.
+See [the compiler compatibility decision](../../docs/TerrainCanvasCompilerCompatibility.md).
+Set `-DTC_CANVAS_VALIDATION_ROOT=<native-fixture-root>` to enable GPU comparison
+of freshly compiled `legacy`, `migrated`, and `compiler` fixture directories.
+Use copies of `Tests/Fixtures` inside a project scan folder for native generation;
+do not compile the immutable test fixtures in place.
 For automated generation, add `--regset=/O3DE/TerrainCanvas/SourceGenerationOnly=true`
 to bypass the native asset-status wait; this does not prove shader compilation succeeded.
 Check Asset Processor jobs and live rendering separately. The pinned tool has a previously observed shutdown
@@ -132,6 +176,13 @@ on the saved TG DefaultLevel, captures near/far direct/clipmap views, checks sel
 and game mode, tests graph reload, then restores temporary edits without saving.
 `TC_CANVAS_SURFACE_PARITY_ONLY=1` instead captures baseline/pass-through/restored
 baseline at stationary near/far cameras. Close unsaved work first.
+`Tools/ValidatePortableEditor.py` captures explicit bump normals on a temporary
+ordinary mesh, in flat and tilted poses, against zero-strength and analytic-reference
+materials. Compile the `Tests/Fixtures/Portable` copies first; compare the captured
+pixels separately from the script's capture-success result.
 See [the surface implementation report](../../docs/TerrainCanvasSurface.md) for the actual
 validation record and remaining scene coverage, and [the original tint report](../../docs/TerrainCanvasTint.md)
 for historical checks.
+The [follow-up validation report](../../docs/TerrainCanvasFollowupValidation.md)
+records stock-node migration, non-terrain shader compilation, ordinary-mesh
+lighting parity and the remaining native-tool shutdown limitation.

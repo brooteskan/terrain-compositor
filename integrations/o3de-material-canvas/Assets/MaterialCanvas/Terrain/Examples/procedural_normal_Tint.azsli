@@ -1,9 +1,9 @@
 #pragma once
 #include <TerrainCompositor/TerrainMaterialSrg.azsli>
 #include <TerrainCompositor/TerrainSurface.azsli>
-#include <TerrainCanvas/LatticeNoise.azsli>
-#include <TerrainCanvas/SurfaceHelpers.azsli>
 // O3DE_GENERATED_INCLUDES_BEGIN
+#include <MaterialCanvas/Procedural/LatticeNoise.azsli>
+#include <MaterialCanvas/Procedural/NormalFromHeight.azsli>
 // O3DE_GENERATED_INCLUDES_END
 // O3DE_GENERATED_CLASSES_BEGIN
 // O3DE_GENERATED_CLASSES_END
@@ -14,8 +14,9 @@ TerrainSurfaceChannels TC_CanvasSurface(TerrainSurfaceContext context, TerrainSu
     const float3 O3DE_MC_POSITION_WS = context.worldPosition;
     const float3 O3DE_MC_NORMAL_WS = context.geometricNormal;
     // O3DE_GENERATED_INSTRUCTIONS_BEGIN: inTint, inBaseColor, inNormal, inRoughness, inMetalness, inSpecularFactor, inAmbientOcclusion
-float3 node1_terrain_geometry_position = context.worldPosition;
-float3 node2_world_xy_scale_position = node1_terrain_geometry_position;
+float3 node1_world_position_outPosition = O3DE_MC_POSITION_WS;
+float3 node7_terrain_surface_inputs_outNormal = incoming.normal;
+float3 node2_world_xy_scale_position = node1_world_position_outPosition;
 float node2_world_xy_scale_scale = 3;
 float2 node2_world_xy_scale_value = node2_world_xy_scale_position.xy / max(node2_world_xy_scale_scale, 0.0001);
 float2 node3_lattice_value_noise_2_d_position = node2_world_xy_scale_value;
@@ -23,23 +24,25 @@ uint node3_lattice_value_noise_2_d_seed = 1337;
 float node3_lattice_value_noise_2_d_value = TC_LatticeNoise2D(node3_lattice_value_noise_2_d_position, node3_lattice_value_noise_2_d_seed);
 float2 node4_pixel_footprint_position = node2_world_xy_scale_value;
 float node4_pixel_footprint_value = max(length(ddx(node4_pixel_footprint_position)), length(ddy(node4_pixel_footprint_position)));
-float node5_smoothstep_scalar_low = 0.25;
-float node5_smoothstep_scalar_high = 0.5;
-float node5_smoothstep_scalar_value = node4_pixel_footprint_value;
-float node5_smoothstep_scalar_result = smoothstep(node5_smoothstep_scalar_low, node5_smoothstep_scalar_high, node5_smoothstep_scalar_value);
-float node10_lerp_scalar_a = 1;
-float node10_lerp_scalar_b = 0;
-float node10_lerp_scalar_weight = node5_smoothstep_scalar_result;
-float node10_lerp_scalar_result = lerp(node10_lerp_scalar_a, node10_lerp_scalar_b, node10_lerp_scalar_weight);
-float node6_multiply_scalar_a = node3_lattice_value_noise_2_d_value;
-float node6_multiply_scalar_b = node10_lerp_scalar_result;
-float node6_multiply_scalar_result = node6_multiply_scalar_a * node6_multiply_scalar_b;
-float node9_normal_from_procedural_height_height = node6_multiply_scalar_result;
-float node9_normal_from_procedural_height_strength = 0.15;
-float3 node9_normal_from_procedural_height_outNormal = TC_NormalFromHeight(context.worldPosition, incoming.normal, node9_normal_from_procedural_height_height, node9_normal_from_procedural_height_strength);
+float node5_smooth_step_inValue1 = 0.25;
+float node5_smooth_step_inValue2 = 0.5;
+float node5_smooth_step_inValue3 = node4_pixel_footprint_value;
+float node5_smooth_step_outValue = smoothstep(node5_smooth_step_inValue1, node5_smooth_step_inValue2, node5_smooth_step_inValue3);
+float node10_linear_interpolate_inValue1 = 1;
+float node10_linear_interpolate_inValue2 = 0;
+float node10_linear_interpolate_inValue3 = node5_smooth_step_outValue;
+float node10_linear_interpolate_outValue = lerp(node10_linear_interpolate_inValue1, node10_linear_interpolate_inValue2, node10_linear_interpolate_inValue3);
+float node6_multiply_inValue1 = node3_lattice_value_noise_2_d_value;
+float node6_multiply_inValue2 = node10_linear_interpolate_outValue;
+float node6_multiply_outValue = node6_multiply_inValue1 * node6_multiply_inValue2;
+float3 node9_normal_from_height_inPositionWS = node1_world_position_outPosition;
+float3 node9_normal_from_height_inBaseNormalWS = node7_terrain_surface_inputs_outNormal;
+float node9_normal_from_height_inHeight = node6_multiply_outValue;
+float node9_normal_from_height_inStrength = 0.15;
+float3 node9_normal_from_height_outNormalWS = TC_NormalFromHeight(node9_normal_from_height_inPositionWS, node9_normal_from_height_inBaseNormalWS, node9_normal_from_height_inHeight, node9_normal_from_height_inStrength);
 float3 inTint = {1, 1, 1};
 float3 inBaseColor = incoming.baseColor;
-float3 inNormal = node9_normal_from_procedural_height_outNormal;
+float3 inNormal = node9_normal_from_height_outNormalWS;
 float inRoughness = incoming.roughness;
 float inMetalness = incoming.metalness;
 float inSpecularFactor = incoming.specularFactor;

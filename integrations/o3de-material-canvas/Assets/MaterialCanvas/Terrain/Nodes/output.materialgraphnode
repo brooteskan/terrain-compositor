@@ -4,7 +4,7 @@
     "ClassName": "DynamicNodeConfig",
     "ClassData": {
         "id": "{EB039C35-AA34-58D2-9992-BF88368F5DFB}",
-        "category": "Terrain",
+        "category": "Material Outputs",
         "title": "Terrain Output",
         "titlePaletteName": "MathNodeTitlePalette",
         "description": "Procedural terrain surface. Unconnected channels preserve the composed surface. Connect Constant nodes for explicit values.",

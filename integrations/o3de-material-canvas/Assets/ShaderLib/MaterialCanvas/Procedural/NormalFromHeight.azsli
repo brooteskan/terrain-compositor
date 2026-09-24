@@ -1,0 +1,26 @@
+#pragma once
+// Kept local so this optional Canvas helper does not depend on terrain contracts.
+float3 TC_ProceduralSafeNormal(float3 value, float3 fallback)
+{
+    float lengthSquared = dot(value, value);
+    return all(isfinite(value)) && isfinite(lengthSquared) && lengthSquared > 1e-12
+        ? value * rsqrt(lengthSquared) : fallback;
+}
+
+// Surface-gradient bump mapping. Height is in meters; this changes only the
+// shading normal. Derivatives include world scale and remain valid on slopes.
+float3 TC_NormalFromHeight(float3 positionWS, float3 normalWS, float height, float strength)
+{
+    float3 normal = TC_ProceduralSafeNormal(normalWS, float3(0, 0, 1));
+    float3 dpdx = ddx(positionWS);
+    float3 dpdy = ddy(positionWS);
+    float3 r1 = cross(dpdy, normal);
+    float3 r2 = cross(normal, dpdx);
+    float determinant = dot(dpdx, r1);
+    float dhdx = ddx(height);
+    float dhdy = ddy(height);
+    if (!isfinite(determinant) || abs(determinant) < 1e-12)
+        return normal;
+    float3 gradient = (dhdx * r1 + dhdy * r2) / determinant;
+    return TC_ProceduralSafeNormal(normal - strength * gradient, normal);
+}

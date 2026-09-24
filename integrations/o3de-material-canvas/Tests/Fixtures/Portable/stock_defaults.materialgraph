@@ -1,0 +1,36 @@
+{
+    "Type": "JsonSerialization",
+    "Version": 1,
+    "ClassName": "Graph",
+    "ClassData": {
+        "m_nodes": [
+            {
+                "Key": 1,
+                "Value": {
+                    "$type": "DynamicNode",
+                    "toolId": 2034248906,
+                    "configId": "{81F5EB68-12A1-47C2-BDC0-3A08A033D85A}"
+                }
+            }
+        ],
+        "m_connections": [],
+        "m_uiMetadata": {
+            "m_nodeMetadata": [
+                {
+                    "Key": 1,
+                    "Value": {
+                        "ComponentData": {
+                            "{7CC444B1-F9B3-41B5-841B-0C4F2179F111}": {
+                                "$type": "GeometrySaveData",
+                                "Position": [
+                                    0,
+                                    0
+                                ]
+                            }
+                        }
+                    }
+                }
+            ]
+        }
+    }
+}

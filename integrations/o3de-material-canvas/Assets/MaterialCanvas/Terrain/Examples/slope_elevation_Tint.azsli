@@ -1,8 +1,6 @@
 #pragma once
 #include <TerrainCompositor/TerrainMaterialSrg.azsli>
 #include <TerrainCompositor/TerrainSurface.azsli>
-#include <TerrainCanvas/LatticeNoise.azsli>
-#include <TerrainCanvas/SurfaceHelpers.azsli>
 // O3DE_GENERATED_INCLUDES_BEGIN
 // O3DE_GENERATED_INCLUDES_END
 // O3DE_GENERATED_CLASSES_BEGIN
@@ -14,26 +12,31 @@ TerrainSurfaceChannels TC_CanvasSurface(TerrainSurfaceContext context, TerrainSu
     const float3 O3DE_MC_POSITION_WS = context.worldPosition;
     const float3 O3DE_MC_NORMAL_WS = context.geometricNormal;
     // O3DE_GENERATED_INSTRUCTIONS_BEGIN: inTint, inBaseColor, inNormal, inRoughness, inMetalness, inSpecularFactor, inAmbientOcclusion
-float node1_terrain_geometry_elevation = context.worldPosition.z;
-float node1_terrain_geometry_slope = 1.0 - saturate(context.geometricNormal.z);
-float node2_smoothstep_scalar_low = 0.1;
-float node2_smoothstep_scalar_high = 0.6;
-float node2_smoothstep_scalar_value = node1_terrain_geometry_slope;
-float node2_smoothstep_scalar_result = smoothstep(node2_smoothstep_scalar_low, node2_smoothstep_scalar_high, node2_smoothstep_scalar_value);
-float node3_smoothstep_scalar_low = 0;
-float node3_smoothstep_scalar_high = 20;
-float node3_smoothstep_scalar_value = node1_terrain_geometry_elevation;
-float node3_smoothstep_scalar_result = smoothstep(node3_smoothstep_scalar_low, node3_smoothstep_scalar_high, node3_smoothstep_scalar_value);
-float3 node4_lerp_rgb_a = {0.08, 0.15, 0.035};
-float3 node4_lerp_rgb_b = {0.32, 0.28, 0.23};
-float node4_lerp_rgb_weight = node2_smoothstep_scalar_result;
-float3 node4_lerp_rgb_result = lerp(node4_lerp_rgb_a, node4_lerp_rgb_b, node4_lerp_rgb_weight);
-float3 node5_lerp_rgb_a = node4_lerp_rgb_result;
-float3 node5_lerp_rgb_b = {0.8, 0.85, 0.9};
-float node5_lerp_rgb_weight = node3_smoothstep_scalar_result;
-float3 node5_lerp_rgb_result = lerp(node5_lerp_rgb_a, node5_lerp_rgb_b, node5_lerp_rgb_weight);
+float node1_world_position_outZ = O3DE_MC_POSITION_WS.z;
+float node7_world_normal_outZ = O3DE_MC_NORMAL_WS.z;
+float node8_saturate_inValue = node7_world_normal_outZ;
+float node8_saturate_outValue = saturate(node8_saturate_inValue);
+float node3_smooth_step_inValue1 = 0;
+float node3_smooth_step_inValue2 = 20;
+float node3_smooth_step_inValue3 = node1_world_position_outZ;
+float node3_smooth_step_outValue = smoothstep(node3_smooth_step_inValue1, node3_smooth_step_inValue2, node3_smooth_step_inValue3);
+float node9_subtract_inValue1 = 1;
+float node9_subtract_inValue2 = node8_saturate_outValue;
+float node9_subtract_outValue = node9_subtract_inValue1 - node9_subtract_inValue2;
+float node2_smooth_step_inValue1 = 0.1;
+float node2_smooth_step_inValue2 = 0.6;
+float node2_smooth_step_inValue3 = node9_subtract_outValue;
+float node2_smooth_step_outValue = smoothstep(node2_smooth_step_inValue1, node2_smooth_step_inValue2, node2_smooth_step_inValue3);
+float3 node4_linear_interpolate_inValue1 = {0.08, 0.15, 0.035};
+float3 node4_linear_interpolate_inValue2 = {0.32, 0.28, 0.23};
+float node4_linear_interpolate_inValue3 = node2_smooth_step_outValue;
+float3 node4_linear_interpolate_outValue = lerp(node4_linear_interpolate_inValue1, node4_linear_interpolate_inValue2, node4_linear_interpolate_inValue3);
+float3 node5_linear_interpolate_inValue1 = node4_linear_interpolate_outValue;
+float3 node5_linear_interpolate_inValue2 = {0.8, 0.85, 0.9};
+float node5_linear_interpolate_inValue3 = node3_smooth_step_outValue;
+float3 node5_linear_interpolate_outValue = lerp(node5_linear_interpolate_inValue1, node5_linear_interpolate_inValue2, node5_linear_interpolate_inValue3);
 float3 inTint = {1, 1, 1};
-float3 inBaseColor = node5_lerp_rgb_result;
+float3 inBaseColor = node5_linear_interpolate_outValue;
 float3 inNormal = incoming.normal;
 float inRoughness = incoming.roughness;
 float inMetalness = incoming.metalness;

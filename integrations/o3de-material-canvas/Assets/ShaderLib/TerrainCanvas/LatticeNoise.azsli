@@ -1,17 +1,3 @@
 #pragma once
-// Value noise primitive only: filtering, elevation and tint remain graph operations.
-float TC_LatticeCorner(int2 cell, uint seed)
-{
-    uint hash = asuint(cell.x) * 0x8da6b343u ^ asuint(cell.y) * 0xd8163841u ^ seed;
-    hash = (hash ^ (hash >> 16)) * 0x7feb352du;
-    hash = (hash ^ (hash >> 15)) * 0x846ca68bu;
-    return float((hash ^ (hash >> 16)) & 0x00ffffffu) / 16777215.0;
-}
-float TC_LatticeNoise2D(float2 position, uint seed)
-{
-    int2 cell = int2(floor(position));
-    float2 blend = frac(position);
-    blend = blend * blend * blend * (blend * (blend * 6.0 - 15.0) + 10.0);
-    return lerp(lerp(TC_LatticeCorner(cell, seed), TC_LatticeCorner(cell + int2(1, 0), seed), blend.x),
-        lerp(TC_LatticeCorner(cell + int2(0, 1), seed), TC_LatticeCorner(cell + int2(1, 1), seed), blend.x), blend.y);
-}
+// Compatibility include for previously generated graph source.
+#include <MaterialCanvas/Procedural/LatticeNoise.azsli>

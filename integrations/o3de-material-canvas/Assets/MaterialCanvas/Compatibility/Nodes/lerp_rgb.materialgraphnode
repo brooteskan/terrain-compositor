@@ -3,11 +3,11 @@
     "Version": 1,
     "ClassName": "DynamicNodeConfig",
     "ClassData": {
-        "id": "{546044A5-97EB-5CC0-AE1A-07F5125EAAEC}",
-        "category": "Terrain",
-        "title": "Multiply RGB",
-        "description": "Multiply RGB",
+        "id": "{841DF26B-4D1C-509A-9922-201E8BF92C8F}",
+        "category": "Compatibility",
+        "title": "Lerp RGB (Legacy)",
         "titlePaletteName": "MathNodeTitlePalette",
+        "description": "Compatibility node for existing graphs. Use stock Canvas math/geometry or the explicit Normal From Height node for new graphs.",
         "inputSlots": [
             {
                 "name": "a",
@@ -48,6 +48,22 @@
                         1
                     ]
                 }
+            },
+            {
+                "name": "weight",
+                "displayName": "weight",
+                "description": "weight",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 1
+                }
             }
         ],
         "outputSlots": [
@@ -59,7 +75,7 @@
                 "defaultDataType": "float3",
                 "settings": {
                     "instructions": [
-                        "SLOTTYPE SLOTNAME = a * b;"
+                        "SLOTTYPE SLOTNAME = lerp(a, b, weight);"
                     ]
                 }
             }

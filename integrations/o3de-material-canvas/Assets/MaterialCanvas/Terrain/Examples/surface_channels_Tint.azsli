@@ -1,8 +1,6 @@
 #pragma once
 #include <TerrainCompositor/TerrainMaterialSrg.azsli>
 #include <TerrainCompositor/TerrainSurface.azsli>
-#include <TerrainCanvas/LatticeNoise.azsli>
-#include <TerrainCanvas/SurfaceHelpers.azsli>
 // O3DE_GENERATED_INCLUDES_BEGIN
 // O3DE_GENERATED_INCLUDES_END
 // O3DE_GENERATED_CLASSES_BEGIN
@@ -14,37 +12,37 @@ TerrainSurfaceChannels TC_CanvasSurface(TerrainSurfaceContext context, TerrainSu
     const float3 O3DE_MC_POSITION_WS = context.worldPosition;
     const float3 O3DE_MC_NORMAL_WS = context.geometricNormal;
     // O3DE_GENERATED_INSTRUCTIONS_BEGIN: inTint, inBaseColor, inNormal, inRoughness, inMetalness, inSpecularFactor, inAmbientOcclusion
-float3 node2_lerp_rgb_a = {0.6, 0.25, 0.1};
-float3 node2_lerp_rgb_b = {0.6, 0.25, 0.1};
-float node2_lerp_rgb_weight = 0;
-float3 node2_lerp_rgb_result = lerp(node2_lerp_rgb_a, node2_lerp_rgb_b, node2_lerp_rgb_weight);
-float3 node3_lerp_rgb_a = {0.6, 0, 0.8};
-float3 node3_lerp_rgb_b = {0.6, 0, 0.8};
-float node3_lerp_rgb_weight = 0;
-float3 node3_lerp_rgb_result = lerp(node3_lerp_rgb_a, node3_lerp_rgb_b, node3_lerp_rgb_weight);
-float node4_lerp_scalar_a = 0.22;
-float node4_lerp_scalar_b = 0.22;
-float node4_lerp_scalar_weight = 0;
-float node4_lerp_scalar_result = lerp(node4_lerp_scalar_a, node4_lerp_scalar_b, node4_lerp_scalar_weight);
-float node5_lerp_scalar_a = 0.65;
-float node5_lerp_scalar_b = 0.65;
-float node5_lerp_scalar_weight = 0;
-float node5_lerp_scalar_result = lerp(node5_lerp_scalar_a, node5_lerp_scalar_b, node5_lerp_scalar_weight);
-float node6_lerp_scalar_a = 0.8;
-float node6_lerp_scalar_b = 0.8;
-float node6_lerp_scalar_weight = 0;
-float node6_lerp_scalar_result = lerp(node6_lerp_scalar_a, node6_lerp_scalar_b, node6_lerp_scalar_weight);
-float node7_lerp_scalar_a = 0.35;
-float node7_lerp_scalar_b = 0.35;
-float node7_lerp_scalar_weight = 0;
-float node7_lerp_scalar_result = lerp(node7_lerp_scalar_a, node7_lerp_scalar_b, node7_lerp_scalar_weight);
+float3 node2_linear_interpolate_inValue1 = {0.6, 0.25, 0.1};
+float3 node2_linear_interpolate_inValue2 = {0.6, 0.25, 0.1};
+float node2_linear_interpolate_inValue3 = 0;
+float3 node2_linear_interpolate_outValue = lerp(node2_linear_interpolate_inValue1, node2_linear_interpolate_inValue2, node2_linear_interpolate_inValue3);
+float3 node3_linear_interpolate_inValue1 = {0.6, 0, 0.8};
+float3 node3_linear_interpolate_inValue2 = {0.6, 0, 0.8};
+float node3_linear_interpolate_inValue3 = 0;
+float3 node3_linear_interpolate_outValue = lerp(node3_linear_interpolate_inValue1, node3_linear_interpolate_inValue2, node3_linear_interpolate_inValue3);
+float node4_linear_interpolate_inValue1 = 0.22;
+float node4_linear_interpolate_inValue2 = 0.22;
+float node4_linear_interpolate_inValue3 = 0;
+float node4_linear_interpolate_outValue = lerp(node4_linear_interpolate_inValue1, node4_linear_interpolate_inValue2, node4_linear_interpolate_inValue3);
+float node5_linear_interpolate_inValue1 = 0.65;
+float node5_linear_interpolate_inValue2 = 0.65;
+float node5_linear_interpolate_inValue3 = 0;
+float node5_linear_interpolate_outValue = lerp(node5_linear_interpolate_inValue1, node5_linear_interpolate_inValue2, node5_linear_interpolate_inValue3);
+float node6_linear_interpolate_inValue1 = 0.8;
+float node6_linear_interpolate_inValue2 = 0.8;
+float node6_linear_interpolate_inValue3 = 0;
+float node6_linear_interpolate_outValue = lerp(node6_linear_interpolate_inValue1, node6_linear_interpolate_inValue2, node6_linear_interpolate_inValue3);
+float node7_linear_interpolate_inValue1 = 0.35;
+float node7_linear_interpolate_inValue2 = 0.35;
+float node7_linear_interpolate_inValue3 = 0;
+float node7_linear_interpolate_outValue = lerp(node7_linear_interpolate_inValue1, node7_linear_interpolate_inValue2, node7_linear_interpolate_inValue3);
 float3 inTint = {1, 1, 1};
-float3 inBaseColor = node2_lerp_rgb_result;
-float3 inNormal = node3_lerp_rgb_result;
-float inRoughness = node4_lerp_scalar_result;
-float inMetalness = node5_lerp_scalar_result;
-float inSpecularFactor = node6_lerp_scalar_result;
-float inAmbientOcclusion = node7_lerp_scalar_result;
+float3 inBaseColor = node2_linear_interpolate_outValue;
+float3 inNormal = node3_linear_interpolate_outValue;
+float inRoughness = node4_linear_interpolate_outValue;
+float inMetalness = node5_linear_interpolate_outValue;
+float inSpecularFactor = node6_linear_interpolate_outValue;
+float inAmbientOcclusion = node7_linear_interpolate_outValue;
     // O3DE_GENERATED_INSTRUCTIONS_END
     TerrainSurfaceChannels result;
     result.baseColor = inBaseColor * inTint; // Retained ABI-v1 graph connection, neutral for new graphs.

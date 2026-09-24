@@ -1,0 +1,106 @@
+{
+    "Type": "JsonSerialization",
+    "Version": 1,
+    "ClassName": "DynamicNodeConfig",
+    "ClassData": {
+        "id": "{2063FE4F-D452-5519-98FD-B77B9F0A8F50}",
+        "category": "Math Functions",
+        "title": "Normal From Height",
+        "description": "World-space surface-gradient bump shading. Wire position in meters and a base world-space normal explicitly. Height is in meters; strength is dimensionless. Fragment stage only; evaluate uniformly across derivative quads.",
+        "titlePaletteName": "MathNodeTitlePalette",
+        "settings": {
+            "includePaths": [
+                "MaterialCanvas/Procedural/NormalFromHeight.azsli"
+            ]
+        },
+        "inputSlots": [
+            {
+                "name": "inPositionWS",
+                "displayName": "Position (World)",
+                "description": "Position (World)",
+                "supportedDataTypeRegex": "float3",
+                "defaultDataType": "float3",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "Vector3",
+                    "Value": [
+                        0,
+                        0,
+                        0
+                    ]
+                }
+            },
+            {
+                "name": "inBaseNormalWS",
+                "displayName": "Base Normal (World)",
+                "description": "Base Normal (World)",
+                "supportedDataTypeRegex": "float3",
+                "defaultDataType": "float3",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "Vector3",
+                    "Value": [
+                        0,
+                        0,
+                        1
+                    ]
+                }
+            },
+            {
+                "name": "inHeight",
+                "displayName": "Height (meters)",
+                "description": "Height (meters)",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 0
+                }
+            },
+            {
+                "name": "inStrength",
+                "displayName": "Strength",
+                "description": "Strength",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 1
+                }
+            }
+        ],
+        "outputSlots": [
+            {
+                "name": "outNormalWS",
+                "displayName": "Normal (World)",
+                "description": "Normal (World)",
+                "supportedDataTypeRegex": "float3",
+                "defaultDataType": "float3",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = TC_NormalFromHeight(inPositionWS, inBaseNormalWS, inHeight, inStrength);"
+                    ]
+                }
+            }
+        ],
+        "propertySlots": []
+    }
+}

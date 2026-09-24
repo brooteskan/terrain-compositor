@@ -4,9 +4,9 @@
     "ClassName": "DynamicNodeConfig",
     "ClassData": {
         "id": "{CFBE3398-6EEF-5166-A9B6-A0C8EF809636}",
-        "category": "Terrain",
-        "title": "Normal From Procedural Height",
-        "description": "Normal From Procedural Height",
+        "category": "Compatibility",
+        "title": "Terrain Normal From Height (Legacy)",
+        "description": "Compatibility node for existing graphs. Use stock Canvas math/geometry or the explicit Normal From Height node for new graphs.",
         "titlePaletteName": "MathNodeTitlePalette",
         "inputSlots": [
             {
@@ -56,6 +56,11 @@
                 }
             }
         ],
-        "propertySlots": []
+        "propertySlots": [],
+        "settings": {
+            "includePaths": [
+                "MaterialCanvas/Procedural/NormalFromHeight.azsli"
+            ]
+        }
     }
 }

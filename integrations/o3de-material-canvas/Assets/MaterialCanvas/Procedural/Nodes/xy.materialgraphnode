@@ -3,11 +3,11 @@
     "Version": 1,
     "ClassName": "DynamicNodeConfig",
     "ClassData": {
-        "id": "{890265DE-47BB-5824-80E3-1D16F85226C4}",
-        "category": "Terrain",
-        "title": "World Bands",
+        "id": "{1DCD7456-D868-5393-9573-4234C14D2142}",
+        "category": "Math Functions",
+        "title": "World XY / Scale",
         "titlePaletteName": "MathNodeTitlePalette",
-        "description": "World Bands",
+        "description": "Input position XY divided by max(scale, 0.0001). Position and scale must use matching units.",
         "inputSlots": [
             {
                 "name": "position",
@@ -51,11 +51,11 @@
                 "name": "value",
                 "displayName": "value",
                 "description": "value",
-                "supportedDataTypeRegex": "float",
-                "defaultDataType": "float",
+                "supportedDataTypeRegex": "float2",
+                "defaultDataType": "float2",
                 "settings": {
                     "instructions": [
-                        "SLOTTYPE SLOTNAME = 0.5 + 0.5 * sin(position.x / max(scale, 0.0001));"
+                        "SLOTTYPE SLOTNAME = position.xy / max(scale, 0.0001);"
                     ]
                 }
             }

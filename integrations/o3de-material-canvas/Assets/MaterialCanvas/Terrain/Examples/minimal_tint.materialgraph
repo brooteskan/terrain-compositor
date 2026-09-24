@@ -23,11 +23,11 @@
                     "toolId": {
                         "Value": 2034248906
                     },
-                    "configId": "{841DF26B-4D1C-509A-9922-201E8BF92C8F}",
+                    "configId": "{8DD887CA-DA8E-4F55-9DFE-1B89EA0310AB}",
                     "m_inputDataSlots": [
                         {
                             "Key": {
-                                "m_name": "a"
+                                "m_name": "inValue1"
                             },
                             "Value": {
                                 "m_value": {
@@ -42,7 +42,7 @@
                         },
                         {
                             "Key": {
-                                "m_name": "b"
+                                "m_name": "inValue2"
                             },
                             "Value": {
                                 "m_value": {
@@ -57,7 +57,7 @@
                         },
                         {
                             "Key": {
-                                "m_name": "weight"
+                                "m_name": "inValue3"
                             },
                             "Value": {
                                 "m_value": {
@@ -122,7 +122,7 @@
                 "m_targetEndpoint": [
                     2,
                     {
-                        "m_name": "b"
+                        "m_name": "inValue2"
                     }
                 ]
             },
@@ -136,7 +136,7 @@
                 "m_targetEndpoint": [
                     2,
                     {
-                        "m_name": "weight"
+                        "m_name": "inValue3"
                     }
                 ]
             },
@@ -144,7 +144,7 @@
                 "m_sourceEndpoint": [
                     2,
                     {
-                        "m_name": "result"
+                        "m_name": "outValue"
                     }
                 ],
                 "m_targetEndpoint": [

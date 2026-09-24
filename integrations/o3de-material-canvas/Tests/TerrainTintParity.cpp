@@ -42,8 +42,8 @@ try
     std::string shader = "cbuffer Inputs : register(b0) { float strength; float stepSize; float2 origin; };\n";
     shader += Load(TERRAIN_SHADERS "/TerrainLegacyTint.azsli");
     shader += Load(TERRAIN_SHADERS "/TerrainSurface.azsli");
-    shader += Load(CANVAS_ROOT "/Assets/ShaderLib/TerrainCanvas/LatticeNoise.azsli");
-    shader += Load(CANVAS_ROOT "/Assets/ShaderLib/TerrainCanvas/SurfaceHelpers.azsli");
+    shader += Load(CANVAS_ROOT "/Assets/ShaderLib/MaterialCanvas/Procedural/LatticeNoise.azsli");
+    shader += Load(CANVAS_ROOT "/Assets/ShaderLib/MaterialCanvas/Procedural/NormalFromHeight.azsli");
     shader += Load(CANVAS_ROOT "/Assets/MaterialCanvas/Terrain/Examples/procedural_tint_Tint.azsli");
     Replace(shader, "TerrainMaterialSrg::m_noiseTintStrength", "strength");
     Replace(shader, "TerrainMaterialSrg::m_canvasTintStrength", "strength");

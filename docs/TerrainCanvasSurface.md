@@ -2,8 +2,8 @@
 
 ## Scope and renderer contract
 
-Issue #15 is implemented as a terrain-wide surface graph over the channels already
-supported by Terrain's forward renderer. The goal is procedural terrain authoring
+The implemented portion of issue #15 is a terrain-wide surface graph over six
+channels supported by Terrain's forward renderer. The goal is procedural terrain authoring
 in Canvas without adding a second material renderer or rebuilding clipmap content
 when a graph changes.
 
@@ -40,8 +40,10 @@ Paths below are relative to the repository root.
 | `integrations/o3de/Assets/Shaders/Terrain/TerrainForward.azsli` | Resolves incoming channels from either existing sampling path, calls the surface graph, then feeds the existing lighting code. Retains the legacy tint fallback. |
 | `integrations/o3de/Assets/ShaderLib/TerrainSurface.azsli` and `ShaderLib/TerrainCompositor/TerrainSurface.azsli` | Include forwarders for the shared shader contract. |
 | `integrations/o3de-material-canvas/Assets/MaterialCanvas/Terrain/Nodes/output.materialgraphnode` | Six inherited surface sockets; original UUID and hidden `inTint` compatibility connection retained. |
-| Same `Nodes` directory: `surface_inputs`, `geometry`, `normal_from_height`, `multiply_rgb` | Incoming channels, world geometry, derivative bump shading and visible legacy tint multiplication. |
-| `integrations/o3de-material-canvas/Assets/ShaderLib/TerrainCanvas/SurfaceHelpers.azsli` | World-space surface-gradient normal calculation with degenerate-derivative fallback. |
+| Same `Nodes` directory: `surface_inputs` | Incoming terrain surface channels. New graphs use stock Canvas geometry and math. |
+| `integrations/o3de-material-canvas/Assets/MaterialCanvas/Procedural/Nodes` | Reusable procedural operations and a normal-from-height node with explicit world position and base normal inputs. |
+| `integrations/o3de-material-canvas/Assets/MaterialCanvas/Compatibility/Nodes` | Retained legacy UUIDs, fixed math defaults and implicit terrain normal adapter. |
+| `integrations/o3de-material-canvas/Assets/ShaderLib/MaterialCanvas/Procedural` | Independent noise and surface-gradient normal helpers; old TerrainCanvas paths remain forwarders. |
 | `integrations/o3de-material-canvas/Assets/MaterialCanvas/Terrain/Templates` | Generates `TC_CanvasSurface`, the forward entry wrapper and v2 material type while preserving generated filenames. |
 | `integrations/o3de-material-canvas/EnginePatches/MaterialGraphCompiler.cpp.patch`, `EngineOverrides.cmake`, `CMakeLists.txt` | Hash-checked native compiler override: contextual values for disconnected sockets, plus an opt-in source-generation-only automation setting. No engine source edits. |
 | `integrations/o3de-material-canvas/Code/Source/TerrainTintMaterialComponent.cpp` | Renames the UI to Terrain Material without changing serialization or bus identity. |
@@ -60,14 +62,15 @@ in the build directory and linked into MaterialCanvas; use that rebuilt executab
 ## Authoring and compatibility
 
 Start with `surface_passthrough.materialgraph` or `wet_terrain.materialgraph`.
-Connect constants, terrain geometry, incoming surface channels and math to Terrain
+Connect constants, stock world geometry inputs, incoming surface channels and math to Terrain
 Output. Compile, wait for Asset Processor, and select the corresponding `.material`
 in the Terrain Material component. Its status is `Canvas terrain surface active`.
 The stock Canvas mesh preview is not a terrain preview; inspect the actual terrain.
 
 Unconnected inherited sockets are intentionally not editable literals. Use a Constant
-node to replace a channel. The normal node expects scalar height in world meters and
-dimensionless strength. Examples filter small noise features using Pixel Footprint.
+node to replace a channel. The reusable normal node takes explicit world position
+and base world-space shading normal, scalar height in world meters, and dimensionless
+strength. Examples filter small noise features using Pixel Footprint.
 Effects authored after composition remain visible beyond the detail fade distance.
 
 Old graph UUIDs, material filenames and material properties are preserved. Old
@@ -76,6 +79,10 @@ optional and never modifies `.material` files. See the
 [Canvas authoring guide](../integrations/o3de-material-canvas/README.md) for commands.
 
 ## Validation record (2026-09-23)
+
+This is the original surface-extension record. The subsequent node-library,
+migration, compiler-maintenance and ordinary-mesh checks are recorded in
+[the follow-up validation report](TerrainCanvasFollowupValidation.md).
 
 The implementation was built in TG against the pinned engine. MaterialCanvas,
 TerrainCompositorCanvas, TerrainCompositor and Terrain Editor/runtime targets built

@@ -4,9 +4,9 @@
     "ClassName": "DynamicNodeConfig",
     "ClassData": {
         "id": "{1A73E777-16E3-5B32-B0DA-DAF3BB0BF1D8}",
-        "category": "Terrain",
-        "title": "Terrain Geometry",
-        "description": "Terrain Geometry",
+        "category": "Compatibility",
+        "title": "Geometry (Legacy)",
+        "description": "Compatibility node for existing graphs. Use stock Canvas math/geometry or the explicit Normal From Height node for new graphs.",
         "titlePaletteName": "MathNodeTitlePalette",
         "inputSlots": [],
         "outputSlots": [
@@ -18,7 +18,7 @@
                 "defaultDataType": "float3",
                 "settings": {
                     "instructions": [
-                        "SLOTTYPE SLOTNAME = context.worldPosition;"
+                        "SLOTTYPE SLOTNAME = O3DE_MC_POSITION_WS;"
                     ]
                 }
             },
@@ -30,7 +30,7 @@
                 "defaultDataType": "float3",
                 "settings": {
                     "instructions": [
-                        "SLOTTYPE SLOTNAME = context.geometricNormal;"
+                        "SLOTTYPE SLOTNAME = O3DE_MC_NORMAL_WS;"
                     ]
                 }
             },
@@ -42,7 +42,7 @@
                 "defaultDataType": "float",
                 "settings": {
                     "instructions": [
-                        "SLOTTYPE SLOTNAME = context.worldPosition.z;"
+                        "SLOTTYPE SLOTNAME = O3DE_MC_POSITION_WS.z;"
                     ]
                 }
             },
@@ -54,7 +54,7 @@
                 "defaultDataType": "float",
                 "settings": {
                     "instructions": [
-                        "SLOTTYPE SLOTNAME = 1.0 - saturate(context.geometricNormal.z);"
+                        "SLOTTYPE SLOTNAME = 1.0 - saturate(O3DE_MC_NORMAL_WS.z);"
                     ]
                 }
             }

@@ -35,7 +35,7 @@ namespace Terrain
         m_tintOwner = owner;
         m_pendingTintMaterial = {};
         m_tintAsset = asset;
-        m_tintStatus = "Loading terrain tint material";
+        m_tintStatus = "Loading terrain material";
         AZ::Data::AssetBus::MultiHandler::BusConnect(asset.GetId());
         if (m_tintAsset.IsReady())
             OnAssetReady(m_tintAsset);
@@ -60,7 +60,7 @@ namespace Terrain
     {
         if (asset.GetId() == m_tintAsset.GetId())
         {
-            m_tintStatus = "Tint asset failed; retaining the current valid terrain material";
+            m_tintStatus = "Terrain material asset failed; retaining the current valid terrain material";
             AZ_Warning("TerrainTint", false, "%s", m_tintStatus);
         }
     }
@@ -137,7 +137,7 @@ namespace Terrain
         if (!m_pendingTintMaterial || !m_materialInstance || !m_terrainSrg) return false;
         if (!ValidateTintMaterial(m_pendingTintMaterial))
         {
-            m_tintStatus = "Incompatible tint material; retaining the current terrain material";
+            m_tintStatus = "Incompatible terrain material; retaining the current terrain material";
             AZ_Warning("TerrainTint", false, "%s", m_tintStatus);
             m_pendingTintMaterial = {};
             return false;
@@ -178,7 +178,7 @@ namespace Terrain
             m_tintStageSource = source;
             m_tintStageTarget = target;
             m_tintStageChange = sourceChange;
-            m_tintStatus = "Preparing terrain tint bindings";
+            m_tintStatus = "Preparing terrain material bindings";
             return false;
         }
         if (target->IsQueuedForCompile() || m_pendingTintMaterial->NeedsCompile()) return false;
