@@ -9,6 +9,7 @@ import os
 import sys
 import time
 import hashlib
+import shutil
 import ctypes
 import subprocess
 import azlmbr.atomtools as atomtools
@@ -78,6 +79,12 @@ def main():
         if not generated or not all(pathlib.Path(p).exists() for p in generated):
             raise RuntimeError("Compilation did not complete: " + str(path))
         contract = verify_terrain_contract(source_document, generated)
+        if path == gem / 'Assets/MaterialCanvas/Terrain/Examples/default_terrain.materialgraph':
+            bundled = gem.parent / 'o3de/Assets/Materials/Terrain'
+            bundled.mkdir(parents=True, exist_ok=True)
+            for generated_path in generated:
+                source = pathlib.Path(generated_path)
+                shutil.copyfile(source, bundled / source.name)
         if os.environ.get('TC_CANVAS_ROUNDTRIP') == '1':
             if not atomtools.AtomToolsDocumentSystemRequestBus(bus.Broadcast, 'SaveDocument', document):
                 raise RuntimeError('Native graph save failed: ' + str(path))

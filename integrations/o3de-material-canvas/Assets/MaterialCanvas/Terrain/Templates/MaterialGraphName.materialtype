@@ -1,16 +1,11 @@
 {
-    "description": "Terrain surface contract v2, fixed TerrainMaterialSrg v1. Select on Terrain Material.",
+    "description": "Graph-defined terrain surface.",
     "version": 1,
     "propertyLayout": {
         "groups": [
             {
                 "id": "settings",
                 "displayName": "Settings"
-            },
-            {
-                "id": "tint",
-                "displayName": "Terrain Tint",
-                "description": "Graph parameters in working RGB."
             },
             {
                 "id": "terrain",
@@ -97,37 +92,7 @@
                     }
                 }
             ],
-            "baseColor": [
-                {
-                    "name": "color",
-                    "displayName": "Color",
-                    "description": "Color is displayed as sRGB but the values are stored as linear color.",
-                    "type": "Color",
-                    "defaultValue": [
-                        1.0,
-                        1.0,
-                        1.0
-                    ],
-                    "connection": {
-                        "type": "ShaderInput",
-                        "name": "m_baseColor"
-                    }
-                }
-            ],
             "settings": [
-                {
-                    "id": "noiseTintStrength",
-                    "displayName": "Noise Tint Strength",
-                    "description": "Terrain-wide procedural base-color tint strength; zero disables the tint.",
-                    "type": "Float",
-                    "defaultValue": 0.75,
-                    "min": 0.0,
-                    "max": 1.0,
-                    "connection": {
-                        "type": "ShaderInput",
-                        "id": "m_noiseTintStrength"
-                    }
-                },
                 {
                     "id": "meshCutoutCount",
                     "type": "UInt",
@@ -167,88 +132,13 @@
                         "type": "ShaderInput",
                         "id": "m_meshCutoutRevision"
                     }
-                },
-                {
-                    "id": "detailTextureMultiplier",
-                    "displayName": "Detail Texture UV Multiplier",
-                    "description": "How many times to repeat the detail texture per sector",
-                    "type": "Float",
-                    "defaultValue": 0.5,
-                    "connection": {
-                        "type": "ShaderInput",
-                        "id": "m_detailTextureMultiplier"
-                    }
-                },
-                {
-                    "id": "detailFadeDistance",
-                    "displayName": "Detail Fade Distance (meters)",
-                    "description": "The distance in meters that the detail texture starts to fade",
-                    "type": "Float",
-                    "defaultValue": 100.0,
-                    "connection": {
-                        "type": "ShaderInput",
-                        "id": "m_detailFadeDistance"
-                    }
-                },
-                {
-                    "id": "detailFadeLength",
-                    "displayName": "Detail Fade Length",
-                    "description": "How far beyond Detail Fade Distance where the detail texture no longer applies.",
-                    "type": "Float",
-                    "defaultValue": 50.0,
-                    "connection": {
-                        "type": "ShaderInput",
-                        "id": "m_detailFadeLength"
-                    }
-                }
-            ],
-            "tint": [
-                {
-                    "id": "contractVersion",
-                    "type": "UInt",
-                    "defaultValue": 1,
-                    "visibility": "Hidden"
-                },
-                {
-                    "id": "strength",
-                    "type": "Float",
-                    "defaultValue": 0.75,
-                    "min": 0,
-                    "max": 1,
-                    "connection": {
-                        "type": "ShaderInput",
-                        "id": "m_canvasTintStrength"
-                    }
-                },
-                {
-                    "id": "color",
-                    "type": "Vector3",
-                    "defaultValue": [
-                        0.7,
-                        0.85,
-                        0.55
-                    ],
-                    "description": "Multiplicative coefficients in renderer working RGB; no sRGB conversion.",
-                    "connection": {
-                        "type": "ShaderInput",
-                        "id": "m_canvasTintColor"
-                    }
-                },
-                {
-                    "id": "texture",
-                    "type": "Image",
-                    "defaultValue": "",
-                    "connection": {
-                        "type": "ShaderInput",
-                        "id": "m_canvasTintTexture"
-                    }
                 }
             ],
             "terrain": [
                 {
                     "id": "contractVersion",
                     "type": "UInt",
-                    "defaultValue": 2,
+                    "defaultValue": 3,
                     "visibility": "Hidden"
                 }
             ]
@@ -259,10 +149,10 @@
             "file": "MaterialGraphName_Forward.shader"
         },
         {
-            "file": "Shaders/Terrain/Terrain_Shadowmap.shader"
+            "file": "MaterialGraphName_Shadow.shader"
         },
         {
-            "file": "Shaders/Terrain/Terrain_DepthPass.shader"
+            "file": "MaterialGraphName_Depth.shader"
         }
     ],
     "functors": []

@@ -12,11 +12,12 @@ if(NOT TARGET Terrain.Static)
     message(FATAL_ERROR "TerrainCompositor requires the Terrain.Static target")
 endif()
 set(tc_override_sources
-    TerrainRenderer/TerrainDetailMaterialManager.cpp
     TerrainRenderer/TerrainMeshManager.cpp
     TerrainRenderer/TerrainFeatureProcessor.cpp
     TerrainRaycast/TerrainRaycastContext.cpp
-    Components/TerrainPhysicsColliderComponent.cpp)
+    Components/TerrainPhysicsColliderComponent.cpp
+    Components/TerrainSystemComponent.cpp
+    Components/TerrainWorldRendererComponent.cpp)
 get_target_property(tc_terrain_sources Terrain.Static SOURCES)
 foreach(relative IN LISTS tc_override_sources)
     set(original "${tc_terrain_source_root}/${relative}")
@@ -37,6 +38,32 @@ foreach(relative IN LISTS tc_override_sources)
     list(APPEND tc_terrain_sources "${replacement}")
 endforeach()
 set_property(TARGET Terrain.Static PROPERTY SOURCES "${tc_terrain_sources}")
+# Geometry and surface composition remain; shading managers, passes and authoring components do not.
+foreach(tc_target Terrain.Static Terrain Terrain.Editor Terrain.Tests)
+    if(NOT TARGET ${tc_target})
+        continue()
+    endif()
+    get_target_property(tc_sources ${tc_target} SOURCES)
+    foreach(tc_source IN LISTS tc_sources)
+        if(tc_source MATCHES "Terrain(MacroMaterial|DetailMaterial|Clipmap)Manager|TerrainRenderer/Passes/|Terrain(MacroMaterial|SurfaceMaterialsList)Component|TerrainMacroMaterialComponentMode|Tests/(TerrainMacroMaterialTests|SurfaceMaterialsListTest|ClipmapBoundsTests)")
+            list(REMOVE_ITEM tc_sources "${tc_source}")
+            set_source_files_properties("${tc_source}" PROPERTIES HEADER_FILE_ONLY ON SKIP_UNITY_BUILD_INCLUSION ON)
+        elseif(tc_source MATCHES "(^|/)(EditorTerrainModule|TerrainModule|EditorTerrainSystemComponent)\\.cpp$")
+            get_filename_component(tc_name "${tc_source}" NAME)
+            if(tc_name STREQUAL "EditorTerrainSystemComponent.cpp")
+                set(tc_name "EditorComponents/${tc_name}")
+            endif()
+            list(REMOVE_ITEM tc_sources "${tc_source}")
+            list(APPEND tc_sources "${tc_generated_overrides}/${tc_name}")
+            set_source_files_properties("${tc_source}" PROPERTIES HEADER_FILE_ONLY ON SKIP_UNITY_BUILD_INCLUSION ON)
+            set_source_files_properties("${tc_generated_overrides}/${tc_name}" PROPERTIES
+                SKIP_UNITY_BUILD_INCLUSION ON COMPILE_DEFINITIONS "O3DE_GEM_NAME=Terrain;O3DE_GEM_VERSION=0.1.0")
+        endif()
+    endforeach()
+    set_property(TARGET ${tc_target} PROPERTY SOURCES "${tc_sources}")
+    target_include_directories(${tc_target} BEFORE PRIVATE "${tc_generated_overrides}" "${tc_terrain_source_root}")
+endforeach()
+
 target_include_directories(Terrain.Static BEFORE PUBLIC
     "${tc_generated_overrides}" "${CMAKE_CURRENT_SOURCE_DIR}/EngineOverrides" "${CMAKE_CURRENT_SOURCE_DIR}/Code/Include")
 target_link_libraries(Terrain.Static PUBLIC polytree::polytree algo::algo)

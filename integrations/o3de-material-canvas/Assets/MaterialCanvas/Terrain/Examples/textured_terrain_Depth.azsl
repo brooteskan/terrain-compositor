@@ -1,0 +1,2 @@
+#include "textured_terrain_Material.azsli"
+#include <TerrainCompositor/TerrainDepth.azsli>

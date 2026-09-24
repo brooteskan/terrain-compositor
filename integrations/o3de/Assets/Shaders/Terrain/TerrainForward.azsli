@@ -16,9 +16,6 @@
 #include <TerrainMeshCutout.azsli>
 #include <TerrainCommon.azsli>
 #include <TerrainSurface.azsli>
-#include <TerrainDetailHelpers.azsli>
-#include <Terrain/Assets/Shaders/Terrain/TerrainMacroHelpers.azsli>
-#include <Terrain/Assets/Shaders/Terrain/ClipmapComputeHelpers.azsli>
 
 #include <Atom/Features/PBR/AlphaUtils.azsli>
 #include <Atom/Features/ColorManagement/TransformColor.azsli>
@@ -56,61 +53,6 @@ VSOutput TerrainPBR_MainPassVS(VertexInput input)
     return output;
 }
 
-void GatherSurfaceDataFromMaterials(
-    in float2 position,
-    in float detailFactor,
-    inout float3 macroColor,
-    inout float3 macroNormal,
-    inout bool hasDetailSurface,
-    inout DetailSurface detailSurface
-    )
-{
-    // ------- Macro Data -------
-    float2 positionDdx = ddx(position);
-    float2 positionDdy = ddy(position);
-    bool hasNormal;
-    SampleMacroTexture(position, positionDdx, positionDdy, macroColor, macroNormal, hasNormal);
-
-    // ------- Detail Data -------
-    float2 detailUv = position.xy * TerrainMaterialSrg::m_detailTextureMultiplier;
-    float2 detailUvDdx = ddx(detailUv);
-    float2 detailUvDdy = ddy(detailUv);
-    float2 detailRegionCoord = position.xy * TerrainSrg::m_detailMaterialIdScale;
-
-    // Only sample detail textures if inside where detail materials should be drawn.
-    if (detailFactor < 1.0)
-    {
-        hasDetailSurface = GetDetailSurface(detailSurface, detailRegionCoord, detailUv, detailUvDdx, detailUvDdy, macroColor);
-    }
-}
-
-void GatherSurfaceDataFromClipmaps(
-    in float2 position,
-    in float detailFactor,
-    inout float3 macroColor,
-    inout float3 macroNormal,
-    inout bool hasDetailSurface,
-    inout DetailSurface detailSurface
-    )
-{
-    ClipmapSample clipmapSample = SampleClipmap(position);
-
-    if (clipmapSample.m_hasMacro)
-    {
-        macroColor = clipmapSample.m_macroColor;
-        if (clipmapSample.m_hasMacroNormal)
-        {
-            macroNormal = clipmapSample.m_macroNormal;
-        }
-    }
-    if (detailFactor < 1.0)
-    {
-        hasDetailSurface = clipmapSample.m_hasDetail;
-        detailSurface = clipmapSample.m_detailSurface;
-    }
-
-}
-
 ForwardPassOutput TerrainPBR_MainPassPS(VSOutput input)
 {
     if (TGMeshCutoutDiscardsTerrain(input.m_worldPosition))
@@ -126,56 +68,11 @@ ForwardPassOutput TerrainPBR_MainPassPS(VSOutput input)
 
     surface.position = input.m_worldPosition.xyz;
     surface.vertexNormal = normalize(input.m_normal);
-    float viewDistance = length(ViewSrg::m_worldPosition - input.m_worldPosition.xyz);
-
-    // Surface data to be gathered from clipmaps or materials.
-    float3 macroNormal = surface.vertexNormal;
-    float3 macroColor = TerrainMaterialSrg::m_baseColor.rgb;
-    bool hasDetailSurface = false;
-    DetailSurface detailSurface = GetDefaultDetailSurface();
-
-    float detailFactor;
-    if (o_useClipmap)
-    {
-        // Clipmap has a max render distance. The true fade distance should be the min.
-        float detailFadeDistance = min(TerrainMaterialSrg::m_detailFadeDistance, TerrainSrg::m_clipmapData.m_detailClipmapMaxRenderRadius - TerrainMaterialSrg::m_detailFadeLength);
-        detailFactor = saturate((viewDistance - detailFadeDistance) / max(TerrainMaterialSrg::m_detailFadeLength, EPSILON));
-        GatherSurfaceDataFromClipmaps(surface.position.xy, detailFactor, macroColor, macroNormal, hasDetailSurface, detailSurface);
-    }
-    else
-    {
-        detailFactor = saturate((viewDistance - TerrainMaterialSrg::m_detailFadeDistance) / max(TerrainMaterialSrg::m_detailFadeLength, EPSILON));
-        GatherSurfaceDataFromMaterials(surface.position.xy, detailFactor, macroColor, macroNormal, hasDetailSurface, detailSurface);
-    }
-
-    // Resolve existing terrain channels first. Both sampling paths evaluate the
-    // terrain-wide graph here, after fading, without rebuilding clipmap content.
-    TerrainSurfaceChannels incoming;
-    incoming.baseColor = hasDetailSurface
-        ? lerp(detailSurface.m_color, macroColor, detailFactor)
-        : macroColor;
-    incoming.roughness = hasDetailSurface ? lerp(detailSurface.m_roughness, 1.0, detailFactor) : 1.0;
-    incoming.specularFactor = hasDetailSurface ? lerp(detailSurface.m_specularF0, 0.5, detailFactor) : 0.5;
-    incoming.metalness = hasDetailSurface ? detailSurface.m_metalness * (1.0 - detailFactor) : 0.0;
-    // Preserve the existing AO behavior: it does not interpolate with detailFactor.
-    incoming.ambientOcclusion = detailSurface.m_occlusion;
-    incoming.normal = macroNormal;
-    if (hasDetailSurface)
-    {
-        detailSurface.m_normal = ReorientTangentSpaceNormal(macroNormal, detailSurface.m_normal);
-        incoming.normal = normalize(lerp(detailSurface.m_normal, macroNormal, detailFactor));
-    }
-
-    TerrainSurfaceChannels resolved = incoming;
-#if defined(TC_EvaluateTerrainSurface)
     TerrainSurfaceContext terrainContext;
     terrainContext.worldPosition = surface.position;
     terrainContext.geometricNormal = surface.vertexNormal;
-    resolved = TC_ValidateSurface(TC_EvaluateTerrainSurface(terrainContext, incoming), incoming);
-#else
-    // Default terrain and previously generated ABI-v1 graphs retain tint ownership.
-    resolved.baseColor *= TC_EvaluateTerrainTint(surface.position);
-#endif
+    TerrainSurfaceChannels resolved = TC_ValidateSurface(
+        TC_EvaluateTerrainSurface(terrainContext, GetMaterialParameters()), terrainContext);
     surface.normal = resolved.normal;
     surface.SetAlbedoAndSpecularF0(resolved.baseColor, resolved.specularFactor, resolved.metalness);
     surface.roughnessLinear = resolved.roughness;

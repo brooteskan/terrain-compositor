@@ -7,43 +7,17 @@
         "category": "Material Outputs",
         "title": "Terrain Output",
         "titlePaletteName": "MathNodeTitlePalette",
-        "description": "Procedural terrain surface. Unconnected channels preserve the composed surface. Connect Constant nodes for explicit values.",
+        "description": "One graph-defined terrain surface evaluated per fragment.",
         "inputSlots": [
-            {
-                "name": "inTint",
-                "allowNameSubstitution": false,
-                "displayName": "inTint",
-                "description": "Legacy tint connection, preserved on old graphs. Use MigrateTintGraphs.py to expose it as Base Color multiplication.",
-                "supportedDataTypeRegex": "float3",
-                "defaultDataType": "float3",
-                "settings": {
-                    "instructions": [
-                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
-                    ]
-                },
-                "defaultValue": {
-                    "$type": "Vector3",
-                    "Value": [
-                        1,
-                        1,
-                        1
-                    ]
-                },
-                "visibleOnNode": false,
-                "editableOnNode": false
-            },
             {
                 "name": "inBaseColor",
                 "displayName": "Base Color",
-                "description": "Unconnected: incoming terrain Base Color.",
+                "description": "Linear ACEScg.",
                 "supportedDataTypeRegex": "float3",
                 "defaultDataType": "float3",
                 "settings": {
                     "instructions": [
                         "SLOTTYPE SLOTNAME = SLOTVALUE;"
-                    ],
-                    "unconnectedValueExpression": [
-                        "incoming.baseColor"
                     ]
                 },
                 "defaultValue": {
@@ -55,20 +29,17 @@
                     ]
                 },
                 "allowNameSubstitution": false,
-                "editableOnNode": false
+                "editableOnNode": true
             },
             {
                 "name": "inNormal",
                 "displayName": "Normal (World)",
-                "description": "Unconnected: incoming terrain Normal (World).",
+                "description": "World normal; zero uses the geometric normal.",
                 "supportedDataTypeRegex": "float3",
                 "defaultDataType": "float3",
                 "settings": {
                     "instructions": [
                         "SLOTTYPE SLOTNAME = SLOTVALUE;"
-                    ],
-                    "unconnectedValueExpression": [
-                        "incoming.normal"
                     ]
                 },
                 "defaultValue": {
@@ -76,24 +47,21 @@
                     "Value": [
                         0,
                         0,
-                        1
+                        0
                     ]
                 },
                 "allowNameSubstitution": false,
-                "editableOnNode": false
+                "editableOnNode": true
             },
             {
                 "name": "inRoughness",
                 "displayName": "Roughness",
-                "description": "Unconnected: incoming terrain Roughness.",
+                "description": "Factor in [0, 1].",
                 "supportedDataTypeRegex": "float",
                 "defaultDataType": "float",
                 "settings": {
                     "instructions": [
                         "SLOTTYPE SLOTNAME = SLOTVALUE;"
-                    ],
-                    "unconnectedValueExpression": [
-                        "incoming.roughness"
                     ]
                 },
                 "defaultValue": {
@@ -101,20 +69,17 @@
                     "Value": 1
                 },
                 "allowNameSubstitution": false,
-                "editableOnNode": false
+                "editableOnNode": true
             },
             {
                 "name": "inMetalness",
                 "displayName": "Metalness",
-                "description": "Unconnected: incoming terrain Metalness.",
+                "description": "Factor in [0, 1].",
                 "supportedDataTypeRegex": "float",
                 "defaultDataType": "float",
                 "settings": {
                     "instructions": [
                         "SLOTTYPE SLOTNAME = SLOTVALUE;"
-                    ],
-                    "unconnectedValueExpression": [
-                        "incoming.metalness"
                     ]
                 },
                 "defaultValue": {
@@ -122,20 +87,17 @@
                     "Value": 0
                 },
                 "allowNameSubstitution": false,
-                "editableOnNode": false
+                "editableOnNode": true
             },
             {
                 "name": "inSpecularFactor",
                 "displayName": "Specular Factor",
-                "description": "Unconnected: incoming terrain Specular Factor.",
+                "description": "Factor in [0, 1].",
                 "supportedDataTypeRegex": "float",
                 "defaultDataType": "float",
                 "settings": {
                     "instructions": [
                         "SLOTTYPE SLOTNAME = SLOTVALUE;"
-                    ],
-                    "unconnectedValueExpression": [
-                        "incoming.specularFactor"
                     ]
                 },
                 "defaultValue": {
@@ -143,20 +105,17 @@
                     "Value": 0.5
                 },
                 "allowNameSubstitution": false,
-                "editableOnNode": false
+                "editableOnNode": true
             },
             {
                 "name": "inAmbientOcclusion",
                 "displayName": "Ambient Occlusion",
-                "description": "Unconnected: incoming terrain Ambient Occlusion.",
+                "description": "Factor in [0, 1].",
                 "supportedDataTypeRegex": "float",
                 "defaultDataType": "float",
                 "settings": {
                     "instructions": [
                         "SLOTTYPE SLOTNAME = SLOTVALUE;"
-                    ],
-                    "unconnectedValueExpression": [
-                        "incoming.ambientOcclusion"
                     ]
                 },
                 "defaultValue": {
@@ -164,7 +123,7 @@
                     "Value": 1
                 },
                 "allowNameSubstitution": false,
-                "editableOnNode": false
+                "editableOnNode": true
             }
         ],
         "outputSlots": [],
@@ -182,7 +141,12 @@
                 "@gemroot:TerrainCompositorCanvas@/Assets/MaterialCanvas/Terrain/Templates/MaterialGraphName_Tint.azsli",
                 "@gemroot:TerrainCompositorCanvas@/Assets/MaterialCanvas/Terrain/Templates/MaterialGraphName_Forward.azsl",
                 "@gemroot:TerrainCompositorCanvas@/Assets/MaterialCanvas/Terrain/Templates/MaterialGraphName_Forward.shader",
-                "@gemroot:TerrainCompositorCanvas@/Assets/MaterialCanvas/Terrain/Templates/MaterialGraphName.materialtype"
+                "@gemroot:TerrainCompositorCanvas@/Assets/MaterialCanvas/Terrain/Templates/MaterialGraphName.materialtype",
+                "@gemroot:TerrainCompositorCanvas@/Assets/MaterialCanvas/Terrain/Templates/MaterialGraphName_Material.azsli",
+                "@gemroot:TerrainCompositorCanvas@/Assets/MaterialCanvas/Terrain/Templates/MaterialGraphName_Parameters.azsli",
+                "@gemroot:TerrainCompositorCanvas@/Assets/MaterialCanvas/Terrain/Templates/MaterialGraphName_Depth.azsl",
+                "@gemroot:TerrainCompositorCanvas@/Assets/MaterialCanvas/Terrain/Templates/MaterialGraphName_Depth.shader",
+                "@gemroot:TerrainCompositorCanvas@/Assets/MaterialCanvas/Terrain/Templates/MaterialGraphName_Shadow.shader"
             ]
         }
     }

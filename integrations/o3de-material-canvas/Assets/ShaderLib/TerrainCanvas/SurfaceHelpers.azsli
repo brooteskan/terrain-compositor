@@ -1,3 +1,0 @@
-#pragma once
-// Compatibility include for previously generated graph source.
-#include <MaterialCanvas/Procedural/NormalFromHeight.azsli>

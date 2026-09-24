@@ -6,6 +6,12 @@
                     "watch": "@GEMROOT:TerrainCompositor@/Assets",
                     "recursive": 1,
                     "order": 90
+                },
+                "Exclude obsolete terrain appearance shaders": {
+                    "pattern": "(^|.*/)(TerrainPBR_ForwardPass|Terrain_DepthPass|Terrain_Shadowmap|TerrainMacroClipmapGenerationPass|TerrainDetailClipmapGenerationPass|TerrainClipmapDebugPass)\\.(shader|azsl)$"
+                },
+                "Exclude obsolete terrain material type": {
+                    "pattern": "(^|.*/)Materials/Terrain/PbrTerrain\\.materialtype$"
                 }
             }
         }

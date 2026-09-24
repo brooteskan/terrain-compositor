@@ -1,3 +1,5 @@
+#include <TerrainCompositor/TerrainMaterialBindings.h>
+#include "TerrainTestFixtures.h"
 #include <AzTest/AzTest.h>
 #include <TerrainCompositor/Components/HeightmapStampConfig.h>
 #include "ComponentConfiguration.h"
@@ -9,7 +11,6 @@
 #include "StampMath.h"
 #include "ImageSampling.h"
 #include <cstring>
-#include <TerrainCompositor/TerrainDetailMaterial.h>
 
 namespace TerrainCompositor
 {
@@ -57,83 +58,6 @@ namespace TerrainCompositor
                     }
             }
         EXPECT_FALSE(Internal::TransformStampXYBounds(local, 0, 0, double(std::numeric_limits<float>::max()), 1, 0).IsRepresentable());
-    }
-
-    TEST(TerrainDetailMaterialTests, UniformPixelsRespectRegionOrderMappingsAndEveryPixelByte)
-    {
-        const auto box = [](float x0, float y0, float x1, float y1)
-        { return AZ::Aabb::CreateFromMinMax(AZ::Vector3(x0, y0, -10), AZ::Vector3(x1, y1, 10)); };
-        const auto bounds = box(-2, -2, 2, 2);
-        AZStd::vector<TerrainDetailMaterialRegion> regions;
-        auto pixel = FindUniformTerrainDetailMaterial(bounds, regions, 7);
-        ASSERT_TRUE(pixel);
-        EXPECT_EQ(pixel->m_material1, 7);
-        EXPECT_EQ(pixel->m_material2, 255);
-        EXPECT_EQ(pixel->m_blend, 0);
-        EXPECT_EQ(pixel->m_padding, 0);
-        regions.push_back({ box(-4, -4, 4, 4), 3, false });
-        EXPECT_EQ(FindUniformTerrainDetailMaterial(bounds, regions, 7)->m_material1, 3);
-        regions.push_back({ bounds, 9, true }); // A later region cannot overrule the first owner.
-        EXPECT_EQ(FindUniformTerrainDetailMaterial(bounds, regions, 7)->m_material1, 3);
-        regions[0].m_hasSurfaceMappings = true;
-        EXPECT_FALSE(FindUniformTerrainDetailMaterial(bounds, regions, 7));
-        regions[0] = { box(2, -4, 4, 4), 3, false }; // Inclusive touching edge has a different owner.
-        EXPECT_FALSE(FindUniformTerrainDetailMaterial(bounds, regions, 7));
-        regions[0].m_bounds = box(3, -4, 4, 4);
-        regions[1].m_hasSurfaceMappings = false;
-        EXPECT_EQ(FindUniformTerrainDetailMaterial(bounds, regions, 7)->m_material1, 9);
-        regions.clear(); // Removal and movement must reassess immediately.
-        EXPECT_EQ(FindUniformTerrainDetailMaterial(bounds, regions, 7)->m_material1, 7);
-        EXPECT_FALSE(FindUniformTerrainDetailMaterial(AZ::Aabb::CreateNull(), regions, 7));
-    }
-
-    TEST(TerrainDetailMaterialTests, UniformCertificateMatchesIndependentPointwiseRegionOracle)
-    {
-        const auto box = [](float x0, float y0, float x1, float y1)
-        { return AZ::Aabb::CreateFromMinMax(AZ::Vector3(x0, y0, 0), AZ::Vector3(x1, y1, 0)); };
-        for (int offset = -4; offset <= 4; ++offset)
-            for (int width = 1; width <= 4; ++width)
-                for (bool mapped : { false, true })
-                {
-                    const AZStd::vector<TerrainDetailMaterialRegion> regions{
-                        { box(float(offset), -2, float(offset + width), 2), 3, mapped },
-                        { box(-8, -8, 8, 8), 5, false } };
-                    for (int x0 = -4; x0 <= 3; ++x0)
-                    {
-                        const auto certificate = FindUniformTerrainDetailMaterial(box(float(x0), -1, float(x0 + 1), 1), regions, 7);
-                        if (!certificate) continue;
-                        for (int sample = 0; sample <= 8; ++sample)
-                        {
-                            const float x = float(x0) + float(sample) / 8;
-                            const bool first = x >= offset && x <= offset + width;
-                            EXPECT_FALSE(first && mapped);
-                            EXPECT_EQ(certificate->m_material1, first ? 3 : 5);
-                        }
-                    }
-                }
-    }
-
-    TEST(TerrainDetailMaterialTests, QueryBoundsProveJobSubdivisionCoordinatesAcrossSignedBoundaries)
-    {
-        for (float spacing : { 0.5f, 1.0f, 2.0f })
-            for (int origin : { -4096, -16, -1, 0, 1, 16, 4096 })
-            {
-                const float start = origin * spacing;
-                const auto bounds = ExactTerrainDetailQueryBounds(AZ::Vector3(start, start, 0), 131, 67, spacing);
-                ASSERT_TRUE(bounds);
-                for (int split = 0; split < 131; ++split)
-                    for (int x = split; x < 131; ++x)
-                    {
-                        const float subdivided = (start + split * spacing) + (x - split) * spacing;
-                        EXPECT_EQ(subdivided, start + x * spacing);
-                        EXPECT_GE(subdivided, bounds->GetMin().GetX());
-                        EXPECT_LE(subdivided, bounds->GetMax().GetX());
-                    }
-            }
-        EXPECT_FALSE(ExactTerrainDetailQueryBounds(AZ::Vector3(0), 4, 4, 0.3f));
-        EXPECT_FALSE(ExactTerrainDetailQueryBounds(AZ::Vector3(0.1f), 4, 4, 0.5f));
-        EXPECT_FALSE(ExactTerrainDetailQueryBounds(AZ::Vector3(4194304.0f), 4, 4, 1));
-        EXPECT_FALSE(ExactTerrainDetailQueryBounds(AZ::Vector3(0), 0, 4, 1));
     }
 
     TEST(ComponentConfigurationTests, CopiesMatchingTypesAndRejectsNullOrWrongTypesWithoutApplying)
@@ -507,5 +431,64 @@ namespace TerrainCompositor
         check(Internal::ImageAssetRoles, HeightmapStampRegistrationData{});
         check(Internal::CutoutAssetRoles, TerrainMeshCutoutRegistrationData{});
         check(Internal::MeshHeightAssetRoles, TerrainMeshHeightStampRegistrationData{});
+    }
+}
+
+namespace TerrainCompositor
+{
+    TEST(TerrainMaterialBindingsTests, AcceptsVariableGraphLayoutAndRejectsMalformedPublicationFields)
+    {
+        TestSupport::ScopedNameDictionary names;
+        using namespace AZ::RHI;
+        const auto makeLayout = [](int mutation)
+        {
+            auto layout = ShaderResourceGroupLayout::Create();
+            layout->SetName(AZ::Name("TerrainMaterialSrg"));
+            layout->SetBindingSlot(1);
+            unsigned offset = 0;
+            if (mutation == 1)
+            {
+                ShaderInputConstantDescriptor graph;
+                graph.m_name = AZ::Name("m_params.node1_inValue");
+                graph.m_constantByteCount = 16;
+                layout->AddShaderInput(graph);
+                offset = 16;
+                ShaderInputImageDescriptor image;
+                image.m_name = AZ::Name("graphTexture"); image.m_count = 2;
+                image.m_type = ShaderInputImageType::Image2D;
+                layout->AddShaderInput(image);
+            }
+            for (const char* name : { "m_meshCutoutCount", "m_meshCutoutRevision", "m_meshHeightGapCount", "m_meshHeightGapRevision" })
+            {
+                ShaderInputConstantDescriptor constant;
+                constant.m_name = AZ::Name(name);
+                constant.m_constantByteOffset = offset;
+                constant.m_constantByteCount = mutation == 7 ? 8 : 4;
+                offset += constant.m_constantByteCount;
+                layout->AddShaderInput(constant);
+            }
+            for (const char* name : { "m_meshCutouts", "m_meshCutoutVertices", "m_meshCutoutIndices", "m_meshHeightGaps", "m_meshHeightGapWords" })
+            {
+                ShaderInputBufferDescriptor buffer;
+                buffer.m_name = AZ::Name(mutation == 2 && AZStd::string_view(name) == "m_meshCutouts" ? "missingCutouts" : name);
+                buffer.m_type = mutation == 3 ? ShaderInputBufferType::Raw : ShaderInputBufferType::Structured;
+                buffer.m_access = mutation == 4 ? ShaderInputBufferAccess::ReadWrite : ShaderInputBufferAccess::Read;
+                buffer.m_count = mutation == 5 ? 2 : 1;
+                buffer.m_strideSize = mutation == 6 ? 32 : 16;
+                layout->AddShaderInput(buffer);
+            }
+            EXPECT_TRUE(layout->Finalize());
+            return layout;
+        };
+        const auto reference = makeLayout(0);
+        EXPECT_TRUE(ValidateTerrainRendererBindings(reference.get(), reference.get()));
+        const auto graph = makeLayout(1);
+        EXPECT_NE(graph->GetHash(), reference->GetHash());
+        EXPECT_TRUE(ValidateTerrainRendererBindings(graph.get(), reference.get()));
+        for (int mutation = 2; mutation <= 7; ++mutation)
+        {
+            const auto malformed = makeLayout(mutation);
+            EXPECT_FALSE(ValidateTerrainRendererBindings(malformed.get(), reference.get())) << mutation;
+        }
     }
 }

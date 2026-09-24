@@ -7,10 +7,10 @@
 -            AZ::Data::AssetBus::Handler::BusConnect(materialAssetId);
 +            AZ::Data::AssetBus::MultiHandler::BusConnect(materialAssetId);
          }
-
+ 
          OnTerrainDataChanged(
-@@ -75,12 +75,18 @@
-
+@@ -75,22 +75,22 @@
+ 
      void TerrainFeatureProcessor::Deactivate()
      {
 -        AZ::Data::AssetBus::Handler::BusDisconnect();
@@ -20,7 +20,7 @@
 +
          DisableSceneNotification();
          OnTerrainDataDestroyBegin();
-
+ 
 +        m_tintAsset = {};
 +        m_tintOwner = AZ::EntityId{};
 +        m_pendingTintMaterial = {};
@@ -29,9 +29,19 @@
 +        m_tintStageTarget = {};
          m_materialAsset = {};
          m_materialInstance = {};
-
-@@ -100,6 +106,15 @@
-
+ 
+         m_meshManager.Reset();
+-        m_macroMaterialManager.Reset();
+-        m_detailMaterialManager.Reset();
+-        if (m_clipmapManager.IsClipmapEnabled())
+-        {
+-            m_clipmapManager.Reset();
+-        }
+     }
+ 
+     void TerrainFeatureProcessor::Render(const AZ::RPI::FeatureProcessor::RenderPacket& packet)
+@@ -100,6 +100,15 @@
+ 
      void TerrainFeatureProcessor::OnAssetReady(AZ::Data::Asset<AZ::Data::AssetData> asset)
      {
 +        if (m_tintOwner.IsValid() && asset.GetId() == m_tintAsset.GetId())
@@ -39,14 +49,14 @@
 +            m_tintAsset = asset;
 +            m_pendingTintMaterial = AZ::RPI::Material::Create(m_tintAsset);
 +            m_tintStageSource = {};
-+            m_tintStatus = "Validating terrain tint material";
++            m_tintStatus = "Validating terrain material";
 +            return;
 +        }
 +        if (asset.GetId() != m_materialAsset.GetId()) return;
          m_materialAsset = asset;
          if (!m_materialAsset->GetObjectSrgLayout())
          {
-@@ -107,7 +122,9 @@
+@@ -107,7 +116,9 @@
          }
          else
          {
@@ -57,7 +67,7 @@
              PrepareMaterialData();
              m_terrainBoundsNeedUpdate = true;
          }
-@@ -122,7 +139,7 @@
+@@ -122,7 +133,7 @@
      {
          m_zBounds = {};
      }
@@ -66,25 +76,79 @@
      void TerrainFeatureProcessor::OnTerrainDataChanged([[maybe_unused]] const AZ::Aabb& dirtyRegion, TerrainDataChangedMask dataChangedMask)
      {
          if ((dataChangedMask & TerrainDataChangedMask::Settings) == TerrainDataChangedMask::Settings)
-@@ -173,7 +190,7 @@
+@@ -144,17 +155,7 @@
+         }
+     }
+ 
+-    void TerrainFeatureProcessor::AddRenderPasses(AZ::RPI::RenderPipeline* renderPipeline)
+-    {
+-        // Get the pass requests to create passes from the asset
+-        AddPassRequestToRenderPipeline(renderPipeline, "Passes/TerrainPassRequest.azasset", "DepthPrePass", true);
+-
+-        // Only add debug pass if the DebugOverlayPass exists
+-        if (renderPipeline->FindFirstPass(AZ::Name("DebugOverlayPass")))
+-        {
+-            AddPassRequestToRenderPipeline(renderPipeline, "Passes/TerrainDebugPassRequest.azasset", "DebugOverlayPass", false);
+-        }
+-    }
++
+ 
+     void TerrainFeatureProcessor::PrepareMaterialData()
+     {
+@@ -173,59 +174,19 @@
                      // skip the rest of shader items
                      return false;
                  }
 -                return true;                     
 +                return true;
              });
-
+ 
          AZ_Error(TerrainFPName, m_terrainSrg, "Terrain Srg not found on any shader in the terrain material");
-@@ -188,7 +205,7 @@
-             {
-                 m_macroMaterialManager.Initialize(m_terrainSrg);
-             }
+ 
+         if (m_terrainSrg)
+-        {
+-            if (m_macroMaterialManager.IsInitialized())
+-            {
+-                m_macroMaterialManager.UpdateSrgIndices(m_terrainSrg);
+-            }
+-            else
+-            {
+-                m_macroMaterialManager.Initialize(m_terrainSrg);
+-            }
 -            
-+
-             if (m_detailMaterialManager.IsInitialized())
-             {
-                 m_detailMaterialManager.UpdateSrgIndices(m_terrainSrg);
-@@ -225,7 +242,7 @@
+-            if (m_detailMaterialManager.IsInitialized())
+-            {
+-                m_detailMaterialManager.UpdateSrgIndices(m_terrainSrg);
+-            }
+-            else if(m_materialInstance)
+-            {
+-                m_detailMaterialManager.Initialize(m_terrainSrg, m_materialInstance);
+-            }
+-
+-            if (m_clipmapManager.IsClipmapEnabled())
+-            {
+-                if (m_clipmapManager.IsInitialized())
+-                {
+-                    m_clipmapManager.UpdateSrgIndices(m_terrainSrg);
+-                }
+-                else
+-                {
+-                    m_clipmapManager.Initialize(m_terrainSrg);
+-                }
+-            }
+             m_meshManager.SetMaterial(m_materialInstance);
+-        }
+-        else
+-        {
+-            m_macroMaterialManager.Reset();
+-            m_detailMaterialManager.Reset();
+-            if (m_clipmapManager.IsClipmapEnabled())
+-            {
+-                m_clipmapManager.Reset();
+-            }
+-        }
+     }
+ 
      void TerrainFeatureProcessor::ProcessSurfaces(const FeatureProcessor::RenderPacket& process)
      {
          AZ_PROFILE_FUNCTION(AzRender);
@@ -93,36 +157,48 @@
          if (m_zBounds.m_min == 0.0f && m_zBounds.m_max == 0.0f)
          {
              return;
-@@ -249,16 +266,19 @@
+@@ -233,14 +194,12 @@
+ 
+         if (m_materialInstance && m_materialInstance->CanCompile())
+         {
+-            AZ::Vector3 cameraPosition = AZ::Vector3::CreateZero();
+             AZ::RPI::ViewPtr mainView;
+             for (auto& view : process.m_views)
+             {
+                 if ((view->GetUsageFlags() & AZ::RPI::View::UsageFlags::UsageCamera) > 0)
+                 {
+                     mainView = view;
+-                    cameraPosition = view->GetCameraTransform().GetTranslation();
+                     break;
+                 }
+             }
+@@ -249,30 +208,16 @@
              {
                  if (m_meshManager.IsInitialized())
                  {
 +                    AZ_PROFILE_SCOPE(AzRender, "Terrain::MeshUpdate");
                      m_meshManager.Update(mainView, m_terrainSrg);
                  }
-
-                 if (m_macroMaterialManager.IsInitialized())
-                 {
-+                    AZ_PROFILE_SCOPE(AzRender, "Terrain::MacroMaterialUpdate");
-                     m_macroMaterialManager.Update(mainView, m_terrainSrg);
-                 }
-
-                 if (m_detailMaterialManager.IsInitialized())
-                 {
-+                    AZ_PROFILE_SCOPE(AzRender, "Terrain::DetailMaterialUpdate");
-                     m_detailMaterialManager.Update(cameraPosition, m_terrainSrg);
-                 }
-
-@@ -266,6 +286,7 @@
-                 {
-                     if (m_clipmapManager.IsInitialized())
-                     {
-+                        AZ_PROFILE_SCOPE(AzRender, "Terrain::ClipmapUpdate");
-                         m_clipmapManager.Update(cameraPosition, GetParentScene(), m_terrainSrg);
-                     }
-                 }
-@@ -273,6 +294,8 @@
-
+ 
+-                if (m_macroMaterialManager.IsInitialized())
+-                {
+-                    m_macroMaterialManager.Update(mainView, m_terrainSrg);
+-                }
+-
+-                if (m_detailMaterialManager.IsInitialized())
+-                {
+-                    m_detailMaterialManager.Update(cameraPosition, m_terrainSrg);
+-                }
+-
+-                if (m_clipmapManager.IsClipmapEnabled())
+-                {
+-                    if (m_clipmapManager.IsInitialized())
+-                    {
+-                        m_clipmapManager.Update(cameraPosition, GetParentScene(), m_terrainSrg);
+-                    }
+-                }
+             }
+ 
              if (m_meshManager.IsInitialized())
              {
 +                AZ_PROFILE_SCOPE(AzRender, "Terrain::DrawMeshes");
@@ -130,41 +206,58 @@
                  m_meshManager.DrawMeshes(process, mainView);
              }
          }
-@@ -292,11 +315,13 @@
-
+@@ -292,11 +237,13 @@
+ 
          if (m_materialInstance)
          {
 +            AZ_PROFILE_SCOPE(AzRender, "Terrain::MaterialCompile");
              m_materialInstance->Compile();
          }
-
+ 
          if (m_terrainSrg && m_passes.size() > 0)
          {
 +            AZ_PROFILE_SCOPE(AzRender, "Terrain::TerrainSrgCompileAndBind");
              m_terrainSrg->Compile();
              for (auto* pass : m_passes)
              {
-@@ -309,7 +334,7 @@
-     {
-         m_detailMaterialManager.SetDetailMaterialConfiguration(config);
+@@ -305,22 +252,15 @@
+         }
      }
+ 
+-    void TerrainFeatureProcessor::SetDetailMaterialConfiguration(const DetailMaterialConfiguration& config)
+-    {
+-        m_detailMaterialManager.SetDetailMaterialConfiguration(config);
+-    }
 -    
++
 +
      void TerrainFeatureProcessor::SetMeshConfiguration(const MeshConfiguration& config)
      {
          m_meshManager.SetConfiguration(config);
-@@ -320,7 +345,7 @@
-     {
-         m_clipmapManager.SetConfiguration(config);
-     }
+-        m_macroMaterialManager.SetRenderDistance(config.m_renderDistance);
+-    }
+-
+-    void TerrainFeatureProcessor::SetClipmapConfiguration(const ClipmapConfiguration& config)
+-    {
+-        m_clipmapManager.SetConfiguration(config);
+-    }
 -    
++    }
++
++
 +
      void TerrainFeatureProcessor::CachePasses()
      {
          m_passes.clear();
-@@ -366,3 +391,5 @@
-         return m_clipmapManager;
+@@ -361,8 +301,7 @@
+         return m_materialInstance;
      }
+ 
+-    const TerrainClipmapManager& TerrainFeatureProcessor::GetClipmapManager() const
+-    {
+-        return m_clipmapManager;
+-    }
++
  }
 +
 +#include <TerrainRenderer/TerrainTintMaterial.inl>

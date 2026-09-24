@@ -1,2 +1,0 @@
-// Compile the stock pass from the project include root so it shares our TerrainMaterialSrg.
-#include <Terrain/Assets/Shaders/Terrain/TerrainMacroClipmapGenerationPass.azsl>

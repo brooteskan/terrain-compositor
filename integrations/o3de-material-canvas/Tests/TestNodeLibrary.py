@@ -14,9 +14,7 @@ class NodeLibraryTests(unittest.TestCase):
             c = json.loads(path.read_text())['ClassData']
             self.assertNotIn(c['id'], ids, path)
             ids.add(c['id'])
-            if 'Compatibility' in path.parts:
-                self.assertEqual(c['category'], 'Compatibility')
-            elif 'Procedural' in path.parts:
+            if 'Procedural' in path.parts:
                 self.assertIn(c['category'], ('Math Functions', 'Procedural'))
                 self.assertNotRegex(path.read_text(), r'\b(context|incoming|TerrainMaterialSrg|TerrainSurfaceChannels)\b')
             elif path.name == 'output.materialgraphnode':
@@ -34,9 +32,6 @@ class NodeLibraryTests(unittest.TestCase):
                 self.assertTrue(helper.is_file())
                 self.assertNotRegex(helper.read_text(), r'TerrainCompositor|TerrainSurface|TerrainMaterialSrg|\bincoming\b|\bcontext\b')
                 self.assertFalse(re.findall(r'#include\s+[<"]Terrain', helper.read_text()))
-        for old, new in [('LatticeNoise', 'LatticeNoise'), ('SurfaceHelpers', 'NormalFromHeight')]:
-            text = (shader_root / f'TerrainCanvas/{old}.azsli').read_text()
-            self.assertIn(f'#include <MaterialCanvas/Procedural/{new}.azsli>', text)
         template = (ROOT / 'Assets/MaterialCanvas/Terrain/Templates/MaterialGraphName_Tint.azsli').read_text()
         self.assertNotIn('LatticeNoise.azsli', template)
         self.assertNotIn('NormalFromHeight.azsli', template)

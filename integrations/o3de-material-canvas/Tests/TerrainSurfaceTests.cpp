@@ -77,9 +77,20 @@ float4 VS(uint id : SV_VertexID) : SV_Position {
     const float tiltedLength = std::sqrt(tiltedX * tiltedX + .16f + tiltedZ * tiltedZ);
     const float shadingLength = std::sqrt(.09f + .16f + 1.025f * 1.025f);
     const Case cases[]{
-        {"native unconnected surface", Read(CANVAS_ROOT "/Assets/MaterialCanvas/Terrain/Examples/surface_passthrough_Tint.azsli"), incoming},
-        {"native six connected channels", Read(CANVAS_ROOT "/Assets/MaterialCanvas/Terrain/Examples/surface_channels_Tint.azsli"),
-            {.6f,.25f,.1f,.22f, .6f,0,.8f,.65f, .8f,.35f,0,1}},
+        {"disconnected defaults", R"(
+TerrainSurfaceChannels TC_CanvasSurface(TerrainSurfaceContext ctx, TerrainSurfaceChannels s) {
+    TerrainSurfaceChannels v;
+    v.baseColor = float3(1,1,1); v.normal = float3(0,0,0); v.roughness = 1;
+    v.metalness = 0; v.specularFactor = .5; v.ambientOcclusion = 1;
+    return TC_ValidateSurface(v, ctx);
+})", {1,1,1,1, 0,0,1,0, .5f,1,0,1}},
+        {"invalid channels use deterministic defaults", R"(
+TerrainSurfaceChannels TC_CanvasSurface(TerrainSurfaceContext ctx, TerrainSurfaceChannels s) {
+    float invalid = asfloat(0x7fc00000);
+    s.baseColor = invalid; s.normal = invalid; s.roughness = invalid;
+    s.metalness = invalid; s.specularFactor = invalid; s.ambientOcclusion = invalid;
+    return TC_ValidateSurface(s, ctx);
+})", {1,1,1,1, 0,0,1,0, .5f,1,0,1}},
         {"world-space derivative normal", R"(
 TerrainSurfaceChannels TC_CanvasSurface(TerrainSurfaceContext ctx, TerrainSurfaceChannels s) {
     s.normal = TC_NormalFromHeight(ctx.worldPosition, s.normal, 0.3 * ctx.worldPosition.x + 0.4 * ctx.worldPosition.y, 1);
@@ -130,8 +141,8 @@ TerrainSurfaceChannels TC_CanvasSurface(TerrainSurfaceContext ctx, TerrainSurfac
     v.baseColor = float3(1.7, 0.4, 0.6);
     v.normal = float3(0,0,0); v.roughness = -1; v.metalness = 2;
     v.specularFactor = asfloat(0x7fc00000); v.ambientOcclusion = -0.1;
-    return TC_ValidateSurface(v, s);
-})", {1.7f,.4f,.6f,0, 0,0,1,1, .45f,0,0,1}}
+    return TC_ValidateSurface(v, ctx);
+})", {1.7f,.4f,.6f,0, 0,0,1,1, .5f,0,0,1}}
     };
     float maximum = 0;
     for (const auto& test : cases)

@@ -1,3 +1,4 @@
+#include <viewsrg_all.srgi>
 #include "MaterialGraphName_Tint.azsli"
 #define TC_EvaluateTerrainSurface TC_CanvasSurface
 #include <TerrainCompositor/TerrainForward.azsli>

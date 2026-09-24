@@ -1,0 +1,2 @@
+#include "procedural_terrain_Material.azsli"
+#include <TerrainCompositor/TerrainDepth.azsli>

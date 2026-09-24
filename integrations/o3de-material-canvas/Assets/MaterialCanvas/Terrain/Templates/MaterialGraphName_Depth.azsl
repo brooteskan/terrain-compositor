@@ -1,0 +1,2 @@
+#include "MaterialGraphName_Material.azsli"
+#include <TerrainCompositor/TerrainDepth.azsli>

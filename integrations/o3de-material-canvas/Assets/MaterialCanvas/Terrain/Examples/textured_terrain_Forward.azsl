@@ -1,0 +1,4 @@
+#include <viewsrg_all.srgi>
+#include "textured_terrain_Tint.azsli"
+#define TC_EvaluateTerrainSurface TC_CanvasSurface
+#include <TerrainCompositor/TerrainForward.azsli>

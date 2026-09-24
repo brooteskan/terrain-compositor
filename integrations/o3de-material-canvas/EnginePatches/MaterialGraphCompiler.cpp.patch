@@ -1,37 +1,52 @@
 --- a/MaterialGraphCompiler.cpp
 +++ b/MaterialGraphCompiler.cpp
-@@ -175,7 +175,11 @@
+@@ -175,7 +175,9 @@
              ++m_templateNodeCount;
          }
  
 -        if (!ReportGeneratedFileStatus())
-+        // Headless source-generation checks can validate Asset Processor jobs
-+        // independently. The default interactive path retains native status reporting.
 +        const bool sourceGenerationOnly = AtomToolsFramework::GetSettingsValue(
 +            "/O3DE/TerrainCanvas/SourceGenerationOnly", false);
 +        if (!sourceGenerationOnly && !ReportGeneratedFileStatus())
          {
              SetState(State::Failed);
              return false;
-@@ -716,6 +720,21 @@
-                 }
-                 return sourceSlotSymbolName;
-             }
-+        }
-+
-+        // An output socket may inherit a value from the evaluation context instead
-+        // of a numeric literal. Incoming connections always take precedence.
-+        if (auto dynamicNode = azrtti_cast<const AtomToolsFramework::DynamicNode*>(slot->GetParentNode().get()))
-+        {
-+            AZStd::vector<AZStd::string> expressions;
-+            AtomToolsFramework::VisitDynamicNodeSlotConfigs(dynamicNode->GetConfig(),
-+                [&](const AtomToolsFramework::DynamicNodeSlotConfig& config)
+@@ -1277,6 +1279,12 @@
+                     });
+ 
+                 // Find or create a property group with the specified name
++                if (materialTypeSourceData.FindPropertyGroup("terrain") &&
++                    (materialPropertyGroupSymbolName == "settings" || materialPropertyGroupSymbolName == "terrain" || materialPropertyConnectionName.starts_with("m_")))
 +                {
-+                    if (config.m_name == slot->GetName())
-+                        AtomToolsFramework::CollectDynamicNodeSettings(config.m_settings, "unconnectedValueExpression", expressions);
-+                });
-+            if (expressions.size() == 1 && !expressions.front().empty())
-+                return expressions.front();
++                    AZ_Error("MaterialGraphCompiler", false, "Terrain renderer property and binding names are reserved.");
++                    return false;
++                }
+                 auto propertyGroup = materialTypeSourceData.FindPropertyGroup(materialPropertyGroupSymbolName);
+                 if (!propertyGroup)
+                 {
+@@ -1383,6 +1391,25 @@
+             }
          }
  
-         // If the slot's embedded value is being used then generate shader code to represent it. More generic options will be explored to
++        // Direct terrain shaders share one parameter declaration across all raster passes.
++        // Keep renderer publication fields out of m_params so their existing SRG names remain valid.
++        if (materialTypeSourceData.FindPropertyGroup("terrain"))
++        {
++            AZ::RPI::MaterialTypeSourceData graphParameters;
++            for (const auto& group : materialTypeSourceData.GetPropertyLayout().m_propertyGroups)
++            {
++                if (group->GetName() == "settings" || group->GetName() == "terrain")
++                    continue;
++                auto targetGroup = graphParameters.AddPropertyGroup(group->GetName());
++                for (const auto& property : group->GetProperties())
++                    *targetGroup->AddProperty(property->GetName()) = *property;
++            }
++            graphParameters.SortProperties();
++            const auto parameterPath = GetOutputPathFromTemplatePath("MaterialGraphName_Parameters.azsli");
++            if (!graphParameters.CreateMaterialShaderParameterLayout().WriteMaterialParameterStructureAzsli(parameterPath))
++                return false;
++        }
++
+         // Sorting groups and properties in the source data layout to force consistent ordering of the generated material type.
+         materialTypeSourceData.SortProperties();
+ 

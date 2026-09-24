@@ -121,7 +121,7 @@ RWStructuredBuffer<float4> normals : register(u0);
                 D3D11_SDK_VERSION, &device, nullptr, &context);
         ASSERT_TRUE(SUCCEEDED(status));
 
-        std::ifstream file(TERRAIN_COMPOSITOR_SHADER_DIR "/Terrain_DepthPass.azsl");
+        std::ifstream file(TERRAIN_COMPOSITOR_SHADER_DIR "/TerrainDepth.azsli");
         ASSERT_TRUE(file.is_open());
         std::ostringstream text;
         text << file.rdbuf();
@@ -170,7 +170,7 @@ RWStructuredBuffer<uint> samples : register(u0);
         auto compile = [&](const char* entry, const char* profile)
         {
             ComPtr<ID3DBlob> code, errors;
-            const auto hr = D3DCompile(source.data(), source.size(), "Terrain_DepthPass.azsl", nullptr, nullptr,
+            const auto hr = D3DCompile(source.data(), source.size(), "TerrainDepth.azsli", nullptr, nullptr,
                 entry, profile, D3DCOMPILE_ENABLE_STRICTNESS | D3DCOMPILE_OPTIMIZATION_LEVEL3, 0, &code, &errors);
             EXPECT_TRUE(SUCCEEDED(hr)) << (errors ? static_cast<const char*>(errors->GetBufferPointer()) : entry);
             return code;

@@ -20,7 +20,7 @@ class CompilerOverrideTests(unittest.TestCase):
             shutil.copyfile(ROOT / 'EngineOverrides.cmake', root / 'EngineOverrides.cmake')
             patch = (ROOT / 'EnginePatches/MaterialGraphCompiler.cpp.patch').read_text()
             if mutate_patch:
-                patch = patch.replace('return expressions.front();', 'return expressions.front(); // deliberately changed')
+                patch = patch.replace('graphParameters.SortProperties();', 'graphParameters.SortProperties(); // deliberately changed')
             (root / 'EnginePatches/MaterialGraphCompiler.cpp.patch').write_text(patch, newline='\n')
             (root / 'original.cpp').write_bytes(source)
             result = subprocess.run([CMAKE, '-DTC_CANVAS_COMPILER_SOURCE=' + str(root / 'original.cpp'),

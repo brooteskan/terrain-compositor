@@ -1,0 +1,22 @@
+--- a/EditorTerrainModule.cpp
++++ b/EditorTerrainModule.cpp
+@@ -15,8 +15,6 @@
+ #include <EditorComponents/EditorTerrainWorldDebuggerComponent.h>
+ #include <EditorComponents/EditorTerrainPhysicsColliderComponent.h>
+ #include <EditorComponents/EditorTerrainWorldRendererComponent.h>
+-#include <TerrainRenderer/EditorComponents/EditorTerrainSurfaceMaterialsListComponent.h>
+-#include <TerrainRenderer/EditorComponents/EditorTerrainMacroMaterialComponent.h>
+ 
+ namespace Terrain
+ {
+@@ -27,10 +25,8 @@
+             {
+                 Terrain::EditorTerrainHeightGradientListComponent::CreateDescriptor(),
+                 Terrain::EditorTerrainLayerSpawnerComponent::CreateDescriptor(),
+-                Terrain::EditorTerrainMacroMaterialComponent::CreateDescriptor(),
+                 Terrain::EditorTerrainSurfaceGradientListComponent::CreateDescriptor(),
+                 Terrain::EditorTerrainSystemComponent::CreateDescriptor(),
+-                Terrain::EditorTerrainSurfaceMaterialsListComponent::CreateDescriptor(),
+                 Terrain::EditorTerrainWorldComponent::CreateDescriptor(),
+                 Terrain::EditorTerrainWorldDebuggerComponent::CreateDescriptor(),
+                 Terrain::EditorTerrainPhysicsColliderComponent::CreateDescriptor(),

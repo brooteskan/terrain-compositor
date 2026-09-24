@@ -1,0 +1,8 @@
+{
+    "materialType": "textured_terrain.materialtype",
+    "materialTypeVersion": 1,
+    "propertyValues": {
+        "surface.texture_a": "rock_basecolor.png",
+        "surface.texture_b": "grass_basecolor.png"
+    }
+}

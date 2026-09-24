@@ -1,0 +1,20 @@
+--- a/Components/TerrainSystemComponent.cpp
++++ b/Components/TerrainSystemComponent.cpp
+@@ -17,7 +17,6 @@
+ #include <TerrainSystem/TerrainSystem.h>
+ #include <Atom/RPI.Public/Pass/PassSystemInterface.h>
+ #include <TerrainRenderer/Passes/TerrainClipmapComputePass.h>
+-#include <TerrainRenderer/Passes/TerrainClipmapDebugPass.h>
+ 
+ namespace Terrain
+ {
+@@ -78,9 +77,6 @@
+         passSystem->ConnectEvent(m_loadTemplatesHandler);
+ 
+         // Register terrain system related passes
+-        passSystem->AddPassCreator(AZ::Name("TerrainMacroClipmapGenerationPass"), &TerrainMacroClipmapGenerationPass::Create);
+-        passSystem->AddPassCreator(AZ::Name("TerrainDetailClipmapGenerationPass"), &TerrainDetailClipmapGenerationPass::Create);
+-        passSystem->AddPassCreator(AZ::Name("TerrainClipmapDebugPass"), &TerrainClipmapDebugPass::Create);
+     }
+ 
+     void TerrainSystemComponent::Deactivate()

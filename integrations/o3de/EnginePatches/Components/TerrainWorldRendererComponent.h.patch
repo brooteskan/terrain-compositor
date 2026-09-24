@@ -1,0 +1,12 @@
+--- a/Components/TerrainWorldRendererComponent.h
++++ b/Components/TerrainWorldRendererComponent.h
+@@ -31,9 +31,7 @@
+         AZ_RTTI(TerrainWorldRendererConfig, "{08C5863C-092D-4A69-8226-4978E4F6E343}", AZ::ComponentConfig);
+         static void Reflect(AZ::ReflectContext* context);
+ 
+-        DetailMaterialConfiguration m_detailMaterialConfig;
+         MeshConfiguration m_meshConfig;
+-        ClipmapConfiguration m_clipmapConfig;
+     };
+ 
+ 

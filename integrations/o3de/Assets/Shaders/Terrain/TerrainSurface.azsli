@@ -1,6 +1,6 @@
 #pragma once
 
-// Terrain-wide, post-composition material inputs. Colors are linear working RGB
+// Graph-defined material channels. Colors are linear working RGB
 // (ACEScg), normals are world-space, and roughness is perceptually linear.
 struct TerrainSurfaceChannels
 {
@@ -30,14 +30,14 @@ float TC_SurfaceFactor(float value, float fallback)
     return isfinite(value) ? saturate(value) : fallback;
 }
 
-TerrainSurfaceChannels TC_ValidateSurface(TerrainSurfaceChannels value, TerrainSurfaceChannels incoming)
+TerrainSurfaceChannels TC_ValidateSurface(TerrainSurfaceChannels value, TerrainSurfaceContext context)
 {
-    // Do not clamp HDR/overbright working RGB to one (legacy tint can exceed it).
-    value.baseColor = all(isfinite(value.baseColor)) ? max(value.baseColor, 0.0) : incoming.baseColor;
-    value.normal = TC_SafeNormal(value.normal, incoming.normal);
-    value.roughness = TC_SurfaceFactor(value.roughness, incoming.roughness);
-    value.metalness = TC_SurfaceFactor(value.metalness, incoming.metalness);
-    value.specularFactor = TC_SurfaceFactor(value.specularFactor, incoming.specularFactor);
-    value.ambientOcclusion = TC_SurfaceFactor(value.ambientOcclusion, incoming.ambientOcclusion);
+    // Do not clamp HDR/overbright working RGB to one.
+    value.baseColor = all(isfinite(value.baseColor)) ? max(value.baseColor, 0.0) : float3(1, 1, 1);
+    value.normal = TC_SafeNormal(value.normal, TC_SafeNormal(context.geometricNormal, float3(0, 0, 1)));
+    value.roughness = TC_SurfaceFactor(value.roughness, 1.0);
+    value.metalness = TC_SurfaceFactor(value.metalness, 0.0);
+    value.specularFactor = TC_SurfaceFactor(value.specularFactor, 0.5);
+    value.ambientOcclusion = TC_SurfaceFactor(value.ambientOcclusion, 1.0);
     return value;
 }

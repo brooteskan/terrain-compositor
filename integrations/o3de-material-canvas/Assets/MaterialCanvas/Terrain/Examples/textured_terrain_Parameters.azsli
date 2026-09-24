@@ -1,0 +1,17 @@
+// This code was generated from the MaterialShaderParameterLayout. Do not modify.
+#pragma once
+
+struct MaterialParameters {
+    uint   m_materialType;
+    uint   m_materialInstance;
+    float  node9_float_input_inValue;
+    float4 node10_color_input_inValue;
+    float  node7_float_input_inValue;
+    float  node8_float_input_inValue;
+    int    node3_sample_texture_2d_inValue;
+    uint   node3_sample_texture_2d_inSampler;
+    int    node4_sample_texture_2d_inValue;
+    uint   node4_sample_texture_2d_inSampler;
+    float3 m_finalPadding;
+}; 
+

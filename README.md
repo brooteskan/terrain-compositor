@@ -39,9 +39,11 @@ height gaps, and applies version-pinned Terrain source overrides from its own
 integration directory.
 
 The optional [TerrainCompositorCanvas Gem](integrations/o3de-material-canvas/README.md)
-adds a Material Canvas Terrain Output, editable procedural surface examples, and a
+adds a Material Canvas Terrain Output, procedural and two-texture examples, and a
 Terrain Material scene selector. Enable it alongside the base Gem to author GPU
 color, roughness, normal, metalness, specular-factor, and occlusion formulas.
+The base Gem ships a generated default graph material. Legacy macro/detail shading,
+appearance clipmaps, and old tint graphs are removed; no appearance migration is supplied.
 
 ## Compatibility
 

@@ -223,6 +223,12 @@ namespace TerrainCompositor
             m_gapAwaitingActivation = false;
             return;
         }
+        // Name-index wrappers cache numeric indices. A different graph can reorder its SRG.
+        // Resolve against the current layout before any publication, including in-place shader reloads.
+        m_cutoutCountIndex = AZ::RHI::ShaderInputNameIndex("m_meshCutoutCount");
+        m_cutoutsIndex = AZ::RHI::ShaderInputNameIndex("m_meshCutouts");
+        m_verticesIndex = AZ::RHI::ShaderInputNameIndex("m_meshCutoutVertices");
+        m_indicesIndex = AZ::RHI::ShaderInputNameIndex("m_meshCutoutIndices");
         const auto countProperty = material->FindPropertyIndex(AZ::Name("settings.meshCutoutCount"));
         const auto revisionProperty = material->FindPropertyIndex(AZ::Name("settings.meshCutoutRevision"));
         const bool propertiesAvailable = countProperty.IsValid() && revisionProperty.IsValid();
@@ -338,7 +344,7 @@ namespace TerrainCompositor
                 "TerrainMeshCutout",
                 false,
                 "The active terrain material cannot bind TG mesh-height-gap resources. Coupled CPU gaps are neutral. "
-                "Reprocess PbrTerrain.materialtype and terrain forward/depth shaders, then reload the material.");
+                "Reprocess the selected graph material type and its raster shaders, then reload the material.");
         }
         m_reportedGapBindingFailure = !bindingsAvailable;
         if (!ready || !gapCountBound)

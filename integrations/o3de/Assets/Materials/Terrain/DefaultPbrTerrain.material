@@ -1,11 +1,6 @@
 {
-    "description": "",
-    "materialType": "PbrTerrain.materialtype",
-    "parentMaterial": "",
+    "description": "Bundled graph-defined terrain default.",
+    "materialType": "default_terrain.materialtype",
     "materialTypeVersion": 1,
-    "properties": {
-        "baseColor": {
-            "color": [ 0.18, 0.18, 0.18 ] 
-        }
-    }
+    "propertyValues": {}
 }

@@ -1,6 +1,17 @@
 --- a/TerrainRenderer/TerrainFeatureProcessor.h
 +++ b/TerrainRenderer/TerrainFeatureProcessor.h
-@@ -34,7 +34,7 @@
+@@ -11,10 +11,6 @@
+ #include <AzCore/Asset/AssetCommon.h>
+ #include <AzFramework/Terrain/TerrainDataRequestBus.h>
+ 
+-#include <TerrainRenderer/Passes/TerrainClipmapComputePass.h>
+-#include <TerrainRenderer/TerrainDetailMaterialManager.h>
+-#include <TerrainRenderer/TerrainMacroMaterialManager.h>
+-#include <TerrainRenderer/TerrainClipmapManager.h>
+ #include <TerrainRenderer/TerrainMeshManager.h>
+ 
+ #include <Atom/RPI.Public/FeatureProcessor.h>
+@@ -34,7 +30,7 @@
  {
      class TerrainFeatureProcessor final
          : public AZ::RPI::FeatureProcessor
@@ -9,12 +20,19 @@
          , private AzFramework::Terrain::TerrainDataNotificationBus::Handler
      {
      public:
-@@ -60,6 +60,14 @@
+@@ -53,13 +49,18 @@
+         void Deactivate() override;
+         void Render(const AZ::RPI::FeatureProcessor::RenderPacket& packet) override;
+ 
+-        void SetDetailMaterialConfiguration(const DetailMaterialConfiguration& config);
+         void SetMeshConfiguration(const MeshConfiguration& config);
+-        void SetClipmapConfiguration(const ClipmapConfiguration& config);
+ 
          const AZ::Data::Instance<AZ::RPI::ShaderResourceGroup> GetTerrainShaderResourceGroup() const;
          const AZ::Data::Instance<AZ::RPI::Material> GetMaterial() const;
-         const TerrainClipmapManager& GetClipmapManager() const;
+-        const TerrainClipmapManager& GetClipmapManager() const;
 +
-+        //! One optional scene-wide tint owner. Selection never invalidates terrain data.
++        //! One optional scene-wide material owner. Selection never invalidates terrain data.
 +        bool SetTintMaterial(AZ::EntityId owner, const AZ::Data::Asset<AZ::RPI::MaterialAsset>& asset);
 +        void ClearTintMaterial(AZ::EntityId owner);
 +        bool UpdateTintMaterial();
@@ -22,30 +40,46 @@
 +        const char* GetTintMaterialStatus() const { return m_tintStatus; }
 +
      private:
-
+ 
          using MaterialInstance = AZ::Data::Instance<AZ::RPI::Material>;
-@@ -75,6 +83,9 @@
+@@ -75,6 +76,9 @@
          //! AZ::Data::AssetBus overrides...
          void OnAssetReady(AZ::Data::Asset<AZ::Data::AssetData> asset) override;
          void OnAssetReloaded(AZ::Data::Asset<AZ::Data::AssetData> asset) override;
 +        void OnAssetError(AZ::Data::Asset<AZ::Data::AssetData> asset) override;
 +        void OnAssetReloadError(AZ::Data::Asset<AZ::Data::AssetData> asset) override;
 +        bool ValidateTintMaterial(const MaterialInstance& material) const;
-
+ 
          // AzFramework::Terrain::TerrainDataNotificationBus overrides...
          void OnTerrainDataDestroyBegin() override;
-@@ -101,6 +112,14 @@
-
+@@ -84,7 +88,6 @@
+         void OnRenderPipelineChanged(AZ::RPI::RenderPipeline* pipeline, AZ::RPI::SceneNotification::RenderPipelineChangeType changeType) override;
+         
+         // AZ::RPI::FeatureProcessor overrides...
+-        void AddRenderPasses(AZ::RPI::RenderPipeline* renderPipeline) override;
+ 
+         void Initialize();
+ 
+@@ -95,12 +98,19 @@
+         void CachePasses();
+ 
+         TerrainMeshManager m_meshManager;
+-        TerrainMacroMaterialManager m_macroMaterialManager;
+-        TerrainDetailMaterialManager m_detailMaterialManager;
+-        TerrainClipmapManager m_clipmapManager;
+ 
          AZ::Data::Asset<AZ::RPI::MaterialAsset> m_materialAsset;
          MaterialInstance m_materialInstance;
 +        MaterialInstance m_defaultMaterial;
 +        MaterialInstance m_pendingTintMaterial;
 +        AZ::Data::Asset<AZ::RPI::MaterialAsset> m_tintAsset;
 +        AZ::EntityId m_tintOwner;
-+        const char* m_tintStatus = "Legacy terrain tint";
++        const char* m_tintStatus = "Default graph terrain material";
 +        AZ::Data::Instance<AZ::RPI::ShaderResourceGroup> m_tintStageSource;
 +        AZ::Data::Instance<AZ::RPI::ShaderResourceGroup> m_tintStageTarget;
 +        AZ::u64 m_tintStageChange = 0;
-
++        AZ::u64 m_tintStageTargetChange = 0;
++        AZ::HashValue64 m_tintStageTargetLayout{};
+ 
          AZ::Data::Instance<AZ::RPI::ShaderResourceGroup> m_terrainSrg;
-
+ 

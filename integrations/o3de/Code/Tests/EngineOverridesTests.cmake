@@ -19,16 +19,22 @@ file(WRITE "${TC_TEST_ROOT}/wrong-output/EngineOverrides.cmake" "${altered_gener
 file(COPY "${integration}/EnginePatches" DESTINATION "${TC_TEST_ROOT}/wrong-output")
 
 file(MAKE_DIRECTORY "${TC_TEST_ROOT}/wrong-query/TerrainSystem")
-foreach(relative IN ITEMS TerrainRenderer/TerrainFeatureProcessor.h TerrainRenderer/TerrainDetailMaterialManager.h
+foreach(relative IN ITEMS TerrainRenderer/TerrainFeatureProcessor.h
     TerrainRenderer/TerrainMeshManager.h TerrainRenderer/TerrainMeshManager.cpp
-    TerrainRenderer/TerrainDetailMaterialManager.cpp
     TerrainRenderer/TerrainFeatureProcessor.cpp TerrainRaycast/TerrainRaycastContext.cpp
     Components/TerrainPhysicsColliderComponent.h Components/TerrainPhysicsColliderComponent.cpp
+    Components/TerrainSystemComponent.cpp Components/TerrainWorldRendererComponent.cpp
+    Components/TerrainWorldRendererComponent.h TerrainModule.cpp EditorTerrainModule.cpp
+    EditorComponents/EditorTerrainSystemComponent.cpp
     TerrainSystem/TerrainSystem.cpp)
     get_filename_component(directory "${TC_TEST_ROOT}/wrong-query/${relative}" DIRECTORY)
     file(MAKE_DIRECTORY "${directory}")
     configure_file("${TC_ENGINE_TERRAIN_ROOT}/${relative}" "${TC_TEST_ROOT}/wrong-query/${relative}" COPYONLY)
+    get_filename_component(input_directory "${TC_TEST_ROOT}/wrong-input/${relative}" DIRECTORY)
+    file(MAKE_DIRECTORY "${input_directory}")
+    configure_file("${TC_ENGINE_TERRAIN_ROOT}/${relative}" "${TC_TEST_ROOT}/wrong-input/${relative}" COPYONLY)
 endforeach()
+file(APPEND "${TC_TEST_ROOT}/wrong-input/${first}" "\n// Incompatible input.\n")
 file(APPEND "${TC_TEST_ROOT}/wrong-query/TerrainSystem/TerrainSystem.cpp" "\n// Changed grid/sampler contract.\n")
 
 foreach(case IN ITEMS valid repeat wrong-input wrong-output wrong-query)

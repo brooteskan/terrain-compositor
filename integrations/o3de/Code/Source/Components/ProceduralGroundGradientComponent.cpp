@@ -1,16 +1,12 @@
 #include <TerrainCompositor/Components/ProceduralGroundGradientComponent.h>
 #include "../ComponentConfiguration.h"
 
-#include <Atom/RPI.Public/RPISystemInterface.h>
-#include <Atom/RPI.Public/Scene.h>
 #include <AzCore/Math/MathUtils.h>
 #include <AzCore/Serialization/EditContext.h>
 #include <AzCore/Serialization/SerializeContext.h>
 #include <AzCore/std/containers/array.h>
 #include <AzFramework/Entity/EntityContextBus.h>
-#include <AzFramework/Scene/SceneSystemInterface.h>
 #include <LmbrCentral/Dependency/DependencyNotificationBus.h>
-#include <TerrainRenderer/TerrainFeatureProcessor.h>
 
 #include <cmath>
 #include <AzCore/Console/Console.h>
@@ -52,7 +48,6 @@ namespace TerrainCompositor
                 ->Field("AmplitudeMeters", &ProceduralGroundGradientConfig::m_amplitudeMeters)
                 ->Field("Frequency", &ProceduralGroundGradientConfig::m_frequency)
                 ->Field("KernelPolicy", &ProceduralGroundGradientConfig::m_kernelPolicy)
-                ->Field("NoiseTintStrength", &ProceduralGroundGradientConfig::m_noiseTintStrength)
                 ->Field("HoleMask", &ProceduralGroundGradientConfig::m_holeMask)
                 ->Field("HoleThreshold", &ProceduralGroundGradientConfig::m_holeThreshold);
 
@@ -60,7 +55,7 @@ namespace TerrainCompositor
             {
                 editContext->Class<ProceduralGroundGradientConfig>(
                     "Procedural Ground Gradient Configuration",
-                    "Controls the generated hill field and terrain-wide procedural tint.")
+                    "Controls the generated hill field.")
                     ->ClassElement(AZ::Edit::ClassElements::EditorData, "")
                     ->Attribute(AZ::Edit::Attributes::Visibility, AZ::Edit::PropertyVisibility::ShowChildrenOnly)
                     ->Attribute(AZ::Edit::Attributes::AutoExpand, true)
@@ -90,14 +85,6 @@ namespace TerrainCompositor
                     ->Attribute(AZ::Edit::Attributes::Min, 0.1f)
                     ->Attribute(AZ::Edit::Attributes::Max, 16.0f)
                     ->Attribute(AZ::Edit::Attributes::Step, 0.1f)
-                    ->DataElement(
-                        AZ::Edit::UIHandlers::Slider,
-                        &ProceduralGroundGradientConfig::m_noiseTintStrength,
-                        "Noise Tint Strength",
-                        "Strength of the legacy terrain tint. Inactive while a Canvas Terrain Material is selected; does not change terrain height.")
-                    ->Attribute(AZ::Edit::Attributes::Min, 0.0f)
-                    ->Attribute(AZ::Edit::Attributes::Max, 1.0f)
-                    ->Attribute(AZ::Edit::Attributes::Step, 0.01f)
                     ->DataElement(nullptr, &ProceduralGroundGradientConfig::m_holeMask,
                         "Terrain Hole Mask", "Optional gradient; values at or above the threshold remove terrain.")
                     ->DataElement(AZ::Edit::UIHandlers::Slider, &ProceduralGroundGradientConfig::m_holeThreshold,
@@ -209,9 +196,6 @@ namespace TerrainCompositor
         GradientSignal::GradientRequestBus::Handler::BusConnect(entityId);
         TerrainExistenceSourceRequestBus::Handler::BusConnect(entityId);
         TerrainProceduralSnapshotRequestBus::Handler::BusConnect(entityId);
-        m_materialUpdateState = std::make_shared<MaterialUpdateState>();
-        m_materialUpdateState->m_owner.store(this, std::memory_order_release);
-        BindTerrainMaterial();
         if (entityId.IsValid())
             LmbrCentral::DependencyNotificationBus::Event(
                 entityId, &LmbrCentral::DependencyNotificationBus::Events::OnCompositionChanged);
@@ -229,7 +213,6 @@ namespace TerrainCompositor
         TerrainExistenceSourceRequestBus::Handler::BusDisconnect();
         GradientSignal::GradientRequestBus::Handler::BusDisconnect();
         m_holeDependencyMonitor.Reset();
-        StopNoiseTintUpdates();
         const AZ::EntityId entityId = m_activeEntityId;
         m_activeEntityId.SetInvalid();
         if (entityId.IsValid())
@@ -270,7 +253,6 @@ namespace TerrainCompositor
             LmbrCentral::DependencyNotificationBus::Event(
                 m_activeEntityId, &LmbrCentral::DependencyNotificationBus::Events::OnCompositionChanged);
         }
-        if (m_terrainMaterial) ApplyNoiseTint(m_terrainMaterial);
         return AZ::Edit::PropertyRefreshLevels::None;
     }
 
@@ -343,139 +325,6 @@ namespace TerrainCompositor
             snapshot->m_existenceValue = [](const AZ::Vector3&) { return true; };
         }
         return snapshot;
-    }
-
-    void ProceduralGroundGradientComponent::StopNoiseTintUpdates()
-    {
-        if (m_materialUpdateState)
-        {
-            m_materialUpdateState->m_owner.store(nullptr, std::memory_order_release);
-            ++m_materialUpdateState->m_generation;
-        }
-        m_materialChangedHandler.Disconnect();
-        m_materialChannel.reset();
-        AzFramework::EntityContextEventBus::Handler::BusDisconnect();
-        AZ::SystemTickBus::Handler::BusDisconnect();
-        m_materialUpdateState.reset();
-        m_terrainMaterial.reset();
-        m_reportedMissingTintProperty = false;
-    }
-
-    void ProceduralGroundGradientComponent::BindTerrainMaterial()
-    {
-        AzFramework::EntityContextId context{};
-        AzFramework::EntityIdContextQueryBus::EventResult(
-            context, m_activeEntityId, &AzFramework::EntityIdContextQueryBus::Events::GetOwningContextId);
-        BindTerrainMaterialForContext(context);
-    }
-
-    void ProceduralGroundGradientComponent::BindTerrainMaterialForContext(const AzFramework::EntityContextId& context)
-    {
-        const AZ::u64 generation = ++m_materialUpdateState->m_generation;
-        m_materialChangedHandler.Disconnect();
-        m_materialChannel.reset();
-        AzFramework::EntityContextEventBus::Handler::BusDisconnect();
-        AZ::SystemTickBus::Handler::BusDisconnect();
-        if (!context.IsNull())
-            AzFramework::EntityContextEventBus::Handler::BusConnect(context);
-        const auto* rpiSystem = AZ::RPI::RPISystemInterface::Get();
-        auto* registry = AZ::Interface<TerrainMeshCutoutRenderRegistry>::Get();
-        const auto* sceneSystem = AzFramework::SceneSystemInterface::Get();
-        if (!rpiSystem || !rpiSystem->IsInitialized() || !registry || !sceneSystem)
-        {
-            m_materialRetriesRemaining = MaterialResolutionAttempts;
-            AZ::SystemTickBus::Handler::BusConnect();
-            return;
-        }
-        const auto* scene = AZ::RPI::Scene::GetSceneForEntityContextId(context);
-        if (!scene)
-        {
-            m_materialRetriesRemaining = MaterialResolutionAttempts;
-            AZ::SystemTickBus::Handler::BusConnect();
-            return;
-        }
-        const auto channel = registry->AcquireSceneChannel(scene);
-        m_materialChannel = channel;
-        const std::weak_ptr<MaterialUpdateState> weak = m_materialUpdateState;
-        m_materialChangedHandler = TerrainMeshCutoutRenderChannel::MaterialChangedEvent::Handler(
-            [weak, generation](AZ::Data::Instance<AZ::RPI::Material> material)
-            {
-                AZ::SystemTickBus::QueueFunction([weak, generation, material = AZStd::move(material)]() mutable
-                {
-                    if (const auto state = weak.lock())
-                    {
-                        if (state->m_generation.load(std::memory_order_acquire) != generation) return;
-                        if (auto* owner = state->m_owner.load(std::memory_order_acquire))
-                            owner->ApplyNoiseTint(material);
-                    }
-                });
-            });
-        m_materialChangedHandler.Connect(channel->m_materialChanged);
-        const auto* terrain = scene ? scene->GetFeatureProcessor<Terrain::TerrainFeatureProcessor>() : nullptr;
-        ApplyNoiseTint(terrain ? terrain->GetMaterial() : nullptr);
-    }
-
-    void ProceduralGroundGradientComponent::OnSystemTick()
-    {
-        if (!m_activeEntityId.IsValid()) return;
-        if (m_materialRetriesRemaining > 0) --m_materialRetriesRemaining;
-        const unsigned remaining = m_materialRetriesRemaining;
-        BindTerrainMaterial();
-        m_materialRetriesRemaining = remaining;
-        if (AZ::SystemTickBus::Handler::BusIsConnected() && remaining == 0)
-            AZ::SystemTickBus::Handler::BusDisconnect();
-    }
-
-    void ProceduralGroundGradientComponent::OnEntityContextDestroyEntity(const AZ::EntityId& entityId)
-    {
-        if (entityId == m_activeEntityId)
-        {
-            ApplyNoiseTint({});
-            BindTerrainMaterialForContext({});
-        }
-    }
-
-    void ProceduralGroundGradientComponent::OnEntityContextReset()
-    {
-        OnEntityContextDestroyEntity(m_activeEntityId);
-    }
-
-    void ProceduralGroundGradientComponent::ApplyNoiseTint(const AZ::Data::Instance<AZ::RPI::Material>& material)
-    {
-        if (material != m_terrainMaterial)
-        {
-            // Scene-local mask bindings require a unique material. Follow the terrain
-            // renderer's actual instance, including editor/game transitions and reloads.
-            m_terrainMaterial = material;
-            m_reportedMissingTintProperty = false;
-        }
-        if (!m_terrainMaterial) return;
-
-        // Canvas material parameters have one owner: the selected material asset.
-        // Preserve the serialized legacy value and reapply it when the override clears.
-        if (m_terrainMaterial->FindPropertyIndex(AZ::Name("tint.contractVersion")).IsValid() ||
-            m_terrainMaterial->FindPropertyIndex(AZ::Name("terrain.contractVersion")).IsValid()) return;
-
-        const auto propertyIndex = m_terrainMaterial->FindPropertyIndex(AZ::Name("settings.noiseTintStrength"));
-        if (!propertyIndex.IsValid())
-        {
-            if (!m_reportedMissingTintProperty)
-            {
-                AZ_Warning("ProceduralGroundGradient", false,
-                    "Terrain material has no settings.noiseTintStrength property. Allow Asset Processor to process "
-                    "the project-local terrain material and shaders.");
-                m_reportedMissingTintProperty = true;
-            }
-            return;
-        }
-
-        const float strength = AZ::GetClamp(GetQueryConfiguration().m_noiseTintStrength, 0.0f, 1.0f);
-        // Compare with the material, not a cached value, so shader hot reload also restores the inspector setting.
-        if (m_terrainMaterial->GetPropertyValue<float>(propertyIndex) != strength)
-        {
-            m_terrainMaterial->SetPropertyValue(propertyIndex, strength);
-        }
-        // TerrainFeatureProcessor compiles its scene-local material after preparing surfaces.
     }
 
     bool ProceduralGroundGradientComponent::ReadInConfig(const AZ::ComponentConfig* baseConfig)

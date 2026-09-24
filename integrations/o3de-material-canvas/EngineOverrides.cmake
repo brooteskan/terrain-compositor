@@ -1,4 +1,4 @@
-# Opt-in context defaults for output sockets. Keep the pinned engine tree untouched.
+# Native graph parameter generation for direct terrain shaders. Keep the pinned engine tree untouched.
 function(tc_canvas_prepare_compiler source output)
     find_package(Git REQUIRED)
     set(patch "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/EnginePatches/MaterialGraphCompiler.cpp.patch")
@@ -23,7 +23,7 @@ function(tc_canvas_prepare_compiler source output)
     file(READ "${staging}/MaterialGraphCompiler.cpp" content)
     string(REPLACE "\r\n" "\n" content "${content}")
     string(SHA256 actual "${content}")
-    if(NOT actual STREQUAL "b8241e4918264033a3bb1ce147c9d26253c123549ed2bfaf57dcb7948df436a7")
+    if(NOT actual STREQUAL "8dae079790fe6f3a56306d1c2a00c0f7c1734fb192fafa41e0a23fc904b1c30c")
         message(FATAL_ERROR "Terrain Canvas: compiler override output changed (${actual}). Review the patch and rerun the compiler compatibility tests before updating hashes.")
     endif()
     configure_file("${staging}/MaterialGraphCompiler.cpp" "${output}" COPYONLY)

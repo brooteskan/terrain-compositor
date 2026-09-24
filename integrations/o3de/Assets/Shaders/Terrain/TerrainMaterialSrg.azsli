@@ -10,6 +10,9 @@
 
 #include <Atom/Features/SrgSemantics.azsli>
 
+#define SINGLE_MATERIAL_MAX_SAMPLERS 4
+#define SINGLE_MATERIAL_MAX_TEXTURES 6
+
 ShaderResourceGroup TerrainMaterialSrg : SRG_PerMaterial
 {
     struct MeshCutout
@@ -40,51 +43,6 @@ ShaderResourceGroup TerrainMaterialSrg : SRG_PerMaterial
         uint m_padding;
     };
 
-    Sampler m_detailSampler
-    {
-        AddressU = Wrap;
-        AddressV = Wrap;
-        MinFilter = Linear;
-        MagFilter = Linear;
-        MipFilter = Linear;
-        MaxAnisotropy = 16;
-    };
-
-    Sampler m_macroSampler
-    {
-        AddressU = Clamp;
-        AddressV = Clamp;
-        MinFilter = Linear;
-        MagFilter = Linear;
-        MipFilter = Linear;
-        MaxAnisotropy = 16;
-    };
-
-    // Base Color
-    float3 m_baseColor;
-
-    // Detail Material Properties
-    float m_detailTextureMultiplier;
-    float m_detailFadeDistance;
-    float m_detailFadeLength;
-
-    // TG project: shared terrain-wide procedural base-color tint.
-    float m_noiseTintStrength;
-
-    // Canvas tint ABI v1. Shared by forward, depth, shadow and clipmap passes.
-    // Graph edits never add members to this layout.
-    float m_canvasTintStrength;
-    float3 m_canvasTintColor;
-    Texture2D<float4> m_canvasTintTexture;
-    Sampler m_canvasTintSampler
-    {
-        AddressU = Wrap;
-        AddressV = Wrap;
-        MinFilter = Linear;
-        MagFilter = Linear;
-        MipFilter = Linear;
-    };
-
     // Immutable mesh-cutout publication. Buffers are rebuilt only when the snapshot revision changes.
     uint m_meshCutoutCount;
     // Material-connected publication revision. Its value is not shaded; changing it dirties the material SRG.
@@ -96,4 +54,79 @@ ShaderResourceGroup TerrainMaterialSrg : SRG_PerMaterial
     uint m_meshHeightGapRevision;
     StructuredBuffer<MeshHeightGap> m_meshHeightGaps;
     StructuredBuffer<uint> m_meshHeightGapWords;
+#ifdef TC_GRAPH_MATERIAL
+    MaterialParameters m_params;
+    // fallback texture index for GetMaterialTexture() in case the texture index is negative.
+    int m_nullTextureIndex;
+#ifdef AZ_TRAIT_SINGLE_MATERIAL_USE_TEXTURE_ARRAY
+    // the MaterialParameters - struct can only contain texture indices, and no Texture2D directly.
+    // if we can't use the bindless SRG at all, we register the Textures in this fixed-size array, and the texture-indices refer to this array
+    Texture2D m_textures[SINGLE_MATERIAL_MAX_TEXTURES];
+#endif
+
+#ifdef AZ_TRAITS_MATERIALS_USE_SAMPLER_ARRAY
+    // sampler 0 is the default linear clamp sampler, the others are initialized by the MaterialSystem as needed
+    Sampler m_samplers[SINGLE_MATERIAL_MAX_SAMPLERS];
+#else
+    Sampler m_defaultSampler
+    {
+        AddressU = Wrap;
+        AddressV = Wrap;
+        MinFilter = Linear;
+        MagFilter = Linear;
+        MipFilter = Linear;
+        MaxAnisotropy = 16;
+    };
+#endif
+#endif
 }
+
+#ifdef TC_GRAPH_MATERIAL
+#ifndef AZ_TRAIT_SINGLE_MATERIAL_USE_TEXTURE_ARRAY
+#include <Atom/Features/Bindless.azsli>
+#endif
+
+Texture2D GetMaterialTexture(const int readIndex)
+{
+    int localReadIndex = readIndex;
+    if (localReadIndex < 0)
+    {
+        localReadIndex = TerrainMaterialSrg::m_nullTextureIndex;
+    }
+#ifdef AZ_TRAIT_SINGLE_MATERIAL_USE_TEXTURE_ARRAY
+    if (localReadIndex >= SINGLE_MATERIAL_MAX_TEXTURES)
+    {
+        localReadIndex = TerrainMaterialSrg::m_nullTextureIndex;
+    }
+    return TerrainMaterialSrg::m_textures[localReadIndex];
+#else
+    return Bindless::GetTexture2D(localReadIndex);
+#endif
+}
+
+const MaterialParameters GetMaterialParameters()
+{
+    return TerrainMaterialSrg::m_params;
+}
+
+// All MaterialProperties of the material with the type TextureSampler are collected and stored in the TerrainMaterialSrg::m_samplers array.
+// The Shader - Parameter in the m_params - struct is then the samplerIndex.
+// Note that the size of m_samplers is limited to SINGLE_MATERIAL_MAX_SAMPLERS, but samplers are deduplicated based on their settings,
+// so this should be enough.
+// Sampler-Index 0 is always the default Wrap - sampler with linear filtering.
+sampler GetMaterialTextureSampler(const uint samplerIndex = 0)
+{
+#ifdef AZ_TRAITS_MATERIALS_USE_SAMPLER_ARRAY
+    int localIndex = samplerIndex;
+    if (samplerIndex >= SINGLE_MATERIAL_MAX_SAMPLERS)
+    {
+        localIndex = 0;
+    }
+    return TerrainMaterialSrg::m_samplers[localIndex];
+#else
+    return TerrainMaterialSrg::m_defaultSampler;
+#endif
+}
+
+
+#endif

@@ -1,5 +1,0 @@
-// TerrainCompositor owns the shared implementation and the legacy default.
-#include <TerrainMaterialSrg.azsli>
-#include <TerrainLegacyTint.azsli>
-#define TC_EvaluateTerrainTint TGTerrainNoiseTint
-#include <TerrainForward.azsli>

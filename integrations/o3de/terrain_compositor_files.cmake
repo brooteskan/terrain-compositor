@@ -1,4 +1,5 @@
 set(FILES
+    Code/Include/TerrainCompositor/TerrainMaterialBindings.h
     Code/Include/TerrainCompositor/TerrainPreparationDependency.h
     Code/Include/TerrainCompositor/Internal/PendingCompositionInvalidation.h
     Code/Source/CompositionInvalidation.h
@@ -43,7 +44,6 @@ set(FILES
     Code/Include/TerrainCompositor/TerrainMeshCutoutRenderRegistry.h
     Code/Include/TerrainCompositor/TerrainRenderQuery.h
     Code/Include/TerrainCompositor/TerrainSectorSampling.h
-    Code/Include/TerrainCompositor/TerrainDetailMaterial.h
     Code/Include/TerrainCompositor/TerrainSectorRecovery.h
     Code/Include/TerrainCompositor/TerrainSectorSampleReuse.h
     Code/Include/TerrainCompositor/TerrainSectorDispatcher.h

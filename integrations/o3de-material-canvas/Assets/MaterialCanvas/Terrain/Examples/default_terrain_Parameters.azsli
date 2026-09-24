@@ -1,0 +1,9 @@
+// This code was generated from the MaterialShaderParameterLayout. Do not modify.
+#pragma once
+
+struct MaterialParameters {
+    uint   m_materialType;
+    uint   m_materialInstance;
+    float2 m_finalPadding;
+}; 
+

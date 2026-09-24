@@ -1,3 +1,4 @@
+#include <TerrainCompositor/TerrainMaterialBindings.h>
 // Included by the maintained TerrainFeatureProcessor.cpp override. This code is
 // compiled into Terrain.Static, so the optional Canvas Gem adds no reverse link.
 namespace Terrain
@@ -10,10 +11,9 @@ namespace Terrain
             m_defaultMaterial && m_terrainSrg && !ValidateTintMaterial(m_materialInstance))
         {
             m_materialInstance = m_defaultMaterial;
-            m_detailMaterialManager.SetTerrainMaterial(m_materialInstance);
             m_meshManager.SetMaterial(m_materialInstance);
             m_tintStageSource = {};
-            m_tintStatus = "Incompatible shader reload; restored legacy terrain material";
+            m_tintStatus = "Incompatible shader reload; restored default graph material";
             AZ_Warning("TerrainTint", false, "%s", m_tintStatus);
         }
     }
@@ -53,7 +53,7 @@ namespace Terrain
         m_tintOwner = AZ::EntityId{};
         m_pendingTintMaterial = m_defaultMaterial;
         m_tintStageSource = {};
-        m_tintStatus = "Restoring legacy terrain tint";
+        m_tintStatus = "Restoring default graph material";
     }
 
     void TerrainFeatureProcessor::OnAssetError(AZ::Data::Asset<AZ::Data::AssetData> asset)
@@ -76,7 +76,9 @@ namespace Terrain
             return false;
         const auto srg = material->GetShaderResourceGroup();
         const auto reference = m_defaultMaterial->GetShaderResourceGroup();
-        if (!srg || !reference || srg->GetLayout()->GetHash() != reference->GetLayout()->GetHash())
+        if (!srg || !reference)
+            return false;
+        if (!TerrainCompositor::ValidateTerrainRendererBindings(srg->GetLayout(), reference->GetLayout()))
             return false;
         const auto objectLayout = material->GetAsset()->GetObjectSrgLayout();
         const auto referenceObject = m_defaultMaterial->GetAsset()->GetObjectSrgLayout();
@@ -91,41 +93,31 @@ namespace Terrain
             forward |= tag == AZ::Name("forward");
             depth |= tag == AZ::Name("depth");
             shadow |= tag == AZ::Name("shadow");
+            const auto materialLayout = shader->FindShaderResourceGroupLayout(AZ::Name("TerrainMaterialSrg"));
+            if (!materialLayout || materialLayout->GetHash() != srg->GetLayout()->GetHash()) compatible = false;
+            const auto shaderObject = shader->FindShaderResourceGroupLayout(AZ::Name("ObjectSrg"));
+            if (!shaderObject || shaderObject->GetHash() != referenceObject->GetHash()) compatible = false;
             const auto layout = shader->FindShaderResourceGroupLayout(AZ::Name("TerrainSrg"));
             if (tag == AZ::Name("forward") && !layout) compatible = false;
             if (layout && layout->GetHash() != m_terrainSrg->GetLayout()->GetHash()) compatible = false;
             return true;
         });
-        const auto baseColor = material->FindPropertyIndex(AZ::Name("baseColor.color"));
-        if (!baseColor.IsValid() || !material->GetPropertyValue(baseColor).Is<AZ::Color>()) return false;
-        for (const char* name : { "settings.detailTextureMultiplier", "settings.detailFadeDistance", "settings.detailFadeLength" })
+        struct PublicationProperty { const char* property; const char* binding; };
+        for (const auto& field : {
+            PublicationProperty{ "settings.meshCutoutCount", "m_meshCutoutCount" },
+            PublicationProperty{ "settings.meshCutoutRevision", "m_meshCutoutRevision" },
+            PublicationProperty{ "settings.meshHeightGapCount", "m_meshHeightGapCount" },
+            PublicationProperty{ "settings.meshHeightGapRevision", "m_meshHeightGapRevision" } })
         {
-            const auto index = material->FindPropertyIndex(AZ::Name(name));
-            if (!index.IsValid() || !material->GetPropertyValue(index).Is<float>()) return false;
-        }
-        for (const char* name : { "settings.meshCutoutCount", "settings.meshCutoutRevision",
-            "settings.meshHeightGapCount", "settings.meshHeightGapRevision" })
-        {
-            const auto index = material->FindPropertyIndex(AZ::Name(name));
+            const auto index = material->FindPropertyIndex(AZ::Name(field.property));
             if (!index.IsValid() || !material->GetPropertyValue(index).Is<AZ::u32>()) return false;
+            const auto& connections = material->GetMaterialPropertiesLayout()->GetPropertyDescriptor(index)->GetOutputConnections();
+            if (connections.size() != 1 || connections[0].m_type != AZ::RPI::MaterialPropertyOutputType::ShaderInput ||
+                connections[0].m_shaderInputName != AZ::Name(field.binding)) return false;
         }
-        if (material != m_defaultMaterial)
-        {
-            const auto surfaceVersion = material->FindPropertyIndex(AZ::Name("terrain.contractVersion"));
-            if (surfaceVersion.IsValid() && (!material->GetPropertyValue(surfaceVersion).Is<AZ::u32>() ||
-                material->GetPropertyValue<AZ::u32>(surfaceVersion) != 2)) return false;
-            // Surface contract v2 deliberately retains SRG v1 and its legacy
-            // properties. Arbitrary graph-owned bindings are not accepted.
-            const auto version = material->FindPropertyIndex(AZ::Name("tint.contractVersion"));
-            const auto strength = material->FindPropertyIndex(AZ::Name("tint.strength"));
-            const auto color = material->FindPropertyIndex(AZ::Name("tint.color"));
-            const auto texture = material->FindPropertyIndex(AZ::Name("tint.texture"));
-            if (!version.IsValid() || !material->GetPropertyValue(version).Is<AZ::u32>() ||
-                material->GetPropertyValue<AZ::u32>(version) != 1 || !strength.IsValid() ||
-                !material->GetPropertyValue(strength).Is<float>() || !color.IsValid() ||
-                !material->GetPropertyValue(color).Is<AZ::Vector3>() || !texture.IsValid() ||
-                !material->GetPropertyValue(texture).Is<AZ::Data::Instance<AZ::RPI::Image>>()) return false;
-        }
+        const auto version = material->FindPropertyIndex(AZ::Name("terrain.contractVersion"));
+        if (!version.IsValid() || !material->GetPropertyValue(version).Is<AZ::u32>() ||
+            material->GetPropertyValue<AZ::u32>(version) != 3) return false;
         return compatible && forward && depth && shadow;
     }
 
@@ -135,6 +127,13 @@ namespace Terrain
         // Stage a complete material, compile it, and publish only on a subsequent
         // frame whose source publication is unchanged. No terrain invalidation.
         if (!m_pendingTintMaterial || !m_materialInstance || !m_terrainSrg) return false;
+        if (m_pendingTintMaterial == m_materialInstance)
+        {
+            m_pendingTintMaterial = {};
+            m_tintStageSource = {};
+            m_tintStatus = m_materialInstance == m_defaultMaterial ? "Default graph terrain material" : "Graph terrain material active";
+            return false;
+        }
         if (!ValidateTintMaterial(m_pendingTintMaterial))
         {
             m_tintStatus = "Incompatible terrain material; retaining the current terrain material";
@@ -146,10 +145,11 @@ namespace Terrain
         const auto target = m_pendingTintMaterial->GetShaderResourceGroup();
         if (!source || !target) return false;
         const auto sourceChange = m_materialInstance->GetCurrentChangeId();
-        if (m_tintStageSource != source || m_tintStageTarget != target || m_tintStageChange != sourceChange)
+        if (m_tintStageSource != source || m_tintStageTarget != target || m_tintStageChange != sourceChange ||
+            m_tintStageTargetChange != m_pendingTintMaterial->GetCurrentChangeId() ||
+            m_tintStageTargetLayout != target->GetLayout()->GetHash())
         {
-            for (const char* name : { "baseColor.color", "settings.detailTextureMultiplier", "settings.detailFadeDistance", "settings.detailFadeLength",
-                "settings.meshCutoutCount", "settings.meshCutoutRevision", "settings.meshHeightGapCount", "settings.meshHeightGapRevision" })
+            for (const char* name : { "settings.meshCutoutCount", "settings.meshCutoutRevision", "settings.meshHeightGapCount", "settings.meshHeightGapRevision" })
             {
                 const auto from = m_materialInstance->FindPropertyIndex(AZ::Name(name));
                 const auto to = m_pendingTintMaterial->FindPropertyIndex(AZ::Name(name));
@@ -162,12 +162,6 @@ namespace Terrain
                 if (!from.IsValid() || !to.IsValid() || !source->GetBufferView(from) ||
                     !target->SetBufferView(to, source->GetBufferView(from).get())) return false;
             }
-            // A missing optional texture is neutral white, never an unbound sample.
-            const auto textureProperty = m_pendingTintMaterial->FindPropertyIndex(AZ::Name("tint.texture"));
-            if (textureProperty.IsValid() &&
-                !m_pendingTintMaterial->GetPropertyValue<AZ::Data::Instance<AZ::RPI::Image>>(textureProperty))
-                m_pendingTintMaterial->SetPropertyValue(textureProperty,
-                    AZ::RPI::ImageSystemInterface::Get()->GetSystemImage(AZ::RPI::SystemImage::White));
             // Mark the SRG dirty even when all copied counts are zero. Buffer-view
             // setters alone do not notify the MaterialInstanceHandler.
             const auto revision = m_pendingTintMaterial->FindPropertyIndex(AZ::Name("settings.meshCutoutRevision"));
@@ -178,18 +172,17 @@ namespace Terrain
             m_tintStageSource = source;
             m_tintStageTarget = target;
             m_tintStageChange = sourceChange;
+            m_tintStageTargetChange = m_pendingTintMaterial->GetCurrentChangeId();
+            m_tintStageTargetLayout = target->GetLayout()->GetHash();
             m_tintStatus = "Preparing terrain material bindings";
             return false;
         }
         if (target->IsQueuedForCompile() || m_pendingTintMaterial->NeedsCompile()) return false;
         m_materialInstance = AZStd::move(m_pendingTintMaterial);
-        m_detailMaterialManager.SetTerrainMaterial(m_materialInstance);
         m_meshManager.SetMaterial(m_materialInstance);
         m_tintStageSource = {};
         m_tintStageTarget = {};
-        m_tintStatus = m_materialInstance == m_defaultMaterial ? "Legacy terrain tint" :
-            (m_materialInstance->FindPropertyIndex(AZ::Name("terrain.contractVersion")).IsValid()
-                ? "Canvas terrain surface active" : "Canvas terrain tint active");
+        m_tintStatus = m_materialInstance == m_defaultMaterial ? "Default graph terrain material" : "Graph terrain material active";
         return true;
     }
 } // namespace Terrain
