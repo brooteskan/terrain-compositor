@@ -1,0 +1,51 @@
+#pragma once
+#include <TerrainCompositor/TerrainMaterialSrg.azsli>
+#include <TerrainCompositor/TerrainSurface.azsli>
+#include <TerrainCanvas/LatticeNoise.azsli>
+#include <TerrainCanvas/SurfaceHelpers.azsli>
+// O3DE_GENERATED_INCLUDES_BEGIN
+// O3DE_GENERATED_INCLUDES_END
+// O3DE_GENERATED_CLASSES_BEGIN
+// O3DE_GENERATED_CLASSES_END
+// O3DE_GENERATED_FUNCTIONS_BEGIN
+// O3DE_GENERATED_FUNCTIONS_END
+TerrainSurfaceChannels TC_CanvasSurface(TerrainSurfaceContext context, TerrainSurfaceChannels incoming)
+{
+    const float3 O3DE_MC_POSITION_WS = context.worldPosition;
+    const float3 O3DE_MC_NORMAL_WS = context.geometricNormal;
+    // O3DE_GENERATED_INSTRUCTIONS_BEGIN: inTint, inBaseColor, inNormal, inRoughness, inMetalness, inSpecularFactor, inAmbientOcclusion
+float node1_terrain_geometry_elevation = context.worldPosition.z;
+float node1_terrain_geometry_slope = 1.0 - saturate(context.geometricNormal.z);
+float node2_smoothstep_scalar_low = 0.1;
+float node2_smoothstep_scalar_high = 0.6;
+float node2_smoothstep_scalar_value = node1_terrain_geometry_slope;
+float node2_smoothstep_scalar_result = smoothstep(node2_smoothstep_scalar_low, node2_smoothstep_scalar_high, node2_smoothstep_scalar_value);
+float node3_smoothstep_scalar_low = 0;
+float node3_smoothstep_scalar_high = 20;
+float node3_smoothstep_scalar_value = node1_terrain_geometry_elevation;
+float node3_smoothstep_scalar_result = smoothstep(node3_smoothstep_scalar_low, node3_smoothstep_scalar_high, node3_smoothstep_scalar_value);
+float3 node4_lerp_rgb_a = {0.08, 0.15, 0.035};
+float3 node4_lerp_rgb_b = {0.32, 0.28, 0.23};
+float node4_lerp_rgb_weight = node2_smoothstep_scalar_result;
+float3 node4_lerp_rgb_result = lerp(node4_lerp_rgb_a, node4_lerp_rgb_b, node4_lerp_rgb_weight);
+float3 node5_lerp_rgb_a = node4_lerp_rgb_result;
+float3 node5_lerp_rgb_b = {0.8, 0.85, 0.9};
+float node5_lerp_rgb_weight = node3_smoothstep_scalar_result;
+float3 node5_lerp_rgb_result = lerp(node5_lerp_rgb_a, node5_lerp_rgb_b, node5_lerp_rgb_weight);
+float3 inTint = {1, 1, 1};
+float3 inBaseColor = node5_lerp_rgb_result;
+float3 inNormal = incoming.normal;
+float inRoughness = incoming.roughness;
+float inMetalness = incoming.metalness;
+float inSpecularFactor = incoming.specularFactor;
+float inAmbientOcclusion = incoming.ambientOcclusion;
+    // O3DE_GENERATED_INSTRUCTIONS_END
+    TerrainSurfaceChannels result;
+    result.baseColor = inBaseColor * inTint; // Retained ABI-v1 graph connection, neutral for new graphs.
+    result.normal = inNormal;
+    result.roughness = inRoughness;
+    result.metalness = inMetalness;
+    result.specularFactor = inSpecularFactor;
+    result.ambientOcclusion = inAmbientOcclusion;
+    return result;
+}

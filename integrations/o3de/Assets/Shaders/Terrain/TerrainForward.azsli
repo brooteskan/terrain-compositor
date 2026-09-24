@@ -15,6 +15,7 @@
 #include <TerrainSrg.azsli>
 #include <TerrainMeshCutout.azsli>
 #include <TerrainCommon.azsli>
+#include <TerrainSurface.azsli>
 #include <TerrainDetailHelpers.azsli>
 #include <Terrain/Assets/Shaders/Terrain/TerrainMacroHelpers.azsli>
 #include <Terrain/Assets/Shaders/Terrain/ClipmapComputeHelpers.azsli>
@@ -147,36 +148,38 @@ ForwardPassOutput TerrainPBR_MainPassPS(VSOutput input)
         GatherSurfaceDataFromMaterials(surface.position.xy, detailFactor, macroColor, macroNormal, hasDetailSurface, detailSurface);
     }
 
-    // Tint after detail/macro blending so the camera-distance fade cannot remove the tint.
-    // Both clipmap and direct-material paths reach this point before PBR lighting.
-    float3 terrainColor = hasDetailSurface
+    // Resolve existing terrain channels first. Both sampling paths evaluate the
+    // terrain-wide graph here, after fading, without rebuilding clipmap content.
+    TerrainSurfaceChannels incoming;
+    incoming.baseColor = hasDetailSurface
         ? lerp(detailSurface.m_color, macroColor, detailFactor)
         : macroColor;
-    terrainColor *= TC_EvaluateTerrainTint(surface.position);
-
-    const float macroRoughness = 1.0;
-    const float macroSpecularF0 = 0.5;
-    const float macroMetalness = 0.0;
-
+    incoming.roughness = hasDetailSurface ? lerp(detailSurface.m_roughness, 1.0, detailFactor) : 1.0;
+    incoming.specularFactor = hasDetailSurface ? lerp(detailSurface.m_specularF0, 0.5, detailFactor) : 0.5;
+    incoming.metalness = hasDetailSurface ? detailSurface.m_metalness * (1.0 - detailFactor) : 0.0;
+    // Preserve the existing AO behavior: it does not interpolate with detailFactor.
+    incoming.ambientOcclusion = detailSurface.m_occlusion;
+    incoming.normal = macroNormal;
     if (hasDetailSurface)
     {
-        float blendedSpecularF0 = lerp(detailSurface.m_specularF0, macroSpecularF0, detailFactor);
-        surface.SetAlbedoAndSpecularF0(terrainColor, blendedSpecularF0, detailSurface.m_metalness * (1.0 - detailFactor));
-
-        surface.roughnessLinear = lerp(detailSurface.m_roughness, macroRoughness, detailFactor);
-        surface.CalculateRoughnessA();
-
         detailSurface.m_normal = ReorientTangentSpaceNormal(macroNormal, detailSurface.m_normal);
-        surface.normal = lerp(detailSurface.m_normal, macroNormal, detailFactor);
-        surface.normal = normalize(surface.normal);
+        incoming.normal = normalize(lerp(detailSurface.m_normal, macroNormal, detailFactor));
     }
-    else
-    {
-        surface.normal = macroNormal;
-        surface.SetAlbedoAndSpecularF0(terrainColor, macroSpecularF0, macroMetalness);
-        surface.roughnessLinear = macroRoughness;
-        surface.CalculateRoughnessA();
-    }
+
+    TerrainSurfaceChannels resolved = incoming;
+#if defined(TC_EvaluateTerrainSurface)
+    TerrainSurfaceContext terrainContext;
+    terrainContext.worldPosition = surface.position;
+    terrainContext.geometricNormal = surface.vertexNormal;
+    resolved = TC_ValidateSurface(TC_EvaluateTerrainSurface(terrainContext, incoming), incoming);
+#else
+    // Default terrain and previously generated ABI-v1 graphs retain tint ownership.
+    resolved.baseColor *= TC_EvaluateTerrainTint(surface.position);
+#endif
+    surface.normal = resolved.normal;
+    surface.SetAlbedoAndSpecularF0(resolved.baseColor, resolved.specularFactor, resolved.metalness);
+    surface.roughnessLinear = resolved.roughness;
+    surface.CalculateRoughnessA();
 
     // Clear Coat
     surface.clearCoat.InitializeToZero();
@@ -190,7 +193,7 @@ ForwardPassOutput TerrainPBR_MainPassPS(VSOutput input)
     lightingData.Init(surface.position, surface.normal, surface.roughnessLinear, views);
 
     // Shadow, Occlusion
-    lightingData.diffuseAmbientOcclusion = detailSurface.m_occlusion;
+    lightingData.diffuseAmbientOcclusion = resolved.ambientOcclusion;
 
     // Diffuse and Specular response
     lightingData.specularResponse = FresnelSchlickWithRoughness(lightingData.GetSpecularNdotV(), surface.specularF0, surface.roughnessLinear);

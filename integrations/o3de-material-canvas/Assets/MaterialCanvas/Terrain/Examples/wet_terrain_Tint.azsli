@@ -1,0 +1,65 @@
+#pragma once
+#include <TerrainCompositor/TerrainMaterialSrg.azsli>
+#include <TerrainCompositor/TerrainSurface.azsli>
+#include <TerrainCanvas/LatticeNoise.azsli>
+#include <TerrainCanvas/SurfaceHelpers.azsli>
+// O3DE_GENERATED_INCLUDES_BEGIN
+// O3DE_GENERATED_INCLUDES_END
+// O3DE_GENERATED_CLASSES_BEGIN
+// O3DE_GENERATED_CLASSES_END
+// O3DE_GENERATED_FUNCTIONS_BEGIN
+// O3DE_GENERATED_FUNCTIONS_END
+TerrainSurfaceChannels TC_CanvasSurface(TerrainSurfaceContext context, TerrainSurfaceChannels incoming)
+{
+    const float3 O3DE_MC_POSITION_WS = context.worldPosition;
+    const float3 O3DE_MC_NORMAL_WS = context.geometricNormal;
+    // O3DE_GENERATED_INSTRUCTIONS_BEGIN: inTint, inBaseColor, inNormal, inRoughness, inMetalness, inSpecularFactor, inAmbientOcclusion
+float3 node1_terrain_geometry_position = context.worldPosition;
+float3 node7_terrain_surface_inputs_outBaseColor = incoming.baseColor;
+float3 node2_world_xy_scale_position = node1_terrain_geometry_position;
+float node2_world_xy_scale_scale = 3;
+float2 node2_world_xy_scale_value = node2_world_xy_scale_position.xy / max(node2_world_xy_scale_scale, 0.0001);
+float2 node3_lattice_value_noise_2_d_position = node2_world_xy_scale_value;
+uint node3_lattice_value_noise_2_d_seed = 1337;
+float node3_lattice_value_noise_2_d_value = TC_LatticeNoise2D(node3_lattice_value_noise_2_d_position, node3_lattice_value_noise_2_d_seed);
+float2 node4_pixel_footprint_position = node2_world_xy_scale_value;
+float node4_pixel_footprint_value = max(length(ddx(node4_pixel_footprint_position)), length(ddy(node4_pixel_footprint_position)));
+float node5_smoothstep_scalar_low = 0.25;
+float node5_smoothstep_scalar_high = 0.5;
+float node5_smoothstep_scalar_value = node4_pixel_footprint_value;
+float node5_smoothstep_scalar_result = smoothstep(node5_smoothstep_scalar_low, node5_smoothstep_scalar_high, node5_smoothstep_scalar_value);
+float node12_lerp_scalar_a = 1;
+float node12_lerp_scalar_b = 0;
+float node12_lerp_scalar_weight = node5_smoothstep_scalar_result;
+float node12_lerp_scalar_result = lerp(node12_lerp_scalar_a, node12_lerp_scalar_b, node12_lerp_scalar_weight);
+float node6_multiply_scalar_a = node3_lattice_value_noise_2_d_value;
+float node6_multiply_scalar_b = node12_lerp_scalar_result;
+float node6_multiply_scalar_result = node6_multiply_scalar_a * node6_multiply_scalar_b;
+float3 node9_lerp_rgb_a = {1, 1, 1};
+float3 node9_lerp_rgb_b = {0.35, 0.35, 0.35};
+float node9_lerp_rgb_weight = node6_multiply_scalar_result;
+float3 node9_lerp_rgb_result = lerp(node9_lerp_rgb_a, node9_lerp_rgb_b, node9_lerp_rgb_weight);
+float node10_lerp_scalar_a = 0.95;
+float node10_lerp_scalar_b = 0.16;
+float node10_lerp_scalar_weight = node6_multiply_scalar_result;
+float node10_lerp_scalar_result = lerp(node10_lerp_scalar_a, node10_lerp_scalar_b, node10_lerp_scalar_weight);
+float3 node11_multiply_rgb_a = node7_terrain_surface_inputs_outBaseColor;
+float3 node11_multiply_rgb_b = node9_lerp_rgb_result;
+float3 node11_multiply_rgb_result = node11_multiply_rgb_a * node11_multiply_rgb_b;
+float3 inTint = {1, 1, 1};
+float3 inBaseColor = node11_multiply_rgb_result;
+float3 inNormal = incoming.normal;
+float inRoughness = node10_lerp_scalar_result;
+float inMetalness = incoming.metalness;
+float inSpecularFactor = incoming.specularFactor;
+float inAmbientOcclusion = incoming.ambientOcclusion;
+    // O3DE_GENERATED_INSTRUCTIONS_END
+    TerrainSurfaceChannels result;
+    result.baseColor = inBaseColor * inTint; // Retained ABI-v1 graph connection, neutral for new graphs.
+    result.normal = inNormal;
+    result.roughness = inRoughness;
+    result.metalness = inMetalness;
+    result.specularFactor = inSpecularFactor;
+    result.ambientOcclusion = inAmbientOcclusion;
+    return result;
+}

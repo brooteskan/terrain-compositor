@@ -1,0 +1,88 @@
+{
+    "Type": "JsonSerialization",
+    "Version": 1,
+    "ClassName": "DynamicNodeConfig",
+    "ClassData": {
+        "id": "{07F3EA17-9E79-5C38-AB32-CBE05B06FC28}",
+        "category": "Terrain",
+        "title": "Terrain Surface Inputs",
+        "description": "Terrain Surface Inputs",
+        "titlePaletteName": "MathNodeTitlePalette",
+        "inputSlots": [],
+        "outputSlots": [
+            {
+                "name": "outBaseColor",
+                "displayName": "baseColor",
+                "description": "baseColor",
+                "supportedDataTypeRegex": "float3",
+                "defaultDataType": "float3",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = incoming.baseColor;"
+                    ]
+                }
+            },
+            {
+                "name": "outNormal",
+                "displayName": "normal",
+                "description": "normal",
+                "supportedDataTypeRegex": "float3",
+                "defaultDataType": "float3",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = incoming.normal;"
+                    ]
+                }
+            },
+            {
+                "name": "outRoughness",
+                "displayName": "roughness",
+                "description": "roughness",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = incoming.roughness;"
+                    ]
+                }
+            },
+            {
+                "name": "outMetalness",
+                "displayName": "metalness",
+                "description": "metalness",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = incoming.metalness;"
+                    ]
+                }
+            },
+            {
+                "name": "outSpecularFactor",
+                "displayName": "specularFactor",
+                "description": "specularFactor",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = incoming.specularFactor;"
+                    ]
+                }
+            },
+            {
+                "name": "outAmbientOcclusion",
+                "displayName": "ambientOcclusion",
+                "description": "ambientOcclusion",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = incoming.ambientOcclusion;"
+                    ]
+                }
+            }
+        ],
+        "propertySlots": []
+    }
+}

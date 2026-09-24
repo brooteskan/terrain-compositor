@@ -4,7 +4,7 @@
     "ClassName": "DynamicNodeConfig",
     "ClassData": {
         "id": "{841DF26B-4D1C-509A-9922-201E8BF92C8F}",
-        "category": "Terrain Tint",
+        "category": "Terrain",
         "title": "Lerp RGB",
         "titlePaletteName": "MathNodeTitlePalette",
         "description": "Lerp RGB",

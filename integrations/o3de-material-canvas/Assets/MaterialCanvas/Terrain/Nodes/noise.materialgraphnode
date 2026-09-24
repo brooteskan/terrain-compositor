@@ -4,7 +4,7 @@
     "ClassName": "DynamicNodeConfig",
     "ClassData": {
         "id": "{4E766E79-7181-5F73-86DB-312997A31A13}",
-        "category": "Terrain Tint",
+        "category": "Terrain",
         "title": "Lattice Value Noise 2D",
         "titlePaletteName": "MathNodeTitlePalette",
         "description": "Lattice Value Noise 2D",

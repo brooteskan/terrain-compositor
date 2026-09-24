@@ -41,12 +41,23 @@ try
 {
     std::string shader = "cbuffer Inputs : register(b0) { float strength; float stepSize; float2 origin; };\n";
     shader += Load(TERRAIN_SHADERS "/TerrainLegacyTint.azsli");
+    shader += Load(TERRAIN_SHADERS "/TerrainSurface.azsli");
     shader += Load(CANVAS_ROOT "/Assets/ShaderLib/TerrainCanvas/LatticeNoise.azsli");
+    shader += Load(CANVAS_ROOT "/Assets/ShaderLib/TerrainCanvas/SurfaceHelpers.azsli");
     shader += Load(CANVAS_ROOT "/Assets/MaterialCanvas/Terrain/Examples/procedural_tint_Tint.azsli");
     Replace(shader, "TerrainMaterialSrg::m_noiseTintStrength", "strength");
     Replace(shader, "TerrainMaterialSrg::m_canvasTintStrength", "strength");
     Replace(shader, "TerrainMaterialSrg::m_canvasTintColor", "float3(0.7, 0.85, 0.55)");
     shader += R"(
+float3 TC_ParityTint(float3 world) {
+    TerrainSurfaceContext context;
+    context.worldPosition = world;
+    context.geometricNormal = float3(0, 0, 1);
+    TerrainSurfaceChannels incoming = (TerrainSurfaceChannels)0;
+    incoming.baseColor = float3(1, 1, 1);
+    incoming.normal = context.geometricNormal;
+    return TC_CanvasSurface(context, incoming).baseColor;
+}
 float4 VS(uint id : SV_VertexID) : SV_Position {
     return float4(id == 2 ? 3 : -1, id == 1 ? 3 : -1, 0, 1);
 }
@@ -56,7 +67,7 @@ float4 PS(float4 pixel : SV_Position) : SV_Target {
 })";
     auto legacySource = shader;
     Replace(legacySource, "EVALUATE_TINT", "TGTerrainNoiseTint");
-    Replace(shader, "EVALUATE_TINT", "TC_CanvasTint");
+    Replace(shader, "EVALUATE_TINT", "TC_ParityTint");
     auto vsCode = Compile(shader, "VS", "vs_5_0");
     // Separate shader compilations prevent common-subexpression elimination from
     // simplifying a same-shader comparison to zero without evaluating the tint.

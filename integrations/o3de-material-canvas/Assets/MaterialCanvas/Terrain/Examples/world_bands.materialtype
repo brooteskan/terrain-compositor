@@ -106,6 +106,18 @@
                 ]
             },
             {
+                "name": "terrain",
+                "displayName": "Terrain Contract",
+                "properties": [
+                    {
+                        "name": "contractVersion",
+                        "type": "UInt",
+                        "defaultValue": 2,
+                        "visibility": "Hidden"
+                    }
+                ]
+            },
+            {
                 "name": "tint",
                 "displayName": "Terrain Tint",
                 "description": "Graph parameters in working RGB.",

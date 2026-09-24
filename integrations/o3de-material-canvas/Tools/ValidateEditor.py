@@ -95,7 +95,7 @@ def main():
     gpu_capture("legacy")
     owner = editor.ToolsApplicationRequestBus(bus.Broadcast, "CreateNewEntity", entity.EntityId())
     editor.EditorEntityAPIBus(bus.Event, "SetName", owner, "Terrain Canvas Validation")
-    types = editor.EditorComponentAPIBus(bus.Broadcast, "FindComponentTypeIdsByEntityType", ["Terrain Tint Material"], entity.EntityType().Game)
+    types = editor.EditorComponentAPIBus(bus.Broadcast, "FindComponentTypeIdsByEntityType", ["Terrain Material"], entity.EntityType().Game)
     added = editor.EditorComponentAPIBus(bus.Broadcast, "AddComponentsOfType", owner, types)
     assert added.IsSuccess(), added.GetError()
     component = added.GetValue()[0]
@@ -107,10 +107,10 @@ def main():
         material = asset.AssetCatalogRequestBus(bus.Broadcast, "GetAssetIdByPath",
             "materialcanvas/terrain/examples/" + name + ".azmaterial", math.Uuid(), False)
         assert material.is_valid(), name
-        result = editor.EditorComponentAPIBus(bus.Broadcast, "SetComponentProperty", component, "Tint Material", material)
+        result = editor.EditorComponentAPIBus(bus.Broadcast, "SetComponentProperty", component, "Material", material)
         assert result.IsSuccess(), result.GetError()
         try:
-            wait_for(lambda: status(owner) == "Canvas terrain tint active")
+            wait_for(lambda: status(owner) in ("Canvas terrain tint active", "Canvas terrain surface active"))
         finally:
             RESULTS[name + "_selection"] = status(owner)
         general.idle_wait_frames(120)
@@ -123,17 +123,17 @@ def main():
             original = source.read_bytes()
             try:
                 edited = json.loads(original)
-                edited["propertyValues"]["tint.strength"] = 1.0
-                edited["propertyValues"]["tint.color"] = [1.0, 0.05, 0.05]
+                edited.setdefault("propertyValues", {})["tint.strength"] = 1.0
+                edited.setdefault("propertyValues", {})["tint.color"] = [1.0, 0.05, 0.05]
                 source.write_text(json.dumps(edited, indent=4) + "\n", encoding="utf-8")
                 general.idle_wait_frames(1200)
-                assert status(owner) == "Canvas terrain tint active", status(owner)
+                assert status(owner) in ("Canvas terrain tint active", "Canvas terrain surface active"), status(owner)
                 screenshot("parameter_reload")
                 RESULTS["parameter_reload"] = status(owner)
             finally:
                 source.write_bytes(original)
             general.idle_wait_frames(1200)
-            assert status(owner) == "Canvas terrain tint active", status(owner)
+            assert status(owner) in ("Canvas terrain tint active", "Canvas terrain surface active"), status(owner)
             screenshot("parameter_restored")
             if os.environ.get("TC_CANVAS_TEST_GRAPH_RELOAD") == "1":
                 graph = source.with_suffix(".materialgraph")
@@ -161,7 +161,7 @@ def main():
                         if process.poll() is None:
                             process.terminate()
                     general.idle_wait_frames(600)
-                    assert status(owner) == "Canvas terrain tint active", status(owner)
+                    assert status(owner) in ("Canvas terrain tint active", "Canvas terrain surface active"), status(owner)
                 try:
                     changed = json.loads(original_graph)
                     node = next(n["Value"] for n in changed["ClassData"]["m_nodes"] if n["Key"] == 3)
@@ -178,20 +178,20 @@ def main():
     invalid = asset.AssetCatalogRequestBus(bus.Broadcast, "GetAssetIdByPath",
         "materials/terrain/defaultpbrterrain.azmaterial", math.Uuid(), False)
     assert invalid.is_valid()
-    rejected = editor.EditorComponentAPIBus(bus.Broadcast, "SetComponentProperty", component, "Tint Material", invalid)
+    rejected = editor.EditorComponentAPIBus(bus.Broadcast, "SetComponentProperty", component, "Material", invalid)
     assert rejected.IsSuccess()
     wait_for(lambda: "Incompatible tint material" in status(owner))
     RESULTS["invalid_contract"] = status(owner)
     screenshot("invalid_retains_active")
-    restored = editor.EditorComponentAPIBus(bus.Broadcast, "SetComponentProperty", component, "Tint Material", material)
+    restored = editor.EditorComponentAPIBus(bus.Broadcast, "SetComponentProperty", component, "Material", material)
     assert restored.IsSuccess()
-    wait_for(lambda: status(owner) == "Canvas terrain tint active")
+    wait_for(lambda: status(owner) in ("Canvas terrain tint active", "Canvas terrain surface active"))
     general.enter_game_mode()
     def find_game_owner():
         candidate = general.find_game_entity("Terrain Canvas Validation")
         return candidate if candidate.IsValid() else None
     game_owner = wait_for(find_game_owner)
-    wait_for(lambda: status(game_owner) == "Canvas terrain tint active")
+    wait_for(lambda: status(game_owner) in ("Canvas terrain tint active", "Canvas terrain surface active"))
     RESULTS["runtime"] = status(game_owner)
     general.exit_game_mode()
     general.idle_wait_frames(60)

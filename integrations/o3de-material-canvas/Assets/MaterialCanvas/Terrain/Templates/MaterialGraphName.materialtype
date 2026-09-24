@@ -1,5 +1,5 @@
 {
-    "description": "TerrainCompositor Canvas tint ABI v1. Use with Terrain Tint Material, not a surface material mapping.",
+    "description": "Terrain surface contract v2, fixed TerrainMaterialSrg v1. Select on Terrain Material.",
     "version": 1,
     "propertyLayout": {
         "groups": [
@@ -11,6 +11,10 @@
                 "id": "tint",
                 "displayName": "Terrain Tint",
                 "description": "Graph parameters in working RGB."
+            },
+            {
+                "id": "terrain",
+                "displayName": "Terrain Contract"
             }
         ],
         "properties": {
@@ -238,6 +242,14 @@
                         "type": "ShaderInput",
                         "id": "m_canvasTintTexture"
                     }
+                }
+            ],
+            "terrain": [
+                {
+                    "id": "contractVersion",
+                    "type": "UInt",
+                    "defaultValue": 2,
+                    "visibility": "Hidden"
                 }
             ]
         }

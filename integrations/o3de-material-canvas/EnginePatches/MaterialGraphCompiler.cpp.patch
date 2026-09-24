@@ -1,0 +1,37 @@
+--- a/MaterialGraphCompiler.cpp
++++ b/MaterialGraphCompiler.cpp
+@@ -175,7 +175,11 @@
+             ++m_templateNodeCount;
+         }
+ 
+-        if (!ReportGeneratedFileStatus())
++        // Headless source-generation checks can validate Asset Processor jobs
++        // independently. The default interactive path retains native status reporting.
++        const bool sourceGenerationOnly = AtomToolsFramework::GetSettingsValue(
++            "/O3DE/TerrainCanvas/SourceGenerationOnly", false);
++        if (!sourceGenerationOnly && !ReportGeneratedFileStatus())
+         {
+             SetState(State::Failed);
+             return false;
+@@ -716,6 +720,21 @@
+                 }
+                 return sourceSlotSymbolName;
+             }
++        }
++
++        // An output socket may inherit a value from the evaluation context instead
++        // of a numeric literal. Incoming connections always take precedence.
++        if (auto dynamicNode = azrtti_cast<const AtomToolsFramework::DynamicNode*>(slot->GetParentNode().get()))
++        {
++            AZStd::vector<AZStd::string> expressions;
++            AtomToolsFramework::VisitDynamicNodeSlotConfigs(dynamicNode->GetConfig(),
++                [&](const AtomToolsFramework::DynamicNodeSlotConfig& config)
++                {
++                    if (config.m_name == slot->GetName())
++                        AtomToolsFramework::CollectDynamicNodeSettings(config.m_settings, "unconnectedValueExpression", expressions);
++                });
++            if (expressions.size() == 1 && !expressions.front().empty())
++                return expressions.front();
+         }
+ 
+         // If the slot's embedded value is being used then generate shader code to represent it. More generic options will be explored to

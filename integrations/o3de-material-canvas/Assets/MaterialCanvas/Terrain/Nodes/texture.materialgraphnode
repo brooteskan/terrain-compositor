@@ -4,7 +4,7 @@
     "ClassName": "DynamicNodeConfig",
     "ClassData": {
         "id": "{667FAECA-A15A-5552-A1AC-D60322BBA269}",
-        "category": "Terrain Tint",
+        "category": "Terrain",
         "title": "Terrain Tint Texture",
         "titlePaletteName": "MathNodeTitlePalette",
         "description": "Terrain Tint Texture",

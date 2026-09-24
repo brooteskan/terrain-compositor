@@ -4,16 +4,16 @@
     "ClassName": "DynamicNodeConfig",
     "ClassData": {
         "id": "{EB039C35-AA34-58D2-9992-BF88368F5DFB}",
-        "category": "Terrain Tint",
-        "title": "Terrain Tint Output",
+        "category": "Terrain",
+        "title": "Terrain Output",
         "titlePaletteName": "MathNodeTitlePalette",
-        "description": "Terrain Tint Output",
+        "description": "Procedural terrain surface. Unconnected channels preserve the composed surface. Connect Constant nodes for explicit values.",
         "inputSlots": [
             {
                 "name": "inTint",
                 "allowNameSubstitution": false,
                 "displayName": "inTint",
-                "description": "inTint",
+                "description": "Legacy tint connection, preserved on old graphs. Use MigrateTintGraphs.py to expose it as Base Color multiplication.",
                 "supportedDataTypeRegex": "float3",
                 "defaultDataType": "float3",
                 "settings": {
@@ -28,7 +28,143 @@
                         1,
                         1
                     ]
-                }
+                },
+                "visibleOnNode": false,
+                "editableOnNode": false
+            },
+            {
+                "name": "inBaseColor",
+                "displayName": "Base Color",
+                "description": "Unconnected: incoming terrain Base Color.",
+                "supportedDataTypeRegex": "float3",
+                "defaultDataType": "float3",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ],
+                    "unconnectedValueExpression": [
+                        "incoming.baseColor"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "Vector3",
+                    "Value": [
+                        1,
+                        1,
+                        1
+                    ]
+                },
+                "allowNameSubstitution": false,
+                "editableOnNode": false
+            },
+            {
+                "name": "inNormal",
+                "displayName": "Normal (World)",
+                "description": "Unconnected: incoming terrain Normal (World).",
+                "supportedDataTypeRegex": "float3",
+                "defaultDataType": "float3",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ],
+                    "unconnectedValueExpression": [
+                        "incoming.normal"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "Vector3",
+                    "Value": [
+                        0,
+                        0,
+                        1
+                    ]
+                },
+                "allowNameSubstitution": false,
+                "editableOnNode": false
+            },
+            {
+                "name": "inRoughness",
+                "displayName": "Roughness",
+                "description": "Unconnected: incoming terrain Roughness.",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ],
+                    "unconnectedValueExpression": [
+                        "incoming.roughness"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 1
+                },
+                "allowNameSubstitution": false,
+                "editableOnNode": false
+            },
+            {
+                "name": "inMetalness",
+                "displayName": "Metalness",
+                "description": "Unconnected: incoming terrain Metalness.",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ],
+                    "unconnectedValueExpression": [
+                        "incoming.metalness"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 0
+                },
+                "allowNameSubstitution": false,
+                "editableOnNode": false
+            },
+            {
+                "name": "inSpecularFactor",
+                "displayName": "Specular Factor",
+                "description": "Unconnected: incoming terrain Specular Factor.",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ],
+                    "unconnectedValueExpression": [
+                        "incoming.specularFactor"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 0.5
+                },
+                "allowNameSubstitution": false,
+                "editableOnNode": false
+            },
+            {
+                "name": "inAmbientOcclusion",
+                "displayName": "Ambient Occlusion",
+                "description": "Unconnected: incoming terrain Ambient Occlusion.",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ],
+                    "unconnectedValueExpression": [
+                        "incoming.ambientOcclusion"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 1
+                },
+                "allowNameSubstitution": false,
+                "editableOnNode": false
             }
         ],
         "outputSlots": [],

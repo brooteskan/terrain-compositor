@@ -10,6 +10,27 @@ ly_add_target(
     FILES_CMAKE terrain_canvas_module_files.cmake
     BUILD_DEPENDENCIES PRIVATE Gem::${gem_name}.Static)
 if(PAL_TRAIT_BUILD_HOST_TOOLS)
+    include(EngineOverrides.cmake)
+    set(tc_canvas_source_root "${LY_ROOT_FOLDER}/Gems/Atom/Tools/MaterialCanvas/Code")
+    set(tc_canvas_original "${tc_canvas_source_root}/Source/Document/MaterialGraphCompiler.cpp")
+    set(tc_canvas_override "${CMAKE_CURRENT_BINARY_DIR}/EngineOverrides/MaterialGraphCompiler.cpp")
+    tc_canvas_prepare_compiler("${tc_canvas_original}" "${tc_canvas_override}")
+    get_target_property(tc_canvas_sources MaterialCanvas SOURCES)
+    set(tc_canvas_found FALSE)
+    foreach(source IN LISTS tc_canvas_sources)
+        get_filename_component(absolute "${source}" ABSOLUTE BASE_DIR "${tc_canvas_source_root}")
+        if(absolute STREQUAL tc_canvas_original)
+            list(REMOVE_ITEM tc_canvas_sources "${source}")
+            set(tc_canvas_found TRUE)
+        endif()
+    endforeach()
+    if(NOT tc_canvas_found)
+        message(FATAL_ERROR "Terrain Canvas: could not locate native MaterialGraphCompiler source")
+    endif()
+    set_source_files_properties("${tc_canvas_override}" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
+    list(APPEND tc_canvas_sources "${tc_canvas_override}")
+    set_property(TARGET MaterialCanvas PROPERTY SOURCES "${tc_canvas_sources}")
+    target_include_directories(MaterialCanvas PRIVATE "${tc_canvas_source_root}/Source/Document")
     ly_add_target(
         NAME ${gem_name}.Editor GEM_MODULE NAMESPACE Gem
         FILES_CMAKE terrain_canvas_module_files.cmake

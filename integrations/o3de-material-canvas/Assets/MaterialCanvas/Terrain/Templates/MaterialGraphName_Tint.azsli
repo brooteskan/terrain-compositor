@@ -1,17 +1,33 @@
 #pragma once
 #include <TerrainCompositor/TerrainMaterialSrg.azsli>
+#include <TerrainCompositor/TerrainSurface.azsli>
 #include <TerrainCanvas/LatticeNoise.azsli>
+#include <TerrainCanvas/SurfaceHelpers.azsli>
 // O3DE_GENERATED_INCLUDES_BEGIN
 // O3DE_GENERATED_INCLUDES_END
 // O3DE_GENERATED_CLASSES_BEGIN
 // O3DE_GENERATED_CLASSES_END
 // O3DE_GENERATED_FUNCTIONS_BEGIN
 // O3DE_GENERATED_FUNCTIONS_END
-float3 TC_CanvasTint(float3 worldPosition)
+TerrainSurfaceChannels TC_CanvasSurface(TerrainSurfaceContext context, TerrainSurfaceChannels incoming)
 {
-    const float3 O3DE_MC_POSITION_WS = worldPosition;
-    // O3DE_GENERATED_INSTRUCTIONS_BEGIN: inTint
+    const float3 O3DE_MC_POSITION_WS = context.worldPosition;
+    const float3 O3DE_MC_NORMAL_WS = context.geometricNormal;
+    // O3DE_GENERATED_INSTRUCTIONS_BEGIN: inTint, inBaseColor, inNormal, inRoughness, inMetalness, inSpecularFactor, inAmbientOcclusion
     float3 inTint = float3(1, 1, 1);
+    float3 inBaseColor = incoming.baseColor;
+    float3 inNormal = incoming.normal;
+    float inRoughness = incoming.roughness;
+    float inMetalness = incoming.metalness;
+    float inSpecularFactor = incoming.specularFactor;
+    float inAmbientOcclusion = incoming.ambientOcclusion;
     // O3DE_GENERATED_INSTRUCTIONS_END
-    return inTint;
+    TerrainSurfaceChannels result;
+    result.baseColor = inBaseColor * inTint; // Retained ABI-v1 graph connection, neutral for new graphs.
+    result.normal = inNormal;
+    result.roughness = inRoughness;
+    result.metalness = inMetalness;
+    result.specularFactor = inSpecularFactor;
+    result.ambientOcclusion = inAmbientOcclusion;
+    return result;
 }

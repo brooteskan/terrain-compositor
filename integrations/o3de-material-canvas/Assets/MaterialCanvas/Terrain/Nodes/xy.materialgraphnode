@@ -4,7 +4,7 @@
     "ClassName": "DynamicNodeConfig",
     "ClassData": {
         "id": "{1DCD7456-D868-5393-9573-4234C14D2142}",
-        "category": "Terrain Tint",
+        "category": "Terrain",
         "title": "World XY / Scale",
         "titlePaletteName": "MathNodeTitlePalette",
         "description": "World XY / Scale",

@@ -4,7 +4,7 @@
     "ClassName": "DynamicNodeConfig",
     "ClassData": {
         "id": "{B7B9EC6B-A0E9-56D3-98E3-FF3721AA38B7}",
-        "category": "Terrain Tint",
+        "category": "Terrain",
         "title": "Smoothstep Scalar",
         "titlePaletteName": "MathNodeTitlePalette",
         "description": "Smoothstep Scalar",

@@ -2,4 +2,7 @@ build/
 Cache/
 user/
 .vs/
+__pycache__/
+*.pyc
+integrations/o3de-material-canvas/compile-*.json
 

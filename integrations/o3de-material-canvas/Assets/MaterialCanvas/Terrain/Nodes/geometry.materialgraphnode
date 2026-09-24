@@ -1,0 +1,64 @@
+{
+    "Type": "JsonSerialization",
+    "Version": 1,
+    "ClassName": "DynamicNodeConfig",
+    "ClassData": {
+        "id": "{1A73E777-16E3-5B32-B0DA-DAF3BB0BF1D8}",
+        "category": "Terrain",
+        "title": "Terrain Geometry",
+        "description": "Terrain Geometry",
+        "titlePaletteName": "MathNodeTitlePalette",
+        "inputSlots": [],
+        "outputSlots": [
+            {
+                "name": "position",
+                "displayName": "position",
+                "description": "position",
+                "supportedDataTypeRegex": "float3",
+                "defaultDataType": "float3",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = context.worldPosition;"
+                    ]
+                }
+            },
+            {
+                "name": "normal",
+                "displayName": "normal",
+                "description": "normal",
+                "supportedDataTypeRegex": "float3",
+                "defaultDataType": "float3",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = context.geometricNormal;"
+                    ]
+                }
+            },
+            {
+                "name": "elevation",
+                "displayName": "elevation",
+                "description": "elevation",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = context.worldPosition.z;"
+                    ]
+                }
+            },
+            {
+                "name": "slope",
+                "displayName": "slope",
+                "description": "slope",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = 1.0 - saturate(context.geometricNormal.z);"
+                    ]
+                }
+            }
+        ],
+        "propertySlots": []
+    }
+}

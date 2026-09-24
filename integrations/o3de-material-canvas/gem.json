@@ -2,7 +2,7 @@
     "gem_name": "TerrainCompositorCanvas",
     "version": "0.1.0",
     "display_name": "Terrain Compositor Canvas",
-    "summary": "Material Canvas authoring of scene-wide terrain tint.",
+    "summary": "Material Canvas authoring of procedural terrain surfaces.",
     "type": "Code",
     "license": "MIT",
     "canonical_tags": [

@@ -111,6 +111,11 @@ namespace Terrain
         }
         if (material != m_defaultMaterial)
         {
+            const auto surfaceVersion = material->FindPropertyIndex(AZ::Name("terrain.contractVersion"));
+            if (surfaceVersion.IsValid() && (!material->GetPropertyValue(surfaceVersion).Is<AZ::u32>() ||
+                material->GetPropertyValue<AZ::u32>(surfaceVersion) != 2)) return false;
+            // Surface contract v2 deliberately retains SRG v1 and its legacy
+            // properties. Arbitrary graph-owned bindings are not accepted.
             const auto version = material->FindPropertyIndex(AZ::Name("tint.contractVersion"));
             const auto strength = material->FindPropertyIndex(AZ::Name("tint.strength"));
             const auto color = material->FindPropertyIndex(AZ::Name("tint.color"));
@@ -182,7 +187,9 @@ namespace Terrain
         m_meshManager.SetMaterial(m_materialInstance);
         m_tintStageSource = {};
         m_tintStageTarget = {};
-        m_tintStatus = m_materialInstance == m_defaultMaterial ? "Legacy terrain tint" : "Canvas terrain tint active";
+        m_tintStatus = m_materialInstance == m_defaultMaterial ? "Legacy terrain tint" :
+            (m_materialInstance->FindPropertyIndex(AZ::Name("terrain.contractVersion")).IsValid()
+                ? "Canvas terrain surface active" : "Canvas terrain tint active");
         return true;
     }
 } // namespace Terrain

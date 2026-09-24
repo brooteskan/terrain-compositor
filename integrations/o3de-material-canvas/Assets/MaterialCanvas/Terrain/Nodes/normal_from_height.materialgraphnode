@@ -1,0 +1,61 @@
+{
+    "Type": "JsonSerialization",
+    "Version": 1,
+    "ClassName": "DynamicNodeConfig",
+    "ClassData": {
+        "id": "{CFBE3398-6EEF-5166-A9B6-A0C8EF809636}",
+        "category": "Terrain",
+        "title": "Normal From Procedural Height",
+        "description": "Normal From Procedural Height",
+        "titlePaletteName": "MathNodeTitlePalette",
+        "inputSlots": [
+            {
+                "name": "height",
+                "displayName": "height",
+                "description": "height",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 0
+                }
+            },
+            {
+                "name": "strength",
+                "displayName": "strength",
+                "description": "strength",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 1
+                }
+            }
+        ],
+        "outputSlots": [
+            {
+                "name": "outNormal",
+                "displayName": "normal",
+                "description": "normal",
+                "supportedDataTypeRegex": "float3",
+                "defaultDataType": "float3",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = TC_NormalFromHeight(context.worldPosition, incoming.normal, height, strength);"
+                    ]
+                }
+            }
+        ],
+        "propertySlots": []
+    }
+}

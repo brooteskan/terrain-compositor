@@ -11,3 +11,15 @@ target_compile_definitions(TerrainCanvasParity PRIVATE NOMINMAX
     TERRAIN_SHADERS="${CMAKE_CURRENT_SOURCE_DIR}/../../o3de/Assets/Shaders/Terrain")
 target_link_libraries(TerrainCanvasParity PRIVATE d3d11 d3dcompiler)
 add_test(NAME TerrainCanvasParity COMMAND TerrainCanvasParity)
+
+add_executable(TerrainSurfaceTests TerrainSurfaceTests.cpp)
+target_compile_features(TerrainSurfaceTests PRIVATE cxx_std_17)
+target_compile_definitions(TerrainSurfaceTests PRIVATE NOMINMAX
+    CANVAS_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/.."
+    TERRAIN_SHADERS="${CMAKE_CURRENT_SOURCE_DIR}/../../o3de/Assets/Shaders/Terrain")
+target_link_libraries(TerrainSurfaceTests PRIVATE d3d11 d3dcompiler)
+add_test(NAME TerrainSurfaceTests COMMAND TerrainSurfaceTests)
+find_package(Python3 COMPONENTS Interpreter)
+if(Python3_FOUND)
+    add_test(NAME TerrainCanvasMigration COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/TestMigration.py")
+endif()

@@ -4,7 +4,7 @@
     "ClassName": "DynamicNodeConfig",
     "ClassData": {
         "id": "{1A4AFAD9-4D91-5A16-B9F9-754869679E87}",
-        "category": "Terrain Tint",
+        "category": "Terrain",
         "title": "Pixel Footprint",
         "titlePaletteName": "MathNodeTitlePalette",
         "description": "Pixel Footprint",

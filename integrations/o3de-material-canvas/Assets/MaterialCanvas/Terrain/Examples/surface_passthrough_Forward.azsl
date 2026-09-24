@@ -1,0 +1,3 @@
+#include "surface_passthrough_Tint.azsli"
+#define TC_EvaluateTerrainSurface TC_CanvasSurface
+#include <TerrainCompositor/TerrainForward.azsli>

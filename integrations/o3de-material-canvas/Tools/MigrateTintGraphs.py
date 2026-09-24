@@ -1,0 +1,101 @@
+"""Expose legacy tint connections as Base Color multiplication. Dry-run by default.
+
+Usage: python MigrateTintGraphs.py graph.materialgraph [more graphs] [--write]
+Only graph sources are modified; user-owned materials and generated assets are not.
+Recompile migrated graphs with Material Canvas. Existing graphs also work without
+migration through the retained, hidden inTint compatibility input.
+"""
+import argparse
+import copy
+import json
+from pathlib import Path
+
+NODES = Path(__file__).resolve().parents[1] / 'Assets/MaterialCanvas/Terrain/Nodes'
+
+
+def config_id(name):
+    return json.loads((NODES / (name + '.materialgraphnode')).read_text(encoding='utf-8'))['ClassData']['id']
+
+
+def migrate(document):
+    result = copy.deepcopy(document)
+    graph = result['ClassData']
+    nodes = graph['m_nodes']
+    connections = graph.setdefault('m_connections', [])
+    metadata = graph.setdefault('m_uiMetadata', {}).setdefault('m_nodeMetadata', [])
+    next_id = max((n['Key'] for n in nodes), default=0) + 1
+    changed = 0
+    for output in list(nodes):
+        value = output['Value']
+        if value.get('configId') != config_id('output'):
+            continue
+        output_id = output['Key']
+        tint_connections = [c for c in connections if c['m_targetEndpoint'] == [output_id, {'m_name': 'inTint'}]]
+        base_connections = [c for c in connections if c['m_targetEndpoint'] == [output_id, {'m_name': 'inBaseColor'}]]
+        if len(tint_connections) > 1 or len(base_connections) > 1:
+            raise ValueError('Multiple connections to one output socket')
+        tint_slot = next((s for s in value.get('m_inputDataSlots', []) if s['Key']['m_name'] == 'inTint'), None)
+        tint_value = copy.deepcopy(tint_slot['Value']['m_value'] if tint_slot else {'$type': 'Vector3', 'Value': [1, 1, 1]})
+        if not tint_connections and tint_value['Value'] == [1, 1, 1]:
+            continue
+
+        def add(kind, slots=None):
+            nonlocal next_id
+            key = next_id
+            next_id += 1
+            node = {'$type': 'DynamicNode', 'toolId': copy.deepcopy(value['toolId']), 'configId': config_id(kind)}
+            if slots:
+                node['m_inputDataSlots'] = slots
+            nodes.append({'Key': key, 'Value': node})
+            original_meta = next((m for m in metadata if m['Key'] == output_id), None)
+            position = [0, 0]
+            if original_meta:
+                for component in original_meta['Value'].get('ComponentData', {}).values():
+                    if component.get('$type') == 'GeometrySaveData':
+                        position = component.get('Position', position)
+            metadata.append({'Key': key, 'Value': {'ComponentData': {
+                '{7CC444B1-F9B3-41B5-841B-0C4F2179F111}': {'$type': 'GeometrySaveData', 'Position': [position[0] - 400, position[1] + 300 * (key - output_id)]}}}})
+            return key
+
+        multiply = add('multiply_rgb', [
+            {'Key': {'m_name': 'a'}, 'Value': {'m_value': {'$type': 'Vector3', 'Value': [1, 1, 1]}}},
+            {'Key': {'m_name': 'b'}, 'Value': {'m_value': tint_value}}])
+        if base_connections:
+            base_connections[0]['m_targetEndpoint'] = [multiply, {'m_name': 'a'}]
+        else:
+            incoming = add('surface_inputs')
+            connections.append({'m_sourceEndpoint': [incoming, {'m_name': 'outBaseColor'}], 'm_targetEndpoint': [multiply, {'m_name': 'a'}]})
+        if tint_connections:
+            tint_connections[0]['m_targetEndpoint'] = [multiply, {'m_name': 'b'}]
+        connections.append({'m_sourceEndpoint': [multiply, {'m_name': 'result'}], 'm_targetEndpoint': [output_id, {'m_name': 'inBaseColor'}]})
+        if tint_slot:
+            tint_slot['Value']['m_value']['Value'] = [1, 1, 1]
+        changed += 1
+    return result, changed
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('graphs', nargs='+', type=Path)
+    parser.add_argument('--write', action='store_true', help='Save graphs, creating an exclusive .bak backup first')
+    args = parser.parse_args()
+    for path in args.graphs:
+        original = path.read_bytes()
+        converted, count = migrate(json.loads(original))
+        if count and args.write:
+            backup = path.with_suffix(path.suffix + '.bak')
+            with backup.open('xb') as file:
+                file.write(original)
+            temporary = path.with_suffix(path.suffix + '.migration.tmp')
+            try:
+                with temporary.open('x', encoding='utf-8', newline='\n') as file:
+                    file.write(json.dumps(converted, indent=4) + '\n')
+                temporary.replace(path)
+            finally:
+                if temporary.exists():
+                    temporary.unlink()
+        print(f'{path}: {count} output(s) ' + ('migrated' if args.write else 'would migrate (dry run)'))
+
+
+if __name__ == '__main__':
+    main()

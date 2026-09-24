@@ -4,7 +4,7 @@
     "ClassName": "DynamicNodeConfig",
     "ClassData": {
         "id": "{890265DE-47BB-5824-80E3-1D16F85226C4}",
-        "category": "Terrain Tint",
+        "category": "Terrain",
         "title": "World Bands",
         "titlePaletteName": "MathNodeTitlePalette",
         "description": "World Bands",
