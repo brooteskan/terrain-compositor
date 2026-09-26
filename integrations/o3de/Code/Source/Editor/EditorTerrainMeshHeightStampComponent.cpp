@@ -14,12 +14,63 @@ namespace TerrainCompositor
 {
     void EditorTerrainMeshHeightStampComponent::Reflect(AZ::ReflectContext* context)
     {
-        Internal::ReflectEditorConfiguration<EditorTerrainMeshHeightStampComponent, BaseClass>(context,
-            &EditorTerrainMeshHeightStampComponent::m_configuration, &EditorTerrainMeshHeightStampComponent::OnConfigurationChanged,
-            &EditorTerrainMeshHeightStampComponent::GetStatusText, "Terrain Mesh Height Stamp",
-            "Use a regular-grid terrain mesh descendant as composed terrain height.",
-            "Terrain model, target composition, blending, and visibility.",
-            "Read-only mesh preparation and registration status.");
+        if (auto* serialize = azrtti_cast<AZ::SerializeContext*>(context))
+        {
+            if (!serialize->IsRemovingReflection()) TerrainMeshHeightStampConfig::Reflect(context);
+            serialize->Class<EditorTerrainMeshHeightStampComponent, BaseClass>()->Version(1)
+                ->Field("Configuration", &EditorTerrainMeshHeightStampComponent::m_configuration);
+            if (auto* edit = serialize->GetEditContext())
+                edit->Class<EditorTerrainMeshHeightStampComponent>("Terrain Mesh Height Stamp", "Use a regular-grid terrain mesh as height and surface labels.")
+                ->ClassElement(AZ::Edit::ClassElements::EditorData, "")
+                ->Attribute(AZ::Edit::Attributes::Category, "Terrain")
+                ->Attribute(AZ::Edit::Attributes::AppearsInAddComponentMenu, AZ_CRC_CE("Game"))
+                ->Attribute(AZ::Edit::Attributes::AutoExpand, true)
+                ->DataElement(AZ::Edit::UIHandlers::Default, &EditorTerrainMeshHeightStampComponent::m_configuration,
+                    "Configuration", "Terrain model, surface mappings, placement and blending.")
+                ->Attribute(AZ::Edit::Attributes::ChangeNotify, &EditorTerrainMeshHeightStampComponent::OnConfigurationChanged)
+                ->UIElement(AZ::Edit::UIHandlers::Label, "Status", "Imported material names and terrain preparation status.")
+                ->Attribute(AZ::Edit::Attributes::ValueText, &EditorTerrainMeshHeightStampComponent::GetStatusText)
+                ->UIElement(AZ::Edit::UIHandlers::Button, "Material Slots", "Add imported slot names without changing existing mappings.")
+                ->Attribute(AZ::Edit::Attributes::ButtonText, "Add Imported Material Slots")
+                ->Attribute(AZ::Edit::Attributes::ChangeNotify, &EditorTerrainMeshHeightStampComponent::ImportMaterialSlots);
+        }
+    }
+
+    AZ::u32 EditorTerrainMeshHeightStampComponent::ImportMaterialSlots()
+    {
+        if (m_preview)
+        {
+            const auto registration = m_preview->GetDiagnosticRegistration();
+            if (const auto& data = registration.m_mesh.m_data)
+                for (const auto& name : data->m_materialSlots)
+                {
+                    bool found = false;
+                    for (const auto& mapping : m_configuration.m_surfaceMappings) found |= mapping.m_slotName == name;
+                    if (!found) m_configuration.m_surfaceMappings.push_back({name, 0});
+                }
+        }
+        return OnConfigurationChanged();
+    }
+
+    AZStd::string EditorTerrainMeshHeightStampComponent::GetStatusText() const
+    {
+        AZStd::string text = m_preview.GetStatus();
+        if (!m_preview) return text;
+        const auto registration = m_preview->GetDiagnosticRegistration();
+        if (const auto& data = registration.m_mesh.m_data)
+        {
+            text += " Imported material slots: ";
+            for (const auto& name : data->m_materialSlots) text += "[" + name + "] ";
+            if (m_configuration.m_surfaceMappings.empty()) text += "No mappings: height only. Use Add Imported Material Slots, then assign palette IDs.";
+            for (const auto& mapping : m_configuration.m_surfaceMappings)
+            {
+                size_t matches = 0;
+                for (const auto& name : data->m_materialSlots) if (name == mapping.m_slotName) ++matches;
+                text += AZStd::string::format(" %s -> %u (%s).", mapping.m_slotName.c_str(), mapping.m_surfaceId,
+                    matches != 1 ? "UNRESOLVED: select an exact unique imported name" : mapping.m_surfaceId == 0 ? "no surface change" : "check target Surface Palette");
+            }
+        }
+        return text;
     }
 
     void EditorTerrainMeshHeightStampComponent::GetProvidedServices(AZ::ComponentDescriptor::DependencyArrayType& services)

@@ -145,8 +145,9 @@ namespace TerrainCompositor
             if (a.m_strength != b.m_strength || a.m_featherWidth != b.m_featherWidth || a.m_featherExponent != b.m_featherExponent ||
                 a.m_edgeInset != b.m_edgeInset || a.m_relativeEdgeBlend != b.m_relativeEdgeBlend)
             {
-                dirty |= DirtyHeight;
+                dirty |= DirtyHeight | DirtySurface;
             }
+            if (a.m_surfaceMappings != b.m_surfaceMappings) dirty |= DirtySurface;
             if (a.m_uncoveredAreaPolicy != b.m_uncoveredAreaPolicy || a.m_affectTerrainRendering != b.m_affectTerrainRendering ||
                 a.m_affectTerrainCollisionQueries != b.m_affectTerrainCollisionQueries)
             {
@@ -1162,6 +1163,7 @@ namespace TerrainCompositor
         TerrainProceduralSnapshotPtr source, TerrainSourceAcquisition acquisition)
     {
         TerrainRenderGeometryQuery query;
+        query.m_surfaces = state;
         query.m_regionBounds = state->m_regionBounds;
         query.m_preparationDependency = state->m_preparationDependency;
         query.m_capability.m_declared = true;

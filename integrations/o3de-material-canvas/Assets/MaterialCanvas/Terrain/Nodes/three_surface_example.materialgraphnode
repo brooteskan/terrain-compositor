@@ -1,0 +1,141 @@
+{
+    "Type": "JsonSerialization",
+    "Version": 1,
+    "ClassName": "DynamicNodeConfig",
+    "ClassData": {
+        "id": "{AE55F2D3-880E-4288-9625-461EE6E4C769}",
+        "category": "Terrain",
+        "title": "Three Surface Example",
+        "titlePaletteName": "MathNodeTitlePalette",
+        "description": "Example appearance from Rock, Soil and Road weights. Replace with ordinary graph math for your material.",
+        "inputSlots": [
+            {
+                "name": "rock",
+                "displayName": "rock",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 0.0
+                },
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                }
+            },
+            {
+                "name": "soil",
+                "displayName": "soil",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 0.0
+                },
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                }
+            },
+            {
+                "name": "road",
+                "displayName": "road",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 0.0
+                },
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                }
+            },
+            {
+                "name": "rockColor",
+                "displayName": "rockColor",
+                "supportedDataTypeRegex": "float3",
+                "defaultDataType": "float3",
+                "defaultValue": {
+                    "$type": "Vector3",
+                    "Value": [
+                        0.42,
+                        0.48,
+                        0.58
+                    ]
+                },
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                }
+            },
+            {
+                "name": "soilColor",
+                "displayName": "soilColor",
+                "supportedDataTypeRegex": "float3",
+                "defaultDataType": "float3",
+                "defaultValue": {
+                    "$type": "Vector3",
+                    "Value": [
+                        0.4,
+                        0.16,
+                        0.055
+                    ]
+                },
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                }
+            },
+            {
+                "name": "roadColor",
+                "displayName": "roadColor",
+                "supportedDataTypeRegex": "float3",
+                "defaultDataType": "float3",
+                "defaultValue": {
+                    "$type": "Vector3",
+                    "Value": [
+                        0.045,
+                        0.05,
+                        0.055
+                    ]
+                },
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                }
+            }
+        ],
+        "outputSlots": [
+            {
+                "name": "color",
+                "displayName": "color",
+                "supportedDataTypeRegex": "float3",
+                "defaultDataType": "float3",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = rock * rockColor + soil * soilColor + road * roadColor + saturate(1.0 - rock - soil - road) * float3(0.12, 0.23, 0.065);"
+                    ]
+                }
+            },
+            {
+                "name": "roughness",
+                "displayName": "roughness",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = rock * 0.8 + soil * 1.0 + road * 0.35 + saturate(1.0 - rock - soil - road);"
+                    ]
+                }
+            }
+        ],
+        "propertySlots": []
+    }
+}

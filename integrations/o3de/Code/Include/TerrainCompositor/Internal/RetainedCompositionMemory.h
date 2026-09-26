@@ -22,7 +22,8 @@ namespace TerrainCompositor::Internal
     {
         return RetainedAllocationBytes(data,
             &TerrainMeshHeightData::m_localHeights, &TerrainMeshHeightData::m_uncoveredCellBits,
-            &TerrainMeshHeightData::m_cellDiagonalBits, &TerrainMeshHeightData::m_gapTileOccupancy);
+            &TerrainMeshHeightData::m_cellDiagonalBits, &TerrainMeshHeightData::m_gapTileOccupancy,
+            &TerrainMeshHeightData::m_cellMaterialSlots, &TerrainMeshHeightData::m_materialSlots);
     }
     inline size_t RetainedBytes(const TerrainMeshCutoutDataPtr& data)
     {

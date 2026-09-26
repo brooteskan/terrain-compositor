@@ -47,7 +47,12 @@ namespace TerrainCompositor
         double m_strength = 0.0;
         double m_feather = 0.0;
         double m_featherExponent = 1.0;
+        PreparedTerrainMeshHeightStamp m_mesh;
+        AZStd::vector<AZ::Crc32> m_meshSlotTags;
     };
+
+    AZStd::string PrepareMeshSurfaceStamp(const TerrainMeshHeightStampRegistrationData& registration,
+        const PreparedTerrainMeshHeightStamp& mesh, const PreparedSurfacePalette& palette, PreparedSurfaceStamp& result);
 
     PreparedSurfacePalette PrepareSurfacePalette(
         AZStd::span<const SurfacePaletteEntry> entries, AZStd::span<const SurfaceBaseWeight> baseWeights);

@@ -47,8 +47,13 @@ namespace TerrainCompositor
             serialize->Enum<TerrainMeshHeightUncoveredAreaPolicy>()
                 ->Value("PreserveLowerTerrain", TerrainMeshHeightUncoveredAreaPolicy::PreserveLowerTerrain)
                 ->Value("CutOutTerrain", TerrainMeshHeightUncoveredAreaPolicy::CutOutTerrain);
+            serialize->Class<TerrainMeshSurfaceMapping>()
+                ->Version(1)
+                ->Field("SlotName", &TerrainMeshSurfaceMapping::m_slotName)
+                ->Field("SurfaceId", &TerrainMeshSurfaceMapping::m_surfaceId);
             serialize->Class<TerrainMeshHeightStampConfig, AZ::ComponentConfig>()
-                ->Version(3, TerrainMeshHeightStampConfigVersionConverter)
+                ->Version(4, TerrainMeshHeightStampConfigVersionConverter)
+                ->Field("SurfaceMappings", &TerrainMeshHeightStampConfig::m_surfaceMappings)
                 ->Field("TargetCompositionEntityId", &TerrainMeshHeightStampConfig::m_targetCompositionEntityId)
                 ->Field("TerrainMeshAsset", &TerrainMeshHeightStampConfig::m_terrainMeshAsset)
                 ->Field("Strength", &TerrainMeshHeightStampConfig::m_strength)
@@ -65,12 +70,21 @@ namespace TerrainCompositor
 
             if (auto* edit = serialize->GetEditContext())
             {
+                edit->Class<TerrainMeshSurfaceMapping>("Material Slot", "Exact imported slot name to composition surface palette ID.")
+                    ->ClassElement(AZ::Edit::ClassElements::EditorData, "")
+                    ->Attribute(AZ::Edit::Attributes::Visibility, AZ::Edit::PropertyVisibility::ShowChildrenOnly)
+                    ->DataElement(AZ::Edit::UIHandlers::Default, &TerrainMeshSurfaceMapping::m_slotName, "Imported Slot Name",
+                        "Exact, case-sensitive imported name. Renamed or ambiguous slots contribute no surface until explicitly remapped.")
+                    ->DataElement(AZ::Edit::UIHandlers::Default, &TerrainMeshSurfaceMapping::m_surfaceId, "Surface ID",
+                        "ID in the target composition's Surface Palette. Zero leaves lower surfaces unchanged.");
                 edit->Class<TerrainMeshHeightStampConfig>(
                         "Terrain Mesh Height Stamp Configuration",
                         "Use a regular-grid Atom model as an absolute terrain-height contributor.")
                     ->ClassElement(AZ::Edit::ClassElements::EditorData, "")
                     ->Attribute(AZ::Edit::Attributes::Visibility, AZ::Edit::PropertyVisibility::ShowChildrenOnly)
                     ->Attribute(AZ::Edit::Attributes::AutoExpand, true)
+                    ->DataElement(AZ::Edit::UIHandlers::Default, &TerrainMeshHeightStampConfig::m_surfaceMappings,
+                        "Material Slot Surfaces", "Map imported face material names to the composition surface palette. Empty preserves height-only behavior.")
                     ->DataElement(
                         AZ::Edit::UIHandlers::Default,
                         &TerrainMeshHeightStampConfig::m_targetCompositionEntityId,

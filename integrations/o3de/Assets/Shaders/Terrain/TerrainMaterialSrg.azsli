@@ -54,6 +54,9 @@ ShaderResourceGroup TerrainMaterialSrg : SRG_PerMaterial
     uint m_meshHeightGapRevision;
     StructuredBuffer<MeshHeightGap> m_meshHeightGaps;
     StructuredBuffer<uint> m_meshHeightGapWords;
+    uint m_surfaceRegionCount;
+    uint m_surfaceRevision;
+    StructuredBuffer<uint> m_surfaceWords;
 #ifdef TC_GRAPH_MATERIAL
     MaterialParameters m_params;
     // fallback texture index for GetMaterialTexture() in case the texture index is negative.

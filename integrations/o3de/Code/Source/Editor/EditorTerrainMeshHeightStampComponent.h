@@ -37,10 +37,8 @@ namespace TerrainCompositor
     private:
         template<class> friend class TerrainEditorPreviewLifecycleTests;
         AZ::u32 OnConfigurationChanged();
-        AZStd::string GetStatusText() const
-        {
-            return m_preview.GetStatus();
-        }
+        AZ::u32 ImportMaterialSlots();
+        AZStd::string GetStatusText() const;
         void DisplayEntityViewport(
             const AzFramework::ViewportInfo& viewportInfo, AzFramework::DebugDisplayRequests& debugDisplay) override;
 

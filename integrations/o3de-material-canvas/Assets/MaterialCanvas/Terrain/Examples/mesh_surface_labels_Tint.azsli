@@ -1,0 +1,45 @@
+#pragma once
+#include "mesh_surface_labels_Material.azsli"
+#include <TerrainCompositor/TerrainSurface.azsli>
+// O3DE_GENERATED_INCLUDES_BEGIN
+#include <TerrainCompositor/TerrainSurfaceWeights.azsli>
+// O3DE_GENERATED_INCLUDES_END
+// O3DE_GENERATED_CLASSES_BEGIN
+// O3DE_GENERATED_CLASSES_END
+// O3DE_GENERATED_FUNCTIONS_BEGIN
+// O3DE_GENERATED_FUNCTIONS_END
+TerrainSurfaceChannels TC_CanvasSurface(TerrainSurfaceContext context, const MaterialParameters params)
+{
+    const float3 O3DE_MC_POSITION_WS = context.worldPosition;
+    const float3 O3DE_MC_NORMAL_WS = context.geometricNormal;
+    // O3DE_GENERATED_INSTRUCTIONS_BEGIN: inBaseColor, inNormal, inRoughness, inMetalness, inSpecularFactor, inAmbientOcclusion
+float node2_terrain_surface_weight_surfaceId = 1;
+float node2_terrain_surface_weight_weight = TC_SurfaceWeight(O3DE_MC_POSITION_WS.xy, (uint)clamp(round(node2_terrain_surface_weight_surfaceId), 0.0, 65535.0));
+float node3_terrain_surface_weight_surfaceId = 2;
+float node3_terrain_surface_weight_weight = TC_SurfaceWeight(O3DE_MC_POSITION_WS.xy, (uint)clamp(round(node3_terrain_surface_weight_surfaceId), 0.0, 65535.0));
+float node4_terrain_surface_weight_surfaceId = 3;
+float node4_terrain_surface_weight_weight = TC_SurfaceWeight(O3DE_MC_POSITION_WS.xy, (uint)clamp(round(node4_terrain_surface_weight_surfaceId), 0.0, 65535.0));
+float node5_three_surface_example_rock = node2_terrain_surface_weight_weight;
+float node5_three_surface_example_soil = node3_terrain_surface_weight_weight;
+float node5_three_surface_example_road = node4_terrain_surface_weight_weight;
+float3 node5_three_surface_example_rockColor = {0.42, 0.48, 0.58};
+float3 node5_three_surface_example_soilColor = {0.4, 0.16, 0.055};
+float3 node5_three_surface_example_roadColor = {0.045, 0.05, 0.055};
+float3 node5_three_surface_example_color = node5_three_surface_example_rock * node5_three_surface_example_rockColor + node5_three_surface_example_soil * node5_three_surface_example_soilColor + node5_three_surface_example_road * node5_three_surface_example_roadColor + saturate(1.0 - node5_three_surface_example_rock - node5_three_surface_example_soil - node5_three_surface_example_road) * float3(0.12, 0.23, 0.065);
+float node5_three_surface_example_roughness = node5_three_surface_example_rock * 0.8 + node5_three_surface_example_soil * 1.0 + node5_three_surface_example_road * 0.35 + saturate(1.0 - node5_three_surface_example_rock - node5_three_surface_example_soil - node5_three_surface_example_road);
+float3 inBaseColor = node5_three_surface_example_color;
+float3 inNormal = {0, 0, 0};
+float inRoughness = node5_three_surface_example_roughness;
+float inMetalness = 0;
+float inSpecularFactor = 0.5;
+float inAmbientOcclusion = 1;
+    // O3DE_GENERATED_INSTRUCTIONS_END
+    TerrainSurfaceChannels result;
+    result.baseColor = inBaseColor;
+    result.normal = inNormal;
+    result.roughness = inRoughness;
+    result.metalness = inMetalness;
+    result.specularFactor = inSpecularFactor;
+    result.ambientOcclusion = inAmbientOcclusion;
+    return result;
+}

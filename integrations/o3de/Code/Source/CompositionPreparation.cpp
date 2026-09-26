@@ -170,6 +170,11 @@ namespace TerrainCompositor::Internal
                 }
                 if (prepared.m_strength > 0.0)
                 {
+                    PreparedSurfaceStamp surface;
+                    const auto surfaceDiagnostic = PrepareMeshSurfaceStamp(registration, prepared, query.m_surfacePalette, surface);
+                    result.m_diagnostics.emplace_back(RegistrationDiagnostic::Surface, id, registration,
+                        surfaceDiagnostic, "Mesh stamp %s surface mapping: %s");
+                    if (surface.m_mesh.m_data) query.m_surfaceStamps.push_back(AZStd::move(surface));
                     PreparedHeightContributor contributor;
                     contributor.m_type = PreparedHeightContributor::Type::Mesh;
                     contributor.m_mesh = AZStd::move(prepared);

@@ -5,10 +5,19 @@
 #include <AzCore/Component/EntityId.h>
 #include <AzCore/Math/Uuid.h>
 #include <AzCore/std/string/string.h>
+#include <AzCore/std/containers/vector.h>
 #include <TerrainCompositor/TerrainCompositorTypeIds.h>
 
 namespace TerrainCompositor
 {
+    struct TerrainMeshSurfaceMapping
+    {
+        AZ_TYPE_INFO(TerrainMeshSurfaceMapping, "{0927328F-3325-47EB-8414-1F92D667C4E6}");
+        AZStd::string m_slotName;
+        AZ::u16 m_surfaceId = 0;
+        bool operator==(const TerrainMeshSurfaceMapping& other) const
+        { return m_slotName == other.m_slotName && m_surfaceId == other.m_surfaceId; }
+    };
     enum class TerrainMeshHeightUncoveredAreaPolicy : AZ::u8
     {
         PreserveLowerTerrain,
@@ -28,6 +37,7 @@ namespace TerrainCompositor
         AZStd::string GetRuntimeOrderKey() const;
 
         AZ::EntityId m_targetCompositionEntityId;
+        AZStd::vector<TerrainMeshSurfaceMapping> m_surfaceMappings;
         AZ::Data::Asset<AZ::RPI::ModelAsset> m_terrainMeshAsset{ AZ::Data::AssetLoadBehavior::NoLoad };
         float m_strength = 1.0f;
         float m_featherWidth = 0.0f;

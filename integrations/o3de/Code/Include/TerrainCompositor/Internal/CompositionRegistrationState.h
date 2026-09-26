@@ -12,7 +12,7 @@ namespace TerrainCompositor::Internal
     constexpr AZ::u8 DirtySurface = 2;
     constexpr AZ::u8 DirtyExistence = 4;
     constexpr AZ::u8 DirtyAll = DirtyHeight | DirtySurface | DirtyExistence;
-    constexpr AZ::u8 DirtyMeshHeightAll = DirtyHeight | DirtyExistence;
+    constexpr AZ::u8 DirtyMeshHeightAll = DirtyHeight | DirtyExistence | DirtySurface;
 
     template<class Registration, class Snapshot>
     struct RegistrationAssetRole

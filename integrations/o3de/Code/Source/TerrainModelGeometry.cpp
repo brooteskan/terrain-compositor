@@ -28,6 +28,12 @@ namespace TerrainCompositor
         } guard{ model };
 
         const AZ::Name positionSemantic("POSITION");
+        AZStd::vector<AZ::u32> slotIds;
+        for (const auto& [id, slot] : model.GetMaterialSlots())
+        {
+            slotIds.push_back(id);
+            result.m_materialSlots.emplace_back(slot.m_displayName.GetCStr());
+        }
         for (const auto& mesh : lods.front()->GetMeshes())
         {
             const AZ::u32 vertexCount = mesh.GetVertexCount();
@@ -107,6 +113,10 @@ namespace TerrainCompositor
             {
                 return TerrainModelGeometryValidation::IndexOutOfRange;
             }
+            AZ::u32 slotIndex = ~AZ::u32{0};
+            for (size_t i = 0; i < slotIds.size(); ++i)
+                if (slotIds[i] == mesh.GetMaterialSlotId()) slotIndex = aznumeric_cast<AZ::u32>(i);
+            result.m_triangleMaterialSlots.insert(result.m_triangleMaterialSlots.end(), indexCount / 3, slotIndex);
         }
         return result.m_positions.empty() || result.m_indices.empty() ? TerrainModelGeometryValidation::Empty
                                                                       : TerrainModelGeometryValidation::Valid;

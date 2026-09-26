@@ -12,6 +12,7 @@
 #include <TerrainCompositor/TerrainRenderQuery.h>
 #include <TerrainCompositor/TerrainPreparationDependency.h>
 #include <TerrainCompositor/TerrainProceduralSnapshot.h>
+#include <TerrainCompositor/Internal/PreparedComposition.h>
 
 #include <atomic>
 #include <cmath>
@@ -23,6 +24,7 @@ namespace TerrainCompositor
 {
     struct TerrainRenderGeometryQuery
     {
+        std::shared_ptr<const Internal::PreparedComposition> m_surfaces;
         AZ::Aabb m_regionBounds = AZ::Aabb::CreateNull();
         AZStd::function<bool(const AZ::Vector3&)> m_getTerrainExists;
         AZStd::function<float(const AZ::Vector3&)> m_getHeight;

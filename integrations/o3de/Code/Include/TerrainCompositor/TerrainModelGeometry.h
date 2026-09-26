@@ -5,6 +5,7 @@
 #include <AzCore/Math/Aabb.h>
 #include <AzCore/Math/Vector3.h>
 #include <AzCore/std/containers/vector.h>
+#include <AzCore/std/string/string.h>
 
 namespace TerrainCompositor
 {
@@ -36,6 +37,9 @@ namespace TerrainCompositor
         AZ::Aabb m_localBounds = AZ::Aabb::CreateNull();
         AZStd::vector<AZ::Vector3> m_positions;
         AZStd::vector<AZ::u32> m_indices;
+        // Exact imported names are labels, independent of section enumeration and material appearance.
+        AZStd::vector<AZStd::string> m_materialSlots;
+        AZStd::vector<AZ::u32> m_triangleMaterialSlots; // ~0u denotes an unresolved assignment.
     };
 
     TerrainModelGeometryValidation ExtractTerrainModelGeometry(

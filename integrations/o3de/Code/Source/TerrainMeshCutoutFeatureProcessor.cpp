@@ -11,6 +11,7 @@
 
 #include <TerrainRenderer/TerrainFeatureProcessor.h>
 #include <cstring>
+#include "TerrainSurfaceGpu.inl"
 
 namespace TerrainCompositor
 {
@@ -82,6 +83,9 @@ namespace TerrainCompositor
         m_gapAwaitingActivation = false;
         m_reportedGapBindingFailure = false;
         m_cutoutsBuffer = {};
+        m_surfaceBuffer = {};
+        m_surfaceRevision = 0;
+        m_surfaceRegionCount = 0;
         m_verticesBuffer = {};
         m_indicesBuffer = {};
         m_sceneChannel.reset();
@@ -224,6 +228,7 @@ namespace TerrainCompositor
             return;
         }
         // Name-index wrappers cache numeric indices. A different graph can reorder its SRG.
+        BindSurfaceData(material);
         // Resolve against the current layout before any publication, including in-place shader reloads.
         m_cutoutCountIndex = AZ::RHI::ShaderInputNameIndex("m_meshCutoutCount");
         m_cutoutsIndex = AZ::RHI::ShaderInputNameIndex("m_meshCutouts");

@@ -53,7 +53,9 @@ namespace TerrainCompositor
                     TerrainMeshHeightBuildDiagnostics diagnostics;
                     if (modelValidation == TerrainModelGeometryValidation::Valid)
                     {
-                        validation = BuildTerrainMeshHeightData(geometry.m_positions, geometry.m_indices, *data, &diagnostics);
+                        validation = BuildTerrainMeshHeightData(geometry.m_positions, geometry.m_indices, *data, &diagnostics,
+                            geometry.m_triangleMaterialSlots);
+                        data->m_materialSlots = AZStd::move(geometry.m_materialSlots);
                     }
                     return [data, modelValidation, validation, diagnostics = AZStd::move(diagnostics)](TerrainMeshHeightDataSource& source) mutable
                     {

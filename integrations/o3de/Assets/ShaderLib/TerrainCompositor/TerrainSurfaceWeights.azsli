@@ -1,0 +1,107 @@
+#pragma once
+#include <TerrainCompositor/TerrainMaterialSrg.azsli>
+
+// Packed immutable source data; offsets and 10/20-word records match TerrainSurfaceGpu.inl.
+uint TC_SW(uint i) { return TerrainMaterialSrg::m_surfaceWords[i]; }
+float TC_SF(uint i) { return asfloat(TC_SW(i)); }
+float2 TC_SurfacePixel(uint p, uint tag)
+{
+    uint a = TC_SW(p), b = TC_SW(p + 1);
+    float blend = TC_SF(p + 2);
+    return float2((a == tag ? 1.0 - blend : 0.0) + (b == tag ? blend : 0.0),
+        (a != 0 ? 1.0 - blend : 0.0) + (b != 0 ? blend : 0.0));
+}
+float TC_SurfaceTagWeight(uint region, float2 position, uint tag)
+{
+    float weight = 0;
+    for (uint b = 0; b < TC_SW(region + 9); ++b)
+    {
+        uint p = TC_SW(region + 8) + b * 2;
+        if (TC_SW(p) == tag) weight += TC_SF(p + 1);
+    }
+    for (uint s = 0; s < TC_SW(region + 7); ++s)
+    {
+        uint d = TC_SW(region + 6) + s * 20;
+        precise float2 delta = position - float2(TC_SF(d + 4), TC_SF(d + 5));
+        float c = TC_SF(d + 6), sn = TC_SF(d + 7);
+        precise float rx = c * delta.x + sn * delta.y;
+        precise float ry = -sn * delta.x + c * delta.y;
+        precise float2 local = float2(rx, ry) * TC_SF(d + 8);
+        float2 lo = float2(TC_SF(d + 9), TC_SF(d + 10));
+        float2 hi = float2(TC_SF(d + 11), TC_SF(d + 12));
+        float2 edge = min(local - lo, hi - local);
+        float inset = TC_SF(d + 16);
+        if (any(local < lo) || any(local > hi) || (inset > 0 && any(edge <= inset))) continue;
+        float coverage = TC_SF(d + 13), feather = TC_SF(d + 14);
+        if (feather > 0)
+        {
+            float2 f = saturate((edge - inset) / feather);
+            f = f * f * (3.0 - 2.0 * f);
+            coverage *= pow(f.x * f.y, TC_SF(d + 15));
+        }
+        if (coverage <= 0) continue;
+        uint w = TC_SW(d + 2), h = TC_SW(d + 3), data = TC_SW(d + 1);
+        float2 sampled = float2(0, 0); // requested tag weight, nontransparent mass
+        if (TC_SW(d) == 1)
+        {
+            precise float2 grid = (local - lo) * float2(TC_SF(d + 17), TC_SF(d + 18));
+            uint2 cell = min((uint2)grid, uint2(w - 1, h - 1));
+            float2 f = min(grid - cell, float2(1, 1));
+            uint index = cell.y * w + cell.x;
+            bool opposite = (TC_SW(TC_SW(d + 19) + index / 32) & (1u << (index % 32))) != 0;
+            bool first = opposite ? f.x + f.y <= 1.0 : f.y <= f.x;
+            uint assigned = TC_SW(data + index * 2 + (first ? 0 : 1));
+            sampled = float2(assigned == tag ? 1.0 : 0.0, assigned != 0 ? 1.0 : 0.0);
+        }
+        else
+        {
+            float2 uv = saturate((local - lo) / (hi - lo));
+            float2 pixel = float2(uv.x, 1.0 - uv.y) * float2(w - 1, h - 1);
+            uint2 p0 = (uint2)pixel, p1 = min(p0 + 1, uint2(w - 1, h - 1));
+            float2 f = pixel - p0;
+            sampled = TC_SurfacePixel(data + (p0.y * w + p0.x) * 3, tag) * ((1 - f.x) * (1 - f.y))
+                + TC_SurfacePixel(data + (p0.y * w + p1.x) * 3, tag) * (f.x * (1 - f.y))
+                + TC_SurfacePixel(data + (p1.y * w + p0.x) * 3, tag) * ((1 - f.x) * f.y)
+                + TC_SurfacePixel(data + (p1.y * w + p1.x) * 3, tag) * (f.x * f.y);
+        }
+        weight = weight * (1.0 - coverage * saturate(sampled.y)) + coverage * sampled.x;
+    }
+    return weight;
+}
+float TC_SurfaceWeight(float2 position, uint surfaceId)
+{
+    if (surfaceId == 0 || surfaceId > 65535) return 0;
+    for (uint r = 0; r < TerrainMaterialSrg::m_surfaceRegionCount; ++r)
+    {
+        uint region = r * 10;
+        if (any(position < float2(TC_SF(region), TC_SF(region + 1))) ||
+            any(position > float2(TC_SF(region + 2), TC_SF(region + 3)))) continue;
+        uint palette = TC_SW(region + 4), count = TC_SW(region + 5), requested = 0;
+        for (uint i = 0; i < count; ++i)
+            if (TC_SW(palette + i * 2) == surfaceId) requested = TC_SW(palette + i * 2 + 1);
+        if (requested == 0) return 0;
+        float weights[16]; uint tags[16]; uint used = 0;
+        for (uint i = 0; i < count; ++i)
+        {
+            uint tag = TC_SW(palette + i * 2 + 1);
+            bool duplicate = false;
+            for (uint j = 0; j < i; ++j) duplicate = duplicate || TC_SW(palette + j * 2 + 1) == tag;
+            if (duplicate) continue;
+            float value = TC_SurfaceTagWeight(region, position, tag);
+            if (!(value > 0)) continue;
+            uint at = 0;
+            while (at < used)
+            {
+                if (value > weights[at] || (value == weights[at] && tag > tags[at])) break;
+                ++at;
+            }
+            if (at >= 16) continue;
+            for (uint k = min(used, 15u); k > at; --k) { weights[k] = weights[k - 1]; tags[k] = tags[k - 1]; }
+            weights[at] = value; tags[at] = tag; used = min(used + 1, 16u);
+        }
+        float total = 0, selected = 0;
+        for (uint i = 0; i < used; ++i) { total += weights[i]; if (tags[i] == requested) selected = weights[i]; }
+        return total > 0 ? selected / total : 0;
+    }
+    return 0;
+}

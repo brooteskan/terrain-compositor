@@ -31,7 +31,7 @@ Emissive, POM, clear coat, transparency, displacement and per-detail-material gr
 
 ## Binding and reload contract
 
-`TerrainMaterialSrg` owns fixed renderer buffers/counts/revisions and graph parameters in `m_params`. Its cutout/gap buffer names and element strides remain fixed. Graph layouts may differ. Graph property groups `settings` and `terrain`, and shader binding names beginning with `m_`, are reserved for the renderer. The current hidden marker is `terrain.contractVersion = 3`; there are no historical contract branches.
+`TerrainMaterialSrg` owns fixed renderer buffers/counts/revisions and graph parameters in `m_params`. Its cutout/gap buffer names and element strides remain fixed. Graph layouts may differ. Graph property groups `settings` and `terrain`, and shader binding names beginning with `m_`, are reserved for the renderer. The current hidden marker is `terrain.contractVersion = 4`; there are no historical contract branches.
 
 Selection validates required renderer bindings, object/terrain layouts, and forward/depth/shadow layouts. Only publication fields and buffers transfer to a candidate. Activation waits for compilation and an unchanged source publication, candidate change ID and layout. Failed candidates retain the active material; incompatible active reloads restore the bundled default.
 

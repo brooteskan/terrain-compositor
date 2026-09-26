@@ -62,6 +62,10 @@ namespace TerrainCompositor
         };
 
         void RebuildGpuData();
+        void BindSurfaceData(const AZ::Data::Instance<AZ::RPI::Material>& material);
+        AZ::Data::Instance<AZ::RPI::Buffer> m_surfaceBuffer;
+        AZ::u64 m_surfaceRevision = 0;
+        AZ::u32 m_surfaceRegionCount = 0;
         AZ::Data::Instance<AZ::RPI::Buffer> CreateReadOnlyBuffer(
             const char* name, AZ::u32 elementSize, AZ::u32 elementCount, const void* data) const;
 

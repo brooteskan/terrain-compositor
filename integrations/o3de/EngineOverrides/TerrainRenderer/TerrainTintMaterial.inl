@@ -107,7 +107,9 @@ namespace Terrain
             PublicationProperty{ "settings.meshCutoutCount", "m_meshCutoutCount" },
             PublicationProperty{ "settings.meshCutoutRevision", "m_meshCutoutRevision" },
             PublicationProperty{ "settings.meshHeightGapCount", "m_meshHeightGapCount" },
-            PublicationProperty{ "settings.meshHeightGapRevision", "m_meshHeightGapRevision" } })
+            PublicationProperty{ "settings.meshHeightGapRevision", "m_meshHeightGapRevision" },
+            PublicationProperty{ "settings.surfaceRegionCount", "m_surfaceRegionCount" },
+            PublicationProperty{ "settings.surfaceRevision", "m_surfaceRevision" } })
         {
             const auto index = material->FindPropertyIndex(AZ::Name(field.property));
             if (!index.IsValid() || !material->GetPropertyValue(index).Is<AZ::u32>()) return false;
@@ -117,7 +119,7 @@ namespace Terrain
         }
         const auto version = material->FindPropertyIndex(AZ::Name("terrain.contractVersion"));
         if (!version.IsValid() || !material->GetPropertyValue(version).Is<AZ::u32>() ||
-            material->GetPropertyValue<AZ::u32>(version) != 3) return false;
+            material->GetPropertyValue<AZ::u32>(version) != 4) return false;
         return compatible && forward && depth && shadow;
     }
 
@@ -149,13 +151,13 @@ namespace Terrain
             m_tintStageTargetChange != m_pendingTintMaterial->GetCurrentChangeId() ||
             m_tintStageTargetLayout != target->GetLayout()->GetHash())
         {
-            for (const char* name : { "settings.meshCutoutCount", "settings.meshCutoutRevision", "settings.meshHeightGapCount", "settings.meshHeightGapRevision" })
+            for (const char* name : { "settings.meshCutoutCount", "settings.meshCutoutRevision", "settings.meshHeightGapCount", "settings.meshHeightGapRevision", "settings.surfaceRegionCount", "settings.surfaceRevision" })
             {
                 const auto from = m_materialInstance->FindPropertyIndex(AZ::Name(name));
                 const auto to = m_pendingTintMaterial->FindPropertyIndex(AZ::Name(name));
                 m_pendingTintMaterial->SetPropertyValue(to, m_materialInstance->GetPropertyValue(from));
             }
-            for (const char* name : { "m_meshCutouts", "m_meshCutoutVertices", "m_meshCutoutIndices", "m_meshHeightGaps", "m_meshHeightGapWords" })
+            for (const char* name : { "m_meshCutouts", "m_meshCutoutVertices", "m_meshCutoutIndices", "m_meshHeightGaps", "m_meshHeightGapWords", "m_surfaceWords" })
             {
                 const auto from = source->FindShaderInputBufferIndex(AZ::Name(name));
                 const auto to = target->FindShaderInputBufferIndex(AZ::Name(name));

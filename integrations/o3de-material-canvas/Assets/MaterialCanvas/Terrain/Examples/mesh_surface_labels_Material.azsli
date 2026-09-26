@@ -1,0 +1,4 @@
+#pragma once
+#include "mesh_surface_labels_Parameters.azsli"
+#define TC_GRAPH_MATERIAL
+#include <TerrainCompositor/TerrainMaterialSrg.azsli>

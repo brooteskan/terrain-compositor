@@ -1,0 +1,6 @@
+{
+    "description": "Mesh face material slot surface example: IDs 1 Rock, 2 Soil, 3 Road.",
+    "materialType": "mesh_surface_labels.materialtype",
+    "materialTypeVersion": 1,
+    "propertyValues": {}
+}

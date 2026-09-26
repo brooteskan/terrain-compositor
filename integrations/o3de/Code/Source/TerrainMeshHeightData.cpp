@@ -209,7 +209,8 @@ namespace TerrainCompositor
         AZStd::span<const AZ::Vector3> positions,
         AZStd::span<const AZ::u32> indices,
         TerrainMeshHeightData& result,
-        TerrainMeshHeightBuildDiagnostics* diagnostics)
+        TerrainMeshHeightBuildDiagnostics* diagnostics,
+        AZStd::span<const AZ::u32> triangleMaterialSlots)
     {
         const AZ::Data::AssetId assetId = result.m_assetId;
         result = {};
@@ -360,6 +361,7 @@ namespace TerrainCompositor
         const size_t cellWidth = xAxis.size() - 1;
         const size_t cellCount = cellWidth * (yAxis.size() - 1);
         AZStd::vector<AZ::u8> cellTriangleSets(cellCount, 0);
+        if (!triangleMaterialSlots.empty()) candidate.m_cellMaterialSlots.resize(cellCount * 2, ~AZ::u32{0});
         AZStd::vector<AZ::u32> firstCellTriangle(cellCount, TerrainMeshHeightInvalidDiagnosticIndex);
         for (size_t triangleOffset = 0; triangleOffset < indices.size(); triangleOffset += 3)
         {
@@ -438,6 +440,8 @@ namespace TerrainCompositor
                 firstCellTriangle[cell] = triangleIndex;
             }
             sets |= setBit;
+            if (triangleIndex < triangleMaterialSlots.size())
+                candidate.m_cellMaterialSlots[cell * 2 + ((setBit == 0x1 || setBit == 0x2) ? 0 : 1)] = triangleMaterialSlots[triangleIndex];
         }
 
         const size_t wordCount = (cellCount + 31) / 32;
@@ -525,6 +529,13 @@ namespace TerrainCompositor
 
         result = AZStd::move(candidate);
         return TerrainMeshHeightValidation::Valid;
+    }
+
+    size_t ResolveTerrainMeshHeightTriangle(const TerrainMeshHeightData& data, const TerrainMeshHeightCellAddress& address)
+    {
+        const bool first = !GetCellBit(data.m_cellDiagonalBits, address.m_index)
+            ? address.m_fractionY <= address.m_fractionX : address.m_fractionX + address.m_fractionY <= 1.0;
+        return address.m_index * 2 + (first ? 0 : 1);
     }
 
     bool SampleTerrainMeshLocalHeight(const TerrainMeshHeightData& data, double localX, double localY, double& height)

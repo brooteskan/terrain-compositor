@@ -101,6 +101,7 @@ namespace TerrainCompositor::Internal
                 dirty[id] |= DirtyMeshHeightAll;
                 m_meshHeights.Remove(id);
                 ForgetDiagnostic(RegistrationDiagnostic::MeshHeight, id);
+                ForgetDiagnostic(RegistrationDiagnostic::Surface, id);
             }
             return true;
         }

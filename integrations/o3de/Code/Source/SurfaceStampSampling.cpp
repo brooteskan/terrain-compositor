@@ -1,6 +1,7 @@
 #include <TerrainCompositor/SurfaceStampSampling.h>
 #include "StampMath.h"
 #include "ImageSampling.h"
+#include <TerrainCompositor/TerrainMeshHeightMapping.h>
 
 #include <AzCore/std/algorithm.h>
 #include <AzCore/std/limits.h>
@@ -307,6 +308,39 @@ namespace TerrainCompositor
         return "Unsupported surface map configuration.";
     }
 
+    AZStd::string PrepareMeshSurfaceStamp(const TerrainMeshHeightStampRegistrationData& registration,
+        const PreparedTerrainMeshHeightStamp& mesh, const PreparedSurfacePalette& palette, PreparedSurfaceStamp& result)
+    {
+        result = {};
+        if (registration.m_configuration.m_surfaceMappings.empty()) return {};
+        if (!palette.IsValid()) return palette.m_error;
+        result.m_mesh = mesh;
+        result.m_placement.m_stampEntityId = mesh.m_stampEntityId;
+        result.m_placement.m_worldBounds = mesh.m_worldBounds;
+        result.m_placement.m_priority = mesh.m_priority;
+        result.m_placement.m_stableOrderKey = mesh.m_stableOrderKey;
+        result.m_meshSlotTags.resize(mesh.m_data->m_materialSlots.size());
+        AZStd::string diagnostic;
+        for (const auto& mapping : registration.m_configuration.m_surfaceMappings)
+        {
+            if (mapping.m_surfaceId == 0) continue;
+            size_t matches = 0, slot = 0, mappings = 0;
+            for (size_t i = 0; i < mesh.m_data->m_materialSlots.size(); ++i)
+                if (mesh.m_data->m_materialSlots[i] == mapping.m_slotName) { ++matches; slot = i; }
+            for (const auto& other : registration.m_configuration.m_surfaceMappings)
+                if (other.m_slotName == mapping.m_slotName) ++mappings;
+            const auto* entry = FindPaletteEntry(palette, mapping.m_surfaceId);
+            if (matches != 1 || mappings != 1 || !entry)
+                diagnostic += AZStd::string::format("Slot '%s' -> ID %u unresolved: check exact imported name, duplicate mappings and surface palette. ",
+                    mapping.m_slotName.c_str(), mapping.m_surfaceId);
+            else result.m_meshSlotTags[slot] = entry->m_surfaceTag;
+        }
+        for (size_t i = 0; i < result.m_meshSlotTags.size(); ++i)
+            if (result.m_meshSlotTags[i] == AZ::Crc32{})
+                diagnostic += AZStd::string::format("Slot '%s' leaves lower surfaces unchanged. ", mesh.m_data->m_materialSlots[i].c_str());
+        return diagnostic;
+    }
+
     void ComposeSurfaceStamps(const AZ::Vector3& position, const PreparedSurfacePalette& palette,
         AZStd::span<const PreparedSurfaceStamp> stamps,
         AzFramework::SurfaceData::SurfaceTagWeightList& outSurfaceWeights)
@@ -326,6 +360,24 @@ namespace TerrainCompositor
 
         for (const auto& stamp : stamps)
         {
+            if (stamp.m_mesh.m_data)
+            {
+                TerrainMeshHeightContribution contribution;
+                if (!SampleTerrainMeshHeightStamp(position, stamp.m_mesh, contribution)) continue;
+                float x, y;
+                const auto& mesh = stamp.m_mesh;
+                MapTerrainMeshHeightXY(position.GetX(), position.GetY(), float(mesh.m_originX), float(mesh.m_originY),
+                    float(mesh.m_cosYaw), float(mesh.m_sinYaw), float(mesh.m_inverseScale), x, y);
+                TerrainMeshHeightCellAddress address;
+                if (!ResolveTerrainMeshHeightCell(*mesh.m_data, x, y, address)) continue;
+                const size_t triangle = ResolveTerrainMeshHeightTriangle(*mesh.m_data, address);
+                if (triangle >= mesh.m_data->m_cellMaterialSlots.size()) continue;
+                const AZ::u32 slot = mesh.m_data->m_cellMaterialSlots[triangle];
+                if (slot >= stamp.m_meshSlotTags.size() || stamp.m_meshSlotTags[slot] == AZ::Crc32{}) continue;
+                for (auto& entry : accumulated) entry.m_weight *= 1.0 - contribution.m_weight;
+                AddWeight(accumulated, stamp.m_meshSlotTags[slot], contribution.m_weight);
+                continue;
+            }
             if (!stamp.m_surfaceIdA || stamp.m_strength == 0.0)
             {
                 continue;

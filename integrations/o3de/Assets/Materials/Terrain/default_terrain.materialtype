@@ -40,6 +40,26 @@
                             "type": "ShaderInput",
                             "name": "m_meshHeightGapRevision"
                         }
+                    },
+                    {
+                        "name": "surfaceRegionCount",
+                        "displayName": "surfaceRegionCount",
+                        "type": "UInt",
+                        "visibility": "Hidden",
+                        "connection": {
+                            "type": "ShaderInput",
+                            "name": "m_surfaceRegionCount"
+                        }
+                    },
+                    {
+                        "name": "surfaceRevision",
+                        "displayName": "surfaceRevision",
+                        "type": "UInt",
+                        "visibility": "Hidden",
+                        "connection": {
+                            "type": "ShaderInput",
+                            "name": "m_surfaceRevision"
+                        }
                     }
                 ]
             },
@@ -50,7 +70,7 @@
                     {
                         "name": "contractVersion",
                         "type": "UInt",
-                        "defaultValue": 3,
+                        "defaultValue": 4,
                         "visibility": "Hidden"
                     }
                 ]

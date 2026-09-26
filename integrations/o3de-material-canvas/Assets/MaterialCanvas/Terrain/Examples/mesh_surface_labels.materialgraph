@@ -1,0 +1,249 @@
+{
+    "Type": "JsonSerialization",
+    "Version": 1,
+    "ClassName": "Graph",
+    "ClassData": {
+        "m_nodes": [
+            {
+                "Key": 1,
+                "Value": {
+                    "$type": "DynamicNode",
+                    "m_propertySlots": [
+                        {
+                            "Key": {
+                                "m_name": "inDescription"
+                            },
+                            "Value": {
+                                "m_value": {
+                                    "$type": "AZStd::string",
+                                    "Value": ""
+                                }
+                            }
+                        }
+                    ],
+                    "m_inputDataSlots": [
+                        {
+                            "Key": {
+                                "m_name": "inAmbientOcclusion"
+                            },
+                            "Value": {
+                                "m_value": {
+                                    "$type": "float",
+                                    "Value": 1.0
+                                }
+                            }
+                        },
+                        {
+                            "Key": {
+                                "m_name": "inBaseColor"
+                            },
+                            "Value": {
+                                "m_value": {
+                                    "$type": "Vector3",
+                                    "Value": [
+                                        0.18000000715255737,
+                                        0.2199999988079071,
+                                        0.11999999731779099
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "Key": {
+                                "m_name": "inMetalness"
+                            },
+                            "Value": {
+                                "m_value": {
+                                    "$type": "float",
+                                    "Value": 0.0
+                                }
+                            }
+                        },
+                        {
+                            "Key": {
+                                "m_name": "inNormal"
+                            },
+                            "Value": {
+                                "m_value": {
+                                    "$type": "Vector3",
+                                    "Value": [
+                                        0.0,
+                                        0.0,
+                                        0.0
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "Key": {
+                                "m_name": "inRoughness"
+                            },
+                            "Value": {
+                                "m_value": {
+                                    "$type": "float",
+                                    "Value": 1.0
+                                }
+                            }
+                        },
+                        {
+                            "Key": {
+                                "m_name": "inSpecularFactor"
+                            },
+                            "Value": {
+                                "m_value": {
+                                    "$type": "float",
+                                    "Value": 0.5
+                                }
+                            }
+                        }
+                    ],
+                    "toolId": 2034248906,
+                    "configId": "{EB039C35-AA34-58D2-9992-BF88368F5DFB}"
+                }
+            },
+            {
+                "Key": 2,
+                "Value": {
+                    "$type": "DynamicNode",
+                    "toolId": 2034248906,
+                    "configId": "{6BC581F1-D384-41E5-AEFA-B6CD66F139DE}",
+                    "m_inputDataSlots": [
+                        {
+                            "Key": {
+                                "m_name": "surfaceId"
+                            },
+                            "Value": {
+                                "m_value": {
+                                    "$type": "float",
+                                    "Value": 1.0
+                                }
+                            }
+                        }
+                    ]
+                }
+            },
+            {
+                "Key": 3,
+                "Value": {
+                    "$type": "DynamicNode",
+                    "toolId": 2034248906,
+                    "configId": "{6BC581F1-D384-41E5-AEFA-B6CD66F139DE}",
+                    "m_inputDataSlots": [
+                        {
+                            "Key": {
+                                "m_name": "surfaceId"
+                            },
+                            "Value": {
+                                "m_value": {
+                                    "$type": "float",
+                                    "Value": 2.0
+                                }
+                            }
+                        }
+                    ]
+                }
+            },
+            {
+                "Key": 4,
+                "Value": {
+                    "$type": "DynamicNode",
+                    "toolId": 2034248906,
+                    "configId": "{6BC581F1-D384-41E5-AEFA-B6CD66F139DE}",
+                    "m_inputDataSlots": [
+                        {
+                            "Key": {
+                                "m_name": "surfaceId"
+                            },
+                            "Value": {
+                                "m_value": {
+                                    "$type": "float",
+                                    "Value": 3.0
+                                }
+                            }
+                        }
+                    ]
+                }
+            },
+            {
+                "Key": 5,
+                "Value": {
+                    "$type": "DynamicNode",
+                    "toolId": 2034248906,
+                    "configId": "{AE55F2D3-880E-4288-9625-461EE6E4C769}"
+                }
+            }
+        ],
+        "m_connections": [
+            {
+                "m_sourceEndpoint": [
+                    2,
+                    {
+                        "m_name": "weight"
+                    }
+                ],
+                "m_targetEndpoint": [
+                    5,
+                    {
+                        "m_name": "rock"
+                    }
+                ]
+            },
+            {
+                "m_sourceEndpoint": [
+                    3,
+                    {
+                        "m_name": "weight"
+                    }
+                ],
+                "m_targetEndpoint": [
+                    5,
+                    {
+                        "m_name": "soil"
+                    }
+                ]
+            },
+            {
+                "m_sourceEndpoint": [
+                    4,
+                    {
+                        "m_name": "weight"
+                    }
+                ],
+                "m_targetEndpoint": [
+                    5,
+                    {
+                        "m_name": "road"
+                    }
+                ]
+            },
+            {
+                "m_sourceEndpoint": [
+                    5,
+                    {
+                        "m_name": "color"
+                    }
+                ],
+                "m_targetEndpoint": [
+                    1,
+                    {
+                        "m_name": "inBaseColor"
+                    }
+                ]
+            },
+            {
+                "m_sourceEndpoint": [
+                    5,
+                    {
+                        "m_name": "roughness"
+                    }
+                ],
+                "m_targetEndpoint": [
+                    1,
+                    {
+                        "m_name": "inRoughness"
+                    }
+                ]
+            }
+        ]
+    }
+}

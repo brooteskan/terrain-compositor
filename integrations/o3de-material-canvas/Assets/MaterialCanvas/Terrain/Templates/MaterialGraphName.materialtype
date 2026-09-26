@@ -132,13 +132,35 @@
                         "type": "ShaderInput",
                         "id": "m_meshCutoutRevision"
                     }
+                },
+                {
+                    "id": "surfaceRegionCount",
+                    "displayName": "surfaceRegionCount",
+                    "type": "UInt",
+                    "defaultValue": 0,
+                    "visibility": "Hidden",
+                    "connection": {
+                        "type": "ShaderInput",
+                        "id": "m_surfaceRegionCount"
+                    }
+                },
+                {
+                    "id": "surfaceRevision",
+                    "displayName": "surfaceRevision",
+                    "type": "UInt",
+                    "defaultValue": 0,
+                    "visibility": "Hidden",
+                    "connection": {
+                        "type": "ShaderInput",
+                        "id": "m_surfaceRevision"
+                    }
                 }
             ],
             "terrain": [
                 {
                     "id": "contractVersion",
                     "type": "UInt",
-                    "defaultValue": 3,
+                    "defaultValue": 4,
                     "visibility": "Hidden"
                 }
             ]

@@ -103,6 +103,8 @@ namespace TerrainCompositor
         AZ::u32 m_width = 0;
         AZ::u32 m_height = 0;
         AZStd::vector<float> m_localHeights;
+        AZStd::vector<AZStd::string> m_materialSlots;
+        AZStd::vector<AZ::u32> m_cellMaterialSlots; // Two entries per cell in sampling triangle order; ~0u is unassigned.
         //! One bit per grid cell. Set bits are intentional complete-cell gaps inside
         //! the proven Cartesian domain.
         AZStd::vector<AZ::u32> m_uncoveredCellBits;
@@ -137,7 +139,9 @@ namespace TerrainCompositor
         AZStd::span<const AZ::Vector3> positions,
         AZStd::span<const AZ::u32> indices,
         TerrainMeshHeightData& result,
-        TerrainMeshHeightBuildDiagnostics* diagnostics = nullptr);
+        TerrainMeshHeightBuildDiagnostics* diagnostics = nullptr,
+        AZStd::span<const AZ::u32> triangleMaterialSlots = {});
+    size_t ResolveTerrainMeshHeightTriangle(const TerrainMeshHeightData& data, const TerrainMeshHeightCellAddress& address);
     size_t GetTerrainMeshHeightCellCount(const TerrainMeshHeightData& data);
     size_t GetTerrainMeshHeightCellWordCount(const TerrainMeshHeightData& data);
     //! Selects a deterministic two-dimensional sampling stride whose displayed
