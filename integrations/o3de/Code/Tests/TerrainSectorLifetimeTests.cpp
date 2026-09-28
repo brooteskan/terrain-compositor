@@ -407,7 +407,7 @@ namespace Terrain
         auto result = std::make_shared<Result>(Manager::PrepareSector(AZStd::move(request)));
         EXPECT_EQ(result->m_status, Status::Ready);
         ASSERT_EQ(result->m_heights.size(), 9);
-        EXPECT_EQ(result->m_heights[0].m_height, 42598); // 3 in captured [-10, 10], quantized to even.
+        EXPECT_FLOAT_EQ(result->m_heights[0].m_height, 0.65f); // 3 in captured [-10, 10].
         EXPECT_EQ(result->m_lodHeights[0].m_height, result->m_heights[0].m_height);
         EXPECT_FLOAT_EQ(result->m_rtPositions[0].x, 1.0f);
         EXPECT_FLOAT_EQ(result->m_aabb.GetMin().GetX(), -2.0f);

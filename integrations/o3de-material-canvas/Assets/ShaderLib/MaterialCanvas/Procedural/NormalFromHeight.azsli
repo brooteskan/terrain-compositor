@@ -9,7 +9,8 @@ float3 TC_ProceduralSafeNormal(float3 value, float3 fallback)
 
 // Surface-gradient bump mapping. Height is in meters; this changes only the
 // shading normal. Derivatives include world scale and remain valid on slopes.
-float3 TC_NormalFromHeight(float3 positionWS, float3 normalWS, float height, float strength)
+float3 TC_NormalFromHeight(float3 positionWS, float3 normalWS, float height, float strength,
+    bool filterBump, float detailSize)
 {
     float3 normal = TC_ProceduralSafeNormal(normalWS, float3(0, 0, 1));
     float3 dpdx = ddx(positionWS);
@@ -19,8 +20,25 @@ float3 TC_NormalFromHeight(float3 positionWS, float3 normalWS, float height, flo
     float determinant = dot(dpdx, r1);
     float dhdx = ddx(height);
     float dhdy = ddy(height);
+    // Approximate Gaussian attenuation for relief at the user-supplied physical
+    // wavelength. Differentiate the original height first: differentiating an
+    // attenuated height would introduce slopes where the footprint changes.
+    // No camera position, cutoff radius, or derivatives of derivatives.
+    if (filterBump && detailSize > 0.0)
+    {
+        float3 tx = dpdx - normal * dot(dpdx,normal);
+        float3 ty = dpdy - normal * dot(dpdy,normal);
+        float inverseSizeSquared = 1.0 / max(detailSize*detailSize,1e-12);
+        dhdx *= exp(-4.9348022 * dot(tx,tx) * inverseSizeSquared);
+        dhdy *= exp(-4.9348022 * dot(ty,ty) * inverseSizeSquared);
+    }
     if (!isfinite(determinant) || abs(determinant) < 1e-12)
         return normal;
     float3 gradient = (dhdx * r1 + dhdy * r2) / determinant;
     return TC_ProceduralSafeNormal(normal - strength * gradient, normal);
+}
+
+float3 TC_NormalFromHeight(float3 positionWS, float3 normalWS, float height, float strength)
+{
+    return TC_NormalFromHeight(positionWS,normalWS,height,strength,false,1.0);
 }

@@ -58,6 +58,7 @@ try
     context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     const auto common = Read(TERRAIN_SHADERS "/TerrainSurface.azsli") +
         Read(CANVAS_ROOT "/Assets/ShaderLib/MaterialCanvas/Procedural/LatticeNoise.azsli") +
+        Read(CANVAS_ROOT "/Assets/ShaderLib/MaterialCanvas/Procedural/FilteredNoise.azsli") +
         Read(CANVAS_ROOT "/Assets/ShaderLib/MaterialCanvas/Procedural/NormalFromHeight.azsli");
     const std::string vertex = R"(
 float4 VS(uint id : SV_VertexID) : SV_Position {
@@ -77,6 +78,65 @@ float4 VS(uint id : SV_VertexID) : SV_Position {
     const float tiltedLength = std::sqrt(tiltedX * tiltedX + .16f + tiltedZ * tiltedZ);
     const float shadingLength = std::sqrt(.09f + .16f + 1.025f * 1.025f);
     const Case cases[]{
+        // Independent references: tensor-product three-point Gauss quadrature
+        // of the quintic point field, split at every integer cell boundary.
+        // This integrates the point field rather than its telescoping primitive.
+        {"filtered lattice point and area averages", R"(
+TerrainSurfaceChannels TC_CanvasSurface(TerrainSurfaceContext ctx, TerrainSurfaceChannels s) {
+    s.baseColor = float3(
+        TC_FilteredNoise2DBox(float2(-1.3,.7), 1337u, float2(0,0)),
+        TC_FilteredNoise2DBox(float2(-1.3,.7), 1337u, float2(.2,.8)),
+        TC_FilteredNoise2DBox(float2(-1.3,.7), 1337u, float2(1,1)));
+    return s;
+})", {.698984273303f,.660123676702f,.587383084232f,.7f, 0,0,1,.3f, .45f,.8f,0,1}},
+        {"filtered lattice boundary and integration branch continuity", R"(
+TerrainSurfaceChannels TC_CanvasSurface(TerrainSurfaceContext ctx, TerrainSurfaceChannels s) {
+    s.baseColor = float3(
+        TC_FilteredNoise2DBox(float2(-1.000001,2), 1337u, float2(.00001,.00001)),
+        TC_FilteredNoise2DBox(float2(-1.3,.7), 1337u, float2(1.00001,.99999)),
+        TC_FilteredNoise2DBox(float2(-1.3,.7), 1337u, float2(.99999,1.00001)));
+    return s;
+})", {.168703744929f,.587382670815f,.587383497641f,.7f, 0,0,1,.3f, .45f,.8f,0,1}},
+        {"filtered lattice elongated and large footprints", R"(
+TerrainSurfaceChannels TC_CanvasSurface(TerrainSurfaceContext ctx, TerrainSurfaceChannels s) {
+    s.baseColor = float3(
+        TC_FilteredNoise2DBox(float2(-2.1,3.3), 1337u, float2(8,0)),
+        TC_FilteredNoise2DBox(float2(-2.1,3.3), 1337u, float2(0,8)),
+        TC_FilteredNoise2DBox(float2(-2.1,3.3), 1337u, float2(16,32)));
+    return s;
+})", {.504069262660f,.514849196436f,.500132111296f,.7f, 0,0,1,.3f, .45f,.8f,0,1}},
+        {"smooth lattice point and area averages", R"(
+TerrainSurfaceChannels TC_CanvasSurface(TerrainSurfaceContext ctx, TerrainSurfaceChannels s) {
+    s.baseColor = float3(
+        TC_FilteredNoise2DSmoothBox(float2(-1.3,.7), 1337u, float2(0,0)),
+        TC_FilteredNoise2DSmoothBox(float2(-1.3,.7), 1337u, float2(.2,.8)),
+        TC_FilteredNoise2DSmoothBox(float2(-1.3,.7), 1337u, float2(1,1)));
+    return s;
+})", {.532479675435f,.527032644222f,.517569371591f,.7f, 0,0,1,.3f, .45f,.8f,0,1}},
+        {"smooth lattice boundary and integration branch continuity", R"(
+TerrainSurfaceChannels TC_CanvasSurface(TerrainSurfaceContext ctx, TerrainSurfaceChannels s) {
+    s.baseColor = float3(
+        TC_FilteredNoise2DSmoothBox(float2(-1.000001,2), 1337u, float2(.00001,.00001)),
+        TC_FilteredNoise2DSmoothBox(float2(-1.3,.7), 1337u, float2(1.00001,.99999)),
+        TC_FilteredNoise2DSmoothBox(float2(-1.3,.7), 1337u, float2(.99999,1.00001)));
+    return s;
+})", {.446674252979f,.517569355368f,.517569387811f,.7f, 0,0,1,.3f, .45f,.8f,0,1}},
+        {"smooth lattice elongated and large footprints", R"(
+TerrainSurfaceChannels TC_CanvasSurface(TerrainSurfaceContext ctx, TerrainSurfaceChannels s) {
+    s.baseColor = float3(
+        TC_FilteredNoise2DSmoothBox(float2(-2.1,3.3), 1337u, float2(8,0)),
+        TC_FilteredNoise2DSmoothBox(float2(-2.1,3.3), 1337u, float2(0,8)),
+        TC_FilteredNoise2DSmoothBox(float2(-2.1,3.3), 1337u, float2(16,32)));
+    return s;
+})", {.503231123908f,.507519651734f,.500057878602f,.7f, 0,0,1,.3f, .45f,.8f,0,1}},
+        {"interpolation switch and legacy overload", R"(
+TerrainSurfaceChannels TC_CanvasSurface(TerrainSurfaceContext ctx, TerrainSurfaceChannels s) {
+    s.baseColor = float3(
+        TC_FilteredNoise2D(float2(-1.3,.7), 1337u),
+        TC_FilteredNoise2D(float2(-1.3,.7), 1337u, false),
+        TC_FilteredNoise2D(float2(-1.3,.7), 1337u, true));
+    return s;
+})", {.698984273303f,.698984273303f,.532479675435f,.7f, 0,0,1,.3f, .45f,.8f,0,1}},
         {"disconnected defaults", R"(
 TerrainSurfaceChannels TC_CanvasSurface(TerrainSurfaceContext ctx, TerrainSurfaceChannels s) {
     TerrainSurfaceChannels v;

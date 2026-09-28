@@ -53,9 +53,10 @@ void CalculateTerrainPosition(
     out float3 worldPosition, out float4 position, out float3 normal)
 {
     float2 worldXyPosition = GetWorldXYPosition(ObjectSrg::m_patchData, input.m_xyPosition);
-    if (input.m_zPosition == 1.0)
+    if (input.m_zPosition < 0.0)
     {
-        // 1.0 means there is no height data at this vertex, so output a NaN to remove this vertex.
+        // R32_FLOAT heights span [0, 1]; a negative value marks missing terrain.
+        // Both world-height endpoints are valid. Remove only missing vertices.
         position = 1.0 / 0.0;
         return;
     }

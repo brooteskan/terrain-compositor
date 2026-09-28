@@ -31,17 +31,31 @@
          using MaterialInstance = AZ::Data::Instance<AZ::RPI::Material>;
 
      public:
-@@ -117,6 +124,9 @@
+@@ -116,15 +123,20 @@
+
      private:
 
-         using HeightDataType = uint16_t;
+-        using HeightDataType = uint16_t;
++        // Normalized float heights preserve sub-centimeter relief over wide world bounds.
++        using HeightDataType = float;
 +        friend class TerrainSectorPreparationTests;
 +        friend class TerrainSectorLifetimeTests;
 +        friend class TerrainRenderingTests;
          using NormalDataType = int8_t;
          using NormalXYDataType = AZStd::pair<NormalDataType, NormalDataType>;
 
-@@ -153,10 +163,27 @@
+         static constexpr AZ::RHI::Format XYPositionFormat = AZ::RHI::Format::R8G8_UNORM;
+-        static constexpr AZ::RHI::Format HeightFormat = AZ::RHI::Format::R16_UNORM;
++        static constexpr AZ::RHI::Format HeightFormat = AZ::RHI::Format::R32_FLOAT;
+         static constexpr AZ::RHI::Format NormalFormat = AZ::RHI::Format::R8G8_SNORM;
+         static constexpr uint32_t RayTracingQuads1D = 200;
+-        static constexpr HeightDataType NoTerrainVertexHeight = AZStd::numeric_limits<HeightDataType>::max();
++        // Valid normalized heights include both 0 and 1. Keep holes outside that range.
++        static constexpr HeightDataType NoTerrainVertexHeight = -1.0f;
+
+         enum StreamIndex : uint32_t
+         {
+@@ -153,10 +165,27 @@
              };
 
              AZStd::array<MeshGroup, 5> m_meshGroups; // 0 is the primary, 1-4 are the quadrants.
@@ -73,7 +87,7 @@
          {
              using GeometryView = AZ::RHI::GeometryView;
              static constexpr auto AllDevices = AZ::RHI::MultiDevice::AllDevices;
-@@ -166,6 +193,18 @@
+@@ -166,6 +195,18 @@
              AZ::Aabb m_aabb = AZ::Aabb::CreateNull();
              AZStd::array<AZ::Aabb, 4> m_quadrantAabbs;
              Vector2i m_worldCoord = AZStd::numeric_limits<int32_t>::max();
@@ -92,7 +106,7 @@
 
              // When drawing, either the m_rhiDrawPacket will be used, or some number of the m_rhiDrawPacketQuadrants
              AZ::RHI::ConstPtr<AZ::RHI::DrawPacket> m_rhiDrawPacket;
-@@ -186,20 +225,27 @@
+@@ -186,20 +227,27 @@
              bool m_isQueuedForSrgCompile = false;
          };
 
@@ -128,7 +142,7 @@
          };
 
          struct alignas(16) ShaderMeshData
-@@ -211,8 +257,15 @@
+@@ -211,8 +259,15 @@
              float m_gridToQuadScale;
          };
 
@@ -144,7 +158,7 @@
              AZ::Vector2 m_worldStartPosition;
              float m_vertexSpacing;
              int16_t m_samplesX;
-@@ -220,6 +273,10 @@
+@@ -220,6 +275,10 @@
              AzFramework::Terrain::TerrainDataRequests::Sampler m_samplerType =
                  AzFramework::Terrain::TerrainDataRequests::Sampler::CLAMP;
              bool m_useVertexOrderRemap = false;
@@ -155,18 +169,23 @@
          };
 
          struct CachedDrawData
-@@ -239,10 +296,19 @@
+@@ -237,12 +296,24 @@
+         {
+             HeightDataType m_height;
              NormalXYDataType m_normal;
-         };
-
++            uint16_t m_padding = 0; // Explicit deterministic padding in the interleaved GPU record.
++        };
++        static_assert(sizeof(HeightNormalVertex) == 8);
++        static_assert(offsetof(HeightNormalVertex, m_normal) == sizeof(HeightDataType));
++
 +        // Tightly packed R32G32B32 data for ray tracing buffer uploads.
 +        struct RtVertex
 +        {
 +            float x;
 +            float y;
 +            float z;
-+        };
-+
+         };
+
          struct CandidateSector
          {
              AZ::Aabb m_aabb;
@@ -175,7 +194,7 @@
          };
 
          struct XYPosition
-@@ -251,10 +317,156 @@
+@@ -251,10 +322,156 @@
              uint8_t m_posy;
          };
 
@@ -332,7 +351,7 @@
              uint32_t m_lodLevel;
          };
 
-@@ -267,19 +479,73 @@
+@@ -267,19 +484,74 @@
          bool UpdateGridSize(float distanceToFirstLod);
          void BuildDrawPacket(Sector& sector);
          void BuildRtSector(Sector& sector, uint32_t lodLevel);
@@ -340,6 +359,7 @@
 +        void SetSectorBufferViews(CommittedSector& sector);
          void RebuildSectors();
          void RebuildDrawPackets();
++        static AZ::RHI::InputStreamLayout CreateTerrainInputStreamLayout();
          void RemoveRayTracedMeshes();
          AZ::RHI::StreamBufferView CreateStreamBufferView(AZ::Data::Instance<AZ::RPI::Buffer>& buffer, uint32_t offset = 0);
 
@@ -411,7 +431,7 @@
          void ProcessSectorUpdates(AZStd::vector<AZStd::vector<Sector*>>& sectorUpdates);
 
          AZ::Data::Instance<AZ::RPI::Buffer> CreateMeshBufferInstance(
-@@ -297,12 +563,9 @@
+@@ -297,12 +569,9 @@
          void UpdateCandidateSectors();
          void CreateAabbQuadrants(const AZ::Aabb& aabb, AZStd::span<AZ::Aabb, 4> quadrantAabb);
 
@@ -426,7 +446,7 @@
 
          MaterialInstance m_materialInstance;
          AZStd::vector<CachedDrawData> m_cachedDrawData; // Holds common parts of draw packets
-@@ -318,8 +581,27 @@
+@@ -318,8 +587,27 @@
          AZ::Data::Instance<AZ::RPI::Buffer> m_dummyLodHeightsNormalsBuffer;
          AZ::RHI::IndexBufferView m_indexBufferView;
 
@@ -454,7 +474,7 @@
          AZStd::vector<Sector*> m_sectorsThatNeedSrgCompiled;
          uint32_t m_1dSectorCount = 0;
 
-@@ -333,11 +615,16 @@
+@@ -333,11 +621,16 @@
          AzFramework::Terrain::FloatRange m_worldHeightBounds;
          float m_sampleSpacing = 1.0f;
          AZ::RPI::Material::ChangeId m_lastMaterialChangeId;
@@ -471,7 +491,7 @@
 
          uint8_t m_gridSize = 0; // number of quads in a single row of a sector
          uint8_t m_gridVerts1D = 0; // number of vertices along sector edge (m_gridSize + 1)
-@@ -352,6 +639,6 @@
+@@ -352,6 +645,6 @@
          AZ::RHI::Handle<uint32_t> m_meshMovedFlag;
 
          // Cached MeshFeatureProcessor

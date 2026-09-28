@@ -2,8 +2,11 @@
 #include "procedural_terrain_Material.azsli"
 #include <TerrainCompositor/TerrainSurface.azsli>
 // O3DE_GENERATED_INCLUDES_BEGIN
-#include <MaterialCanvas/Procedural/LatticeNoise.azsli>
+#include <MaterialCanvas/Procedural/ColorAdjustments.azsli>
+#include <MaterialCanvas/Procedural/DetailFootprint.azsli>
+#include <MaterialCanvas/Procedural/FilteredNoise.azsli>
 #include <MaterialCanvas/Procedural/NormalFromHeight.azsli>
+#include <MaterialCanvas/Procedural/Voronoi.azsli>
 // O3DE_GENERATED_INCLUDES_END
 // O3DE_GENERATED_CLASSES_BEGIN
 // O3DE_GENERATED_CLASSES_END
@@ -14,35 +17,71 @@ TerrainSurfaceChannels TC_CanvasSurface(TerrainSurfaceContext context, const Mat
     const float3 O3DE_MC_POSITION_WS = context.worldPosition;
     const float3 O3DE_MC_NORMAL_WS = context.geometricNormal;
     // O3DE_GENERATED_INSTRUCTIONS_BEGIN: inBaseColor, inNormal, inRoughness, inMetalness, inSpecularFactor, inAmbientOcclusion
-float4 node8_color_input_outValue = params.node8_color_input_inValue;
 float3 node2_world_position_outPosition = O3DE_MC_POSITION_WS;
-float node9_float_input_outValue = params.node9_float_input_inValue;
+float4 node23_color_constant_inValue = {0.235294, 0.0784314, 0.0392157, 1};
+float4 node23_color_constant_outValue = node23_color_constant_inValue;
 float3 node3_world_normal_outNormal = O3DE_MC_NORMAL_WS;
-float node4_float_input_outValue = params.node4_float_input_inValue;
-float3 node5_world_xy_scale_position = node2_world_position_outPosition;
-float node5_world_xy_scale_scale = node4_float_input_outValue;
-float2 node5_world_xy_scale_value = node5_world_xy_scale_position.xy / max(node5_world_xy_scale_scale, 0.0001);
-float2 node6_lattice_value_noise_2_d_position = node5_world_xy_scale_value;
-uint node6_lattice_value_noise_2_d_seed = 1337;
-float node6_lattice_value_noise_2_d_value = TC_LatticeNoise2D(node6_lattice_value_noise_2_d_position, node6_lattice_value_noise_2_d_seed);
-float4 node10_linear_interpolate_inValue1 = {0.06, 0.08, 0.03, 1};
-float4 node10_linear_interpolate_inValue2 = node8_color_input_outValue;
-float node10_linear_interpolate_inValue3 = node6_lattice_value_noise_2_d_value;
-float4 node10_linear_interpolate_outValue = lerp(node10_linear_interpolate_inValue1, node10_linear_interpolate_inValue2, node10_linear_interpolate_inValue3);
-float node11_linear_interpolate_inValue1 = 0.4;
-float node11_linear_interpolate_inValue2 = node9_float_input_outValue;
-float node11_linear_interpolate_inValue3 = node6_lattice_value_noise_2_d_value;
-float node11_linear_interpolate_outValue = lerp(node11_linear_interpolate_inValue1, node11_linear_interpolate_inValue2, node11_linear_interpolate_inValue3);
-float3 node7_normal_from_height_inPositionWS = node2_world_position_outPosition;
+float3 node31_world_position_outPosition = O3DE_MC_POSITION_WS;
+float3 node19_world_position_outPosition = O3DE_MC_POSITION_WS;
+float4 node21_color_constant_inValue = {0.470588, 0.431373, 0.352941, 1};
+float4 node21_color_constant_outValue = node21_color_constant_inValue;
+float node28_float_input_outValue = params.node28_float_input_inValue;
+float3 node30_detail_footprint_mask_inPositionWS = node31_world_position_outPosition;
+float node30_detail_footprint_mask_inDetailSize = 15;
+float node30_detail_footprint_mask_inTransitionStart = 0.15;
+float node30_detail_footprint_mask_inTransitionEnd = 1;
+float node30_detail_footprint_mask_ratio = TC_DetailFootprintRatio(node30_detail_footprint_mask_inPositionWS, (float)node30_detail_footprint_mask_inDetailSize);
+float node30_detail_footprint_mask_outMask = TC_DetailFootprintMask(node30_detail_footprint_mask_ratio, (float)node30_detail_footprint_mask_inTransitionStart, (float)node30_detail_footprint_mask_inTransitionEnd);
+float node30_detail_footprint_mask_outRatio = node30_detail_footprint_mask_ratio;
+bool node7_normal_from_height_inFilterBump = 0;
+float3 node7_normal_from_height_inPositionWS = node19_world_position_outPosition;
 float3 node7_normal_from_height_inBaseNormalWS = node3_world_normal_outNormal;
-float node7_normal_from_height_inHeight = node6_lattice_value_noise_2_d_value;
+float node7_normal_from_height_inHeight = 0;
 float node7_normal_from_height_inStrength = 1;
-float3 node7_normal_from_height_outNormalWS = TC_NormalFromHeight(node7_normal_from_height_inPositionWS, node7_normal_from_height_inBaseNormalWS, node7_normal_from_height_inHeight, node7_normal_from_height_inStrength);
-float3 inBaseColor = (float3)node10_linear_interpolate_outValue;
+float node7_normal_from_height_inDetailSize = 1;
+float3 node7_normal_from_height_outNormalWS = TC_NormalFromHeight(node7_normal_from_height_inPositionWS, node7_normal_from_height_inBaseNormalWS, node7_normal_from_height_inHeight, node7_normal_from_height_inStrength, (bool)node7_normal_from_height_inFilterBump, (float)node7_normal_from_height_inDetailSize);
+float3 node27_world_xy_scale_position = node2_world_position_outPosition;
+float node27_world_xy_scale_scale = node28_float_input_outValue;
+float2 node27_world_xy_scale_value = node27_world_xy_scale_position.xy / max(node27_world_xy_scale_scale, 0.0001);
+const uint node26_voronoi_texture_2_d_inFeature = TC_VoronoiFeature_F1;
+const uint node26_voronoi_texture_2_d_inMetric = TC_VoronoiMetric_Euclidean;
+bool node26_voronoi_texture_2_d_inNormalize = 0;
+bool node26_voronoi_texture_2_d_inAntialias = 1;
+float2 node26_voronoi_texture_2_d_inVector = node27_world_xy_scale_value;
+float node26_voronoi_texture_2_d_inScale = 1;
+float node26_voronoi_texture_2_d_inDetail = 10;
+float node26_voronoi_texture_2_d_inRoughness = 0.5;
+float node26_voronoi_texture_2_d_inLacunarity = 2;
+float node26_voronoi_texture_2_d_inSmoothness = 0.01;
+float node26_voronoi_texture_2_d_inExponent = 0.1;
+float node26_voronoi_texture_2_d_inRandomness = 10;
+TC_VoronoiResult node26_voronoi_texture_2_d_result = TC_Voronoi2D((float2)node26_voronoi_texture_2_d_inVector, (float)node26_voronoi_texture_2_d_inScale, (float)node26_voronoi_texture_2_d_inDetail, (float)node26_voronoi_texture_2_d_inRoughness, (float)node26_voronoi_texture_2_d_inLacunarity, (float)node26_voronoi_texture_2_d_inSmoothness, (float)node26_voronoi_texture_2_d_inExponent, (float)node26_voronoi_texture_2_d_inRandomness, node26_voronoi_texture_2_d_inFeature, node26_voronoi_texture_2_d_inMetric, (bool)node26_voronoi_texture_2_d_inNormalize, (bool)node26_voronoi_texture_2_d_inAntialias);
+float node26_voronoi_texture_2_d_outDistance = node26_voronoi_texture_2_d_result.distance;
+float4 node42_subtract_inValue1 = {1, 1, 1, 0};
+float4 node42_subtract_inValue2 = node30_detail_footprint_mask_outMask;
+float4 node42_subtract_outValue = node42_subtract_inValue1 - node42_subtract_inValue2;
+float4 node43_divide_inValue1 = node42_subtract_outValue;
+float4 node43_divide_inValue2 = {0.1, 0.1, 0.1, 0.1};
+float4 node43_divide_outValue = node43_divide_inValue1 / node43_divide_inValue2;
+float node24_mix_color_factor = node26_voronoi_texture_2_d_outDistance;
+float4 node24_mix_color_colorA = node21_color_constant_outValue;
+float4 node24_mix_color_colorB = node23_color_constant_outValue;
+float4 node24_mix_color_outColor = lerp(node24_mix_color_colorB, node24_mix_color_colorA, saturate(node24_mix_color_factor));
+float4 node39_hue_shift_inColor = node24_mix_color_outColor;
+float node39_hue_shift_inShift = 0.5;
+float4 node39_hue_shift_outColor = TC_HueShift(node39_hue_shift_inColor, (float)node39_hue_shift_inShift);
+float4 node36_desaturate_inColor = node39_hue_shift_outColor;
+float node36_desaturate_inAmount = node30_detail_footprint_mask_outRatio;
+float4 node36_desaturate_outColor = TC_Desaturate(node36_desaturate_inColor, (float)node36_desaturate_inAmount);
+float node40_mix_color_factor = node30_detail_footprint_mask_outMask;
+float4 node40_mix_color_colorA = node36_desaturate_outColor;
+float4 node40_mix_color_colorB = node24_mix_color_outColor;
+float4 node40_mix_color_outColor = lerp(node40_mix_color_colorB, node40_mix_color_colorA, saturate(node40_mix_color_factor));
+float3 inBaseColor = (float3)node40_mix_color_outColor;
 float3 inNormal = node7_normal_from_height_outNormalWS;
-float inRoughness = node11_linear_interpolate_outValue;
+float inRoughness = 1;
 float inMetalness = 0;
-float inSpecularFactor = 0.5;
+float inSpecularFactor = node43_divide_outValue;
 float inAmbientOcclusion = 1;
     // O3DE_GENERATED_INSTRUCTIONS_END
     TerrainSurfaceChannels result;

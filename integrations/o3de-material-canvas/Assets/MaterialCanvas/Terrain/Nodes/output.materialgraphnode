@@ -13,7 +13,7 @@
                 "name": "inBaseColor",
                 "displayName": "Base Color",
                 "description": "Linear ACEScg.",
-                "supportedDataTypeRegex": "float3",
+                "supportedDataTypeRegex": "(color|bool|int|uint|float)([1-4])?",
                 "defaultDataType": "float3",
                 "settings": {
                     "instructions": [
@@ -35,7 +35,7 @@
                 "name": "inNormal",
                 "displayName": "Normal (World)",
                 "description": "World normal; zero uses the geometric normal.",
-                "supportedDataTypeRegex": "float3",
+                "supportedDataTypeRegex": "(color|bool|int|uint|float)([1-4])?",
                 "defaultDataType": "float3",
                 "settings": {
                     "instructions": [
@@ -57,7 +57,7 @@
                 "name": "inRoughness",
                 "displayName": "Roughness",
                 "description": "Factor in [0, 1].",
-                "supportedDataTypeRegex": "float",
+                "supportedDataTypeRegex": "(color|bool|int|uint|float)([1-4])?",
                 "defaultDataType": "float",
                 "settings": {
                     "instructions": [
@@ -75,7 +75,7 @@
                 "name": "inMetalness",
                 "displayName": "Metalness",
                 "description": "Factor in [0, 1].",
-                "supportedDataTypeRegex": "float",
+                "supportedDataTypeRegex": "(color|bool|int|uint|float)([1-4])?",
                 "defaultDataType": "float",
                 "settings": {
                     "instructions": [
@@ -93,7 +93,7 @@
                 "name": "inSpecularFactor",
                 "displayName": "Specular Factor",
                 "description": "Factor in [0, 1].",
-                "supportedDataTypeRegex": "float",
+                "supportedDataTypeRegex": "(color|bool|int|uint|float)([1-4])?",
                 "defaultDataType": "float",
                 "settings": {
                     "instructions": [
@@ -111,7 +111,7 @@
                 "name": "inAmbientOcclusion",
                 "displayName": "Ambient Occlusion",
                 "description": "Factor in [0, 1].",
-                "supportedDataTypeRegex": "float",
+                "supportedDataTypeRegex": "(color|bool|int|uint|float)([1-4])?",
                 "defaultDataType": "float",
                 "settings": {
                     "instructions": [

@@ -2,10 +2,9 @@
 #pragma once
 
 struct MaterialParameters {
-    uint   m_materialType;
-    uint   m_materialInstance;
-    float  node4_float_input_inValue;
-    float4 node8_color_input_inValue;
-    float  node9_float_input_inValue;
+    uint  m_materialType;
+    uint  m_materialInstance;
+    float node28_float_input_inValue;
+    float m_finalPadding;
 }; 
 

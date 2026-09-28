@@ -1,0 +1,288 @@
+{
+    "Type": "JsonSerialization",
+    "Version": 1,
+    "ClassName": "DynamicNodeConfig",
+    "ClassData": {
+        "id": "{07A6CF16-AD78-44BE-A95E-2D6748E24B61}",
+        "category": "Procedural",
+        "title": "Voronoi Texture 2D",
+        "titlePaletteName": "MathNodeTitlePalette",
+        "description": "Blender-style 2D Voronoi with compact feature-specific searches and fractal controls. Single point evaluation per octave; no per-node supersampling. Fixed terrain-coordinate pattern; hash differs from Blender. Optional boundary antialiasing for F1/F2; fragment stage only.",
+        "settings": {
+            "includePaths": [
+                "MaterialCanvas/Procedural/Voronoi.azsli"
+            ],
+            "instructions": [
+                "TC_VoronoiResult NODEID_result = TC_Voronoi2D((float2)inVector, (float)inScale, (float)inDetail, (float)inRoughness, (float)inLacunarity, (float)inSmoothness, (float)inExponent, (float)inRandomness, inFeature, inMetric, (bool)inNormalize, (bool)inAntialias);"
+            ]
+        },
+        "propertySlots": [
+            {
+                "name": "inFeature",
+                "displayName": "Feature",
+                "description": "F1: nearest site. F2: second nearest. SmoothF1: rounded blend. DistanceToEdge: nearest cell border. NSphereRadius: half the nearest-site separation.",
+                "supportedDataTypeRegex": "string",
+                "defaultDataType": "string",
+                "defaultValue": {
+                    "$type": "{03AAAB3F-5C47-5A66-9EBC-D5FA4DB353C9} AZStd::string",
+                    "Value": "F1"
+                },
+                "enumValues": [
+                    "F1",
+                    "F2",
+                    "SmoothF1",
+                    "DistanceToEdge",
+                    "NSphereRadius"
+                ],
+                "visibleOnNode": true,
+                "editableOnNode": true,
+                "settings": {
+                    "instructions": [
+                        "const uint SLOTNAME = TC_VoronoiFeature_SLOTVALUE;"
+                    ]
+                }
+            },
+            {
+                "name": "inMetric",
+                "displayName": "Distance Metric",
+                "description": "Metric for F1, F2, and SmoothF1. Edge and radius modes always use Euclidean geometry.",
+                "supportedDataTypeRegex": "string",
+                "defaultDataType": "string",
+                "defaultValue": {
+                    "$type": "{03AAAB3F-5C47-5A66-9EBC-D5FA4DB353C9} AZStd::string",
+                    "Value": "Euclidean"
+                },
+                "enumValues": [
+                    "Euclidean",
+                    "Manhattan",
+                    "Chebychev",
+                    "Minkowski"
+                ],
+                "visibleOnNode": true,
+                "editableOnNode": true,
+                "settings": {
+                    "instructions": [
+                        "const uint SLOTNAME = TC_VoronoiMetric_SLOTVALUE;"
+                    ]
+                }
+            },
+            {
+                "name": "inNormalize",
+                "displayName": "Normalize",
+                "description": "Normalize distance and fractal color amplitude using Blender-style bounds. Ignored by N-Sphere Radius.",
+                "supportedDataTypeRegex": "bool",
+                "defaultDataType": "bool",
+                "defaultValue": {
+                    "$type": "bool",
+                    "Value": false
+                },
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                }
+            },
+            {
+                "name": "inAntialias",
+                "displayName": "Boundary Antialiasing",
+                "description": "Optional local boundary blending for F1/F2 Distance and Color. Position remains a selected site. Other features are unchanged. Does not fully filter subpixel cells.",
+                "supportedDataTypeRegex": "bool",
+                "defaultDataType": "bool",
+                "defaultValue": {
+                    "$type": "bool",
+                    "Value": false
+                },
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "visibleOnNode": true,
+                "editableOnNode": true
+            }
+        ],
+        "inputSlots": [
+            {
+                "name": "inVector",
+                "displayName": "Vector",
+                "description": "Continuous terrain XY or World XY / Scale coordinates. No wrapping or per-patch restart.",
+                "supportedDataTypeRegex": "(color|bool|int|uint|float)([1-4])?",
+                "defaultDataType": "float2",
+                "defaultValue": {
+                    "$type": "Vector2",
+                    "Value": [
+                        0,
+                        0
+                    ]
+                },
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                }
+            },
+            {
+                "name": "inScale",
+                "displayName": "Scale",
+                "description": "Frequency multiplier, as in Blender. Higher values make smaller cells. Use 1 with already-scaled coordinates.",
+                "supportedDataTypeRegex": "(color|bool|int|uint|float)([1-4])?",
+                "defaultDataType": "float",
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 5
+                },
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                }
+            },
+            {
+                "name": "inDetail",
+                "displayName": "Detail",
+                "description": "Additional octaves, clamped to 0-15. Fractional values blend the last octave. Ignored by N-Sphere Radius.",
+                "supportedDataTypeRegex": "(color|bool|int|uint|float)([1-4])?",
+                "defaultDataType": "float",
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 0.0
+                },
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                }
+            },
+            {
+                "name": "inRoughness",
+                "displayName": "Roughness",
+                "description": "Octave amplitude multiplier, clamped to 0-1. Ignored by N-Sphere Radius.",
+                "supportedDataTypeRegex": "(color|bool|int|uint|float)([1-4])?",
+                "defaultDataType": "float",
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 0.5
+                },
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                }
+            },
+            {
+                "name": "inLacunarity",
+                "displayName": "Lacunarity",
+                "description": "Octave frequency multiplier. Ignored by N-Sphere Radius.",
+                "supportedDataTypeRegex": "(color|bool|int|uint|float)([1-4])?",
+                "defaultDataType": "float",
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 2.0
+                },
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                }
+            },
+            {
+                "name": "inSmoothness",
+                "displayName": "Smoothness",
+                "description": "Rounding of SmoothF1, clamped to [0,1]. Zero matches F1. Unused by other modes.",
+                "supportedDataTypeRegex": "(color|bool|int|uint|float)([1-4])?",
+                "defaultDataType": "float",
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 1
+                },
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                }
+            },
+            {
+                "name": "inExponent",
+                "displayName": "Exponent",
+                "description": "Minkowski exponent (Blender default 0.5). Zero returns zero metric distance; other metrics ignore it.",
+                "supportedDataTypeRegex": "(color|bool|int|uint|float)([1-4])?",
+                "defaultDataType": "float",
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 0.5
+                },
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                }
+            },
+            {
+                "name": "inRandomness",
+                "displayName": "Randomness",
+                "description": "Feature-point jitter, clamped to [0,1]. Zero produces a regular grid; one gives fully randomized points.",
+                "supportedDataTypeRegex": "(color|bool|int|uint|float)([1-4])?",
+                "defaultDataType": "float",
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 1
+                },
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                }
+            }
+        ],
+        "outputSlots": [
+            {
+                "name": "outDistance",
+                "displayName": "Distance",
+                "description": "Feature distance. Zero in N-Sphere Radius mode; use Radius there. Normalize scales the distance bound.",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = NODEID_result.distance;"
+                    ]
+                }
+            },
+            {
+                "name": "outColor",
+                "displayName": "Color",
+                "description": "Cell color, with smooth/fractal blending when selected. Zero RGB in edge/radius modes; alpha is 1.",
+                "supportedDataTypeRegex": "color",
+                "defaultDataType": "color",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = float4(NODEID_result.color, 1.0);"
+                    ]
+                }
+            },
+            {
+                "name": "outPosition",
+                "displayName": "Position",
+                "description": "Feature position in input-coordinate units. Smooth and fractal modes blend it. Zero in edge/radius modes.",
+                "supportedDataTypeRegex": "float2",
+                "defaultDataType": "float2",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = NODEID_result.position;"
+                    ]
+                }
+            },
+            {
+                "name": "outRadius",
+                "displayName": "Radius",
+                "description": "Half the nearest feature-point separation. Available in N-Sphere Radius mode; zero otherwise.",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = NODEID_result.radius;"
+                    ]
+                }
+            }
+        ]
+    }
+}

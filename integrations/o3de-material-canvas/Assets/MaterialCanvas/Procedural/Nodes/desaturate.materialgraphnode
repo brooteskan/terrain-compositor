@@ -1,0 +1,74 @@
+{
+    "Type": "JsonSerialization",
+    "Version": 1,
+    "ClassName": "DynamicNodeConfig",
+    "ClassData": {
+        "id": "{56E0B4E0-330E-4CED-BD95-344E281DADE9}",
+        "category": "Math Functions",
+        "title": "Desaturate",
+        "titlePaletteName": "MathNodeTitlePalette",
+        "description": "Reduce saturation toward grayscale while preserving linear Rec.709 luminance and source alpha.",
+        "slotDataTypeGroups": [
+            "inColor|outColor"
+        ],
+        "settings": {
+            "includePaths": [
+                "MaterialCanvas/Procedural/ColorAdjustments.azsli"
+            ]
+        },
+        "inputSlots": [
+            {
+                "name": "inColor",
+                "displayName": "Color",
+                "description": "Source color in linear RGB. Alpha is preserved.",
+                "supportedDataTypeRegex": "(color|float[34])",
+                "defaultDataType": "color",
+                "defaultValue": {
+                    "$type": "Color",
+                    "Value": [
+                        1.0,
+                        1.0,
+                        1.0,
+                        1.0
+                    ]
+                },
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                }
+            },
+            {
+                "name": "inAmount",
+                "displayName": "Amount",
+                "description": "0 preserves the source; 1 applies the full adjustment. Clamped to 0-1. Connect Detail Footprint Mask here.",
+                "supportedDataTypeRegex": "(color|bool|int|uint|float)([1-4])?",
+                "defaultDataType": "float",
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 1.0
+                },
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                }
+            }
+        ],
+        "propertySlots": [],
+        "outputSlots": [
+            {
+                "name": "outColor",
+                "displayName": "Color",
+                "description": "Adjusted color with the source alpha preserved.",
+                "supportedDataTypeRegex": "(color|float[34])",
+                "defaultDataType": "color",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = TC_Desaturate(inColor, (float)inAmount);"
+                    ]
+                }
+            }
+        ]
+    }
+}

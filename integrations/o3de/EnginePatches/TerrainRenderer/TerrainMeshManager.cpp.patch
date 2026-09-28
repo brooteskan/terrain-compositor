@@ -224,7 +224,7 @@
              // Rebuild the sectors when the configuration or terrain world changes
              CreateCommonBuffers();
              RebuildSectors();
-@@ -228,76 +328,501 @@
+@@ -228,76 +328,515 @@
          terrainSrg->SetConstant(m_srgMeshDataIndex, meshData);
      }
 
@@ -789,10 +789,24 @@
 +        }
 +        m_previousSectorCamera = position;
 +        m_previousSectorCameraUs = now;
++    }
++
++    AZ::RHI::InputStreamLayout TerrainMeshManager::CreateTerrainInputStreamLayout()
++    {
++        // Heights and normals are separate views into the same interleaved record.
++        constexpr uint32_t heightPadding = sizeof(HeightNormalVertex) - sizeof(HeightDataType);
++        constexpr uint32_t normalPadding = sizeof(HeightNormalVertex) - sizeof(NormalXYDataType);
++        AZ::RHI::InputStreamLayoutBuilder builder;
++        builder.AddBuffer()->Channel(AZ::RHI::ShaderSemantic{ "POSITION", 0 }, XYPositionFormat);
++        builder.AddBuffer()->Channel(AZ::RHI::ShaderSemantic{ "POSITION", 1 }, HeightFormat)->Padding(heightPadding);
++        builder.AddBuffer()->Channel(AZ::RHI::ShaderSemantic{ "NORMAL", 0 }, NormalFormat)->Padding(normalPadding);
++        builder.AddBuffer()->Channel(AZ::RHI::ShaderSemantic{ "POSITION", 2 }, HeightFormat)->Padding(heightPadding);
++        builder.AddBuffer()->Channel(AZ::RHI::ShaderSemantic{ "NORMAL", 1 }, NormalFormat)->Padding(normalPadding);
++        return builder.End();
      }
 
      AZ::RHI::StreamBufferView TerrainMeshManager::CreateStreamBufferView(AZ::Data::Instance<AZ::RPI::Buffer>& buffer, uint32_t offset)
-@@ -313,17 +838,20 @@
+@@ -313,17 +852,20 @@
 
      void TerrainMeshManager::BuildDrawPacket(Sector& sector)
      {
@@ -818,7 +832,7 @@
 
          for (CachedDrawData& drawData : m_cachedDrawData)
          {
-@@ -332,7 +860,7 @@
+@@ -332,7 +874,7 @@
              AZ::RHI::DrawPacketBuilder::DrawRequest drawRequest;
              drawRequest.m_listTag = drawData.m_drawListTag;
              drawRequest.m_pipelineState = drawData.m_pipelineState;
@@ -827,7 +841,7 @@
              drawRequest.m_stencilRef = AZ::Render::StencilRefs::UseDiffuseGIPass | AZ::Render::StencilRefs::UseIBLSpecularPass;
 
              if (drawData.m_materialPipelineName != AZ::RPI::MaterialPipelineNone)
-@@ -357,13 +885,13 @@
+@@ -357,13 +899,13 @@
              if (drawSrg)
              {
                  drawRequest.m_uniqueShaderResourceGroup = drawSrg->GetRHIShaderResourceGroup();
@@ -843,7 +857,7 @@
 
          // Generate draw packets for each of the quadrants so they can be used to fill in places where the previous LOD didn't draw.
          // Due to z-ordered index buffer, no additional data is needed, just a different index offset and index count. Each quarter of
-@@ -371,12 +899,12 @@
+@@ -371,12 +913,12 @@
          uint32_t lowerLodIndexCount = indexCount / 4;
          for (uint32_t i = 0; i < 4; ++i)
          {
@@ -860,7 +874,7 @@
          }
      }
 
-@@ -386,12 +914,18 @@
+@@ -386,12 +928,18 @@
          // The position for a BLAS supports only R32G32B32_FLOAT or R16G16B16A16_FLOAT, but the normal could be octahedron - encoded with
          // various bit-sizes (N32_OCT, N16_OCT and N8_OCT). Similarily, the Index-Buffer supports 32 and 16 bit indices.
 
@@ -883,7 +897,7 @@
 
          // setup the stream and shader buffer views
          AZ::RHI::Buffer& rhiPositionsBuffer = *rtSector.m_positionsBuffer->GetRHIBuffer();
-@@ -463,9 +997,6 @@
+@@ -463,9 +1011,6 @@
      {
          const float gridMeters = m_gridSize * m_sampleSpacing;
 
@@ -893,7 +907,7 @@
          // Calculate the largest potential number of sectors needed per dimension at any lod level.
          const float firstLodDiameter = m_config.m_firstLodDistance * 2.0f;
          m_1dSectorCount = aznumeric_cast<uint32_t>(AZStd::ceilf(firstLodDiameter / gridMeters));
-@@ -479,7 +1010,7 @@
+@@ -479,7 +1024,7 @@
 
          const uint8_t lodCount = aznumeric_cast<uint8_t>(AZStd::ceilf(log2f(AZStd::GetMax(1.0f, m_config.m_renderDistance / m_config.m_firstLodDistance)) + 1.0f));
          m_sectorLods.reserve(lodCount);
@@ -902,7 +916,7 @@
          // Create all the sectors with uninitialized SRGs. The SRGs will be updated later by CheckLodGridsForUpdate().
          m_indexBufferView =
          {
-@@ -498,57 +1029,75 @@
+@@ -498,57 +1043,75 @@
 
              for (Sector& sector : lodGrid.m_sectors)
              {
@@ -1018,7 +1032,7 @@
          if (terrainChanged || m_cameraPosition.GetDistanceSq(mainCameraPosition) > minMovedDistanceSq)
          {
              m_cameraPosition = mainCameraPosition;
-@@ -559,6 +1108,7 @@
+@@ -559,6 +1122,7 @@
              AZ::RPI::AuxGeomFeatureProcessorInterface::GetDrawQueueForScene(m_parentScene) :
              nullptr;
 
@@ -1026,7 +1040,7 @@
          // Compare view frustums against the list of candidate sectors and submit those sectors to draw.
          for (auto& view : process.m_views)
          {
-@@ -592,7 +1142,7 @@
+@@ -592,7 +1156,7 @@
      {
          m_materialInstance->ApplyGlobalShaderOptions();
          m_cachedDrawData.clear();
@@ -1035,7 +1049,22 @@
 
          // Rebuild common draw packet data
          m_materialInstance->ForAllShaderItems(
-@@ -679,7 +1229,7 @@
+@@ -647,13 +1211,7 @@
+                 AZ::RHI::PipelineStateDescriptorForDraw pipelineStateDescriptor;
+                 variant.ConfigurePipelineState(pipelineStateDescriptor, shaderOptions);
+
+-                AZ::RHI::InputStreamLayoutBuilder layoutBuilder;
+-                layoutBuilder.AddBuffer()->Channel(AZ::RHI::ShaderSemantic{ "POSITION", 0 }, XYPositionFormat);
+-                layoutBuilder.AddBuffer()->Channel(AZ::RHI::ShaderSemantic{ "POSITION", 1 }, HeightFormat)->Padding(2);
+-                layoutBuilder.AddBuffer()->Channel(AZ::RHI::ShaderSemantic{ "NORMAL", 0 }, NormalFormat)->Padding(2);
+-                layoutBuilder.AddBuffer()->Channel(AZ::RHI::ShaderSemantic{ "POSITION", 2 }, HeightFormat)->Padding(2);
+-                layoutBuilder.AddBuffer()->Channel(AZ::RHI::ShaderSemantic{ "NORMAL", 1 }, NormalFormat)->Padding(2);
+-                pipelineStateDescriptor.m_inputStreamLayout = layoutBuilder.End();
++                pipelineStateDescriptor.m_inputStreamLayout = CreateTerrainInputStreamLayout();
+
+                 m_parentScene->ConfigurePipelineState(drawListTag, pipelineStateDescriptor);
+
+@@ -679,7 +1237,7 @@
          {
              for (auto& sector : lodGrid.m_sectors)
              {
@@ -1044,7 +1073,7 @@
              }
          }
      }
-@@ -699,6 +1249,11 @@
+@@ -699,6 +1257,11 @@
      {
          if ((dataChangedMask & (TerrainDataChangedMask::HeightData | TerrainDataChangedMask::Settings)) != TerrainDataChangedMask::None)
          {
@@ -1056,7 +1085,7 @@
              AzFramework::Terrain::FloatRange heightBounds = AzFramework::Terrain::FloatRange::CreateNull();
              AzFramework::Terrain::TerrainDataRequestBus::BroadcastResult(
                  heightBounds, &AzFramework::Terrain::TerrainDataRequests::GetTerrainHeightBounds);
-@@ -707,32 +1262,10 @@
+@@ -707,32 +1270,10 @@
              AzFramework::Terrain::TerrainDataRequestBus::BroadcastResult(
                  queryResolution, &AzFramework::Terrain::TerrainDataRequests::GetTerrainHeightQueryResolution);
 
@@ -1090,7 +1119,7 @@
          }
      }
 
-@@ -845,91 +1378,84 @@
+@@ -845,91 +1386,83 @@
          m_dummyLodHeightsNormalsBuffer = CreateMeshBufferInstance(sizeof(HeightNormalVertex), m_gridVerts2D, nullptr);
      }
 
@@ -1125,7 +1154,6 @@
 +
 +        AZ_Assert(heightsNormals.size() == settings.m_gridVerts2D, "Unexpected number of vertices.");
 +
-+        constexpr float maxHeight = static_cast<float>(AZStd::numeric_limits<HeightDataType>::max());
 +        constexpr float maxNormal = static_cast<float>(AZStd::numeric_limits<NormalDataType>::max());
 +
 +        for (uint32_t i = 0; i < heightsNormals.size(); ++i)
@@ -1137,7 +1165,7 @@
 +            rtPositions.at(i) = {
 +                xyPosition.m_posx / xyPositionMax,
 +                xyPosition.m_posy / xyPositionMax,
-+                heightNormal.m_height == NoTerrainVertexHeight ? 0.0f : heightNormal.m_height / maxHeight,
++                heightNormal.m_height == NoTerrainVertexHeight ? 0.0f : heightNormal.m_height,
              };
 
 -            AZStd::vector<RtVert> rtPositions(heightsNormals.size());
@@ -1256,7 +1284,7 @@
                  uint16_t lodIndex1 = (yPos / 2) * lodGridVerts1D + (xPos / 2);
                  uint16_t lodIndex2 = lodIndex1;
 
-@@ -944,7 +1470,7 @@
+@@ -944,7 +1477,7 @@
                      lodIndex2 += lodGridVerts1D;
                  }
 
@@ -1265,7 +1293,16 @@
 
                  if (lodHeightsNormals[lodIndex1].m_height == NoTerrainVertexHeight || lodHeightsNormals[lodIndex2].m_height == NoTerrainVertexHeight)
                  {
-@@ -966,49 +1492,185 @@
+@@ -955,7 +1488,7 @@
+                 {
+                     clodHeightNormals[zOrderIndex] =
+                     {
+-                        HeightDataType((lodHeightsNormals[lodIndex1].m_height + lodHeightsNormals[lodIndex2].m_height) / 2),
++                        (lodHeightsNormals[lodIndex1].m_height + lodHeightsNormals[lodIndex2].m_height) * 0.5f,
+                         NormalXYDataType(
+                         {
+                             int8_t((lodHeightsNormals[lodIndex1].m_normal.first + lodHeightsNormals[lodIndex2].m_normal.first) / 2),
+@@ -966,49 +1499,185 @@
              }
          }
 
@@ -1481,16 +1518,18 @@
          const float rcpWorldZ = 1.0f / zExtents;
          const float vertexSpacing2 = request.m_vertexSpacing * 2.0f;
 
-@@ -1016,6 +1678,8 @@
+@@ -1016,8 +1685,9 @@
          float minHeight = zExtents;
          float maxHeight = 0.0f;
 
 +        AZ_PROFILE_SCOPE(AzRender, "Terrain::GatherMeshData::Packing");
 +        TerrainCompositor::TerrainRenderQueryTimer packingTimer(queryStatistics ? &queryStatistics->m_packingMicroseconds : nullptr);
          // float versions of int max to make sure a int->float conversion doesn't happen at each loop iteration.
-         constexpr float MaxHeightHalf = float(AZStd::numeric_limits<HeightDataType>::max() / 2);
+-        constexpr float MaxHeightHalf = float(AZStd::numeric_limits<HeightDataType>::max() / 2);
          constexpr float MaxNormal = AZStd::numeric_limits<NormalDataType>::max();
-@@ -1030,7 +1694,7 @@
+
+         for (uint16_t y = 0; y < request.m_samplesY; ++y)
+@@ -1030,30 +1700,28 @@
                  const uint16_t queryCoord = queryY * querySamplesX + queryX;
 
                  uint16_t coord = y * request.m_samplesX + x;
@@ -1499,7 +1538,27 @@
 
                  const float height = heights.at(queryCoord);
                  if (height < 0.0f)
-@@ -1053,7 +1717,7 @@
+                 {
+-                    // Primary terrain height is limited to every-other bit, and clod heights can be in-between or the same
+-                    // as any of the primary heights. This leaves the max value as the single value that is never used by a
+-                    // legitimate height.
++                    // A negative normalized height marks a hole; both range endpoints remain valid.
+                     meshHeightsNormals.at(coord).m_height = NoTerrainVertexHeight;
+                     continue;
+                 }
+
+                 const float clampedHeight = AZ::GetClamp(height * rcpWorldZ, 0.0f, 1.0f);
+
+-                // For continuous LOD, it needs to be possible to create a height that's exactly in between any other height, so scale
+-                // and quantize to half the height, then multiply by 2, ensuring there's always an in-between value available.
+-                const HeightDataType quantizedHeight = aznumeric_cast<HeightDataType>(clampedHeight * MaxHeightHalf + 0.5f); // always positive, so just add 0.5 to round.
+-                meshHeightsNormals.at(coord).m_height = quantizedHeight * 2;
++                // Keep the queried float precision. Integer height packing creates terraces that
++                // depth-derived effects such as SSAO expose even with smooth shading normals.
++                // Floating-point CLOD midpoints need no reserved integer bit.
++                meshHeightsNormals.at(coord).m_height = clampedHeight;
+
+                 if (minHeight > height)
                  {
                      minHeight = height;
                  }
@@ -1508,7 +1567,7 @@
                  {
                      maxHeight = height;
                  }
-@@ -1088,12 +1752,16 @@
+@@ -1088,12 +1756,16 @@
                  const float leftHeight = heights.at(queryCoord - 1);
                  const float rightHeight = heights.at(queryCoord + 1);
                  const float xSlope = getSlope(leftHeight, rightHeight);
@@ -1527,7 +1586,7 @@
 
                  meshHeightsNormals.at(coord).m_normal =
                  {
-@@ -1112,295 +1780,1178 @@
+@@ -1112,295 +1784,1178 @@
          {
              float width = (request.m_samplesX - 1) * request.m_vertexSpacing;
              float height = (request.m_samplesY - 1) * request.m_vertexSpacing;
@@ -2982,7 +3041,7 @@
          }
      }
 
-@@ -1427,37 +2978,6 @@
+@@ -1427,37 +2982,6 @@
          else
          {
              AZStd::fill(quadrantAabb.begin(), quadrantAabb.end(), AZ::Aabb::CreateNull());

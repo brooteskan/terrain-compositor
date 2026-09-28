@@ -1,0 +1,95 @@
+{
+    "Type": "JsonSerialization",
+    "Version": 1,
+    "ClassName": "DynamicNodeConfig",
+    "ClassData": {
+        "id": "{971287A6-143F-4430-9362-D72C21B87F77}",
+        "category": "Math Functions",
+        "title": "Tint by Luminance",
+        "titlePaletteName": "MathNodeTitlePalette",
+        "description": "Colorize using a tint while preserving source linear Rec.709 luminance and alpha. Output is not clamped and can exceed 1. Black tint leaves the source unchanged.",
+        "slotDataTypeGroups": [
+            "inColor|outColor"
+        ],
+        "settings": {
+            "includePaths": [
+                "MaterialCanvas/Procedural/ColorAdjustments.azsli"
+            ]
+        },
+        "inputSlots": [
+            {
+                "name": "inColor",
+                "displayName": "Color",
+                "description": "Source color in linear RGB. Alpha is preserved.",
+                "supportedDataTypeRegex": "(color|float[34])",
+                "defaultDataType": "color",
+                "defaultValue": {
+                    "$type": "Color",
+                    "Value": [
+                        1.0,
+                        1.0,
+                        1.0,
+                        1.0
+                    ]
+                },
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                }
+            },
+            {
+                "name": "inTint",
+                "displayName": "Tint",
+                "description": "Tint hue; its brightness is normalized and its alpha ignored. White gives grayscale. Black leaves the source unchanged.",
+                "supportedDataTypeRegex": "(color|float[34])",
+                "defaultDataType": "color",
+                "defaultValue": {
+                    "$type": "Color",
+                    "Value": [
+                        1.0,
+                        1.0,
+                        1.0,
+                        1.0
+                    ]
+                },
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                }
+            },
+            {
+                "name": "inAmount",
+                "displayName": "Amount",
+                "description": "0 preserves the source; 1 applies the full adjustment. Clamped to 0-1. Connect Detail Footprint Mask here.",
+                "supportedDataTypeRegex": "(color|bool|int|uint|float)([1-4])?",
+                "defaultDataType": "float",
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 1.0
+                },
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                }
+            }
+        ],
+        "propertySlots": [],
+        "outputSlots": [
+            {
+                "name": "outColor",
+                "displayName": "Color",
+                "description": "Adjusted color with the source alpha preserved.",
+                "supportedDataTypeRegex": "(color|float[34])",
+                "defaultDataType": "color",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = TC_TintByLuminance(inColor, (float3)inTint, (float)inAmount);"
+                    ]
+                }
+            }
+        ]
+    }
+}

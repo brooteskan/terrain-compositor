@@ -273,22 +273,22 @@ namespace Terrain
             manager.m_gridVerts1D = 3;
             manager.m_gridVerts2D = 9;
             manager.m_vertexOrder = { 8, 7, 6, 5, 4, 3, 2, 1, 0 }; // Exercise remapped output.
-            AZStd::vector<Vertex> original(9, Vertex{ 42, { -8, 6 } });
-            AZStd::vector<Vertex> lod{ { 10, { -11, 5 } }, { 20, { 4, -2 } }, { 30, { -6, -7 } }, { 40, { 8, 9 } } };
+            AZStd::vector<Vertex> original(9, Vertex{ 0.42f, { -8, 6 } });
+            AZStd::vector<Vertex> lod{ { 0.1f, { -11, 5 } }, { 0.2f, { 4, -2 } }, { 0.3f, { -6, -7 } }, { 0.4f, { 8, 9 } } };
             AZStd::vector<Vertex> prepared;
             manager.PrepareSectorLodData(*manager.CapturePreparationSettings(), original, lod, prepared);
-            const uint16_t expected[] = { 10, 15, 20, 20, 25, 30, 30, 35, 40 };
+            const float expected[] = { 0.1f, 0.15f, 0.2f, 0.2f, 0.25f, 0.3f, 0.3f, 0.35f, 0.4f };
             ASSERT_EQ(prepared.size(), 9);
             for (size_t i = 0; i < 9; ++i)
-                EXPECT_EQ(prepared[8 - i].m_height, expected[i]);
+                EXPECT_FLOAT_EQ(prepared[8 - i].m_height, expected[i]);
             EXPECT_EQ(prepared[7].m_normal.first, -3); // Signed average truncates toward zero.
             EXPECT_EQ(prepared[7].m_normal.second, 1);
             lod[1].m_height = TerrainMeshManager::NoTerrainVertexHeight;
             manager.PrepareSectorLodData(*manager.CapturePreparationSettings(), original, lod, prepared);
-            EXPECT_EQ(prepared[7].m_height, 42);
-            EXPECT_EQ(prepared[4].m_height, 42);
+            EXPECT_FLOAT_EQ(prepared[7].m_height, 0.42f);
+            EXPECT_FLOAT_EQ(prepared[4].m_height, 0.42f);
             EXPECT_EQ(prepared[7].m_normal, original[7].m_normal);
-            EXPECT_EQ(prepared[8].m_height, 10); // Unaffected parent stays valid.
+            EXPECT_FLOAT_EQ(prepared[8].m_height, 0.1f); // Unaffected parent stays valid.
         }
         static void CheckRayTracingPreparation()
         {
@@ -297,7 +297,7 @@ namespace Terrain
             manager.m_gridVerts2D = 3;
             manager.m_xyPositions = { { 0, 0 }, { 1, 2 }, { 2, 1 } };
             AZStd::vector<Vertex> source{ { 0, { 0, 0 } },
-                                          { 32768, { 127, 0 } },
+                                          { 0.500003f, { 127, 0 } },
                                           { TerrainMeshManager::NoTerrainVertexHeight, { 0, -127 } } };
             AZStd::vector<TerrainMeshManager::RtVertex> positions, normals;
             manager.PrepareSectorRayTracingData(*manager.CapturePreparationSettings(), source, positions, normals);
@@ -306,7 +306,7 @@ namespace Terrain
             EXPECT_EQ(sizeof(TerrainMeshManager::RtVertex), 3 * sizeof(float));
             EXPECT_FLOAT_EQ(positions[1].x, 0.5f);
             EXPECT_FLOAT_EQ(positions[1].y, 1.0f);
-            EXPECT_FLOAT_EQ(positions[1].z, 32768.0f / 65535.0f);
+            EXPECT_FLOAT_EQ(positions[1].z, 0.500003f);
             EXPECT_FLOAT_EQ(positions[2].z, 0.0f);
             EXPECT_FLOAT_EQ(normals[0].z, 1.0f);
             EXPECT_FLOAT_EQ(normals[1].x, 1.0f);

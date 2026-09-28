@@ -7,7 +7,7 @@
         "category": "Procedural",
         "title": "Lattice Value Noise 2D",
         "titlePaletteName": "MathNodeTitlePalette",
-        "description": "Deterministic 2D lattice value noise in [0,1]. Coordinates and unsigned seed are explicit.",
+        "description": "Deterministic 2D lattice value noise in [0,1]. Optional pixel footprint fades unresolved detail toward 0.5.",
         "inputSlots": [
             {
                 "name": "position",
@@ -43,6 +43,22 @@
                     "$type": "unsigned int",
                     "Value": 1337
                 }
+            },
+            {
+                "name": "footprint",
+                "displayName": "Pixel Footprint",
+                "description": "Pixel width in noise-coordinate units. Connect Pixel Footprint evaluated on the same coordinates as position. Zero disables filtering; detail fades between 0.25 and 1 cell per pixel.",
+                "supportedDataTypeRegex": "(color|bool|int|uint|float)([1-4])?",
+                "defaultDataType": "float",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 0
+                }
             }
         ],
         "outputSlots": [
@@ -54,7 +70,7 @@
                 "defaultDataType": "float",
                 "settings": {
                     "instructions": [
-                        "SLOTTYPE SLOTNAME = TC_LatticeNoise2D(position, seed);"
+                        "SLOTTYPE SLOTNAME = TC_LatticeNoise2D(position, seed, footprint);"
                     ]
                 }
             }

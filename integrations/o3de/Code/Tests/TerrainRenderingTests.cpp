@@ -97,6 +97,87 @@ namespace Terrain
             }
         }
 
+        void CheckHeightPrecision()
+        {
+            ::testing::NiceMock<UnitTest::MockTerrainDataRequests> terrain;
+            // Millimeter-scale relief must survive a 2048 m world range. Include
+            // both range endpoints: normalized height 1 is valid terrain, not a hole.
+            for (float base : { -1024.0f, 0.0f, 1023.99f })
+                for (bool remap : { false, true })
+                {
+                    SCOPED_TRACE(::testing::Message() << "base " << base << ", remap " << remap);
+                    auto request = Request(0.5f, remap);
+                    auto settings = Settings();
+                    settings->m_worldHeightBounds = { -1024.0f, 1024.0f };
+                    request.m_settings = settings;
+                    const auto heightAt = [base](float x, float y)
+                    {
+                        return AZ::GetClamp(base + (x + 4.0f) * 0.006f + (y - 3.0f) * 0.004f, -1024.0f, 1024.0f);
+                    };
+                    ON_CALL(terrain, QueryRegion).WillByDefault([&](const auto& region, auto, auto callback, auto)
+                    {
+                        for (size_t y = 0; y < region.m_numPointsY; ++y)
+                            for (size_t x = 0; x < region.m_numPointsX; ++x)
+                            {
+                                const float wx = region.m_startPoint.GetX() + x * region.m_stepSize.GetX();
+                                const float wy = region.m_startPoint.GetY() + y * region.m_stepSize.GetY();
+                                AzFramework::SurfaceData::SurfacePoint point;
+                                point.m_position = AZ::Vector3(wx, wy, heightAt(wx, wy));
+                                callback(x, y, point, true);
+                            }
+                    });
+                    AZStd::vector<Vertex> regular, coarse, clod;
+                    AZ::Aabb bounds;
+                    bool exists = false;
+                    ASSERT_TRUE(Manager::GatherMeshData(request, regular, bounds, exists));
+                    ASSERT_TRUE(exists);
+                    auto coarseRequest = request;
+                    coarseRequest.m_samplesX = coarseRequest.m_samplesY = 2;
+                    coarseRequest.m_vertexSpacing = 1.0f;
+                    coarseRequest.m_useVertexOrderRemap = false;
+                    ASSERT_TRUE(Manager::GatherMeshData(coarseRequest, coarse, bounds, exists));
+                    // The production LOD writer always emits remapped vertices.
+                    Manager::PrepareSectorLodData(*settings, regular, coarse, clod);
+                    for (bool useClod : { false, true })
+                    {
+                        const auto& vertices = useClod ? clod : regular;
+                        AZStd::vector<Manager::RtVertex> positions, normals;
+                        Manager::PrepareSectorRayTracingData(*settings, vertices, positions, normals);
+                        for (size_t y = 0; y < 3; ++y)
+                            for (size_t x = 0; x < 3; ++x)
+                            {
+                                const size_t linear = y * 3 + x;
+                                const size_t index = useClod || remap ? settings->m_vertexOrder[linear] : linear;
+                                const float expected = heightAt(-4.0f + x * 0.5f, 3.0f + y * 0.5f);
+                                ASSERT_NE(vertices[index].m_height, Manager::NoTerrainVertexHeight);
+                                const float rendered = -1024.0f + vertices[index].m_height * 2048.0f;
+                                EXPECT_NEAR(rendered, expected, 0.00025f);
+                                EXPECT_NEAR(-1024.0f + positions[index].z * 2048.0f, expected, 0.00025f);
+                            }
+                    }
+                }
+        }
+
+        void CheckHeightStreamLayout()
+        {
+            const auto layout = Manager::CreateTerrainInputStreamLayout();
+            ASSERT_TRUE(layout.IsFinalized());
+            const auto buffers = layout.GetStreamBuffers();
+            const auto channels = layout.GetStreamChannels();
+            ASSERT_EQ(buffers.size(), 5);
+            ASSERT_EQ(channels.size(), 5);
+            for (size_t stream = 1; stream < 5; ++stream)
+            {
+                EXPECT_EQ(buffers[stream].m_byteStride, sizeof(Vertex));
+                EXPECT_EQ(channels[stream].m_bufferIndex, stream);
+                EXPECT_EQ(channels[stream].m_byteOffset, 0); // Buffer views provide the normal offset.
+                EXPECT_EQ(channels[stream].m_format,
+                    stream % 2 ? AZ::RHI::Format::R32_FLOAT : AZ::RHI::Format::R8G8_SNORM);
+            }
+            EXPECT_EQ(offsetof(Vertex, m_normal), sizeof(float));
+            EXPECT_LT(Manager::NoTerrainVertexHeight, 0.0f);
+        }
+
         void CheckHeightBounds()
         {
             ::testing::NiceMock<UnitTest::MockTerrainDataRequests> terrain;
@@ -179,6 +260,10 @@ namespace Terrain
     { CheckPlaneNormals(); }
     TEST_F(TerrainRenderingTests, HeightBoundsEncloseAllValidSamplesRegardlessOfTraversalOrder)
     { CheckHeightBounds(); }
+    TEST_F(TerrainRenderingTests, MillimeterReliefSurvivesWideHeightRangeThroughGatherClodAndRayTracing)
+    { CheckHeightPrecision(); }
+    TEST_F(TerrainRenderingTests, HeightAndNormalStreamsUseTheInterleavedFloatRecordStride)
+    { CheckHeightStreamLayout(); }
     TEST_F(TerrainRenderingTests, RayTracingNormalsRemainUnitLengthAtPackedDiskBoundary)
     { CheckRayTracingNormalBoundary(); }
 }

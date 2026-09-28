@@ -1,0 +1,98 @@
+{
+    "Type": "JsonSerialization",
+    "Version": 1,
+    "ClassName": "DynamicNodeConfig",
+    "ClassData": {
+        "id": "{EF7071CF-9E3F-4C0F-8E1D-5E3241FF9624}",
+        "category": "Math Functions",
+        "title": "Filtered Threshold",
+        "titlePaletteName": "MathNodeTitlePalette",
+        "description": "Derivative-filtered threshold mask. Smooths this threshold transition; cannot recover aliasing already present upstream.",
+        "settings": {
+            "includePaths": [
+                "MaterialCanvas/Procedural/FilteredTransitions.azsli"
+            ]
+        },
+        "inputSlots": [
+            {
+                "name": "inValue",
+                "displayName": "Value",
+                "description": "Value",
+                "supportedDataTypeRegex": "(color|bool|int|uint|float)([1-4])?",
+                "defaultDataType": "float",
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 0.0
+                },
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                }
+            },
+            {
+                "name": "inThreshold",
+                "displayName": "Threshold",
+                "description": "Threshold",
+                "supportedDataTypeRegex": "(color|bool|int|uint|float)([1-4])?",
+                "defaultDataType": "float",
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 0.5
+                },
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                }
+            },
+            {
+                "name": "inSoftness",
+                "displayName": "Softness",
+                "description": "Minimum transition width in value units.",
+                "supportedDataTypeRegex": "(color|bool|int|uint|float)([1-4])?",
+                "defaultDataType": "float",
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 0.0
+                },
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                }
+            },
+            {
+                "name": "inFilterWidth",
+                "displayName": "Filter Width",
+                "description": "Footprint multiplier. 1 gives one-pixel filtering; 0 disables automatic filtering. Fragment stage only.",
+                "supportedDataTypeRegex": "(color|bool|int|uint|float)([1-4])?",
+                "defaultDataType": "float",
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 1.0
+                },
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                }
+            }
+        ],
+        "propertySlots": [],
+        "outputSlots": [
+            {
+                "name": "outMask",
+                "displayName": "Mask",
+                "description": "Mask",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = TC_FilteredThreshold((float)inValue, (float)inThreshold, (float)inSoftness, (float)inFilterWidth);"
+                    ]
+                }
+            }
+        ]
+    }
+}

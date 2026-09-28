@@ -1,5 +1,5 @@
 #pragma once
-// Value noise primitive only: filtering, elevation and tint remain graph operations.
+// Value noise primitive with optional footprint-based detail attenuation.
 float TC_LatticeCorner(int2 cell, uint seed)
 {
     uint hash = asuint(cell.x) * 0x8da6b343u ^ asuint(cell.y) * 0xd8163841u ^ seed;
@@ -14,4 +14,14 @@ float TC_LatticeNoise2D(float2 position, uint seed)
     blend = blend * blend * blend * (blend * (blend * 6.0 - 15.0) + 10.0);
     return lerp(lerp(TC_LatticeCorner(cell, seed), TC_LatticeCorner(cell + int2(1, 0), seed), blend.x),
         lerp(TC_LatticeCorner(cell + int2(0, 1), seed), TC_LatticeCorner(cell + int2(1, 1), seed), blend.x), blend.y);
+}
+
+// Approximate minification filtering, not an exact footprint integral. Fade
+// toward the noise mean before lattice cells become subpixel. The footprint
+// must be measured after coordinate scaling, in lattice cells per pixel.
+// Retain the two-argument overload for existing generated shaders.
+float TC_LatticeNoise2D(float2 position, uint seed, float footprint)
+{
+    float attenuation = smoothstep(0.25, 1.0, max(footprint, 0.0));
+    return lerp(TC_LatticeNoise2D(position, seed), 0.5, attenuation);
 }
