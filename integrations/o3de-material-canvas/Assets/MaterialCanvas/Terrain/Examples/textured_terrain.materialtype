@@ -186,6 +186,17 @@
                 "name": "general",
                 "properties": [
                     {
+                        "name": "unlitTerrain",
+                        "displayName": "Unlit Terrain",
+                        "description": "Show the sampled terrain color without scene lighting.",
+                        "type": "Bool",
+                        "defaultValue": false,
+                        "connection": {
+                            "type": "ShaderOption",
+                            "name": "o_unlitTerrain"
+                        }
+                    },
+                    {
                         "name": "applySpecularAA",
                         "displayName": "Apply Specular AA",
                         "description": "Whether to apply specular anti-aliasing in the shader.",

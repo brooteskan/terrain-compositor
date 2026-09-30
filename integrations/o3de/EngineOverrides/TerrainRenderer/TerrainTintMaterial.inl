@@ -146,24 +146,36 @@ namespace Terrain
         const auto source = m_materialInstance->GetShaderResourceGroup();
         const auto target = m_pendingTintMaterial->GetShaderResourceGroup();
         if (!source || !target) return false;
-        const auto sourceChange = m_materialInstance->GetCurrentChangeId();
-        if (m_tintStageSource != source || m_tintStageTarget != target || m_tintStageChange != sourceChange ||
-            m_tintStageTargetChange != m_pendingTintMaterial->GetCurrentChangeId() ||
-            m_tintStageTargetLayout != target->GetLayout()->GetHash())
+        // Only the compositor publication has to remain stable across the
+        // handoff. The source material can change for unrelated reasons while
+        // the target SRG is compiling, so its global change id is not a safe
+        // readiness test.
+        bool publicationChanged = m_tintStageTarget != target ||
+            m_tintStageTargetLayout != target->GetLayout()->GetHash();
+        for (const char* name : { "settings.meshCutoutCount", "settings.meshCutoutRevision", "settings.meshHeightGapCount", "settings.meshHeightGapRevision", "settings.surfaceRegionCount", "settings.surfaceRevision" })
         {
-            for (const char* name : { "settings.meshCutoutCount", "settings.meshCutoutRevision", "settings.meshHeightGapCount", "settings.meshHeightGapRevision", "settings.surfaceRegionCount", "settings.surfaceRevision" })
+            const auto from = m_materialInstance->FindPropertyIndex(AZ::Name(name));
+            const auto to = m_pendingTintMaterial->FindPropertyIndex(AZ::Name(name));
+            const auto& value = m_materialInstance->GetPropertyValue(from);
+            if (m_pendingTintMaterial->GetPropertyValue(to) != value)
             {
-                const auto from = m_materialInstance->FindPropertyIndex(AZ::Name(name));
-                const auto to = m_pendingTintMaterial->FindPropertyIndex(AZ::Name(name));
-                m_pendingTintMaterial->SetPropertyValue(to, m_materialInstance->GetPropertyValue(from));
+                m_pendingTintMaterial->SetPropertyValue(to, value);
+                publicationChanged = true;
             }
-            for (const char* name : { "m_meshCutouts", "m_meshCutoutVertices", "m_meshCutoutIndices", "m_meshHeightGaps", "m_meshHeightGapWords", "m_surfaceWords" })
+        }
+        for (const char* name : { "m_meshCutouts", "m_meshCutoutVertices", "m_meshCutoutIndices", "m_meshHeightGaps", "m_meshHeightGapWords", "m_surfaceWords" })
+        {
+            const auto from = source->FindShaderInputBufferIndex(AZ::Name(name));
+            const auto to = target->FindShaderInputBufferIndex(AZ::Name(name));
+            if (!from.IsValid() || !to.IsValid() || !source->GetBufferView(from)) return false;
+            if (target->GetBufferView(to) != source->GetBufferView(from))
             {
-                const auto from = source->FindShaderInputBufferIndex(AZ::Name(name));
-                const auto to = target->FindShaderInputBufferIndex(AZ::Name(name));
-                if (!from.IsValid() || !to.IsValid() || !source->GetBufferView(from) ||
-                    !target->SetBufferView(to, source->GetBufferView(from).get())) return false;
+                if (!target->SetBufferView(to, source->GetBufferView(from).get())) return false;
+                publicationChanged = true;
             }
+        }
+        if (publicationChanged)
+        {
             // Mark the SRG dirty even when all copied counts are zero. Buffer-view
             // setters alone do not notify the MaterialInstanceHandler.
             const auto revision = m_pendingTintMaterial->FindPropertyIndex(AZ::Name("settings.meshCutoutRevision"));
@@ -171,10 +183,7 @@ namespace Terrain
             m_pendingTintMaterial->SetPropertyValue(revision, revisionValue ^ 1u);
             m_pendingTintMaterial->SetPropertyValue(revision, revisionValue);
             m_pendingTintMaterial->Compile();
-            m_tintStageSource = source;
             m_tintStageTarget = target;
-            m_tintStageChange = sourceChange;
-            m_tintStageTargetChange = m_pendingTintMaterial->GetCurrentChangeId();
             m_tintStageTargetLayout = target->GetLayout()->GetHash();
             m_tintStatus = "Preparing terrain material bindings";
             return false;

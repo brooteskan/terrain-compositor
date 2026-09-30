@@ -21,6 +21,7 @@
 #include <Atom/Features/ColorManagement/TransformColor.azsli>
 
 option bool o_debugTerrainLodLevels = false;
+option bool o_unlitTerrain = false;
 
 struct VSOutput
 {
@@ -78,6 +79,18 @@ ForwardPassOutput TerrainPBR_MainPassPS(VSOutput input)
     terrainContext.geometricNormal = surface.vertexNormal;
     TerrainSurfaceChannels resolved = TC_ValidateSurface(
         TC_EvaluateTerrainSurface(terrainContext, GetMaterialParameters()), terrainContext);
+    if (o_unlitTerrain)
+    {
+        ForwardPassOutput output;
+        output.m_diffuseColor = float4(resolved.baseColor, -1.0);
+        output.m_specularColor = float4(0, 0, 0, 0);
+        output.m_specularF0 = float4(0, 0, 0, 0);
+        // The deferred GI pass multiplies m_albedo by skylight. Keep it zero
+        // so this color is not lit a second time after the forward pass.
+        output.m_albedo = float4(0, 0, 0, 0);
+        output.m_normal = float4(0, 0, 0, 0);
+        return output;
+    }
     surface.normal = resolved.normal;
     surface.SetAlbedoAndSpecularF0(resolved.baseColor, resolved.specularFactor, resolved.metalness);
     surface.roughnessLinear = resolved.roughness;
