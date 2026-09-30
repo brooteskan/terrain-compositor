@@ -3,6 +3,7 @@
 #include <TerrainCompositor/HeightmapStampSampling.h>
 #include <TerrainCompositor/SurfaceStampSampling.h>
 #include <TerrainCompositor/TerrainExistenceSampling.h>
+#include <TerrainCompositor/TerrainOverlap.h>
 
 namespace TerrainCompositor::Internal
 {
@@ -17,5 +18,6 @@ namespace TerrainCompositor::Internal
         AZStd::vector<PreparedTerrainExistenceContributor> m_existenceContributors;
         // Retain render-only gaps to correlate ownership with the query revision.
         AZStd::vector<PreparedTerrainMeshHeightGap> m_meshHeightGaps;
+        PreparedTerrainOverlap m_overlap;
     };
 }

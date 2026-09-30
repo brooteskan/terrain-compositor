@@ -28,6 +28,9 @@ namespace TerrainCompositor
         AZ::u32 m_gapRejectedContributions = 0;
         AZ::u64 m_gapResourceFailures = 0;
         AZ::u64 m_gapStaleResults = 0;
+        AZ::u64 m_overlapPublicationBytes = 0;
+        AZ::u32 m_overlapRegions = 0;
+        AZ::u32 m_overlapRejectedRegions = 0;
     };
 
     class TerrainMeshCutoutFeatureProcessor final : public AZ::RPI::FeatureProcessor
@@ -48,6 +51,12 @@ namespace TerrainCompositor
             return m_statistics;
         }
 
+        //! Source integrations register a UNIQUE material instance using the shared overlap shader.
+        //! The material must expose m_terrainOverlapWords and a uint settings.overlapRevision property.
+        //! Registration never replaces a mesh material, changes its visibility, or owns its geometry.
+        bool RegisterOverlapMaterial(const AZ::Data::Instance<AZ::RPI::Material>& material);
+        void UnregisterOverlapMaterial(const AZ::Data::Instance<AZ::RPI::Material>& material);
+
     private:
         struct GpuCutout
         {
@@ -63,6 +72,7 @@ namespace TerrainCompositor
 
         void RebuildGpuData();
         void BindSurfaceData(const AZ::Data::Instance<AZ::RPI::Material>& material);
+        void BindOverlapMaterials();
         AZ::Data::Instance<AZ::RPI::Buffer> m_surfaceBuffer;
         AZ::u64 m_surfaceRevision = 0;
         AZ::u32 m_surfaceRegionCount = 0;
@@ -91,5 +101,7 @@ namespace TerrainCompositor
         bool m_gapBuffersReady = false;
         bool m_gapAwaitingActivation = false;
         bool m_reportedGapBindingFailure = false;
+        AZStd::vector<AZ::Data::Instance<AZ::RPI::Material>> m_overlapMaterials;
+        bool m_reportedOverlapGraphUnsupported = false;
     };
 } // namespace TerrainCompositor

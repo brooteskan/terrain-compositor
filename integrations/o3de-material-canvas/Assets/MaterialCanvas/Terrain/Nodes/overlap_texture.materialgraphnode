@@ -1,0 +1,157 @@
+{
+    "Type": "JsonSerialization",
+    "Version": 1,
+    "ClassName": "DynamicNodeConfig",
+    "ClassData": {
+        "id": "{C8DE8758-3CE1-4715-B8E4-685D19ECE20F}",
+        "category": "Terrain",
+        "title": "Terrain Overlap Texture",
+        "titlePaletteName": "MathNodeTitlePalette",
+        "description": "Source-aware overlap material. Configure Material Overlap on the composition. Slots are 1 through 4.",
+        "settings": {
+            "includePaths": [
+                "TerrainCompositor/TerrainOverlap.azsli",
+                "Atom/Features/ColorManagement/TransformColor.azsli"
+            ],
+            "instructions": [
+                "#ifndef TC_OVERLAP_LOCAL_SET",
+                "#define TC_OVERLAP_LOCAL_SET",
+                "TerrainOverlapSet O3DE_TC_OVERLAP = TC_ResolveOverlap(O3DE_MC_POSITION_WS);",
+                "#endif",
+                "uint NODEID_overlapSlot = TC_OverlapSlotIndex(materialSlot);",
+                "TerrainOverlapSource NODEID_overlapSource = TC_OverlapMaterialSource(O3DE_TC_OVERLAP, NODEID_overlapSlot);",
+                "float4 NODEID_overlapTexel = TC_SampleOverlapTexture(NODEID_overlapSource, O3DE_MC_POSITION_WS, scale, params.inValue, params.inSampler);",
+                "SLOTTYPE(color) color = TransformColor(NODEID_overlapTexel.xyz, ColorSpaceId::LinearSRGB, ColorSpaceId::ACEScg);",
+                "SLOTTYPE(raw) raw = NODEID_overlapTexel.xyz;",
+                "SLOTTYPE(normal) normal = TC_OverlapNormal(NODEID_overlapSource, NODEID_overlapTexel.xyz, normalStrength, params.inValue >= 0);"
+            ]
+        },
+        "inputSlots": [
+            {
+                "name": "materialSlot",
+                "displayName": "materialSlot",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 1.0
+                }
+            },
+            {
+                "name": "scale",
+                "displayName": "scale",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 1.0
+                }
+            },
+            {
+                "name": "normalStrength",
+                "displayName": "normalStrength",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 1.0
+                }
+            }
+        ],
+        "outputSlots": [
+            {
+                "name": "color",
+                "displayName": "color",
+                "supportedDataTypeRegex": "float3",
+                "defaultDataType": "float3"
+            },
+            {
+                "name": "normal",
+                "displayName": "normal",
+                "supportedDataTypeRegex": "float3",
+                "defaultDataType": "float3"
+            },
+            {
+                "name": "raw",
+                "displayName": "raw",
+                "supportedDataTypeRegex": "float3",
+                "defaultDataType": "float3"
+            }
+        ],
+        "propertySlots": [
+            {
+                "name": "inGroup",
+                "displayName": "inGroup",
+                "supportedDataTypeRegex": "string",
+                "defaultDataType": "string",
+                "defaultValue": {
+                    "$type": "AZStd::string",
+                    "Value": "overlap"
+                }
+            },
+            {
+                "name": "inName",
+                "displayName": "inName",
+                "supportedDataTypeRegex": "string",
+                "defaultDataType": "string",
+                "defaultValue": {
+                    "$type": "AZStd::string",
+                    "Value": ""
+                }
+            },
+            {
+                "name": "inDescription",
+                "displayName": "inDescription",
+                "supportedDataTypeRegex": "string",
+                "defaultDataType": "string",
+                "defaultValue": {
+                    "$type": "AZStd::string",
+                    "Value": ""
+                }
+            },
+            {
+                "name": "inValue",
+                "displayName": "inValue",
+                "supportedDataTypeRegex": "image",
+                "defaultDataType": "image",
+                "settings": {
+                    "materialPropertyConnectionType": [
+                        "ShaderInput"
+                    ],
+                    "materialPropertySrgMember": [
+                        "STANDARD_SRG_MEMBER"
+                    ]
+                }
+            },
+            {
+                "name": "inSampler",
+                "displayName": "inSampler",
+                "supportedDataTypeRegex": "sampler",
+                "defaultDataType": "sampler",
+                "settings": {
+                    "materialPropertyConnectionType": [
+                        "ShaderInput"
+                    ],
+                    "materialPropertySrgMember": [
+                        "STANDARD_SRG_MEMBER"
+                    ]
+                }
+            }
+        ]
+    }
+}

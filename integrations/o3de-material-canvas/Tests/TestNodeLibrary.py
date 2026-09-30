@@ -8,6 +8,18 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class NodeLibraryTests(unittest.TestCase):
+    def test_color_defaults_use_decimal_channels(self):
+        # AZ::JsonColorSerializer requires RapidJSON IsDouble() for every
+        # channel: syntactically valid JSON integer literals reject the node.
+        for path in (ROOT / 'Assets/MaterialCanvas').rglob('*.materialgraphnode'):
+            config = json.loads(path.read_text())['ClassData']
+            for kind in ('inputSlots', 'propertySlots', 'outputSlots'):
+                for slot in config.get(kind, []):
+                    default = slot.get('defaultValue', {})
+                    if default.get('$type') == 'Color' and isinstance(default.get('Value'), list):
+                        for channel in default['Value']:
+                            self.assertIsInstance(channel, float, f'{path}: {slot["name"]}')
+
     def test_unique_configs_and_categories(self):
         ids = set()
         for path in (ROOT / 'Assets/MaterialCanvas').rglob('*.materialgraphnode'):

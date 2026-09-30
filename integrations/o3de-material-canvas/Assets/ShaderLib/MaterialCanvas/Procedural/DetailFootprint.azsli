@@ -1,0 +1,25 @@
+#pragma once
+
+// Largest principal surface displacement per screen pixel, in world units.
+// The singular value accounts for skew between the two screen derivatives.
+// Fragment stage only; evaluate uniformly across derivative quads.
+float TC_DetailFootprintRatio(float3 positionWS, float detailSize)
+{
+    float3 dx = ddx(positionWS);
+    float3 dy = ddy(positionWS);
+    float a = dot(dx, dx);
+    float b = dot(dx, dy);
+    float c = dot(dy, dy);
+    float discriminant = sqrt(max((a-c)*(a-c) + 4.0*b*b, 0.0));
+    float footprint = sqrt(max(0.5*(a+c+discriminant), 0.0));
+    return footprint / max(abs(detailSize), 1e-6);
+}
+
+float TC_DetailFootprintMask(float ratio, float transitionStart, float transitionEnd)
+{
+    // Reversed endpoints are sorted; coincident endpoints give a hard step.
+    float lo = max(min(transitionStart, transitionEnd), 0.0);
+    float hi = max(max(transitionStart, transitionEnd), 0.0);
+    if (hi-lo <= 1e-6) return step(lo, ratio);
+    return smoothstep(lo, hi, ratio);
+}

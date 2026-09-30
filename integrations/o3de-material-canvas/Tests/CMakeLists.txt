@@ -4,6 +4,13 @@ if(NOT WIN32)
     message(FATAL_ERROR "This GPU parity check uses D3D11 on Windows")
 endif()
 enable_testing()
+add_executable(TerrainOverlapGpuTests TerrainOverlapGpuTests.cpp)
+target_compile_features(TerrainOverlapGpuTests PRIVATE cxx_std_17)
+target_compile_definitions(TerrainOverlapGpuTests PRIVATE NOMINMAX
+    TERRAIN_SHADERS="${CMAKE_CURRENT_SOURCE_DIR}/../../o3de/Assets/Shaders/Terrain"
+    OVERLAP_SHADERS="${CMAKE_CURRENT_SOURCE_DIR}/../../o3de/Assets/ShaderLib/TerrainCompositor")
+target_link_libraries(TerrainOverlapGpuTests PRIVATE d3d11 d3dcompiler)
+add_test(NAME TerrainOverlapGpuTests COMMAND TerrainOverlapGpuTests)
 add_executable(TerrainSurfaceTests TerrainSurfaceTests.cpp)
 target_compile_features(TerrainSurfaceTests PRIVATE cxx_std_17)
 target_compile_definitions(TerrainSurfaceTests PRIVATE NOMINMAX

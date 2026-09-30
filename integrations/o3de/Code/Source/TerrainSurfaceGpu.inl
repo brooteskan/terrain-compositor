@@ -2,10 +2,67 @@
 // No texture baking, appearance cache, or per-frame geometry processing.
 namespace TerrainCompositor
 {
+    bool TerrainMeshCutoutFeatureProcessor::RegisterOverlapMaterial(const AZ::Data::Instance<AZ::RPI::Material>& material)
+    {
+        if (!material || !material->GetShaderResourceGroup()) return false;
+        const auto srg = material->GetShaderResourceGroup();
+        const auto buffer = srg->FindShaderInputBufferIndex(AZ::Name("m_terrainOverlapWords"));
+        const auto revision = material->FindPropertyIndex(AZ::Name("settings.overlapRevision"));
+        if (!buffer.IsValid() || !revision.IsValid() || !material->GetPropertyValue(revision).Is<AZ::u32>())
+        {
+            AZ_Warning("TerrainOverlap", false, "Mesh overlap material requires m_terrainOverlapWords and uint settings.overlapRevision. Existing material retained.");
+            return false;
+        }
+        const auto& descriptor = srg->GetLayout()->GetShaderInput(buffer);
+        if (descriptor.m_strideSize != sizeof(AZ::u32) || descriptor.m_access != AZ::RHI::ShaderInputBufferAccess::Read)
+            return false;
+        if (AZStd::find(m_overlapMaterials.begin(), m_overlapMaterials.end(), material) == m_overlapMaterials.end())
+            m_overlapMaterials.push_back(material);
+        return true;
+    }
+
+    void TerrainMeshCutoutFeatureProcessor::UnregisterOverlapMaterial(const AZ::Data::Instance<AZ::RPI::Material>& material)
+    {
+        // Copy before erase: caller may pass a reference into m_overlapMaterials.
+        const auto retained = material;
+        AZStd::erase(m_overlapMaterials, retained);
+        if (!retained || !retained->GetShaderResourceGroup() || !m_emptyGapWords) return;
+        const auto srg = retained->GetShaderResourceGroup();
+        const auto index = srg->FindShaderInputBufferIndex(AZ::Name("m_terrainOverlapWords"));
+        if (index.IsValid()) { srg->SetBufferView(index, m_emptyGapWords->GetBufferView()); srg->Compile(); }
+    }
+
+    void TerrainMeshCutoutFeatureProcessor::BindOverlapMaterials()
+    {
+        for (const auto& material : m_overlapMaterials)
+        {
+            if (!material || !material->CanCompile()) continue;
+            const auto srg = material->GetShaderResourceGroup();
+            if (!srg) continue;
+            const auto buffer = srg->FindShaderInputBufferIndex(AZ::Name("m_terrainOverlapWords"));
+            const auto revision = material->FindPropertyIndex(AZ::Name("settings.overlapRevision"));
+            if (!buffer.IsValid() || !revision.IsValid() || !material->GetPropertyValue(revision).Is<AZ::u32>()) continue;
+            const auto words = m_surfaceBuffer ? m_surfaceBuffer : m_emptyGapWords;
+            if (!words || srg->GetBufferView(buffer) == words->GetBufferView()) continue;
+            if (srg->SetBufferView(buffer, words->GetBufferView()))
+            {
+                material->SetPropertyValue(revision, static_cast<AZ::u32>(m_surfaceRevision));
+                material->Compile();
+                srg->Compile(); // Also dirty new instances whose serialized revision already equals this publication.
+            }
+        }
+    }
+
     void TerrainMeshCutoutFeatureProcessor::BindSurfaceData(const AZ::Data::Instance<AZ::RPI::Material>& material)
     {
         const auto snapshot = m_sceneChannel ? m_sceneChannel->m_snapshot.load(std::memory_order_acquire) : nullptr;
-        if (!snapshot) return;
+        if (!snapshot)
+        {
+            m_surfaceBuffer = {}; m_surfaceRevision = 0; m_surfaceRegionCount = 0;
+            m_statistics.m_overlapRegions = m_statistics.m_overlapRejectedRegions = 0;
+            m_statistics.m_overlapPublicationBytes = 0;
+            return;
+        }
         if (!m_surfaceBuffer || m_surfaceRevision != snapshot->m_revision)
         {
             AZStd::vector<AZ::u32> words;
@@ -91,12 +148,56 @@ namespace TerrainCompositor
                     }
                 }
             }
-            if (words.empty()) words.push_back(0);
+            // A versioned trailer leaves the v4 surface-label prefix and SRG ABI intact.
+            // Old shaders ignore it; new shaders reject old buffers without the magic/version footer.
+            const auto overlapHeader = append(1 + TerrainOverlapMaximumRegions * TerrainOverlapRegionWords);
+            AZ::u32 overlapCount = 0;
+            AZ::u32 rejectedRegions = 0;
+            bool overlapResourceFailure = false;
+            for (const auto& query : snapshot->m_renderGeometryQueries)
+            {
+                if (!query.m_surfaces || !query.m_surfaces->m_overlap.IsActive()) continue;
+                const auto& state = *query.m_surfaces;
+                // Multiple composition owners at the same XY have no portable ownership contract.
+                // Reject the whole affected region rather than choosing by hash-map iteration order.
+                bool ambiguous = false;
+                for (const auto& other : snapshot->m_renderGeometryQueries)
+                {
+                    if (&other == &query || !other.m_regionBounds.IsValid()) continue;
+                    const auto& a = query.m_regionBounds; const auto& b = other.m_regionBounds;
+                    if (a.GetMin().GetX() <= b.GetMax().GetX() && a.GetMax().GetX() >= b.GetMin().GetX() &&
+                        a.GetMin().GetY() <= b.GetMax().GetY() && a.GetMax().GetY() >= b.GetMin().GetY()) ambiguous = true;
+                }
+                const bool room = overlapCount < TerrainOverlapMaximumRegions;
+                const bool ready = !ambiguous && room && AppendTerrainOverlapRegion(words,
+                    overlapHeader + 1 + overlapCount * TerrainOverlapRegionWords, state.m_regionBounds,
+                    state.m_overlap, state.m_heightContributors, TerrainOverlapMaximumWords - 2);
+                if (!ambiguous && !ready) overlapResourceFailure = true;
+                if (!ready) ++rejectedRegions;
+                AZ_Warning("TerrainOverlap", ready,
+                    "Overlap unavailable: intersecting composition regions, 64-region limit, or 64 MiB publication limit. Existing shading retained.");
+                if (ready) ++overlapCount;
+            }
+            // Never let hash-map iteration decide which region wins a scene-wide resource budget.
+            words[overlapHeader] = overlapResourceFailure ? 0 : overlapCount;
+            words.push_back(overlapHeader);
+            words.push_back(TerrainOverlapMagic);
+            m_statistics.m_overlapRegions = words[overlapHeader];
+            m_statistics.m_overlapRejectedRegions = rejectedRegions + (overlapResourceFailure ? overlapCount : 0);
+            m_statistics.m_overlapPublicationBytes = (words.size() - overlapHeader) * sizeof(AZ::u32);
             m_surfaceBuffer = CreateReadOnlyBuffer("TerrainSurfaceLabels", sizeof(AZ::u32), aznumeric_cast<AZ::u32>(words.size()), words.data());
             m_surfaceRegionCount = m_surfaceBuffer ? regions : 0;
             m_surfaceRevision = snapshot->m_revision;
             AZ_Warning("TerrainSurface", m_surfaceBuffer, "Cannot upload terrain surface labels; graph weights are unavailable.");
         }
+        if (!material) return;
+        const auto contract = material->FindPropertyIndex(AZ::Name("overlap.contract_version"));
+        const bool supported = contract.IsValid() && material->GetPropertyValue(contract).Is<float>() &&
+            material->GetPropertyValue<float>(contract) == 1.0f;
+        const bool unsupported = m_statistics.m_overlapRegions > 0 && !supported;
+        if (unsupported && !m_reportedOverlapGraphUnsupported)
+            AZ_Warning("TerrainOverlap", false, "Material overlap is configured, but the selected graph has no supported Terrain Overlap Surface node. Existing graph appearance is retained.");
+        m_reportedOverlapGraphUnsupported = unsupported;
         const auto srg = material->GetShaderResourceGroup();
         const auto input = srg->FindShaderInputBufferIndex(AZ::Name("m_surfaceWords"));
         const auto count = material->FindPropertyIndex(AZ::Name("settings.surfaceRegionCount"));

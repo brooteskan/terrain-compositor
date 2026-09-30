@@ -1,0 +1,55 @@
+{
+    "Type": "JsonSerialization",
+    "Version": 1,
+    "ClassName": "DynamicNodeConfig",
+    "ClassData": {
+        "id": "{C71AB5F8-C01C-4C6D-8C18-429B9D0CDB19}",
+        "category": "Procedural",
+        "title": "Filtered Noise 2D",
+        "titlePaletteName": "MathNodeTitlePalette",
+        "description": "Stationary hashed lattice noise with analytic pixel-area averaging. No repeating texture or distance fade. Connect continuous World XY / Scale. Integrable lattice variant; different pattern from Lattice Value Noise. Fragment stage only; evaluate uniformly across derivative quads.",
+        "settings": {
+            "includePaths": ["MaterialCanvas/Procedural/FilteredNoise.azsli"]
+        },
+        "inputSlots": [
+            {
+                "name": "position",
+                "displayName": "Position",
+                "description": "Continuous noise coordinates. Connect World XY / Scale. Do not wrap with frac; screen derivatives are calculated internally.",
+                "supportedDataTypeRegex": "(color|bool|int|uint|float)([1-4])?",
+                "defaultDataType": "float2",
+                "defaultValue": {"$type": "Vector2", "Value": [0, 0]},
+                "settings": {"instructions": ["SLOTTYPE SLOTNAME = SLOTVALUE;"]}
+            },
+            {
+                "name": "seed",
+                "displayName": "Seed",
+                "description": "Changes the fixed spatial pattern. Keep constant for a stationary surface.",
+                "supportedDataTypeRegex": "(color|bool|int|uint|float)([1-4])?",
+                "defaultDataType": "uint",
+                "defaultValue": {"$type": "unsigned int", "Value": 1337},
+                "settings": {"instructions": ["SLOTTYPE SLOTNAME = SLOTVALUE;"]}
+            },
+            {
+                "name": "smoothInterpolation",
+                "displayName": "Smooth Interpolation",
+                "description": "Enable cubic B-spline blending across neighboring cells to soften square patches. Off preserves the original quintic appearance. Pixel-area filtering remains enabled in both modes.",
+                "supportedDataTypeRegex": "bool",
+                "defaultDataType": "bool",
+                "defaultValue": {"$type": "bool", "Value": false},
+                "settings": {"instructions": ["SLOTTYPE SLOTNAME = SLOTVALUE;"]}
+            }
+        ],
+        "outputSlots": [
+            {
+                "name": "value",
+                "displayName": "Value",
+                "description": "Filtered scalar noise in [0,1], with mean 0.5.",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {"instructions": ["SLOTTYPE SLOTNAME = TC_FilteredNoise2D((float2)position, (uint)seed, (bool)smoothInterpolation);"]}
+            }
+        ],
+        "propertySlots": []
+    }
+}

@@ -48,6 +48,7 @@ namespace TerrainCompositor
         TerrainQualityConfig m_terrainQuality;
         AZStd::vector<SurfacePaletteEntry> m_surfacePalette;
         AZStd::vector<SurfaceBaseWeight> m_baseSurfaceWeights;
+        TerrainOverlapConfig m_materialOverlap;
     };
 
     //! Lives on its own entity, not on the Terrain Height Gradient List entity.

@@ -1,0 +1,370 @@
+#pragma once
+// Independent 2D Worley implementation with Blender 4.5 input conventions.
+// Compact searches match Blender's performance/approximation tradeoff; they are
+// not an exhaustive nearest-site search for every jitter/metric combination.
+static const uint TC_VoronoiFeature_F1 = 0;
+static const uint TC_VoronoiFeature_F2 = 1;
+static const uint TC_VoronoiFeature_SmoothF1 = 2;
+static const uint TC_VoronoiFeature_DistanceToEdge = 3;
+static const uint TC_VoronoiFeature_NSphereRadius = 4;
+static const uint TC_VoronoiMetric_Euclidean = 0;
+static const uint TC_VoronoiMetric_Manhattan = 1;
+static const uint TC_VoronoiMetric_Chebychev = 2;
+static const uint TC_VoronoiMetric_Minkowski = 3;
+// Only for already-generated shaders. The node no longer has these settings.
+static const uint TC_VoronoiFiltering_Off = 1;
+static const uint TC_VoronoiFiltering_Samples4 = 2;
+static const uint TC_VoronoiFiltering_Samples16 = 4;
+
+uint TC_VoronoiHash(uint v)
+{
+    v = (v ^ (v >> 16)) * 0x7feb352du;
+    v = (v ^ (v >> 15)) * 0x846ca68bu;
+    return v ^ (v >> 16);
+}
+float TC_VoronoiRandom(uint v)
+{
+    return float(TC_VoronoiHash(v) & 0x00ffffffu) / 16777216.0;
+}
+uint TC_VoronoiCellKey(int2 cell, uint seed)
+{
+    return TC_VoronoiHash(asuint(cell.x) * 0x8da6b343u ^ asuint(cell.y) * 0xd8163841u ^ seed);
+}
+float2 TC_VoronoiOffset(int2 cell, uint seed, float randomness)
+{
+    uint key = TC_VoronoiCellKey(cell, seed);
+    return randomness * float2(TC_VoronoiRandom(key), TC_VoronoiRandom(key ^ 0x68bc21ebu));
+}
+float3 TC_VoronoiColor(int2 cell, uint seed)
+{
+    uint key = TC_VoronoiCellKey(cell, seed) ^ 0x02e5be93u;
+    return float3(TC_VoronoiRandom(key), TC_VoronoiRandom(key ^ 0xa511e9b3u),
+        TC_VoronoiRandom(key ^ 0x63d83595u));
+}
+float TC_VoronoiDistance(float2 delta, uint metric, float exponent)
+{
+    float2 d = abs(delta);
+    if (metric == TC_VoronoiMetric_Manhattan) return d.x + d.y;
+    if (metric == TC_VoronoiMetric_Chebychev) return max(d.x, d.y);
+    if (metric == TC_VoronoiMetric_Minkowski)
+    {
+        if (exponent <= 0.0) return 0.0;
+        float largest = max(d.x, d.y);
+        if (largest == 0.0) return 0.0;
+        float2 unit = d / largest;
+        // Log form extends the useful range below exponent 1 without overflow.
+        float logDistance = log2(largest) +
+            log2(pow(unit.x, exponent) + pow(unit.y, exponent)) / exponent;
+        return exp2(min(logDistance, 120.0));
+    }
+    return length(delta);
+}
+float TC_VoronoiSafeInverse(float value)
+{
+    return value != 0.0 ? 1.0 / value : 0.0;
+}
+struct TC_VoronoiResult
+{
+    float distance;
+    float3 color;
+    float2 position;
+    float radius;
+};
+TC_VoronoiResult TC_VoronoiEmpty()
+{
+    TC_VoronoiResult r;
+    r.distance = 0.0; r.color = float3(0.0,0.0,0.0);
+    r.position = float2(0.0,0.0); r.radius = 0.0;
+    return r;
+}
+
+// F1/F2 use nine candidates. Euclidean comparison stays squared until the
+// winning distance is known. Tracking the second site is compiled out for F1.
+TC_VoronoiResult TC_VoronoiNearest(float2 p, uint seed, float randomness,
+    uint feature, uint metric, float exponent)
+{
+    int2 baseCell = int2(floor(p));
+    float2 local = frac(p);
+    float d1 = 3.0e38, d2 = 3.0e38;
+    int2 c1 = baseCell, c2 = baseCell;
+    float2 q1 = float2(0,0), q2 = float2(0,0);
+    [unroll]
+    for (int y = -1; y <= 1; ++y)
+    {
+        [unroll]
+        for (int x = -1; x <= 1; ++x)
+        {
+            int2 cell = baseCell + int2(x,y);
+            float2 q = float2(x,y) + TC_VoronoiOffset(cell, seed, randomness);
+            float2 delta = q - local;
+            float d = metric == TC_VoronoiMetric_Euclidean ? dot(delta,delta) :
+                TC_VoronoiDistance(delta, metric, exponent);
+            if (d < d1)
+            {
+                if (feature == TC_VoronoiFeature_F2) { d2 = d1; c2 = c1; q2 = q1; }
+                d1 = d; c1 = cell; q1 = q;
+            }
+            else if (feature == TC_VoronoiFeature_F2 && d < d2)
+            {
+                d2 = d; c2 = cell; q2 = q;
+            }
+        }
+    }
+    bool second = feature == TC_VoronoiFeature_F2;
+    TC_VoronoiResult r = TC_VoronoiEmpty();
+    r.distance = second ? d2 : d1;
+    if (metric == TC_VoronoiMetric_Euclidean) r.distance = sqrt(r.distance);
+    r.color = TC_VoronoiColor(second ? c2 : c1, seed);
+    r.position = float2(baseCell) + (second ? q2 : q1);
+    return r;
+}
+
+// Smooth F1 blends 25 candidates, without also doing an F1/F2 search.
+TC_VoronoiResult TC_VoronoiSmooth(float2 p, uint seed, float randomness,
+    float smoothness, uint metric, float exponent)
+{
+    int2 baseCell = int2(floor(p));
+    float2 local = frac(p);
+    TC_VoronoiResult r = TC_VoronoiEmpty();
+    [unroll]
+    for (int y = -2; y <= 2; ++y)
+    {
+        [unroll]
+        for (int x = -2; x <= 2; ++x)
+        {
+            int2 cell = baseCell + int2(x,y);
+            float2 q = float2(x,y) + TC_VoronoiOffset(cell, seed, randomness);
+            float d = TC_VoronoiDistance(q - local, metric, exponent);
+            float weight = (x == -2 && y == -2) ? 1.0 :
+                smoothstep(0.0, 1.0, 0.5 + 0.5 * (r.distance - d) / smoothness);
+            float correction = smoothness * weight * (1.0 - weight);
+            r.distance = lerp(r.distance, d, weight) - correction;
+            float attributeCorrection = correction / (1.0 + 3.0 * smoothness);
+            r.color = lerp(r.color, TC_VoronoiColor(cell, seed), weight) - attributeCorrection;
+            r.position = lerp(r.position, q, weight) - attributeCorrection;
+        }
+    }
+    r.position += float2(baseCell);
+    return r;
+}
+
+// Cache nine displacement vectors so the second edge pass does not rehash them.
+float TC_VoronoiEdge(float2 p, uint seed, float randomness)
+{
+    int2 baseCell = int2(floor(p));
+    float2 local = frac(p);
+    float2 vectors[9];
+    float nearestSquared = 3.0e38;
+    float2 nearest = float2(0,0);
+    [unroll]
+    for (int i = 0; i < 9; ++i)
+    {
+        int2 offset = int2(i % 3 - 1, i / 3 - 1);
+        float2 delta = float2(offset) + TC_VoronoiOffset(baseCell + offset, seed, randomness) - local;
+        vectors[i] = delta;
+        float squared = dot(delta,delta);
+        if (squared < nearestSquared) { nearestSquared = squared; nearest = delta; }
+    }
+    float edge = 3.0e38;
+    [unroll]
+    for (int i = 0; i < 9; ++i)
+    {
+        float2 separation = vectors[i] - nearest;
+        float squared = dot(separation,separation);
+        if (squared > 0.0001)
+            edge = min(edge, dot(0.5 * (nearest + vectors[i]), separation * rsqrt(squared)));
+    }
+    return max(edge, 0.0);
+}
+float TC_VoronoiRadius(float2 p, uint seed, float randomness)
+{
+    int2 baseCell = int2(floor(p));
+    float2 local = frac(p), nearest = float2(0,0);
+    int2 winner = baseCell;
+    float best = 3.0e38;
+    [unroll]
+    for (int i = 0; i < 9; ++i)
+    {
+        int2 offset = int2(i % 3 - 1, i / 3 - 1);
+        float2 q = float2(offset) + TC_VoronoiOffset(baseCell + offset, seed, randomness);
+        float d = dot(q-local,q-local);
+        if (d < best) { best = d; winner = baseCell + offset; nearest = q - float2(offset); }
+    }
+    best = 3.0e38;
+    [unroll]
+    for (int i = 0; i < 9; ++i)
+    {
+        if (i != 4)
+        {
+            int2 offset = int2(i % 3 - 1, i / 3 - 1);
+            float2 delta = float2(offset) + TC_VoronoiOffset(winner + offset, seed, randomness) - nearest;
+            best = min(best, dot(delta,delta));
+        }
+    }
+    return 0.5 * sqrt(best);
+}
+TC_VoronoiResult TC_Voronoi2DPoint(float2 p, uint seed, float randomness,
+    float smoothness, uint feature, uint metric, float exponent)
+{
+    randomness = saturate(randomness);
+    float k = 0.5 * saturate(smoothness);
+    TC_VoronoiResult r = TC_VoronoiEmpty();
+    if (feature == TC_VoronoiFeature_DistanceToEdge)
+        r.distance = TC_VoronoiEdge(p, seed, randomness);
+    else if (feature == TC_VoronoiFeature_NSphereRadius)
+        r.radius = TC_VoronoiRadius(p, seed, randomness);
+    else if (feature == TC_VoronoiFeature_SmoothF1 && k > 0.0)
+        r = TC_VoronoiSmooth(p, seed, randomness, k, metric, exponent);
+    else
+        r = TC_VoronoiNearest(p, seed, randomness, feature, metric, exponent);
+    return r;
+}
+
+
+// First-order boundary reconstruction, not an exact multi-cell area integral.
+float2 TC_VoronoiMetricGradient(float2 delta, uint metric, float exponent)
+{
+    float2 a = abs(delta);
+    if (metric == TC_VoronoiMetric_Manhattan) return sign(delta);
+    if (metric == TC_VoronoiMetric_Chebychev)
+        return a.x >= a.y ? float2(sign(delta.x),0) : float2(0,sign(delta.y));
+    if (metric == TC_VoronoiMetric_Minkowski)
+    {
+        if (exponent <= 0.0) return float2(0,0);
+        float d = max(TC_VoronoiDistance(delta,metric,exponent),1e-6);
+        return sign(delta) * min(pow(max(a / d, float2(1e-5,1e-5)), exponent-1.0),float2(1e4,1e4));
+    }
+    return delta / max(length(delta),1e-6);
+}
+TC_VoronoiResult TC_VoronoiBoundaryAA(float2 p, float2 dx, float2 dy,
+    uint seed, float randomness, uint feature, uint metric, float exponent)
+{
+    int2 baseCell = int2(floor(p));
+    float2 local = frac(p);
+    float distances[9];
+    float2 sites[9];
+    float first = 3e38, second = 3e38;
+    int firstIndex=0, secondIndex=0;
+    [unroll]
+    for (int i=0; i<9; ++i)
+    {
+        int2 offset=int2(i%3-1,i/3-1);
+        sites[i]=float2(offset)+TC_VoronoiOffset(baseCell+offset,seed,randomness);
+        float d=TC_VoronoiDistance(local-sites[i],metric,exponent);
+        distances[i]=d;
+        if(d<first) { second=first; secondIndex=firstIndex; first=d; firstIndex=i; }
+        else if(d<second) { second=d; secondIndex=i; }
+    }
+    int selected=feature==TC_VoronoiFeature_F2 ? secondIndex : firstIndex;
+    float centerDistance=distances[selected];
+    float2 gradient=TC_VoronoiMetricGradient(local-sites[selected],metric,exponent);
+    TC_VoronoiResult r=TC_VoronoiEmpty();
+    r.position=float2(baseCell)+sites[selected];
+    float total=0.0;
+    [unroll]
+    for (int i=0; i<9; ++i)
+    {
+        float2 change=TC_VoronoiMetricGradient(local-sites[i],metric,exponent)-gradient;
+        float halfWidth=0.5*(abs(dot(change,dx))+abs(dot(change,dy)));
+        float gap=abs(distances[i]-centerDistance);
+        float weight=i==selected ? 1.0 :
+            (halfWidth>1e-6 ? smoothstep(0.0,1.0,1.0-gap/halfWidth) : 0.0);
+        if(weight>0.0)
+        {
+            int2 offset=int2(i%3-1,i/3-1);
+            r.distance+=weight*distances[i];
+            r.color+=weight*TC_VoronoiColor(baseCell+offset,seed);
+            total+=weight;
+        }
+    }
+    r.distance/=total;
+    r.color/=total;
+    return r;
+}
+
+// Blender 2D socket order, then the three node settings. No seed, no per-node
+// supersampling. Use a coordinate offset to change the fixed spatial pattern.
+TC_VoronoiResult TC_Voronoi2D(float2 vectorValue, float scale, float detail,
+    float roughness, float lacunarity, float smoothness, float exponent,
+    float randomness, uint feature, uint metric, bool normalize, bool antialias)
+{
+    float2 p = vectorValue * scale;
+    float2 pixelX = ddx(p);
+    float2 pixelY = ddy(p);
+    randomness = saturate(randomness);
+    detail = clamp(detail, 0.0, 15.0);
+    roughness = saturate(roughness);
+    lacunarity = max(lacunarity, 0.0);
+    exponent = max(exponent, 0.0);
+    const uint seed = 1337u;
+    TC_VoronoiResult r = TC_VoronoiEmpty();
+    if (feature == TC_VoronoiFeature_NSphereRadius)
+    {
+        r.radius = TC_VoronoiRadius(p, seed, randomness);
+        return r;
+    }
+    bool edge = feature == TC_VoronoiFeature_DistanceToEdge;
+    float extent = 0.5 + 0.5 * randomness;
+    float maximum = edge ? extent : TC_VoronoiDistance(float2(extent,extent), metric, exponent);
+    if (feature == TC_VoronoiFeature_F2) maximum *= 2.0;
+    float amplitude = 1.0, frequency = 1.0, normalization = 0.0;
+    uint layers = (detail == 0.0 || roughness == 0.0) ? 1u : uint(ceil(detail)) + 1u;
+    [loop]
+    for (uint layer = 0u; layer < layers; ++layer)
+    {
+        float fraction = layer == 0u ? 1.0 : min(1.0, detail - float(layer) + 1.0);
+        float weight = amplitude * fraction;
+        TC_VoronoiResult octave;
+        if (antialias && (feature == TC_VoronoiFeature_F1 || feature == TC_VoronoiFeature_F2))
+            octave = TC_VoronoiBoundaryAA(p * frequency, pixelX * frequency, pixelY * frequency,
+                seed, randomness, feature, metric, exponent);
+        else
+            octave = TC_Voronoi2DPoint(p * frequency, seed, randomness, smoothness, feature, metric, exponent);
+        if (edge)
+        {
+            float inverseFrequency = TC_VoronoiSafeInverse(frequency);
+            if (layer == 0u) { r.distance = octave.distance; normalization = maximum; }
+            else
+            {
+                r.distance = lerp(r.distance, min(r.distance, octave.distance * inverseFrequency), weight);
+                normalization = lerp(normalization, maximum * inverseFrequency, weight);
+            }
+        }
+        else
+        {
+            r.distance += octave.distance * weight;
+            r.color += octave.color * weight;
+            r.position = lerp(r.position, octave.position * TC_VoronoiSafeInverse(frequency), weight);
+            normalization += weight;
+        }
+        amplitude *= roughness;
+        frequency *= lacunarity;
+    }
+    if (normalize)
+    {
+        r.distance *= TC_VoronoiSafeInverse(edge ? normalization : normalization * maximum);
+        if (!edge) r.color *= TC_VoronoiSafeInverse(normalization);
+    }
+    r.position *= TC_VoronoiSafeInverse(scale);
+    return r;
+}
+
+// Retain the previous signature and appearance for existing generated graphs.
+TC_VoronoiResult TC_Voronoi2D(float2 vectorValue, float scale, float detail,
+    float roughness, float lacunarity, float smoothness, float exponent,
+    float randomness, uint feature, uint metric, bool normalize)
+{
+    return TC_Voronoi2D(vectorValue,scale,detail,roughness,lacunarity,smoothness,
+        exponent,randomness,feature,metric,normalize,false);
+}
+
+// Keep already-generated material shaders loadable during node migration.
+// Old filtering arguments are ignored; this path also performs one evaluation.
+TC_VoronoiResult TC_Voronoi2D(float2 position, float scale, uint seed,
+    float randomness, float smoothness, uint feature, uint metric, float exponent, uint filtering)
+{
+    TC_VoronoiResult r = TC_Voronoi2DPoint(position * scale, seed, randomness, smoothness, feature, metric, exponent);
+    r.position *= TC_VoronoiSafeInverse(scale);
+    if (feature == TC_VoronoiFeature_NSphereRadius) r.distance = r.radius;
+    return r;
+}

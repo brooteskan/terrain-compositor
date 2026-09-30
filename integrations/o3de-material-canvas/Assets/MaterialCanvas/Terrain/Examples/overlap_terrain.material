@@ -1,0 +1,10 @@
+{
+    "materialType": "overlap_terrain.materialtype",
+    "materialTypeVersion": 1,
+    "propertyValues": {
+        "overlap.layer1_color": "grass_basecolor.png",
+        "overlap.layer2_color": "rock_basecolor.png",
+        "overlap.layer3_color": "grass_basecolor.png",
+        "overlap.layer4_color": "rock_basecolor.png"
+    }
+}

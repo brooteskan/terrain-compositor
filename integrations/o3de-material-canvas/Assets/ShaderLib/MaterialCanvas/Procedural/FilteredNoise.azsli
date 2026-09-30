@@ -1,0 +1,259 @@
+#pragma once
+
+uint TC_FilteredNoiseHash(uint value)
+{
+    value = (value ^ (value >> 16)) * 0x7feb352du;
+    value = (value ^ (value >> 15)) * 0x846ca68bu;
+    return value ^ (value >> 16);
+}
+
+float TC_FilteredNoiseCorner(int2 cell, uint seed)
+{
+    uint key = asuint(cell.x) * 0x8da6b343u ^ asuint(cell.y) * 0xd8163841u ^ seed;
+    return float(TC_FilteredNoiseHash(key) & 0x00ffffffu) / 16777215.0;
+}
+
+// Two groups of three coefficients per axis. Enclosed coefficients cancel
+// analytically, bounding cost even for large footprints. This integrable basis
+// has different corner correlations from ordinary TC_LatticeNoise2D.
+struct TC_FilteredNoiseAxis
+{
+    int start0;
+    int start1;
+    float3 weights0;
+    float3 weights1;
+};
+
+float3 TC_FilteredNoisePointWeights(float s)
+{
+    return float3(s - 1.0, 1.0 - 2.0 * s, s);
+}
+
+// Exact mean of quintic smoothstep over a single cell interval. The centered
+// expression avoids cancellation between nearly equal antiderivatives.
+float TC_FilteredNoiseMeanSmooth(float midpoint, float width)
+{
+    float m = midpoint;
+    float w2 = width * width;
+    return m * m * m * (m * (m * 6.0 - 15.0) + 10.0)
+        + 2.5 * m * (2.0 * m * m - 3.0 * m + 1.0) * w2
+        + (0.375 * m - 0.1875) * w2 * w2;
+}
+
+// Compact primitive; its derivative is PointWeights(smoothstep(t)).
+float3 TC_FilteredNoisePrimitive(float t)
+{
+    float integral = t * t * t * t * (2.5 + t * (t - 3.0));
+    return float3(0.5 - t + integral, 0.5 + t - 2.0 * integral, integral);
+}
+
+TC_FilteredNoiseAxis TC_FilteredNoiseAxisWeights(float position, float width)
+{
+    TC_FilteredNoiseAxis result;
+    int cell = int(floor(position));
+    float local = frac(position);
+    result.start1 = cell;
+    result.weights1 = float3(0.0, 0.0, 0.0);
+    if (width <= 0.0)
+    {
+        result.start0 = cell - 1;
+        result.weights0 = TC_FilteredNoisePointWeights(TC_FilteredNoiseMeanSmooth(local, 0.0));
+        return result;
+    }
+
+    // Cell-relative offsets retain precision for small footprints.
+    float lower = local - 0.5 * width;
+    float upper = local + 0.5 * width;
+    int first = int(floor(lower));
+    float firstLocal = frac(lower);
+    result.start0 = cell + first - 1;
+    if (width <= 1.0)
+    {
+        // At most two intervals; direct integration remains stable even for a
+        // tiny footprint straddling a cell boundary.
+        float firstWidth = min(width, 1.0 - firstLocal);
+        float secondWidth = width - firstWidth;
+        result.weights0 = TC_FilteredNoisePointWeights(
+            TC_FilteredNoiseMeanSmooth(firstLocal + 0.5 * firstWidth, firstWidth)) * (firstWidth / width);
+        result.start1 = result.start0 + 1;
+        result.weights1 = TC_FilteredNoisePointWeights(
+            TC_FilteredNoiseMeanSmooth(0.5 * secondWidth, secondWidth)) * (secondWidth / width);
+    }
+    else
+    {
+        result.start1 = cell + int(floor(upper)) - 1;
+        result.weights0 = -TC_FilteredNoisePrimitive(firstLocal) / width;
+        result.weights1 = TC_FilteredNoisePrimitive(frac(upper)) / width;
+    }
+    return result;
+}
+
+float TC_FilteredNoiseWeightedCorners(int2 start, float3 wx, float3 wy, uint seed)
+{
+    float value = 0.0;
+    [unroll]
+    for (int y = 0; y < 3; ++y)
+    {
+        [unroll]
+        for (int x = 0; x < 3; ++x)
+            value += wx[x] * wy[y] * TC_FilteredNoiseCorner(start + int2(x, y), seed);
+    }
+    return value;
+}
+
+// Exact box average of a fixed quintic-interpolated lattice field. Its corner
+// values are 0.5 + 0.25 * (h00 - h10 - h01 + h11), bounded by [0,1].
+// The mixed difference makes the integral telescope. No tiling, camera seed,
+// distance threshold, sample budget, or interpolation toward gray is used.
+float TC_FilteredNoise2DBox(float2 position, uint seed, float2 width)
+{
+    TC_FilteredNoiseAxis x = TC_FilteredNoiseAxisWeights(position.x, max(width.x, 0.0));
+    TC_FilteredNoiseAxis y = TC_FilteredNoiseAxisWeights(position.y, max(width.y, 0.0));
+    float value = TC_FilteredNoiseWeightedCorners(int2(x.start0, y.start0), x.weights0, y.weights0, seed);
+    if (any(x.weights1 != 0.0))
+        value += TC_FilteredNoiseWeightedCorners(int2(x.start1, y.start0), x.weights1, y.weights0, seed);
+    if (any(y.weights1 != 0.0))
+    {
+        value += TC_FilteredNoiseWeightedCorners(int2(x.start0, y.start1), x.weights0, y.weights1, seed);
+        if (any(x.weights1 != 0.0))
+            value += TC_FilteredNoiseWeightedCorners(int2(x.start1, y.start1), x.weights1, y.weights1, seed);
+    }
+    return 0.5 + 0.25 * value;
+}
+
+// Optional cubic B-spline reconstruction of the same corner field. Unlike
+// quintic interpolation, it blends four neighboring corners along each axis
+// rather than flattening toward each corner. Positive spline weights preserve
+// the [0,1] bound. The mixed-difference integral still telescopes exactly.
+struct TC_FilteredNoiseSplineWeights
+{
+    float4 head;
+    float tail;
+};
+
+struct TC_FilteredNoiseSplineAxis
+{
+    int start0;
+    int start1;
+    TC_FilteredNoiseSplineWeights weights0;
+    TC_FilteredNoiseSplineWeights weights1;
+};
+
+TC_FilteredNoiseSplineWeights TC_FilteredNoiseSplineMean(float midpoint, float width, float scale)
+{
+    float t = midpoint;
+    float r = 1.0 - t;
+    float variance = width * width / 24.0;
+    // Exact cell-interval means of the four cubic B-spline basis polynomials.
+    float4 b = float4(r*r*r / 6.0 + r * variance,
+        2.0/3.0 - t*t + 0.5*t*t*t + (3.0*t - 2.0) * variance,
+        1.0/6.0 + 0.5*t + 0.5*t*t - 0.5*t*t*t + (1.0 - 3.0*t) * variance,
+        t*t*t / 6.0 + t * variance);
+    TC_FilteredNoiseSplineWeights result;
+    result.head = float4(-b.x, b.x - b.y, b.y - b.z, b.z - b.w) * scale;
+    result.tail = b.w * scale;
+    return result;
+}
+
+TC_FilteredNoiseSplineWeights TC_FilteredNoiseSplinePrimitive(float t, float scale)
+{
+    float t2 = t*t;
+    float t3 = t2*t;
+    float t4 = t2*t2;
+    float4 integral = float4(t/6.0 - t2/4.0 + t3/6.0 - t4/24.0,
+        2.0*t/3.0 - t3/3.0 + t4/8.0,
+        t/6.0 + t2/4.0 + t3/6.0 - t4/8.0, t4/24.0);
+    TC_FilteredNoiseSplineWeights result;
+    result.head = (float4(1.0, 11.0, 11.0, 1.0) / 24.0
+        + float4(-integral.x, integral.x - integral.y,
+                 integral.y - integral.z, integral.z - integral.w)) * scale;
+    result.tail = integral.w * scale;
+    return result;
+}
+
+TC_FilteredNoiseSplineAxis TC_FilteredNoiseSplineAxisWeights(float position, float width)
+{
+    TC_FilteredNoiseSplineAxis result;
+    int cell = int(floor(position));
+    float local = frac(position);
+    result.start1 = cell;
+    result.weights1.head = float4(0.0, 0.0, 0.0, 0.0);
+    result.weights1.tail = 0.0;
+    if (width <= 0.0)
+    {
+        result.start0 = cell - 2;
+        result.weights0 = TC_FilteredNoiseSplineMean(local, 0.0, 1.0);
+        return result;
+    }
+    float lower = local - 0.5 * width;
+    float upper = local + 0.5 * width;
+    float firstLocal = frac(lower);
+    result.start0 = cell + int(floor(lower)) - 2;
+    if (width <= 1.0)
+    {
+        float firstWidth = min(width, 1.0 - firstLocal);
+        float secondWidth = width - firstWidth;
+        result.weights0 = TC_FilteredNoiseSplineMean(firstLocal + 0.5 * firstWidth,
+            firstWidth, firstWidth / width);
+        result.start1 = result.start0 + 1;
+        result.weights1 = TC_FilteredNoiseSplineMean(0.5 * secondWidth,
+            secondWidth, secondWidth / width);
+    }
+    else
+    {
+        result.start1 = cell + int(floor(upper)) - 2;
+        result.weights0 = TC_FilteredNoiseSplinePrimitive(firstLocal, -1.0 / width);
+        result.weights1 = TC_FilteredNoiseSplinePrimitive(frac(upper), 1.0 / width);
+    }
+    return result;
+}
+
+float TC_FilteredNoiseSplineCorners(int2 start,
+    TC_FilteredNoiseSplineWeights wx, TC_FilteredNoiseSplineWeights wy, uint seed)
+{
+    float value = wx.tail * wy.tail * TC_FilteredNoiseCorner(start + int2(4,4), seed);
+    [unroll]
+    for (int y = 0; y < 4; ++y)
+    {
+        [unroll]
+        for (int x = 0; x < 4; ++x)
+            value += wx.head[x] * wy.head[y] * TC_FilteredNoiseCorner(start + int2(x,y), seed);
+        value += wx.tail * wy.head[y] * TC_FilteredNoiseCorner(start + int2(4,y), seed);
+        value += wx.head[y] * wy.tail * TC_FilteredNoiseCorner(start + int2(y,4), seed);
+    }
+    return value;
+}
+
+float TC_FilteredNoise2DSmoothBox(float2 position, uint seed, float2 width)
+{
+    TC_FilteredNoiseSplineAxis x = TC_FilteredNoiseSplineAxisWeights(position.x, max(width.x, 0.0));
+    TC_FilteredNoiseSplineAxis y = TC_FilteredNoiseSplineAxisWeights(position.y, max(width.y, 0.0));
+    bool secondX = any(x.weights1.head != 0.0) || x.weights1.tail != 0.0;
+    bool secondY = any(y.weights1.head != 0.0) || y.weights1.tail != 0.0;
+    float value = TC_FilteredNoiseSplineCorners(int2(x.start0, y.start0), x.weights0, y.weights0, seed);
+    if (secondX)
+        value += TC_FilteredNoiseSplineCorners(int2(x.start1, y.start0), x.weights1, y.weights0, seed);
+    if (secondY)
+    {
+        value += TC_FilteredNoiseSplineCorners(int2(x.start0, y.start1), x.weights0, y.weights1, seed);
+        if (secondX)
+            value += TC_FilteredNoiseSplineCorners(int2(x.start1, y.start1), x.weights1, y.weights1, seed);
+    }
+    return 0.5 + 0.25 * value;
+}
+
+float TC_FilteredNoise2D(float2 position, uint seed, bool smoothInterpolation)
+{
+    // Bounding rectangle of the locally affine pixel footprint. Preserve both
+    // axis widths; compute derivatives uniformly in the fragment shader.
+    float2 width = abs(ddx(position)) + abs(ddy(position));
+    if (smoothInterpolation)
+        return TC_FilteredNoise2DSmoothBox(position, seed, width);
+    return TC_FilteredNoise2DBox(position, seed, width);
+}
+
+// Existing generated graphs keep their approved appearance until recompiled.
+float TC_FilteredNoise2D(float2 position, uint seed)
+{
+    return TC_FilteredNoise2D(position, seed, false);
+}

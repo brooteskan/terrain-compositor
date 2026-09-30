@@ -85,6 +85,22 @@
                     "$type": "float",
                     "Value": 1
                 }
+            },
+            {
+                "name": "inDetailSize",
+                "displayName": "Detail Size (meters)",
+                "description": "Approximate wavelength of the height detail in world meters. Set to your actual bump feature size. Too large leaves shimmer; too small suppresses broader slopes.",
+                "supportedDataTypeRegex": "(color|bool|int|uint|float)([1-4])?",
+                "defaultDataType": "float",
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 1.0
+                },
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                }
             }
         ],
         "outputSlots": [
@@ -96,11 +112,30 @@
                 "defaultDataType": "float3",
                 "settings": {
                     "instructions": [
-                        "SLOTTYPE SLOTNAME = TC_NormalFromHeight(inPositionWS, inBaseNormalWS, inHeight, inStrength);"
+                        "SLOTTYPE SLOTNAME = TC_NormalFromHeight(inPositionWS, inBaseNormalWS, inHeight, inStrength, (bool)inFilterBump, (float)inDetailSize);"
                     ]
                 }
             }
         ],
-        "propertySlots": []
+        "propertySlots": [
+            {
+                "name": "inFilterBump",
+                "displayName": "Filter Bump",
+                "description": "Attenuate unresolved bump detail using Detail Size and the surface pixel footprint. Approximation; does not resample height.",
+                "supportedDataTypeRegex": "bool",
+                "defaultDataType": "bool",
+                "defaultValue": {
+                    "$type": "bool",
+                    "Value": false
+                },
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "visibleOnNode": true,
+                "editableOnNode": true
+            }
+        ]
     }
 }

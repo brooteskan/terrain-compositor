@@ -1,0 +1,203 @@
+#pragma once
+#ifndef TC_OVERLAP_WORDS
+#include <TerrainCompositor/TerrainMaterialSrg.azsli>
+#define TC_OVERLAP_WORDS TerrainMaterialSrg::m_surfaceWords
+#endif
+#include <TerrainCompositor/TerrainSurface.azsli>
+#include <TerrainCompositor/TerrainOverlapWeights.azsli>
+
+struct TerrainOverlapSource
+{
+    float3 worldPosition;
+    float2 localPosition;
+    float3 normal;
+    float3 tangent;
+    float3 bitangent;
+    float4 localFromWorld;
+    float coverage;
+    uint materialSlot;
+};
+struct TerrainOverlapSet
+{
+    TerrainOverlapSource sources[4];
+    float4 weights;
+    uint count;
+};
+
+uint TC_OW(uint p) { return TC_OVERLAP_WORDS[p]; }
+float TC_OF(uint p) { return asfloat(TC_OW(p)); }
+
+TerrainOverlapSource TC_OverlapSource(uint p, float2 worldXY, float width)
+{
+    TerrainOverlapSource result = (TerrainOverlapSource)0;
+    uint kind = TC_OW(p);
+    result.materialSlot = TC_OW(p + 1);
+    float c = TC_OF(p + 6), s = TC_OF(p + 7), inverseScale = TC_OF(p + 8);
+    float2 delta = worldXY - float2(TC_OF(p + 4), TC_OF(p + 5));
+    precise float2 local = float2(c * delta.x + s * delta.y, -s * delta.x + c * delta.y) * inverseScale;
+    result.localPosition = local;
+    result.localFromWorld = float4(c, s, -s, c) * inverseScale;
+    float2 lo = float2(TC_OF(p + 9), TC_OF(p + 10)), hi = float2(TC_OF(p + 11), TC_OF(p + 12));
+    float2 edge = min(local - lo, hi - local) - TC_OF(p + 18);
+    float height = TC_OF(p + 13);
+    float2 slope = float2(0, 0);
+    result.coverage = TC_OF(p + 15);
+    result.normal = float3(0, 0, 1);
+    result.tangent = float3(c, s, 0); result.bitangent = float3(-s, c, 0);
+    result.worldPosition = float3(worldXY, height);
+    if (any(edge < 0) || result.materialSlot > 3) { result.coverage = 0; return result; }
+    if (kind != 0)
+    {
+        // World metres: scaling an instance never silently scales the authored transition width.
+        result.coverage *= TC_OverlapRamp(min(edge.x, edge.y) / inverseScale, width);
+        float feather = TC_OF(p + 16);
+        if (feather > 0)
+            result.coverage *= pow(TC_OverlapRamp(edge.x, feather) * TC_OverlapRamp(edge.y, feather), TC_OF(p + 17));
+        uint w = TC_OW(p + 2), h = TC_OW(p + 3), data = TC_OW(p + 19);
+        float2 gridScale = kind == 2 ? float2(TC_OF(p + 22), TC_OF(p + 23)) : float2(w - 1, h - 1) / (hi - lo);
+        precise float2 grid = (local - lo) * gridScale;
+        if (kind == 1) grid.y = float(h - 1) - grid.y;
+        uint2 cell = min((uint2)max(grid, 0.0), uint2(max(w, 2u) - 2, max(h, 2u) - 2));
+        float2 f = saturate(grid - cell);
+        if (kind == 2)
+        {
+            uint ci = cell.y * (w - 1) + cell.x;
+            if ((TC_OW(TC_OW(p + 20) + ci / 32) & (1u << (ci % 32))) != 0)
+            { result.coverage = 0; return result; }
+        }
+        uint2 next = min(cell + 1, uint2(w - 1, h - 1));
+        float a = TC_OF(data + cell.y * w + cell.x), b = TC_OF(data + cell.y * w + next.x);
+        float d = TC_OF(data + next.y * w + cell.x), e = TC_OF(data + next.y * w + next.x);
+        float sampled;
+        if (kind == 2)
+        {
+            uint ci = cell.y * (w - 1) + cell.x;
+            bool opposite = (TC_OW(TC_OW(p + 21) + ci / 32) & (1u << (ci % 32))) != 0;
+            if (opposite)
+            {
+                slope = f.x + f.y <= 1 ? float2(b - a, d - a) : float2(e - d, e - b);
+                sampled = f.x + f.y <= 1 ? a + dot(f, slope) : e - dot(1.0 - f, slope);
+            }
+            else
+            {
+                slope = f.y <= f.x ? float2(b - a, e - b) : float2(e - d, d - a);
+                sampled = a + dot(f, slope);
+            }
+        }
+        else
+        {
+            sampled = lerp(lerp(a, b, f.x), lerp(d, e, f.x), f.y);
+            slope = float2(lerp(b - a, e - d, f.y), -lerp(d - a, e - b, f.x));
+        }
+        height += sampled * TC_OF(p + 14);
+        slope *= gridScale * TC_OF(p + 14) * inverseScale;
+    }
+    result.worldPosition.z = height;
+    result.normal = normalize(float3(-c * slope.x + s * slope.y, -s * slope.x - c * slope.y, 1));
+    result.tangent = normalize(float3(c, s, slope.x));
+    result.bitangent = normalize(cross(result.normal, result.tangent));
+    return result;
+}
+
+TerrainOverlapSet TC_ResolveOverlap(float3 worldPosition)
+{
+    TerrainOverlapSet result = (TerrainOverlapSet)0;
+    uint length, stride;
+    TC_OVERLAP_WORDS.GetDimensions(length, stride);
+    if (length < 2 || TC_OW(length - 1) != 0x54434f31) return result;
+    uint header = TC_OW(length - 2);
+    if (header >= length - 2) return result;
+    uint regions = TC_OW(header);
+    if (regions > 64 || header + 1 + regions * 8 > length - 2) return result;
+    for (uint r = 0; r < regions; ++r)
+    {
+        uint region = header + 1 + r * 8;
+        if (any(worldPosition.xy < float2(TC_OF(region), TC_OF(region + 1))) ||
+            any(worldPosition.xy > float2(TC_OF(region + 2), TC_OF(region + 3)))) continue;
+        uint sources = TC_OW(region + 4), count = TC_OW(region + 5);
+        float width = TC_OF(region + 6);
+        if (count > 4 || sources + count * 24 > length - 2 || !(width > 0)) return result;
+        result.count = count;
+        float4 heights = float4(0, 0, 0, 0), coverage = float4(0, 0, 0, 0);
+        for (uint i = 0; i < count; ++i)
+        {
+            result.sources[i] = TC_OverlapSource(sources + i * 24, worldPosition.xy, width);
+            heights[i] = result.sources[i].worldPosition.z;
+            coverage[i] = result.sources[i].coverage;
+        }
+        result.weights = TC_OverlapWeights(heights, coverage, count, width, TC_OW(region + 7) != 0);
+        return result;
+    }
+    return result;
+}
+
+// Material channels are blended before one lighting evaluation. A cancellation uses the actual
+// geometric normal; no NaN is allowed into lighting, including from unconnected graph sockets.
+TerrainSurfaceChannels TC_BlendOverlap(TerrainOverlapSet set, TerrainSurfaceChannels materials[4],
+    TerrainSurfaceChannels fallback, TerrainSurfaceContext context)
+{
+    if (dot(set.weights, float4(1, 1, 1, 1)) <= 0) return fallback;
+    TerrainSurfaceChannels result = (TerrainSurfaceChannels)0;
+    float uncovered = 1;
+    for (uint i = 0; i < set.count; ++i)
+    {
+        TerrainSurfaceContext sourceContext;
+        sourceContext.worldPosition = set.sources[i].worldPosition;
+        sourceContext.geometricNormal = set.sources[i].normal;
+        TerrainSurfaceChannels value = TC_ValidateSurface(materials[set.sources[i].materialSlot], sourceContext);
+        float weight = set.weights[i];
+        uncovered *= 1.0 - saturate(set.sources[i].coverage);
+        result.baseColor += weight * value.baseColor; result.normal += weight * value.normal;
+        result.roughness += weight * value.roughness; result.metalness += weight * value.metalness;
+        result.specularFactor += weight * value.specularFactor; result.ambientOcclusion += weight * value.ambientOcclusion;
+    }
+    // Keep entry/exit continuous even when no explicit ground source was authored.
+    // The existing graph is the residual appearance, never an extra geometric surface.
+    fallback = TC_ValidateSurface(fallback, context);
+    result.baseColor = lerp(result.baseColor, fallback.baseColor, uncovered);
+    result.normal = lerp(result.normal, fallback.normal, uncovered);
+    result.roughness = lerp(result.roughness, fallback.roughness, uncovered);
+    result.metalness = lerp(result.metalness, fallback.metalness, uncovered);
+    result.specularFactor = lerp(result.specularFactor, fallback.specularFactor, uncovered);
+    result.ambientOcclusion = lerp(result.ambientOcclusion, fallback.ambientOcclusion, uncovered);
+    return TC_ValidateSurface(result, context);
+}
+
+TerrainOverlapSource TC_OverlapMaterialSource(TerrainOverlapSet set, uint slot)
+{
+    TerrainOverlapSource result = (TerrainOverlapSource)0;
+    result.normal = float3(0, 0, 1); result.tangent = float3(1, 0, 0); result.bitangent = float3(0, 1, 0);
+    for (uint i = 0; i < set.count; ++i)
+        if (set.sources[i].materialSlot == slot) return set.sources[i];
+    return result;
+}
+
+uint TC_OverlapSlotIndex(float slot)
+{
+    return isfinite(slot) && slot >= 1 && slot <= 4 && slot == round(slot) ? (uint)slot - 1 : 0xffffffff;
+}
+
+float3 TC_OverlapNormal(TerrainOverlapSource source, float3 encoded, float strength, bool assigned)
+{
+    if (!assigned) return source.normal;
+    float2 xy = encoded.xy * 2.0 - 1.0;
+    // Reconstruct positive tangent Z for both BC5/RG and RGB normal textures.
+    float3 tangentNormal = float3(xy * max(strength, 0.0), sqrt(saturate(1.0 - dot(xy, xy))));
+    return TC_SafeNormal(tangentNormal.x * source.tangent + tangentNormal.y * source.bitangent +
+        tangentNormal.z * source.normal, source.normal);
+}
+
+float4 TC_SampleOverlapTexture(TerrainOverlapSource source, float3 worldPosition, float scale, int textureIndex, uint samplerIndex)
+{
+    float reciprocalScale = 1.0 / max(abs(scale), 1e-6);
+    float2 uv = source.localPosition * reciprocalScale;
+#ifdef CS_SAMPLERS
+    return textureIndex < 0 || source.coverage <= 0 ? float4(1, 1, 1, 1) : GetMaterialTexture(textureIndex).SampleLevel(GetMaterialTextureSampler(samplerIndex), uv, 0);
+#else
+    // Differentiate the original fragment coordinates, never discontinuous selected UVs.
+    float2 dx = ddx(worldPosition.xy), dy = ddy(worldPosition.xy);
+    float2 uvDx = float2(dot(source.localFromWorld.xy, dx), dot(source.localFromWorld.zw, dx)) * reciprocalScale;
+    float2 uvDy = float2(dot(source.localFromWorld.xy, dy), dot(source.localFromWorld.zw, dy)) * reciprocalScale;
+    return textureIndex < 0 || source.coverage <= 0 ? float4(1, 1, 1, 1) : GetMaterialTexture(textureIndex).SampleGrad(GetMaterialTextureSampler(samplerIndex), uv, uvDx, uvDy);
+#endif
+}

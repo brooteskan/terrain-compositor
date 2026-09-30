@@ -1,4 +1,5 @@
 set(FILES
+    TerrainOverlapTests.cpp
     ProceduralHillReference.h
     InternalHelperTests.cpp
     ImageRegistrationStateTests.cpp

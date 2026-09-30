@@ -1,0 +1,24 @@
+// This code was generated from the MaterialShaderParameterLayout. Do not modify.
+#pragma once
+
+struct MaterialParameters {
+    uint   m_materialType;
+    uint   m_materialInstance;
+    int    node3_terrain_overlap_texture_inValue;
+    uint   node3_terrain_overlap_texture_inSampler;
+    int    node4_terrain_overlap_texture_inValue;
+    uint   node4_terrain_overlap_texture_inSampler;
+    int    node5_terrain_overlap_texture_inValue;
+    uint   node5_terrain_overlap_texture_inSampler;
+    int    node6_terrain_overlap_texture_inValue;
+    uint   node6_terrain_overlap_texture_inSampler;
+    int    node7_terrain_overlap_texture_inValue;
+    uint   node7_terrain_overlap_texture_inSampler;
+    int    node8_terrain_overlap_texture_inValue;
+    uint   node8_terrain_overlap_texture_inSampler;
+    int    node9_terrain_overlap_texture_inValue;
+    uint   node9_terrain_overlap_texture_inSampler;
+    int    node10_terrain_overlap_texture_inValue;
+    uint   node10_terrain_overlap_texture_inSampler;
+    float2 m_finalPadding;
+};

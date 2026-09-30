@@ -168,6 +168,7 @@ namespace TerrainCompositor
     {
         TerrainQualityConfig::Reflect(context);
         SurfacePaletteEntry::Reflect(context);
+        TerrainOverlapConfig::Reflect(context);
         SurfaceBaseWeight::Reflect(context);
         if (auto* serializeContext = azrtti_cast<AZ::SerializeContext*>(context))
         {
@@ -176,12 +177,13 @@ namespace TerrainCompositor
                 return;
             }
             serializeContext->Class<TerrainCompositionConfig, AZ::ComponentConfig>()
-                ->Version(3)
+                ->Version(4)
                 ->Field("ProceduralSourceEntityId", &TerrainCompositionConfig::m_proceduralSourceEntityId)
                 ->Field("TargetTerrainRegionEntityId", &TerrainCompositionConfig::m_targetTerrainRegionEntityId)
                 ->Field("TerrainQuality", &TerrainCompositionConfig::m_terrainQuality)
                 ->Field("SurfacePalette", &TerrainCompositionConfig::m_surfacePalette)
-                ->Field("BaseSurfaceWeights", &TerrainCompositionConfig::m_baseSurfaceWeights);
+                ->Field("BaseSurfaceWeights", &TerrainCompositionConfig::m_baseSurfaceWeights)
+                ->Field("MaterialOverlap", &TerrainCompositionConfig::m_materialOverlap);
 
             if (AZ::EditContext* editContext = serializeContext->GetEditContext())
             {
@@ -220,7 +222,9 @@ namespace TerrainCompositor
                         &TerrainCompositionConfig::m_baseSurfaceWeights,
                         "Base Surface Weights",
                         "Explicit weighted base. O3DE's Default Material is "
-                        "only used when no positive mapped surface remains.");
+                        "only used when no positive mapped surface remains.")
+                    ->DataElement(AZ::Edit::UIHandlers::Default, &TerrainCompositionConfig::m_materialOverlap,
+                        "Material Overlap", "Opt-in material transition between explicitly bound source instances.");
             }
         }
     }
@@ -515,6 +519,8 @@ namespace TerrainCompositor
         {
             return AZStd::string::format("Height ready; surface palette invalid: %s", state->m_surfacePalette.m_error.c_str());
         }
+        if (!state->m_overlap.m_diagnostic.empty())
+            return AZStd::string::format("Height ready; material overlap disabled: %s", state->m_overlap.m_diagnostic.c_str());
         bool surfaceConfigured = !m_configuration.m_surfacePalette.empty() || !m_configuration.m_baseSurfaceWeights.empty();
         for (const auto& entry : m_registrations.Get<HeightmapStampRegistrationData>())
         {
@@ -1655,6 +1661,9 @@ namespace TerrainCompositor
         auto prepared = Internal::PrepareComposition(
             m_registrations, m_configuration, m_regionBounds, m_session, collisionGridSpacing, nonUniformScaleEntities);
         static_cast<Internal::PreparedComposition&>(*replacement) = AZStd::move(prepared.m_query);
+        if (!replacement->m_overlap.m_diagnostic.empty() && replacement->m_overlap.m_diagnostic != previous->m_overlap.m_diagnostic)
+            m_pendingDiagnostics.push_back(AZStd::string::format("Composition %s material overlap disabled: %s",
+                m_address.second.ToString().c_str(), replacement->m_overlap.m_diagnostic.c_str()));
         if (!replacement->m_surfacePalette.IsValid() && replacement->m_surfacePalette.m_error != previous->m_surfacePalette.m_error)
         {
             m_pendingDiagnostics.push_back(

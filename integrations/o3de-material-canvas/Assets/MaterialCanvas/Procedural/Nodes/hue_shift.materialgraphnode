@@ -1,0 +1,74 @@
+{
+    "Type": "JsonSerialization",
+    "Version": 1,
+    "ClassName": "DynamicNodeConfig",
+    "ClassData": {
+        "id": "{B2ED3369-C079-4BD3-A457-B604401E3AC2}",
+        "category": "Math Functions",
+        "title": "Hue Shift",
+        "titlePaletteName": "MathNodeTitlePalette",
+        "description": "Rotate HSV hue, preserving HSV saturation, value and source alpha. Perceived brightness can change. Negative RGB is clamped during nonzero rotations; HDR values are supported.",
+        "slotDataTypeGroups": [
+            "inColor|outColor"
+        ],
+        "settings": {
+            "includePaths": [
+                "MaterialCanvas/Procedural/ColorAdjustments.azsli"
+            ]
+        },
+        "inputSlots": [
+            {
+                "name": "inColor",
+                "displayName": "Color",
+                "description": "Source color in linear RGB. Alpha is preserved.",
+                "supportedDataTypeRegex": "(color|float[34])",
+                "defaultDataType": "color",
+                "defaultValue": {
+                    "$type": "Color",
+                    "Value": [
+                        1.0,
+                        1.0,
+                        1.0,
+                        1.0
+                    ]
+                },
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                }
+            },
+            {
+                "name": "inShift",
+                "displayName": "Hue Shift",
+                "description": "Rotation in turns: 0 = unchanged, 0.5 = half a turn, 1 = unchanged again. Negative values rotate backward. Multiply a footprint mask by the desired shift before connecting it here.",
+                "supportedDataTypeRegex": "(color|bool|int|uint|float)([1-4])?",
+                "defaultDataType": "float",
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 0.0
+                },
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                }
+            }
+        ],
+        "propertySlots": [],
+        "outputSlots": [
+            {
+                "name": "outColor",
+                "displayName": "Color",
+                "description": "Adjusted color with the source alpha preserved.",
+                "supportedDataTypeRegex": "(color|float[34])",
+                "defaultDataType": "color",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = TC_HueShift(inColor, (float)inShift);"
+                    ]
+                }
+            }
+        ]
+    }
+}

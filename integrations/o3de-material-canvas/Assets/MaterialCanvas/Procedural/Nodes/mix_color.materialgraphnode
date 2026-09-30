@@ -1,0 +1,53 @@
+{
+    "Type": "JsonSerialization",
+    "Version": 1,
+    "ClassName": "DynamicNodeConfig",
+    "ClassData": {
+        "id": "{BA939B86-63DB-4A49-91BA-59230F58A612}",
+        "category": "Math Functions",
+        "title": "Mix Color",
+        "titlePaletteName": "MathNodeTitlePalette",
+        "description": "Mix two colors. Factor 0 selects Color B; Factor 1 selects Color A. Factor is clamped to [0,1]. Color channels, including alpha when present, are blended without clamping the result.",
+        "slotDataTypeGroups": ["colorA|colorB|outColor"],
+        "inputSlots": [
+            {
+                "name": "factor",
+                "displayName": "Factor",
+                "description": "Blend weight for Color A. 0 = all Color B; 1 = all Color A. Clamped to [0,1].",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "defaultValue": {"$type": "float", "Value": 0.5},
+                "settings": {"instructions": ["SLOTTYPE SLOTNAME = SLOTVALUE;"]}
+            },
+            {
+                "name": "colorA",
+                "displayName": "Color A",
+                "description": "Color selected when Factor is 1.",
+                "supportedDataTypeRegex": "(color|float[34])",
+                "defaultDataType": "color",
+                "defaultValue": {"$type": "Color", "Value": [1.0, 1.0, 1.0, 1.0]},
+                "settings": {"instructions": ["SLOTTYPE SLOTNAME = SLOTVALUE;"]}
+            },
+            {
+                "name": "colorB",
+                "displayName": "Color B",
+                "description": "Color selected when Factor is 0.",
+                "supportedDataTypeRegex": "(color|float[34])",
+                "defaultDataType": "color",
+                "defaultValue": {"$type": "Color", "Value": [0.0, 0.0, 0.0, 1.0]},
+                "settings": {"instructions": ["SLOTTYPE SLOTNAME = SLOTVALUE;"]}
+            }
+        ],
+        "outputSlots": [
+            {
+                "name": "outColor",
+                "displayName": "Color",
+                "description": "Color B * (1 - Factor) + Color A * Factor, using the clamped Factor.",
+                "supportedDataTypeRegex": "(color|float[34])",
+                "defaultDataType": "color",
+                "settings": {"instructions": ["SLOTTYPE SLOTNAME = lerp(colorB, colorA, saturate(factor));"]}
+            }
+        ],
+        "propertySlots": []
+    }
+}

@@ -1,0 +1,158 @@
+{
+    "Type": "JsonSerialization",
+    "Version": 1,
+    "ClassName": "DynamicNodeConfig",
+    "ClassData": {
+        "id": "{194BD5FF-F822-42C4-BB66-F64399929989}",
+        "category": "Math Functions",
+        "title": "Filtered Color Ramp",
+        "titlePaletteName": "MathNodeTitlePalette",
+        "description": "Two-color linear ramp with local footprint filtering. Start maps to Color A; End maps to Color B. Cannot repair upstream aliasing.",
+        "settings": {
+            "includePaths": [
+                "MaterialCanvas/Procedural/FilteredTransitions.azsli"
+            ],
+            "instructions": [
+                "float NODEID_factor = TC_FilteredRampFactor((float)inValue, (float)inStart, (float)inEnd, (float)inFilterWidth);"
+            ]
+        },
+        "inputSlots": [
+            {
+                "name": "inValue",
+                "displayName": "Value",
+                "description": "Value",
+                "supportedDataTypeRegex": "(color|bool|int|uint|float)([1-4])?",
+                "defaultDataType": "float",
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 0.0
+                },
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                }
+            },
+            {
+                "name": "inStart",
+                "displayName": "Start",
+                "description": "Start",
+                "supportedDataTypeRegex": "(color|bool|int|uint|float)([1-4])?",
+                "defaultDataType": "float",
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 0.0
+                },
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                }
+            },
+            {
+                "name": "inEnd",
+                "displayName": "End",
+                "description": "End",
+                "supportedDataTypeRegex": "(color|bool|int|uint|float)([1-4])?",
+                "defaultDataType": "float",
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 1.0
+                },
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                }
+            },
+            {
+                "name": "inColorA",
+                "displayName": "Color A",
+                "description": "Color A",
+                "supportedDataTypeRegex": "(color|float[34])",
+                "defaultDataType": "color",
+                "defaultValue": {
+                    "$type": "Color",
+                    "Value": [
+                        0.0,
+                        0.0,
+                        0.0,
+                        1.0
+                    ]
+                },
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                }
+            },
+            {
+                "name": "inColorB",
+                "displayName": "Color B",
+                "description": "Color B",
+                "supportedDataTypeRegex": "(color|float[34])",
+                "defaultDataType": "color",
+                "defaultValue": {
+                    "$type": "Color",
+                    "Value": [
+                        1.0,
+                        1.0,
+                        1.0,
+                        1.0
+                    ]
+                },
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                }
+            },
+            {
+                "name": "inFilterWidth",
+                "displayName": "Filter Width",
+                "description": "Footprint multiplier. 1 gives one-pixel filtering; 0 disables automatic filtering. Fragment stage only.",
+                "supportedDataTypeRegex": "(color|bool|int|uint|float)([1-4])?",
+                "defaultDataType": "float",
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 1.0
+                },
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                }
+            }
+        ],
+        "propertySlots": [],
+        "outputSlots": [
+            {
+                "name": "outColor",
+                "displayName": "Color",
+                "description": "Color",
+                "supportedDataTypeRegex": "(color|float[34])",
+                "defaultDataType": "color",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = lerp(inColorA, inColorB, NODEID_factor);"
+                    ]
+                }
+            },
+            {
+                "name": "outFactor",
+                "displayName": "Factor",
+                "description": "Factor",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = NODEID_factor;"
+                    ]
+                }
+            }
+        ],
+        "slotDataTypeGroups": [
+            "inColorA|inColorB|outColor"
+        ]
+    }
+}

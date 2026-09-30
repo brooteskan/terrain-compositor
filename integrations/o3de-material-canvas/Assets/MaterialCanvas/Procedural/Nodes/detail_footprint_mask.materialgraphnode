@@ -1,0 +1,117 @@
+{
+    "Type": "JsonSerialization",
+    "Version": 1,
+    "ClassName": "DynamicNodeConfig",
+    "ClassData": {
+        "id": "{B522BF68-A3B3-4A9A-B767-445A3E7D5D4E}",
+        "category": "Math Functions",
+        "title": "Detail Footprint Mask",
+        "titlePaletteName": "MathNodeTitlePalette",
+        "description": "Mix-control mask driven by projected detail size. Responds to viewing angle, distance, resolution and zoom. Does not itself filter the source color. Fragment stage only; wire continuous world position in meters.",
+        "settings": {
+            "includePaths": [
+                "MaterialCanvas/Procedural/DetailFootprint.azsli"
+            ],
+            "instructions": [
+                "float NODEID_ratio = TC_DetailFootprintRatio(inPositionWS, (float)inDetailSize);"
+            ]
+        },
+        "inputSlots": [
+            {
+                "name": "inPositionWS",
+                "displayName": "World Position",
+                "description": "Connect continuous World Position in meters, not wrapped UVs or cell positions. A constant input produces zero footprint.",
+                "supportedDataTypeRegex": "float3",
+                "defaultDataType": "float3",
+                "defaultValue": {
+                    "$type": "Vector3",
+                    "Value": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                },
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                }
+            },
+            {
+                "name": "inDetailSize",
+                "displayName": "Detail Size (meters)",
+                "description": "Physical size of your detail. Smaller values make the mask transition sooner. Magnitude is used and clamped to at least 0.000001 meters.",
+                "supportedDataTypeRegex": "(color|bool|int|uint|float)([1-4])?",
+                "defaultDataType": "float",
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 1.0
+                },
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                }
+            },
+            {
+                "name": "inTransitionStart",
+                "displayName": "Transition Start",
+                "description": "Footprint / Detail Size ratio where the mask begins rising from 0. Default 0.25 means about four pixels across the detail.",
+                "supportedDataTypeRegex": "(color|bool|int|uint|float)([1-4])?",
+                "defaultDataType": "float",
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 0.25
+                },
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                }
+            },
+            {
+                "name": "inTransitionEnd",
+                "displayName": "Transition End",
+                "description": "Footprint / Detail Size ratio where the mask reaches 1. Default 1 means about one pixel across the detail. Endpoints are sorted and clamped nonnegative; equal values give a hard step.",
+                "supportedDataTypeRegex": "(color|bool|int|uint|float)([1-4])?",
+                "defaultDataType": "float",
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 1.0
+                },
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                }
+            }
+        ],
+        "propertySlots": [],
+        "outputSlots": [
+            {
+                "name": "outMask",
+                "displayName": "Mask",
+                "description": "0 for resolved detail; 1 for unresolved detail. Connect to Mix Color Factor: Color A is the distant appearance and Color B the close appearance.",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = TC_DetailFootprintMask(NODEID_ratio, (float)inTransitionStart, (float)inTransitionEnd);"
+                    ]
+                }
+            },
+            {
+                "name": "outRatio",
+                "displayName": "Footprint Ratio",
+                "description": "Unclamped largest surface pixel footprint divided by Detail Size. 0.25 is roughly four pixels per detail; 1 is roughly one.",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = NODEID_ratio;"
+                    ]
+                }
+            }
+        ]
+    }
+}
