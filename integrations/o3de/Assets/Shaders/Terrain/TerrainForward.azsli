@@ -34,7 +34,12 @@ struct VSOutput
 #include <Atom/Features/SampleBrdfMap.azsli>
 #include <Atom/Features/GoboTexture.azsli>
 #include <Atom/Features/Pipeline/Forward/ForwardPassOutput.azsli>
+// Optional material lighting hooks; absent hooks preserve stock graph behavior.
+#ifdef TC_TERRAIN_LIGHTING_INCLUDE
+#include TC_TERRAIN_LIGHTING_INCLUDE
+#else
 #include <Atom/Features/PBR/Lighting/StandardLighting.azsli>
+#endif
 #include <Atom/Features/PBR/Lights/IblForward.azsli>
 #include <Atom/Features/Shadow/DirectionalLightShadow.azsli>
 #include <Atom/Features/PBR/Decals.azsli>
@@ -95,6 +100,9 @@ ForwardPassOutput TerrainPBR_MainPassPS(VSOutput input)
     // Diffuse and Specular response
     lightingData.specularResponse = FresnelSchlickWithRoughness(lightingData.GetSpecularNdotV(), surface.specularF0, surface.roughnessLinear);
     lightingData.diffuseResponse = 1.0f - lightingData.specularResponse;
+#ifdef TC_INITIALIZE_MATERIAL_LIGHTING
+    TC_INITIALIZE_MATERIAL_LIGHTING(lightingData);
+#endif
 
     const float alpha = 1.0f;
 
@@ -111,6 +119,9 @@ ForwardPassOutput TerrainPBR_MainPassPS(VSOutput input)
 
     // Finalize Lighting
     lightingData.FinalizeLighting();
+#ifdef TC_FINALIZE_MATERIAL_LIGHTING
+    TC_FINALIZE_MATERIAL_LIGHTING(lightingData);
+#endif
     PbrLightingOutput lightingOutput = GetPbrLightingOutput(surface, lightingData, alpha);
 
     // ------- Output -------
