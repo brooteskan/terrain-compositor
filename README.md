@@ -65,3 +65,11 @@ selection and resource-aware raster/RT change batches.
 The [architecture refactoring plan](docs/ArchitectureOptimizationReadiness.md)
 ranks the work needed to prepare for terrain-query and sector-scheduling
 optimization, using the camera-flight investigation in TG #37.
+
+The [RX 7900 XTX GPU baseline](docs/TerrainGpuBaseline.md) records default and
+procedural material timings, terrain-on/off controls, workload counters, and
+measurement limits for issue #17.
+
+The [terrain material overlap guide](docs/TerrainMaterialOverlap.md) describes
+source-aware PBR blending, Material Canvas authoring, retained-material integration,
+resource limits and validation for issue #19.

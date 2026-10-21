@@ -1,0 +1,616 @@
+{
+    "Type": "JsonSerialization",
+    "Version": 1,
+    "ClassName": "DynamicNodeConfig",
+    "ClassData": {
+        "id": "{7E87F3CA-5B62-4F29-AD58-5C5D1C0B0677}",
+        "category": "Terrain",
+        "title": "Terrain Overlap Surface",
+        "titlePaletteName": "MathNodeTitlePalette",
+        "description": "Source-aware overlap material. Configure Material Overlap on the composition. Slots are 1 through 4.",
+        "settings": {
+            "includePaths": [
+                "TerrainCompositor/TerrainOverlap.azsli"
+            ],
+            "instructions": [
+                "#ifndef TC_OVERLAP_LOCAL_SET",
+                "#define TC_OVERLAP_LOCAL_SET",
+                "TerrainOverlapSet O3DE_TC_OVERLAP = TC_ResolveOverlap(O3DE_MC_POSITION_WS);",
+                "#endif",
+                "TerrainOverlapSet NODEID_overlapSet = O3DE_TC_OVERLAP;",
+                "TerrainSurfaceChannels NODEID_overlapMaterials[4];",
+                "TerrainSurfaceChannels NODEID_overlapFallback;",
+                "NODEID_overlapFallback.baseColor = fallbackBaseColor;",
+                "NODEID_overlapFallback.normal = fallbackNormal;",
+                "NODEID_overlapFallback.roughness = fallbackRoughness;",
+                "NODEID_overlapFallback.metalness = fallbackMetalness;",
+                "NODEID_overlapFallback.specularFactor = fallbackSpecularFactor;",
+                "NODEID_overlapFallback.ambientOcclusion = fallbackAmbientOcclusion;",
+                "NODEID_overlapMaterials[0].baseColor = layer1BaseColor;",
+                "NODEID_overlapMaterials[0].normal = layer1Normal;",
+                "NODEID_overlapMaterials[0].roughness = layer1Roughness;",
+                "NODEID_overlapMaterials[0].metalness = layer1Metalness;",
+                "NODEID_overlapMaterials[0].specularFactor = layer1SpecularFactor;",
+                "NODEID_overlapMaterials[0].ambientOcclusion = layer1AmbientOcclusion;",
+                "NODEID_overlapMaterials[1].baseColor = layer2BaseColor;",
+                "NODEID_overlapMaterials[1].normal = layer2Normal;",
+                "NODEID_overlapMaterials[1].roughness = layer2Roughness;",
+                "NODEID_overlapMaterials[1].metalness = layer2Metalness;",
+                "NODEID_overlapMaterials[1].specularFactor = layer2SpecularFactor;",
+                "NODEID_overlapMaterials[1].ambientOcclusion = layer2AmbientOcclusion;",
+                "NODEID_overlapMaterials[2].baseColor = layer3BaseColor;",
+                "NODEID_overlapMaterials[2].normal = layer3Normal;",
+                "NODEID_overlapMaterials[2].roughness = layer3Roughness;",
+                "NODEID_overlapMaterials[2].metalness = layer3Metalness;",
+                "NODEID_overlapMaterials[2].specularFactor = layer3SpecularFactor;",
+                "NODEID_overlapMaterials[2].ambientOcclusion = layer3AmbientOcclusion;",
+                "NODEID_overlapMaterials[3].baseColor = layer4BaseColor;",
+                "NODEID_overlapMaterials[3].normal = layer4Normal;",
+                "NODEID_overlapMaterials[3].roughness = layer4Roughness;",
+                "NODEID_overlapMaterials[3].metalness = layer4Metalness;",
+                "NODEID_overlapMaterials[3].specularFactor = layer4SpecularFactor;",
+                "NODEID_overlapMaterials[3].ambientOcclusion = layer4AmbientOcclusion;",
+                "TerrainSurfaceContext NODEID_overlapContext;",
+                "NODEID_overlapContext.worldPosition = O3DE_MC_POSITION_WS;",
+                "NODEID_overlapContext.geometricNormal = O3DE_MC_NORMAL_WS;",
+                "TerrainSurfaceChannels NODEID_overlapResult = TC_BlendOverlap(NODEID_overlapSet, NODEID_overlapMaterials, NODEID_overlapFallback, NODEID_overlapContext);",
+                "SLOTTYPE(outBaseColor) outBaseColor = NODEID_overlapResult.baseColor;",
+                "SLOTTYPE(outNormal) outNormal = NODEID_overlapResult.normal;",
+                "SLOTTYPE(outRoughness) outRoughness = NODEID_overlapResult.roughness;",
+                "SLOTTYPE(outMetalness) outMetalness = NODEID_overlapResult.metalness;",
+                "SLOTTYPE(outSpecularFactor) outSpecularFactor = NODEID_overlapResult.specularFactor;",
+                "SLOTTYPE(outAmbientOcclusion) outAmbientOcclusion = NODEID_overlapResult.ambientOcclusion;"
+            ]
+        },
+        "inputSlots": [
+            {
+                "name": "fallbackBaseColor",
+                "displayName": "fallbackBaseColor",
+                "supportedDataTypeRegex": "float3",
+                "defaultDataType": "float3",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "Vector3",
+                    "Value": [
+                        1.0,
+                        1.0,
+                        1.0
+                    ]
+                }
+            },
+            {
+                "name": "fallbackNormal",
+                "displayName": "fallbackNormal",
+                "supportedDataTypeRegex": "float3",
+                "defaultDataType": "float3",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "Vector3",
+                    "Value": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                }
+            },
+            {
+                "name": "fallbackRoughness",
+                "displayName": "fallbackRoughness",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 1.0
+                }
+            },
+            {
+                "name": "fallbackMetalness",
+                "displayName": "fallbackMetalness",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 0.0
+                }
+            },
+            {
+                "name": "fallbackSpecularFactor",
+                "displayName": "fallbackSpecularFactor",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 0.5
+                }
+            },
+            {
+                "name": "fallbackAmbientOcclusion",
+                "displayName": "fallbackAmbientOcclusion",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 1.0
+                }
+            },
+            {
+                "name": "layer1BaseColor",
+                "displayName": "layer1BaseColor",
+                "supportedDataTypeRegex": "float3",
+                "defaultDataType": "float3",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "Vector3",
+                    "Value": [
+                        1.0,
+                        1.0,
+                        1.0
+                    ]
+                }
+            },
+            {
+                "name": "layer1Normal",
+                "displayName": "layer1Normal",
+                "supportedDataTypeRegex": "float3",
+                "defaultDataType": "float3",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "Vector3",
+                    "Value": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                }
+            },
+            {
+                "name": "layer1Roughness",
+                "displayName": "layer1Roughness",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 1.0
+                }
+            },
+            {
+                "name": "layer1Metalness",
+                "displayName": "layer1Metalness",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 0.0
+                }
+            },
+            {
+                "name": "layer1SpecularFactor",
+                "displayName": "layer1SpecularFactor",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 0.5
+                }
+            },
+            {
+                "name": "layer1AmbientOcclusion",
+                "displayName": "layer1AmbientOcclusion",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 1.0
+                }
+            },
+            {
+                "name": "layer2BaseColor",
+                "displayName": "layer2BaseColor",
+                "supportedDataTypeRegex": "float3",
+                "defaultDataType": "float3",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "Vector3",
+                    "Value": [
+                        1.0,
+                        1.0,
+                        1.0
+                    ]
+                }
+            },
+            {
+                "name": "layer2Normal",
+                "displayName": "layer2Normal",
+                "supportedDataTypeRegex": "float3",
+                "defaultDataType": "float3",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "Vector3",
+                    "Value": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                }
+            },
+            {
+                "name": "layer2Roughness",
+                "displayName": "layer2Roughness",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 1.0
+                }
+            },
+            {
+                "name": "layer2Metalness",
+                "displayName": "layer2Metalness",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 0.0
+                }
+            },
+            {
+                "name": "layer2SpecularFactor",
+                "displayName": "layer2SpecularFactor",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 0.5
+                }
+            },
+            {
+                "name": "layer2AmbientOcclusion",
+                "displayName": "layer2AmbientOcclusion",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 1.0
+                }
+            },
+            {
+                "name": "layer3BaseColor",
+                "displayName": "layer3BaseColor",
+                "supportedDataTypeRegex": "float3",
+                "defaultDataType": "float3",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "Vector3",
+                    "Value": [
+                        1.0,
+                        1.0,
+                        1.0
+                    ]
+                }
+            },
+            {
+                "name": "layer3Normal",
+                "displayName": "layer3Normal",
+                "supportedDataTypeRegex": "float3",
+                "defaultDataType": "float3",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "Vector3",
+                    "Value": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                }
+            },
+            {
+                "name": "layer3Roughness",
+                "displayName": "layer3Roughness",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 1.0
+                }
+            },
+            {
+                "name": "layer3Metalness",
+                "displayName": "layer3Metalness",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 0.0
+                }
+            },
+            {
+                "name": "layer3SpecularFactor",
+                "displayName": "layer3SpecularFactor",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 0.5
+                }
+            },
+            {
+                "name": "layer3AmbientOcclusion",
+                "displayName": "layer3AmbientOcclusion",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 1.0
+                }
+            },
+            {
+                "name": "layer4BaseColor",
+                "displayName": "layer4BaseColor",
+                "supportedDataTypeRegex": "float3",
+                "defaultDataType": "float3",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "Vector3",
+                    "Value": [
+                        1.0,
+                        1.0,
+                        1.0
+                    ]
+                }
+            },
+            {
+                "name": "layer4Normal",
+                "displayName": "layer4Normal",
+                "supportedDataTypeRegex": "float3",
+                "defaultDataType": "float3",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "Vector3",
+                    "Value": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                }
+            },
+            {
+                "name": "layer4Roughness",
+                "displayName": "layer4Roughness",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 1.0
+                }
+            },
+            {
+                "name": "layer4Metalness",
+                "displayName": "layer4Metalness",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 0.0
+                }
+            },
+            {
+                "name": "layer4SpecularFactor",
+                "displayName": "layer4SpecularFactor",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 0.5
+                }
+            },
+            {
+                "name": "layer4AmbientOcclusion",
+                "displayName": "layer4AmbientOcclusion",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 1.0
+                }
+            }
+        ],
+        "outputSlots": [
+            {
+                "name": "outBaseColor",
+                "displayName": "outBaseColor",
+                "supportedDataTypeRegex": "float3",
+                "defaultDataType": "float3"
+            },
+            {
+                "name": "outNormal",
+                "displayName": "outNormal",
+                "supportedDataTypeRegex": "float3",
+                "defaultDataType": "float3"
+            },
+            {
+                "name": "outRoughness",
+                "displayName": "outRoughness",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float"
+            },
+            {
+                "name": "outMetalness",
+                "displayName": "outMetalness",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float"
+            },
+            {
+                "name": "outSpecularFactor",
+                "displayName": "outSpecularFactor",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float"
+            },
+            {
+                "name": "outAmbientOcclusion",
+                "displayName": "outAmbientOcclusion",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float"
+            }
+        ],
+        "propertySlots": [
+            {
+                "name": "overlapContract",
+                "displayName": "overlapContract",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {
+                    "materialPropertyName": [
+                        "contract_version"
+                    ],
+                    "materialPropertyGroup": [
+                        "overlap"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 1.0
+                }
+            }
+        ]
+    }
+}

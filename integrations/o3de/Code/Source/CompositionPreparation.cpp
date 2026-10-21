@@ -236,6 +236,7 @@ namespace TerrainCompositor::Internal
             return AZStd::pair(value.m_priority, AZStd::string_view(value.m_stableOrderKey));
         });
 
+        query.m_overlap = PrepareTerrainOverlap(configuration.m_materialOverlap, query.m_heightContributors);
         return result;
     }
 }

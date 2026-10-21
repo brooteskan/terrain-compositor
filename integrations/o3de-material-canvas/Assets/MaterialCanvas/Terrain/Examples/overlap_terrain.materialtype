@@ -1,0 +1,393 @@
+{
+    "propertyLayout": {
+        "propertyGroups": [
+            {
+                "name": "overlap",
+                "displayName": "Overlap",
+                "description": "Overlap",
+                "properties": [
+                    {
+                        "name": "contract_version",
+                        "displayName": "Overlap Contract",
+                        "description": "overlapContract",
+                        "type": "Float",
+                        "defaultValue": 1.0
+                    },
+                    {
+                        "name": "layer1_color",
+                        "displayName": "Layer1 Color",
+                        "description": "Layer1 Color",
+                        "type": "Image",
+                        "connection": {
+                            "type": "ShaderInput",
+                            "name": "node3_terrain_overlap_texture_inValue"
+                        }
+                    },
+                    {
+                        "name": "layer1_color_1",
+                        "displayName": "Layer1 Color (1)",
+                        "description": "Layer1 Color",
+                        "type": "SamplerState",
+                        "defaultValue": {
+                            "m_anisotropyMax": 16,
+                            "m_filterMin": "Linear",
+                            "m_filterMag": "Linear",
+                            "m_filterMip": "Linear"
+                        },
+                        "connection": {
+                            "type": "ShaderInput",
+                            "name": "node3_terrain_overlap_texture_inSampler"
+                        }
+                    },
+                    {
+                        "name": "layer1_normal",
+                        "displayName": "Layer1 Normal",
+                        "description": "Layer1 Normal",
+                        "type": "Image",
+                        "connection": {
+                            "type": "ShaderInput",
+                            "name": "node4_terrain_overlap_texture_inValue"
+                        }
+                    },
+                    {
+                        "name": "layer1_normal_1",
+                        "displayName": "Layer1 Normal (1)",
+                        "description": "Layer1 Normal",
+                        "type": "SamplerState",
+                        "defaultValue": {
+                            "m_anisotropyMax": 16,
+                            "m_filterMin": "Linear",
+                            "m_filterMag": "Linear",
+                            "m_filterMip": "Linear"
+                        },
+                        "connection": {
+                            "type": "ShaderInput",
+                            "name": "node4_terrain_overlap_texture_inSampler"
+                        }
+                    },
+                    {
+                        "name": "layer2_color",
+                        "displayName": "Layer2 Color",
+                        "description": "Layer2 Color",
+                        "type": "Image",
+                        "connection": {
+                            "type": "ShaderInput",
+                            "name": "node5_terrain_overlap_texture_inValue"
+                        }
+                    },
+                    {
+                        "name": "layer2_color_1",
+                        "displayName": "Layer2 Color (1)",
+                        "description": "Layer2 Color",
+                        "type": "SamplerState",
+                        "defaultValue": {
+                            "m_anisotropyMax": 16,
+                            "m_filterMin": "Linear",
+                            "m_filterMag": "Linear",
+                            "m_filterMip": "Linear"
+                        },
+                        "connection": {
+                            "type": "ShaderInput",
+                            "name": "node5_terrain_overlap_texture_inSampler"
+                        }
+                    },
+                    {
+                        "name": "layer2_normal",
+                        "displayName": "Layer2 Normal",
+                        "description": "Layer2 Normal",
+                        "type": "Image",
+                        "connection": {
+                            "type": "ShaderInput",
+                            "name": "node6_terrain_overlap_texture_inValue"
+                        }
+                    },
+                    {
+                        "name": "layer2_normal_1",
+                        "displayName": "Layer2 Normal (1)",
+                        "description": "Layer2 Normal",
+                        "type": "SamplerState",
+                        "defaultValue": {
+                            "m_anisotropyMax": 16,
+                            "m_filterMin": "Linear",
+                            "m_filterMag": "Linear",
+                            "m_filterMip": "Linear"
+                        },
+                        "connection": {
+                            "type": "ShaderInput",
+                            "name": "node6_terrain_overlap_texture_inSampler"
+                        }
+                    },
+                    {
+                        "name": "layer3_color",
+                        "displayName": "Layer3 Color",
+                        "description": "Layer3 Color",
+                        "type": "Image",
+                        "connection": {
+                            "type": "ShaderInput",
+                            "name": "node7_terrain_overlap_texture_inValue"
+                        }
+                    },
+                    {
+                        "name": "layer3_color_1",
+                        "displayName": "Layer3 Color (1)",
+                        "description": "Layer3 Color",
+                        "type": "SamplerState",
+                        "defaultValue": {
+                            "m_anisotropyMax": 16,
+                            "m_filterMin": "Linear",
+                            "m_filterMag": "Linear",
+                            "m_filterMip": "Linear"
+                        },
+                        "connection": {
+                            "type": "ShaderInput",
+                            "name": "node7_terrain_overlap_texture_inSampler"
+                        }
+                    },
+                    {
+                        "name": "layer3_normal",
+                        "displayName": "Layer3 Normal",
+                        "description": "Layer3 Normal",
+                        "type": "Image",
+                        "connection": {
+                            "type": "ShaderInput",
+                            "name": "node8_terrain_overlap_texture_inValue"
+                        }
+                    },
+                    {
+                        "name": "layer3_normal_1",
+                        "displayName": "Layer3 Normal (1)",
+                        "description": "Layer3 Normal",
+                        "type": "SamplerState",
+                        "defaultValue": {
+                            "m_anisotropyMax": 16,
+                            "m_filterMin": "Linear",
+                            "m_filterMag": "Linear",
+                            "m_filterMip": "Linear"
+                        },
+                        "connection": {
+                            "type": "ShaderInput",
+                            "name": "node8_terrain_overlap_texture_inSampler"
+                        }
+                    },
+                    {
+                        "name": "layer4_color",
+                        "displayName": "Layer4 Color",
+                        "description": "Layer4 Color",
+                        "type": "Image",
+                        "connection": {
+                            "type": "ShaderInput",
+                            "name": "node9_terrain_overlap_texture_inValue"
+                        }
+                    },
+                    {
+                        "name": "layer4_color_1",
+                        "displayName": "Layer4 Color (1)",
+                        "description": "Layer4 Color",
+                        "type": "SamplerState",
+                        "defaultValue": {
+                            "m_anisotropyMax": 16,
+                            "m_filterMin": "Linear",
+                            "m_filterMag": "Linear",
+                            "m_filterMip": "Linear"
+                        },
+                        "connection": {
+                            "type": "ShaderInput",
+                            "name": "node9_terrain_overlap_texture_inSampler"
+                        }
+                    },
+                    {
+                        "name": "layer4_normal",
+                        "displayName": "Layer4 Normal",
+                        "description": "Layer4 Normal",
+                        "type": "Image",
+                        "connection": {
+                            "type": "ShaderInput",
+                            "name": "node10_terrain_overlap_texture_inValue"
+                        }
+                    },
+                    {
+                        "name": "layer4_normal_1",
+                        "displayName": "Layer4 Normal (1)",
+                        "description": "Layer4 Normal",
+                        "type": "SamplerState",
+                        "defaultValue": {
+                            "m_anisotropyMax": 16,
+                            "m_filterMin": "Linear",
+                            "m_filterMag": "Linear",
+                            "m_filterMip": "Linear"
+                        },
+                        "connection": {
+                            "type": "ShaderInput",
+                            "name": "node10_terrain_overlap_texture_inSampler"
+                        }
+                    }
+                ]
+            },
+            {
+                "name": "settings",
+                "displayName": "Settings",
+                "properties": [
+                    {
+                        "name": "meshCutoutCount",
+                        "type": "UInt",
+                        "visibility": "Hidden",
+                        "connection": {
+                            "type": "ShaderInput",
+                            "name": "m_meshCutoutCount"
+                        }
+                    },
+                    {
+                        "name": "meshCutoutRevision",
+                        "type": "UInt",
+                        "visibility": "Hidden",
+                        "connection": {
+                            "type": "ShaderInput",
+                            "name": "m_meshCutoutRevision"
+                        }
+                    },
+                    {
+                        "name": "meshHeightGapCount",
+                        "type": "UInt",
+                        "visibility": "Hidden",
+                        "connection": {
+                            "type": "ShaderInput",
+                            "name": "m_meshHeightGapCount"
+                        }
+                    },
+                    {
+                        "name": "meshHeightGapRevision",
+                        "type": "UInt",
+                        "visibility": "Hidden",
+                        "connection": {
+                            "type": "ShaderInput",
+                            "name": "m_meshHeightGapRevision"
+                        }
+                    },
+                    {
+                        "name": "surfaceRegionCount",
+                        "displayName": "surfaceRegionCount",
+                        "type": "UInt",
+                        "visibility": "Hidden",
+                        "connection": {
+                            "type": "ShaderInput",
+                            "name": "m_surfaceRegionCount"
+                        }
+                    },
+                    {
+                        "name": "surfaceRevision",
+                        "displayName": "surfaceRevision",
+                        "type": "UInt",
+                        "visibility": "Hidden",
+                        "connection": {
+                            "type": "ShaderInput",
+                            "name": "m_surfaceRevision"
+                        }
+                    }
+                ]
+            },
+            {
+                "name": "terrain",
+                "displayName": "Terrain Contract",
+                "properties": [
+                    {
+                        "name": "contractVersion",
+                        "type": "UInt",
+                        "defaultValue": 4,
+                        "visibility": "Hidden"
+                    }
+                ]
+            },
+            {
+                "name": "general",
+                "properties": [
+                    {
+                        "name": "applySpecularAA",
+                        "displayName": "Apply Specular AA",
+                        "description": "Whether to apply specular anti-aliasing in the shader.",
+                        "type": "Bool",
+                        "connection": {
+                            "type": "ShaderOption",
+                            "name": "o_applySpecularAA"
+                        }
+                    },
+                    {
+                        "name": "enableAreaLights",
+                        "displayName": "Enable Area Lights",
+                        "description": "Whether to use area lights.",
+                        "type": "Bool",
+                        "defaultValue": true,
+                        "connection": {
+                            "type": "ShaderOption",
+                            "name": "o_enableAreaLights"
+                        }
+                    },
+                    {
+                        "name": "enableDirectionalLights",
+                        "displayName": "Enable Directional Lights",
+                        "description": "Whether to use directional lights.",
+                        "type": "Bool",
+                        "defaultValue": true,
+                        "connection": {
+                            "type": "ShaderOption",
+                            "name": "o_enableDirectionalLights"
+                        }
+                    },
+                    {
+                        "name": "enableIBL",
+                        "displayName": "Enable IBL",
+                        "description": "Whether to use Image Based Lighting (IBL).",
+                        "type": "Bool",
+                        "defaultValue": true,
+                        "connection": {
+                            "type": "ShaderOption",
+                            "name": "o_enableIBL"
+                        }
+                    },
+                    {
+                        "name": "enablePunctualLights",
+                        "displayName": "Enable Punctual Lights",
+                        "description": "Whether to use punctual lights.",
+                        "type": "Bool",
+                        "defaultValue": true,
+                        "connection": {
+                            "type": "ShaderOption",
+                            "name": "o_enablePunctualLights"
+                        }
+                    },
+                    {
+                        "name": "enableShadows",
+                        "displayName": "Enable Shadows",
+                        "description": "Whether to use the shadow maps.",
+                        "type": "Bool",
+                        "defaultValue": true,
+                        "connection": {
+                            "type": "ShaderOption",
+                            "name": "o_enableShadows"
+                        }
+                    },
+                    {
+                        "name": "forwardPassIBLSpecular",
+                        "displayName": "Forward Pass IBL Specular",
+                        "description": "Whether to apply IBL specular in the forward pass.",
+                        "type": "Bool",
+                        "connection": {
+                            "type": "ShaderOption",
+                            "name": "o_materialUseForwardPassIBLSpecular"
+                        }
+                    }
+                ]
+            }
+        ]
+    },
+    "shaders": [
+        {
+            "file": "overlap_terrain_Forward.shader"
+        },
+        {
+            "file": "overlap_terrain_Shadow.shader"
+        },
+        {
+            "file": "overlap_terrain_Depth.shader"
+        }
+    ]
+}

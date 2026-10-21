@@ -1,5 +1,6 @@
 #pragma once
 
+#include <AzCore/Asset/AssetCommon.h>
 #include <AzCore/Component/Component.h>
 #include <AzCore/std/parallel/shared_mutex.h>
 #include <AzFramework/Components/EditorEntityEvents.h>

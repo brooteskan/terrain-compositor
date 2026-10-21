@@ -1,0 +1,140 @@
+{
+  "terrain_entity": "Terrain Region",
+  "output": "D:/TG/TGProject/user/TerrainGpuProfiling/my-baseline",
+  "wall_seconds": 6,
+  "samples": 9,
+  "frame_samples": 240,
+  "resolution": [
+    1920,
+    1080
+  ],
+  "settle_seconds": 5,
+  "cases": [
+    {
+      "position": [
+        16,
+        16,
+        32
+      ],
+      "name": "off-near",
+      "cap": -1,
+      "terrain": false,
+      "rotation": [
+        -35,
+        0,
+        0
+      ]
+    },
+    {
+      "position": [
+        16,
+        -180,
+        180
+      ],
+      "name": "off-far",
+      "cap": -1,
+      "terrain": false,
+      "rotation": [
+        -35,
+        0,
+        0
+      ]
+    },
+    {
+      "position": [
+        16,
+        -100,
+        32
+      ],
+      "name": "off-grazing",
+      "cap": -1,
+      "terrain": false,
+      "rotation": [
+        -5,
+        0,
+        0
+      ]
+    },
+    {
+      "position": [
+        16,
+        16,
+        32
+      ],
+      "name": "default-near",
+      "cap": -1,
+      "terrain": true,
+      "rotation": [
+        -35,
+        0,
+        0
+      ]
+    },
+    {
+      "position": [
+        16,
+        -180,
+        180
+      ],
+      "name": "default-far",
+      "cap": -1,
+      "terrain": true,
+      "rotation": [
+        -35,
+        0,
+        0
+      ]
+    },
+    {
+      "position": [
+        16,
+        -100,
+        32
+      ],
+      "name": "default-grazing",
+      "cap": -1,
+      "terrain": true,
+      "rotation": [
+        -5,
+        0,
+        0
+      ]
+    },
+    {
+      "cap": 30,
+      "position": [
+        16,
+        16,
+        32
+      ],
+      "rotation": [
+        -35,
+        0,
+        0
+      ],
+      "name": "default-near-cap30",
+      "terrain": true
+    },
+    {
+      "terrain": true,
+      "rotation": [
+        -35,
+        0,
+        0
+      ],
+      "position": [
+        16,
+        16,
+        32
+      ],
+      "name": "default-near-cap60",
+      "cap": 60
+    }
+  ],
+  "inspect_components": [
+    {
+      "component": "Directional Light",
+      "entity": "Sun"
+    }
+  ]
+}

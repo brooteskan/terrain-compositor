@@ -1,0 +1,51 @@
+#pragma once
+
+// Kept independent of SRGs so the exact production arithmetic can be tested on a GPU.
+float TC_OverlapRamp(float distance, float width)
+{
+    float t = saturate(distance / max(width, 1e-6));
+    return t * t * (3.0 - 2.0 * t);
+}
+
+// Inputs are in canonical priority/key order. Missing sources have zero coverage.
+// All renderers use the same XY-derived values; fragment Z and draw order are irrelevant.
+float4 TC_OverlapWeights(float4 heights, float4 coverage, uint count, float width, bool retained)
+{
+    float4 weights = float4(0, 0, 0, 0);
+    if (!(width > 0) || !isfinite(width) || count > 4) return weights;
+    coverage = saturate(coverage);
+    [unroll] for (uint i = 0; i < 4; ++i)
+        if (i >= count || !isfinite(heights[i]) || !isfinite(coverage[i])) { coverage[i] = 0; heights[i] = 0; }
+    if (retained)
+    {
+        // Smooth exposed-envelope partition. Coverage gates occlusion too: a source entering
+        // its footprint cannot suppress another source before its own weight becomes positive.
+        [unroll] for (uint i = 0; i < 4; ++i)
+        {
+            float score = coverage[i];
+            [unroll] for (uint j = 0; j < 4; ++j)
+                if (i != j && coverage[j] > 0 && coverage[i] > 0)
+                    score *= 1.0 - coverage[j] * TC_OverlapRamp(heights[j] - heights[i], width);
+            weights += float4(i == 0, i == 1, i == 2, i == 3) * score;
+        }
+    }
+    else
+    {
+        float previousHeight = 0, mass = 0;
+        [unroll] for (uint i = 0; i < 4; ++i)
+        {
+            if (coverage[i] <= 0) continue;
+            // Ordered Replace still wins at either higher OR lower elevation. Only the local
+            // contact band shares its appearance with the already composed lower-priority set.
+            float proximity = mass > 0 ? 1.0 - TC_OverlapRamp(abs(heights[i] - previousHeight), width) : 0;
+            float alpha = coverage[i] * (1.0 - 0.5 * proximity);
+            weights *= 1.0 - alpha;
+            weights += float4(i == 0, i == 1, i == 2, i == 3) * alpha;
+            float nextMass = mass * (1.0 - alpha) + alpha;
+            previousHeight = (previousHeight * mass * (1.0 - alpha) + heights[i] * alpha) / max(nextMass, 1e-20);
+            mass = nextMass;
+        }
+    }
+    float total = dot(weights, float4(1, 1, 1, 1));
+    return total > 1e-20 ? weights / total : float4(0, 0, 0, 0);
+}

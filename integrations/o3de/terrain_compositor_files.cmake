@@ -1,4 +1,8 @@
 set(FILES
+    Code/Include/TerrainCompositor/TerrainOverlap.h
+    Code/Include/TerrainCompositor/TerrainOverlapConfig.h
+    Code/Source/TerrainOverlap.cpp
+    Code/Source/TerrainOverlapConfig.cpp
     Code/Include/TerrainCompositor/TerrainMaterialBindings.h
     Code/Include/TerrainCompositor/TerrainPreparationDependency.h
     Code/Include/TerrainCompositor/Internal/PendingCompositionInvalidation.h

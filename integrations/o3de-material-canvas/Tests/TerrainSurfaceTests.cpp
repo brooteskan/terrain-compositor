@@ -59,6 +59,7 @@ try
     const auto common = Read(TERRAIN_SHADERS "/TerrainSurface.azsli") +
         Read(CANVAS_ROOT "/Assets/ShaderLib/MaterialCanvas/Procedural/LatticeNoise.azsli") +
         Read(CANVAS_ROOT "/Assets/ShaderLib/MaterialCanvas/Procedural/FilteredNoise.azsli") +
+        Read(CANVAS_ROOT "/Assets/ShaderLib/MaterialCanvas/Procedural/Voronoi.azsli") +
         Read(CANVAS_ROOT "/Assets/ShaderLib/MaterialCanvas/Procedural/NormalFromHeight.azsli");
     const std::string vertex = R"(
 float4 VS(uint id : SV_VertexID) : SV_Position {
@@ -78,6 +79,40 @@ float4 VS(uint id : SV_VertexID) : SV_Position {
     const float tiltedLength = std::sqrt(tiltedX * tiltedX + .16f + tiltedZ * tiltedZ);
     const float shadingLength = std::sqrt(.09f + .16f + 1.025f * 1.025f);
     const Case cases[]{
+        // Randomness=0 gives an integer grid: distances have analytic references.
+        {"Voronoi F1 F2 and Minkowski below one", R"(
+TerrainSurfaceChannels TC_CanvasSurface(TerrainSurfaceContext ctx, TerrainSurfaceChannels s) {
+    s.baseColor = float3(
+        TC_Voronoi2D(float2(.2,.3),1,0,.5,2,1,.5,0,0u,0u,false).distance,
+        TC_Voronoi2D(float2(.2,.3),1,0,.5,2,1,.5,0,1u,0u,false).distance,
+        TC_Voronoi2D(float2(.2,.3),1,0,.5,2,1,.5,0,0u,3u,false).distance);
+    return s;
+})", {std::sqrt(.13f),std::sqrt(.53f),.5f+2*std::sqrt(.06f),.7f, 0,0,1,.3f, .45f,.8f,0,1}},
+        {"Voronoi fractional detail and normalize", R"(
+TerrainSurfaceChannels TC_CanvasSurface(TerrainSurfaceContext ctx, TerrainSurfaceChannels s) {
+    s.baseColor = float3(
+        TC_Voronoi2D(float2(.2,.3),1,1,.5,2,1,.5,0,0u,0u,false).distance,
+        TC_Voronoi2D(float2(.2,.3),1,.5,.5,2,1,.5,0,0u,0u,false).distance,
+        TC_Voronoi2D(float2(.2,.3),1,1,.5,2,1,.5,0,0u,0u,true).distance);
+    return s;
+})", {std::sqrt(.13f)+.5f*std::sqrt(.32f),std::sqrt(.13f)+.25f*std::sqrt(.32f),
+      (std::sqrt(.13f)+.5f*std::sqrt(.32f))/(1.5f*std::sqrt(.5f)),.7f, 0,0,1,.3f, .45f,.8f,0,1}},
+        {"Voronoi edge fractal and radius", R"(
+TerrainSurfaceChannels TC_CanvasSurface(TerrainSurfaceContext ctx, TerrainSurfaceChannels s) {
+    s.baseColor = float3(
+        TC_Voronoi2D(float2(.2,.1),1,1,.5,2,1,.5,0,3u,0u,false).distance,
+        TC_Voronoi2D(float2(.2,.1),1,1,.5,2,1,.5,0,3u,0u,true).distance,
+        TC_Voronoi2D(float2(-.2,-.1),1,15,.5,2,1,.5,0,4u,0u,false).radius);
+    return s;
+})", {.175f,.175f/.375f,.5f,.7f, 0,0,1,.3f, .45f,.8f,0,1}},
+        {"Voronoi zero smoothness and zero scale", R"(
+TerrainSurfaceChannels TC_CanvasSurface(TerrainSurfaceContext ctx, TerrainSurfaceChannels s) {
+    TC_VoronoiResult zero = TC_Voronoi2D(float2(.2,.3),0,0,.5,2,0,.5,0,0u,0u,false);
+    s.baseColor = float3(
+        TC_Voronoi2D(float2(-.2,-.3),1,0,.5,2,0,.5,0,2u,0u,false).distance,
+        zero.position.x, zero.position.y);
+    return s;
+})", {std::sqrt(.13f),0,0,.7f, 0,0,1,.3f, .45f,.8f,0,1}},
         // Independent references: tensor-product three-point Gauss quadrature
         // of the quintic point field, split at every integer cell boundary.
         // This integrates the point field rather than its telescoping primitive.

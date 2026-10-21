@@ -47,7 +47,8 @@ namespace TerrainCompositor::Internal
         size_t bytes = sizeof(state) + 16384 + CapacityBytes(state.m_heightContributors) +
             CapacityBytes(state.m_existenceContributors) + CapacityBytes(state.m_surfaceStamps) +
             CapacityBytes(state.m_meshHeightGaps) + CapacityBytes(state.m_surfacePalette.m_entries) +
-            CapacityBytes(state.m_surfacePalette.m_baseWeights) + state.m_surfacePalette.m_error.capacity();
+            CapacityBytes(state.m_surfacePalette.m_baseWeights) + state.m_surfacePalette.m_error.capacity() +
+            CapacityBytes(state.m_overlap.m_config.m_sources) + state.m_overlap.m_diagnostic.capacity();
         for (const auto& item : state.m_heightContributors)
         {
             bytes += RetainedBytes(item.m_image.m_image) + item.m_image.m_placement.m_stableOrderKey.capacity() +

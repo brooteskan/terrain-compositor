@@ -44,6 +44,7 @@ namespace TerrainCompositor
 
     void TerrainMeshCutoutFeatureProcessor::Deactivate()
     {
+        while (!m_overlapMaterials.empty()) UnregisterOverlapMaterial(m_overlapMaterials.back());
         if (m_sceneChannel && m_observedTerrainMaterial)
             m_sceneChannel->m_materialChanged.Signal({});
         m_observedTerrainMaterial.reset();
@@ -213,6 +214,8 @@ namespace TerrainCompositor
         auto* terrain = GetParentScene()->GetFeatureProcessor<Terrain::TerrainFeatureProcessor>();
         if (terrain) terrain->ValidateActiveTintMaterial();
         const auto material = terrain ? terrain->GetMaterial() : nullptr;
+        BindSurfaceData(material && material->CanCompile() ? material : AZ::Data::Instance<AZ::RPI::Material>{});
+        BindOverlapMaterials();
         if (material != m_observedTerrainMaterial)
         {
             m_observedTerrainMaterial = material;
@@ -228,7 +231,6 @@ namespace TerrainCompositor
             return;
         }
         // Name-index wrappers cache numeric indices. A different graph can reorder its SRG.
-        BindSurfaceData(material);
         // Resolve against the current layout before any publication, including in-place shader reloads.
         m_cutoutCountIndex = AZ::RHI::ShaderInputNameIndex("m_meshCutoutCount");
         m_cutoutsIndex = AZ::RHI::ShaderInputNameIndex("m_meshCutouts");

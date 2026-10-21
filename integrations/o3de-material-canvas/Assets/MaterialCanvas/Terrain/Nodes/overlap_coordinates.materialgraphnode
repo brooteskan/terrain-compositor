@@ -1,0 +1,65 @@
+{
+    "Type": "JsonSerialization",
+    "Version": 1,
+    "ClassName": "DynamicNodeConfig",
+    "ClassData": {
+        "id": "{23911840-2D68-4FBA-9D78-0B193A858B33}",
+        "category": "Terrain",
+        "title": "Terrain Overlap Coordinates",
+        "titlePaletteName": "MathNodeTitlePalette",
+        "description": "Source-aware overlap material. Configure Material Overlap on the composition. Slots are 1 through 4.",
+        "settings": {
+            "includePaths": [
+                "TerrainCompositor/TerrainOverlap.azsli"
+            ],
+            "instructions": [
+                "#ifndef TC_OVERLAP_LOCAL_SET",
+                "#define TC_OVERLAP_LOCAL_SET",
+                "TerrainOverlapSet O3DE_TC_OVERLAP = TC_ResolveOverlap(O3DE_MC_POSITION_WS);",
+                "#endif",
+                "TerrainOverlapSource NODEID_overlapSource = TC_OverlapMaterialSource(O3DE_TC_OVERLAP, TC_OverlapSlotIndex(materialSlot));",
+                "SLOTTYPE(localXY) localXY = NODEID_overlapSource.localPosition;",
+                "SLOTTYPE(sourcePosition) sourcePosition = NODEID_overlapSource.worldPosition;",
+                "SLOTTYPE(sourceNormal) sourceNormal = NODEID_overlapSource.normal;"
+            ]
+        },
+        "inputSlots": [
+            {
+                "name": "materialSlot",
+                "displayName": "materialSlot",
+                "supportedDataTypeRegex": "float",
+                "defaultDataType": "float",
+                "settings": {
+                    "instructions": [
+                        "SLOTTYPE SLOTNAME = SLOTVALUE;"
+                    ]
+                },
+                "defaultValue": {
+                    "$type": "float",
+                    "Value": 1.0
+                }
+            }
+        ],
+        "outputSlots": [
+            {
+                "name": "localXY",
+                "displayName": "localXY",
+                "supportedDataTypeRegex": "float2",
+                "defaultDataType": "float2"
+            },
+            {
+                "name": "sourcePosition",
+                "displayName": "sourcePosition",
+                "supportedDataTypeRegex": "float3",
+                "defaultDataType": "float3"
+            },
+            {
+                "name": "sourceNormal",
+                "displayName": "sourceNormal",
+                "supportedDataTypeRegex": "float3",
+                "defaultDataType": "float3"
+            }
+        ],
+        "propertySlots": []
+    }
+}
