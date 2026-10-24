@@ -320,8 +320,8 @@
           },
           {
             "connection": {
-              "name": "m_vueOverlapCount",
-              "type": "ShaderInput"
+              "name": "o_terrainOverlapSourceCount",
+              "type": "ShaderOption"
             },
             "defaultValue": 0,
             "max": 4,

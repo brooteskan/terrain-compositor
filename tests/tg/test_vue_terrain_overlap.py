@@ -40,6 +40,23 @@ def adaptive_raw(complete=True):
 
 
 class VueTerrainOverlapTests(unittest.TestCase):
+    def test_generated_layout_specializes_published_count_and_precision(self):
+        # Exercise the generator, rather than a second hand-maintained layout.
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            folder = project/'Assets/VueLiveLink'
+            folder.mkdir(parents=True)
+            (folder/'VueTerrainMesh.materialtype').write_bytes(
+                (PROJECT/'Assets/VueLiveLink/VueTerrainMesh.materialtype').read_bytes())
+            overlap.install_material_layout(project)
+            layout = json.loads((folder/'VueTerrainOverlap.materialtype').read_text())
+            canonical = Path(__file__).resolve().parents[2]/'integrations/tg/project'
+            self.assertEqual(layout, json.loads((canonical/'Assets/VueLiveLink/VueTerrainOverlap.materialtype').read_text()))
+            group = next(g for g in layout['propertyLayout']['propertyGroups'] if g.get('name') == 'terrainOverlap')
+            connections = {p['name']:p['connection'] for p in group['properties']}
+            self.assertEqual(connections['count'],{'type':'ShaderOption','name':'o_terrainOverlapSourceCount'})
+            self.assertEqual(connections['heightFp16'],{'type':'ShaderOption','name':'o_terrainHeightFp16'})
+
     def test_equivalent_response_defaults_allow_blending_but_authored_differences_do_not(self):
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
@@ -383,8 +400,17 @@ class VueTerrainOverlapTests(unittest.TestCase):
             changed = overlap.prepare(project, sources)
             self.assertNotEqual(moved, changed)
             self.assertEqual(Path(sources[0]['material']).read_bytes(), before[0])
-            with self.assertRaisesRegex(ValueError, '2–4'):
+            with self.assertRaisesRegex(ValueError, 'baked sources'):
                 overlap.prepare(project, sources[:1])
+            # The optimized endpoint uses the baked UV0 derivatives. Cover
+            # compound occlusion property names as well as simple textureMapUv.
+            for key in ('normal.textureMapUv','occlusion.diffuseTextureMapUv','occlusion.specularTextureMapUv'):
+                original=Path(sources[0]['material']).read_text()
+                material=json.loads(original);material['propertyValues'][key]='Unwrapped'
+                overlap.write_json(sources[0]['material'],material)
+                with self.assertRaisesRegex(ValueError,'baked UV0'):
+                    overlap.prepare(project,sources)
+                Path(sources[0]['material']).write_text(original)
             invalid = copy.deepcopy(sources); invalid[1]['key'] = invalid[0]['key']
             with self.assertRaisesRegex(ValueError, 'Duplicate'):
                 overlap.prepare(project, invalid)

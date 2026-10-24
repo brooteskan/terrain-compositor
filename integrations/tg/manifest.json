@@ -19,7 +19,10 @@
       "accepted_sha256": [
         "515c690770b5a2e77f294b8c1d3fc1b3633e049c95b8fd7f52642f60e86de68d",
         "b4822d27d752034c876e077c045fdd60b4946109fd9914feb505b5a7a8391088",
-        "0225d9328b4759e8d1caf1d665c89529debc7eecc3553e73186184fe927dd4e1"
+        "0225d9328b4759e8d1caf1d665c89529debc7eecc3553e73186184fe927dd4e1",
+        "8b21502fa77fa879b929f6fc35a10ea85aa02461cac6735cb6b511519ef96c5d",
+        "851c55fa730f5e0a69252e73a84711788c293f756c48c16fb59158908e8b6955",
+        "c6319be8c7cbb217cd64878d53c906464e0e6660da711fbb735dd59448de6803"
       ],
       "accepted_json_sha256": []
     },
@@ -29,7 +32,8 @@
       "binary": false,
       "accepted_sha256": [
         "4028640256be67ab79b5804dca6397a594158ffa556870e727347b632412ca98",
-        "6a61d85724d502044a7004dac205c85b5ecfbad3f2b5234dc7d89caab279e112"
+        "6a61d85724d502044a7004dac205c85b5ecfbad3f2b5234dc7d89caab279e112",
+        "5dbf7731223ca640af3bdf4f3a3dcbf62a7ba296f93ba3a8ef3bf1158117c8ed"
       ],
       "accepted_json_sha256": []
     },
@@ -272,7 +276,9 @@
       "binary": false,
       "accepted_sha256": [
         "b58ccc9cbda64fef8835b9f9554ed38f512905c9939bbf23344ca58d22acda28",
-        "b312bbdf7c79df2ac86cf823929a719c08cc8e4137eea86468b93a8425d1b4e8"
+        "b312bbdf7c79df2ac86cf823929a719c08cc8e4137eea86468b93a8425d1b4e8",
+        "4e2cfca333220b7b952515c7d50d86adf28c4d527649899a40dff7001f88c296",
+        "c762e68e293923458af878b46d473f0c82a3fefbe7e91c4cd5e5ff3febd0198e"
       ],
       "accepted_json_sha256": []
     },
@@ -281,7 +287,8 @@
       "source": "project/Assets/VueLiveLink/VueTerrainOverlap.materialtype",
       "binary": false,
       "accepted_sha256": [
-        "f17a650a4c27b5e52ce518e4e55d44c995cac7c645a5dd7fccd618adf8c9a131"
+        "f17a650a4c27b5e52ce518e4e55d44c995cac7c645a5dd7fccd618adf8c9a131",
+        "369ec505fde3ca4ac2cc34efdbc27b29fc7d3653039c0ee3bb81822b3e928e84"
       ],
       "accepted_json_sha256": []
     },

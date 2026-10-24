@@ -19,11 +19,17 @@
 #endif
 Surface EvaluateSurface_VueTerrain(VsOutput IN, VsSystemValues SV, PixelGeometryData geoData, const MaterialParameters params)
 {
+#if defined(VUE_TERRAIN_OVERLAP) && FORCE_OPAQUE
+    // Capture derivatives before the varying contributor branch. Both the
+    // endpoint and blend paths sample the original UV0 footprint with SampleGrad.
+    float4 uvDxDy = float4(ddx(geoData.uvs[0]), ddy(geoData.uvs[0]));
+    Surface surface;
+    if (!VueTryTerrainOverlap(IN, SV, geoData, params, uvDxDy, surface))
+        surface = EvaluateSurface_StandardPBR(IN, SV, geoData, params, uvDxDy, true);
+#else
     Surface surface = EvaluateSurface_StandardPBR(IN, SV, geoData, params);
-#if FORCE_OPAQUE
-#ifdef VUE_TERRAIN_OVERLAP
-    surface = VueApplyTerrainOverlap(surface, params);
 #endif
+#if FORCE_OPAQUE
     float blend = VueGroundBlendWeight(surface.position.z, params);
     if (params.m_vueBlendHeight > 0.0 && params.m_vueBlendColorTexture >= 0)
     {

@@ -1,0 +1,28 @@
+{
+  "output": "user/TerrainSceneProfile/overlap-comparison-new",
+  "frames": 180,
+  "pass_samples": 3,
+  "warmup_seconds": 20,
+  "settle_seconds": 8,
+  "cache_diagnostics": false,
+  "cases": [
+    {
+      "name": "saved-precision",
+      "screenshot": true
+    },
+    {
+      "name": "precision-32",
+      "height_precision": 32,
+      "screenshot": true
+    },
+    {
+      "name": "precision-16",
+      "height_precision": 16,
+      "screenshot": true
+    },
+    {
+      "name": "restored",
+      "screenshot": true
+    }
+  ]
+}

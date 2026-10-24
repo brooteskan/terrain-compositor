@@ -16,7 +16,7 @@ OUT=Path(CONFIG['output'])
 if not OUT.is_absolute():OUT=P/OUT
 OUT.mkdir(parents=True,exist_ok=False)
 LEVEL=P/'Levels/VueLiveLink/VueLiveLink.prefab';HASH=hashlib.sha256(LEVEL.read_bytes()).hexdigest()
-R={'passed':False,'cases':[],'restoration':{},'original_level_sha256':HASH};CVARS={};MESHES=[];AREA=None;AREA_DISABLED=False;CAMERA=None;VIEWPORT=None;VIS=None;BINDINGS=[];MONITOR=False;SOURCE=None;MATERIAL_OVERRIDES=[]
+R={'passed':False,'cases':[],'restoration':{},'original_level_sha256':HASH};CVARS={};MESHES=[];AREA=None;AREA_DISABLED=False;CAMERA=None;VIEWPORT=None;VIS=None;BINDINGS=[];MONITOR=False;SOURCE=None;MATERIAL_OVERRIDES=[];PRECISION_COMPONENT=None;ORIGINAL_PRECISION=None
 def save():(OUT/'results.json').write_text(json.dumps(R,indent=2)+'\n')
 def cv(n,v):
  if n not in CVARS:CVARS[n]=general.get_cvar(n)
@@ -75,6 +75,11 @@ def counters():
  return result
 def reset():
  global AREA_DISABLED
+ if 'overlap' in globals():overlap.stop()
+ if PRECISION_COMPONENT and ORIGINAL_PRECISION is not None:
+  value=editor.EditorComponentAPIBus(bus.Broadcast,'GetComponentProperty',PRECISION_COMPONENT,'Configuration|Height Precision').GetValue()
+  if value!=ORIGINAL_PRECISION:
+   assert editor.EditorComponentAPIBus(bus.Broadcast,'SetComponentProperty',PRECISION_COMPONENT,'Configuration|Height Precision',ORIGINAL_PRECISION).IsSuccess()
  for owner,slot,key in MATERIAL_OVERRIDES:render.MaterialComponentRequestBus(bus.Event,'ClearPropertyValue',owner,slot,key)
  MATERIAL_OVERRIDES.clear()
  for target,original in BINDINGS:
@@ -126,11 +131,30 @@ try:
  outcome=editor.EditorComponentAPIBus(bus.Broadcast,'GetComponentOfType',owner,types[0]);assert outcome.IsSuccess();AREA=outcome.GetValue()
  comp=editor.EditorComponentAPIBus(bus.Broadcast,'GetComponentOfType',general.find_editor_entity('Terrain Compositor'),azmath.Uuid_CreateString('{43588E85-B704-461F-AC94-8C9E1D916A9A}')).GetValue()
  precision=editor.EditorComponentAPIBus(bus.Broadcast,'GetComponentProperty',comp,'Configuration|Height Precision');assert precision.IsSuccess();R['height_precision']=precision.GetValue()
+ PRECISION_COMPONENT=comp;ORIGINAL_PRECISION=R['height_precision']
  capture('metadata','metadata');save()
  cv('r_terrainGraphClipmapDiagnostics',CONFIG.get('cache_diagnostics',False))
  for case in CONFIG['cases']:
   reset();name=case['name'];R['active_case']=name;save();print('TERRAIN_SCENE_PROFILE',name,flush=True)
   for n,v in case.get('cvars',{}).items():cv(n,v);R['case_cvars'].append(n)
+  if 'height_precision' in case:
+   bits=case['height_precision'];assert bits in (16,32)
+   assert editor.EditorComponentAPIBus(bus.Broadcast,'SetComponentProperty',comp,'Configuration|Height Precision',bits).IsSuccess()
+   width=(R.get('overlap_status') or {}).get('width',10)
+   expected=overlap.model.fingerprint(P,[row[1] for row in overlap.snapshot()],width,bits)
+   overlap.start()
+   wait(lambda:overlap._monitor.last_status and overlap._monitor.last_status.get('phase')=='ready' and
+        overlap._monitor.last_status.get('revision')==expected and overlap._monitor.pending is None,240)
+   publication=dict(overlap._monitor.last_status,heightPrecision=bits,height_formats=[])
+   for product in publication['materials'].values():
+    values=json.loads((P/product).with_suffix('.material').read_text())['propertyValues']
+    assert values['terrainOverlap.count']==len(MESHES) and values['terrainOverlap.heightFp16']==(bits==16)
+    for index in range(len(MESHES)):
+     data=(P/values['overlapSource%d.heightMap'%index]).read_bytes()
+     dxgi=int.from_bytes(data[128:132],'little');assert dxgi==(10 if bits==16 else 2)
+     publication['height_formats'].append(dxgi)
+   R.setdefault('precision_publications',{})[name]=publication
+   overlap.stop()
   hidden=case.get('hide_meshes',[])
   for mesh_name,owner,visible in MESHES:
    if hidden=='all' or mesh_name in hidden:editor.EditorEntityAPIBus(bus.Event,'SetVisibilityState',owner,False)
@@ -176,6 +200,7 @@ finally:
   if CAMERA:R['restoration']['camera']=camera()==CAMERA
   if VIS:R['restoration']['entity_visibility']=visibility()==VIS
   R['restoration']['mesh_visibility']=True;R['restoration']['material_bindings']=True
+  if PRECISION_COMPONENT:R['restoration']['height_precision']=editor.EditorComponentAPIBus(bus.Broadcast,'GetComponentProperty',PRECISION_COMPONENT,'Configuration|Height Precision').GetValue()==ORIGINAL_PRECISION
  except Exception:R['restore_exception']=traceback.format_exc();R['passed']=False
  for n,v in CVARS.items():
   try:general.run_console('%s %s'%(n,v))
