@@ -1,0 +1,44 @@
+{
+  "output": "user/TerrainSceneProfile/new-run",
+  "frames": 120,
+  "pass_samples": 3,
+  "cpu_seconds": 3,
+  "warmup_seconds": 15,
+  "settle_seconds": 5,
+  "cache_diagnostics": false,
+  "cases": [
+    {
+      "name": "baseline",
+      "screenshot": true,
+      "cpu_trace": true
+    },
+    {
+      "name": "without-retained-meshes",
+      "hide_meshes": "all"
+    },
+    {
+      "name": "without-procedural-area",
+      "terrain_area": false
+    },
+    {
+      "name": "no-overlap-evaluation",
+      "material_overrides": {
+        "terrainOverlap.width": 0.0
+      }
+    },
+    {
+      "name": "no-smooth-normal-field",
+      "material_overrides": {
+        "normalSmoothing.strength": 0.0
+      }
+    },
+    {
+      "name": "base-shader-without-overlap",
+      "base_material": true
+    },
+    {
+      "name": "baseline-restored",
+      "screenshot": true
+    }
+  ]
+}

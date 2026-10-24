@@ -60,3 +60,23 @@ Native unit coverage in `TerrainHeightPrecisionTests.cpp` checks both image and 
 `tests/tg/VerifyTerrainStampPublications.py --root <repo> --project <TG> --engine <SDK> --compiler-env <VsDevCmd.bat> --output <folder>` compiles the production `TerrainOverlap.cpp` and the actual image/mesh publication test bodies into a standalone executable using the configured project's compiler includes. These checks passed for both precisions without requiring the missing full unit-test framework.
 
 The expanded editor acceptance run passed 32 → 16 → 32: live renderer R32_FLOAT → R16_FLOAT → R32_FLOAT, 8 → 4 → 8 bytes per height/normal vertex, matching retained material fields, and unchanged camera, visibility and saved-level contents. Asset processing completed with 49 successes, zero failures and zero errors. The existing RenderPass image-input index assertion and DynamicDrawContext warnings remain; they predate this expansion. No timing improvement is claimed.
+
+## Current scene throughput profile (2026-10-24)
+
+The saved VueLiveLink view is GPU-bound on the current AMD Radeon(TM) Graphics adapter. At 1203 × 656, MSAA 2x and the user's saved 16-bit setting, repeated baseline captures measure about 63 ms/frame (roughly 16 engine FPS). The CPU trace spends about 50 ms/frame waiting on the GPU fence; terrain CPU rendering control averages about 0.8 ms per invocation. The stationary clipmap diagnostic records no updates or pending texels.
+
+| Temporary diagnostic | Median frame interval | Approximate engine FPS |
+|---|---:|---:|
+| Full scene | 63.0 ms | 15.9 |
+| Overlap shader, blend width temporarily zero | 53.0 ms | 18.9 |
+| Existing base shader without overlap code | 44.6 ms | 22.4 |
+| Both retained Vue terrain meshes hidden | 26.8 ms | 37.3 |
+| Procedural terrain area disabled | 50.5 ms | 19.8 |
+
+These diagnostic changes alter rendering temporarily; they were all restored. The base shader and zero-width overlap case have identical non-overlap material properties and the same 2,336,622 main-forward primitives. Their 8.4 ms difference identifies additional shader/material overhead beyond the executed blend calculations. Compiler/register pressure or specialization are candidates, not proven hardware-counter findings. Disabling smooth normals saves roughly 2 ms; changing stochastic ground sampling, frame pacing or graph clipmaps provides no comparable recovery.
+
+The retained meshes use `VueTerrainOverlap.azsli` directly and do not sample the graph material clipmaps. The next target is their overlap shader: specialize inactive paths and avoid evaluating material channels twice before replacing them in the blend. Retained-material caching is a further option. Preserve blending and geometry LOD, then validate optimized images and timings; disabling features is not the proposed fix.
+
+All three successful runs restored visibility, material bindings, camera and settings; the saved level hash remained unchanged. The raw captures are under `user/TerrainSceneProfile/`. [Structured findings and case statistics](TerrainSceneProfile20261024.json) record the measurements and limitations. Some Forward timestamps are unavailable, and GPU frame envelopes become stale after terrain-area recreation; those invalid intervals are excluded from attribution.
+
+`tools/ProfileTerrainScene.py`, configured with `TC_SCENE_PROFILE_CONFIG`, reproduces the current-view comparisons without saving. `tools/AnalyzeTerrainSceneProfile.py <capture-folder> ... --output <summary.json>` summarizes native frame intervals, preserves duplicate pass-name ordinals, and flags stale GPU frame envelopes. Use a fresh output folder for every run. Profiling captures add overhead; this is not a new FP16/FP32 comparison or a complete camera-flight benchmark.
