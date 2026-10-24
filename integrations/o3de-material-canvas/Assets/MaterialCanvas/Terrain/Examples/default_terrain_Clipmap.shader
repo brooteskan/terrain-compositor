@@ -23,5 +23,10 @@
     "DrawList": "terrain-graph-cache",
     "DisabledRHIBackends": [
         "metal"
-    ]
+    ],
+    "AddBuildArguments": {
+        "dxc": [
+            "-enable-16bit-types"
+        ]
+    }
 }

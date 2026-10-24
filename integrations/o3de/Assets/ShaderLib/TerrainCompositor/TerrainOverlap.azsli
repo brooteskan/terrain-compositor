@@ -147,17 +147,18 @@ TerrainSurfaceChannels TC_BlendOverlap(TerrainOverlapSet set, TerrainSurfaceChan
         TerrainSurfaceChannels value = TC_ValidateSurface(materials[set.sources[i].materialSlot], sourceContext);
         float weight = set.weights[i];
         uncovered *= 1.0 - saturate(set.sources[i].coverage);
-        result.baseColor += weight * value.baseColor; result.normal += weight * value.normal;
-        result.roughness += weight * value.roughness; result.metalness += weight * value.metalness;
+        half channelWeight = half(weight);
+        result.baseColor += channelWeight * value.baseColor; result.normal += channelWeight * value.normal;
+        result.roughness += channelWeight * value.roughness; result.metalness += channelWeight * value.metalness;
         result.specularFactor += weight * value.specularFactor; result.ambientOcclusion += weight * value.ambientOcclusion;
     }
     // Keep entry/exit continuous even when no explicit ground source was authored.
     // The existing graph is the residual appearance, never an extra geometric surface.
     fallback = TC_ValidateSurface(fallback, context);
-    result.baseColor = lerp(result.baseColor, fallback.baseColor, uncovered);
-    result.normal = lerp(result.normal, fallback.normal, uncovered);
-    result.roughness = lerp(result.roughness, fallback.roughness, uncovered);
-    result.metalness = lerp(result.metalness, fallback.metalness, uncovered);
+    result.baseColor = lerp(result.baseColor, fallback.baseColor, half(uncovered));
+    result.normal = lerp(result.normal, fallback.normal, half(uncovered));
+    result.roughness = lerp(result.roughness, fallback.roughness, half(uncovered));
+    result.metalness = lerp(result.metalness, fallback.metalness, half(uncovered));
     result.specularFactor = lerp(result.specularFactor, fallback.specularFactor, uncovered);
     result.ambientOcclusion = lerp(result.ambientOcclusion, fallback.ambientOcclusion, uncovered);
     return TC_ValidateSurface(result, context);

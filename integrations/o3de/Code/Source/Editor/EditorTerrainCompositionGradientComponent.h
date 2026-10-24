@@ -7,6 +7,14 @@
 
 namespace TerrainCompositor
 {
+    //! Editor-only, edit-driven delivery to retained-material publishers. No polling.
+    class TerrainHeightPrecisionNotifications : public AZ::EBusTraits
+    {
+    public:
+        virtual void OnHeightPrecisionChanged() {}
+    };
+    using TerrainHeightPrecisionNotificationBus = AZ::EBus<TerrainHeightPrecisionNotifications>;
+
     class EditorTerrainCompositionGradientComponent final
         : public AzToolsFramework::Components::EditorComponentBase
         , private AzFramework::EntityDebugDisplayEventBus::Handler

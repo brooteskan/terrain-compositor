@@ -18,5 +18,14 @@
                 }
             }
         }
+    },
+    "O3DE": {
+        "Atom": {
+            "Shaders": {
+                "Build": {
+                    "ConfigPath": "@gemroot:TerrainCompositor@/ShaderBuildConfig"
+                }
+            }
+        }
     }
 }

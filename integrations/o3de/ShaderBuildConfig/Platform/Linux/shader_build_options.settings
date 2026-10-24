@@ -1,0 +1,15 @@
+{
+  "AddBuildArguments": {
+    "debug": false,
+    "preprocessor": [],
+    "azslc": [
+      "--namespace=vk",
+      "--unique-idx"
+    ],
+    "dxc": [
+      "-spirv",
+      "-fvk-use-dx-layout",
+      "-enable-16bit-types"
+    ]
+  }
+}

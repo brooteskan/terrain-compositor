@@ -18,3 +18,15 @@ function(tc_sync_tg_projects)
         endif()
     endforeach()
 endfunction()
+
+# O3DE project editor targets do not automatically build dynamically loaded Gems.
+# Resolve targets after all Gems/projects have been declared.
+function(tc_wire_tg_editor_build)
+    if(TARGET TGProject.Editor AND TARGET TerrainCompositor.Editor)
+        add_dependencies(TGProject.Editor TerrainCompositor.Editor)
+        if(TARGET TerrainCompositorCanvas.Editor)
+            add_dependencies(TGProject.Editor TerrainCompositorCanvas.Editor)
+        endif()
+    endif()
+endfunction()
+cmake_language(DEFER DIRECTORY "${CMAKE_SOURCE_DIR}" CALL tc_wire_tg_editor_build)

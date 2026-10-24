@@ -18,7 +18,8 @@
       "binary": false,
       "accepted_sha256": [
         "515c690770b5a2e77f294b8c1d3fc1b3633e049c95b8fd7f52642f60e86de68d",
-        "b4822d27d752034c876e077c045fdd60b4946109fd9914feb505b5a7a8391088"
+        "b4822d27d752034c876e077c045fdd60b4946109fd9914feb505b5a7a8391088",
+        "0225d9328b4759e8d1caf1d665c89529debc7eecc3553e73186184fe927dd4e1"
       ],
       "accepted_json_sha256": []
     },
@@ -249,6 +250,56 @@
         "6dc24298e84b80c8122e7e86d12742d4fc9199e4f560f98d53daa28641714683",
         "99c5884ce7beaf56a9c253d244ae5390cb4899eb47ec6b0021a88a23f940aa69",
         "fa34e7334ef0de7808a6586b3a9edff9316fc039748f1e5b79565165f260c8a6"
+      ],
+      "accepted_json_sha256": []
+    },
+    {
+      "path": "Gem/Source/Editor/VueLiveLink/terrain_overlap_editor.py",
+      "source": "project/Gem/Source/Editor/VueLiveLink/terrain_overlap_editor.py",
+      "binary": false,
+      "accepted_sha256": [
+        "57b4f1bb0a71285152344c2eef47b72712904261b9fc7827a4a4d1ae0edd759f",
+        "6d4b506cfb29709ac2a8f71709d65810c457cfea9bff414f0146a2d9b25b8c84",
+        "556f19559ea28fe4e08dbd3d303f7e5314ddfe31fc7d3be086d60b2340621557",
+        "53cfbb2d21d24bef9d2093c390353969d3badfd57ab6dae4808ca7b35315cb93",
+        "da43b09ce07afaa842ee3956e362185f9ca8e0e4de6d8970917131351dbb3d67"
+      ],
+      "accepted_json_sha256": []
+    },
+    {
+      "path": "Assets/VueLiveLink/VueTerrainOverlap.azsli",
+      "source": "project/Assets/VueLiveLink/VueTerrainOverlap.azsli",
+      "binary": false,
+      "accepted_sha256": [
+        "b58ccc9cbda64fef8835b9f9554ed38f512905c9939bbf23344ca58d22acda28",
+        "b312bbdf7c79df2ac86cf823929a719c08cc8e4137eea86468b93a8425d1b4e8"
+      ],
+      "accepted_json_sha256": []
+    },
+    {
+      "path": "Assets/VueLiveLink/VueTerrainOverlap.materialtype",
+      "source": "project/Assets/VueLiveLink/VueTerrainOverlap.materialtype",
+      "binary": false,
+      "accepted_sha256": [
+        "f17a650a4c27b5e52ce518e4e55d44c995cac7c645a5dd7fccd618adf8c9a131"
+      ],
+      "accepted_json_sha256": []
+    },
+    {
+      "path": "Assets/VueLiveLink/VueTerrainOverlapInputs.azsli",
+      "source": "project/Assets/VueLiveLink/VueTerrainOverlapInputs.azsli",
+      "binary": false,
+      "accepted_sha256": [
+        "58d40ae08535dc99b7f718274569cfada0ad73f904b748ad9fb5bb18afc0fb31"
+      ],
+      "accepted_json_sha256": []
+    },
+    {
+      "path": "Gem/Tests/test_vue_terrain_overlap.py",
+      "source": "project/Gem/Tests/test_vue_terrain_overlap.py",
+      "binary": false,
+      "accepted_sha256": [
+        "b9dce7ac721f8858b979826d9b8f66ff2eceddb574c8318042d7ab88177afaca"
       ],
       "accepted_json_sha256": []
     }

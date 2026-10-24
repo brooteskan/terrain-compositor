@@ -45,6 +45,7 @@ color, roughness, normal, metalness, specular-factor, and occlusion formulas.
 The base Gem ships a generated default graph material. Legacy macro/detail shading and old tint graphs are removed.
 Graph-authored materials use [budgeted material clipmaps](docs/GraphMaterialClipmaps.md)
 for reusable appearance and distance LOD; geometry LOD retains its existing path.
+The [shader precision guide](docs/TerrainShaderPrecision.md) documents the inspector height precision switch and verified native FP16 arithmetic for half-float terrain channels.
 
 ## Compatibility
 

@@ -2,6 +2,7 @@
 #include "../ComponentConfiguration.h"
 #include "EditorConfiguration.h"
 
+#include <AzCore/RTTI/BehaviorContext.h>
 #include <AzCore/Serialization/EditContext.h>
 #include <AzCore/Serialization/SerializeContext.h>
 #include <AzCore/Component/ComponentApplicationBus.h>
@@ -16,6 +17,14 @@
 
 namespace TerrainCompositor
 {
+    class HeightPrecisionBehaviorHandler final
+        : public TerrainHeightPrecisionNotificationBus::Handler, public AZ::BehaviorEBusHandler
+    {
+    public:
+        AZ_EBUS_BEHAVIOR_BINDER(HeightPrecisionBehaviorHandler, "{5C931F20-9455-4C06-B7ED-58B2A54E8768}",
+            AZ::SystemAllocator, OnHeightPrecisionChanged);
+        void OnHeightPrecisionChanged() override { Call(FN_OnHeightPrecisionChanged); }
+    };
     namespace
     {
         TerrainQualityBaseline CaptureTerrainQualityBaseline(AZ::EntityId ownerEntityId)
@@ -81,6 +90,13 @@ namespace TerrainCompositor
 
     void EditorTerrainCompositionGradientComponent::Reflect(AZ::ReflectContext* context)
     {
+        if (auto* behavior = azrtti_cast<AZ::BehaviorContext*>(context))
+        {
+            behavior->EBus<TerrainHeightPrecisionNotificationBus>("TerrainHeightPrecisionNotificationBus")
+                ->Attribute(AZ::Script::Attributes::Scope, AZ::Script::Attributes::ScopeFlags::Automation)
+                ->Attribute(AZ::Script::Attributes::Module, "editor")
+                ->Handler<HeightPrecisionBehaviorHandler>();
+        }
         // Config reflection is idempotent; runtime owns its removal when descriptors are unreflected.
         Internal::ReflectEditorConfiguration<EditorTerrainCompositionGradientComponent, BaseClass>(context,
             &EditorTerrainCompositionGradientComponent::m_configuration, &EditorTerrainCompositionGradientComponent::OnConfigurationChanged,
@@ -118,7 +134,11 @@ namespace TerrainCompositor
     }
 
     AZ::TypeId EditorTerrainCompositionGradientComponent::GetUnderlyingComponentType() const
-    { return azrtti_typeid<TerrainCompositionGradientComponent>(); }
+    {
+        // This adapter owns its Configuration directly; it is not a generic
+        // runtime-component wrapper. PropertyTreeEditor must use our layout.
+        return azrtti_typeid<EditorTerrainCompositionGradientComponent>();
+    }
 
     void EditorTerrainCompositionGradientComponent::BuildGameEntity(AZ::Entity* gameEntity)
     {
@@ -138,6 +158,7 @@ namespace TerrainCompositor
 
     AZ::u32 EditorTerrainCompositionGradientComponent::OnConfigurationChanged()
     {
+        TerrainHeightPrecisionNotificationBus::Broadcast(&TerrainHeightPrecisionNotifications::OnHeightPrecisionChanged);
         return Internal::RefreshEditorConfiguration(m_preview, m_configuration);
     }
 

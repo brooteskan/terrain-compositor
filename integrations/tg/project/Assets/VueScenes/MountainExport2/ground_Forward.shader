@@ -35,7 +35,8 @@
     ],
     "AddBuildArguments": {
         "dxc": [
-            "-fspv-target-env=vulkan1.1"
+            "-fspv-target-env=vulkan1.1",
+            "-enable-16bit-types"
         ]
     }
 }

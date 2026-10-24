@@ -53,22 +53,22 @@ TerrainSurfaceChannels TC_ResolveGraphClipmap(TerrainSurfaceContext context, con
                     uv=frac(context.worldPosition.xy*mapping.z);
                 }
                 else c=TerrainSrg::m_graphCacheFactors[i].SampleLevel(TerrainSrg::m_graphCacheSampler,uv,0);
-                float4 a = TerrainSrg::m_graphCacheColor[i].SampleLevel(TerrainSrg::m_graphCacheSampler, uv, 0);
-                float4 b = TerrainSrg::m_graphCacheNormal[i].SampleLevel(TerrainSrg::m_graphCacheSampler, uv, 0);
-                float3 g = TerrainSrg::m_graphCacheGeometry[i].SampleLevel(TerrainSrg::m_graphCacheSampler, uv, 0).xyz;
-                if (valid && c.z > 0.9999 && abs(c.w-context.worldPosition.z) < max(0.01, mapping.w*0.005) && dot(g,g)>0.1)
+                half4 a = half4(TerrainSrg::m_graphCacheColor[i].SampleLevel(TerrainSrg::m_graphCacheSampler, uv, 0));
+                half4 b = half4(TerrainSrg::m_graphCacheNormal[i].SampleLevel(TerrainSrg::m_graphCacheSampler, uv, 0));
+                half3 g = half3(TerrainSrg::m_graphCacheGeometry[i].SampleLevel(TerrainSrg::m_graphCacheSampler, uv, 0).xyz);
+                if (valid && c.z > 0.9999 && abs(c.w-context.worldPosition.z) < max(0.01, mapping.w*0.005) && dot(g,g)>half(0.1))
                 {
                     g = normalize(g);
-                    float3 n = normalize(context.geometricNormal);
-                    float cosine = dot(g,n);
-                    if (cosine > 0.9995)
+                    half3 n = normalize(half3(context.geometricNormal));
+                    half cosine = dot(g,n);
+                    if (cosine > half(0.9995))
                     {
                         // Reject changed CLOD context before using cached graph channels.
                         // Rotate the cached shading normal with the live geometric
                         // normal. An unperturbed material retains exact live CLOD normals.
-                        float3 axis = cross(g,n);
-                        float3 shading = normalize(b.xyz);
-                        cached.normal = normalize(shading + cross(axis,shading) + cross(axis,cross(axis,shading))/max(1.0+cosine,0.001));
+                        half3 axis = cross(g,n);
+                        half3 shading = normalize(b.xyz);
+                        cached.normal = normalize(shading + cross(axis,shading) + cross(axis,cross(axis,shading))/max(half(1)+cosine,half(0.001)));
                         cached.baseColor=a.rgb; cached.roughness=a.a; cached.metalness=b.a;
                         cached.specularFactor=c.x; cached.ambientOcclusion=c.y;
                         float2 logicalUv = (context.worldPosition.xy-mapping.xy)*mapping.z;
@@ -88,10 +88,10 @@ TerrainSurfaceChannels TC_ResolveGraphClipmap(TerrainSurfaceContext context, con
         result = TC_ValidateSurface(TC_EvaluateTerrainSurface(context,params),context);
         if (found)
         {
-            result.baseColor=lerp(result.baseColor,cached.baseColor,weight);
-            result.normal=normalize(lerp(result.normal,cached.normal,weight));
-            result.roughness=lerp(result.roughness,cached.roughness,weight);
-            result.metalness=lerp(result.metalness,cached.metalness,weight);
+            result.baseColor=lerp(half3(result.baseColor),half3(cached.baseColor),half(weight));
+            result.normal=normalize(lerp(half3(result.normal),half3(cached.normal),half(weight)));
+            result.roughness=lerp(half(result.roughness),half(cached.roughness),half(weight));
+            result.metalness=lerp(half(result.metalness),half(cached.metalness),half(weight));
             result.specularFactor=lerp(result.specularFactor,cached.specularFactor,weight);
             result.ambientOcclusion=lerp(result.ambientOcclusion,cached.ambientOcclusion,weight);
         }

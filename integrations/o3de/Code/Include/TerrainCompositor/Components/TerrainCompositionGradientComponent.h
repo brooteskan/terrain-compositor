@@ -49,6 +49,12 @@ namespace TerrainCompositor
         AZStd::vector<SurfacePaletteEntry> m_surfacePalette;
         AZStd::vector<SurfaceBaseWeight> m_baseSurfaceWeights;
         TerrainOverlapConfig m_materialOverlap;
+        //! Retained material height storage AND shader arithmetic; never changes the geometry height source.
+        AZ::u32 m_materialHeightPrecision = 32;
+        AZStd::vector<AZStd::pair<AZ::u32, AZStd::string>> GetHeightPrecisionOptions() const
+        {
+            return {{32u, "32-bit float"}, {16u, "16-bit float"}};
+        }
     };
 
     //! Lives on its own entity, not on the Terrain Height Gradient List entity.

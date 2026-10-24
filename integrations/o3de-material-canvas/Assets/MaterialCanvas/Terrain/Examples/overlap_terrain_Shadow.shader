@@ -22,5 +22,10 @@
                 "type": "Fragment"
             }
         ]
+    },
+    "AddBuildArguments": {
+        "dxc": [
+            "-enable-16bit-types"
+        ]
     }
 }

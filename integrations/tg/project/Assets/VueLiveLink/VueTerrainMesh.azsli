@@ -121,7 +121,7 @@ VsOutput EvaluateVertexGeometry_VueTerrain(VsInput IN, VsSystemValues SV, const 
 }
 
 #if MATERIALPIPELINE_SHADER_HAS_PIXEL_STAGE
-float3 VueSmoothNormal(float2 uv, const MaterialParameters params)
+half3 VueSmoothNormal(float2 uv, const MaterialParameters params)
 {
     // Deliberate lower-order approximation: one sampler-filtered field read
     // replaces the four-read cubic reconstruction. Fine curvature may change.
@@ -135,7 +135,7 @@ float3 VueSmoothNormal(float2 uv, const MaterialParameters params)
     // Address sample centers within the generated grid, not a padded extent.
     // Explicit LOD retains the original mip-zero policy and sampler state.
     float2 texel = (saturate(uv) * (grid - 1.0) + 0.5) / float2(width, height);
-    return GetMaterialTexture(params.m_vueNormalField).SampleLevel(GetMaterialTextureSampler(), texel, 0).xyz;
+    return half3(GetMaterialTexture(params.m_vueNormalField).SampleLevel(GetMaterialTextureSampler(), texel, 0).xyz);
 }
 #endif
 
@@ -152,10 +152,10 @@ PixelGeometryData EvaluatePixelGeometry_VueTerrain(
 #if MATERIALPIPELINE_SHADER_HAS_PIXEL_STAGE
     if (params.m_vueNormalSmoothing > 0.0)
     {
-        float3 smoothNormal = VueSmoothNormal(IN.terrainUv, params);
-        if (dot(smoothNormal, smoothNormal) > 0.0001)
+        half3 smoothNormal = VueSmoothNormal(IN.terrainUv, params);
+        if (dot(smoothNormal, smoothNormal) > half(0.0001))
         {
-            float normalSmoothing = saturate(params.m_vueNormalSmoothing);
+            half normalSmoothing = saturate(half(params.m_vueNormalSmoothing));
             if (normalSmoothing >= 1.0)
             {
                 // Material-uniform full strength needs only the field normal.
@@ -164,11 +164,12 @@ PixelGeometryData EvaluatePixelGeometry_VueTerrain(
             }
             else
             {
-                IN.normal = normalize(lerp(normalize(IN.normal), normalize(smoothNormal), normalSmoothing));
+                IN.normal = normalize(lerp(normalize(half3(IN.normal)), normalize(smoothNormal), normalSmoothing));
             }
             // Preserve normal-map handedness while making its frame agree with
             // the reconstructed normal, rather than triangle interpolation.
-            IN.tangent.xyz = normalize(IN.tangent.xyz - IN.normal * dot(IN.normal, IN.tangent.xyz));
+            half3 normal = half3(IN.normal), tangent = half3(IN.tangent.xyz);
+            IN.tangent.xyz = normalize(tangent - normal * dot(normal, tangent));
         }
     }
 #endif

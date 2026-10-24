@@ -177,13 +177,14 @@ namespace TerrainCompositor
                 return;
             }
             serializeContext->Class<TerrainCompositionConfig, AZ::ComponentConfig>()
-                ->Version(4)
+                ->Version(5)
                 ->Field("ProceduralSourceEntityId", &TerrainCompositionConfig::m_proceduralSourceEntityId)
                 ->Field("TargetTerrainRegionEntityId", &TerrainCompositionConfig::m_targetTerrainRegionEntityId)
                 ->Field("TerrainQuality", &TerrainCompositionConfig::m_terrainQuality)
                 ->Field("SurfacePalette", &TerrainCompositionConfig::m_surfacePalette)
                 ->Field("BaseSurfaceWeights", &TerrainCompositionConfig::m_baseSurfaceWeights)
-                ->Field("MaterialOverlap", &TerrainCompositionConfig::m_materialOverlap);
+                ->Field("MaterialOverlap", &TerrainCompositionConfig::m_materialOverlap)
+                ->Field("MaterialHeightPrecision", &TerrainCompositionConfig::m_materialHeightPrecision);
 
             if (AZ::EditContext* editContext = serializeContext->GetEditContext())
             {
@@ -223,6 +224,9 @@ namespace TerrainCompositor
                         "Base Surface Weights",
                         "Explicit weighted base. O3DE's Default Material is "
                         "only used when no positive mapped surface remains.")
+                    ->DataElement(AZ::Edit::UIHandlers::ComboBox, &TerrainCompositionConfig::m_materialHeightPrecision,
+                        "Height Precision", "Retained terrain material height texture format and shader arithmetic. Geometry LOD is unchanged.")
+                    ->Attribute(AZ::Edit::Attributes::EnumValues, &TerrainCompositionConfig::GetHeightPrecisionOptions)
                     ->DataElement(AZ::Edit::UIHandlers::Default, &TerrainCompositionConfig::m_materialOverlap,
                         "Material Overlap", "Opt-in material transition between explicitly bound source instances.");
             }

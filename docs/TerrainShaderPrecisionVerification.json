@@ -1,0 +1,128 @@
+{
+  "date": "2026-10-24",
+  "editor": {
+    "passed": true,
+    "cases": [
+      {
+        "bits": 32,
+        "materials": {
+          "Terrain7": "assets/vuelivelink/overlap/9f344ef8359b9976db0ed01a/984ffe80d5341f52fe3653d0b9adac855144fad5db31d14365dda13825c60946.azmaterial",
+          "Terrain6": "assets/vuelivelink/overlap/d9e7b35caf90f0292a9e19d9/984ffe80d5341f52fe3653d0b9adac855144fad5db31d14365dda13825c60946.azmaterial"
+        },
+        "height_formats": [
+          2,
+          2,
+          2,
+          2
+        ],
+        "visibility_unchanged": true,
+        "camera_unchanged": true
+      },
+      {
+        "bits": 16,
+        "materials": {
+          "Terrain7": "assets/vuelivelink/overlap/9f344ef8359b9976db0ed01a/8e1644bb8ab5b15287a92eba2bdaa659fa852d0ea06f0621737e2db6594d471d.azmaterial",
+          "Terrain6": "assets/vuelivelink/overlap/d9e7b35caf90f0292a9e19d9/8e1644bb8ab5b15287a92eba2bdaa659fa852d0ea06f0621737e2db6594d471d.azmaterial"
+        },
+        "height_formats": [
+          10,
+          10,
+          10,
+          10
+        ],
+        "visibility_unchanged": true,
+        "camera_unchanged": true
+      },
+      {
+        "bits": 32,
+        "materials": {
+          "Terrain7": "assets/vuelivelink/overlap/9f344ef8359b9976db0ed01a/984ffe80d5341f52fe3653d0b9adac855144fad5db31d14365dda13825c60946.azmaterial",
+          "Terrain6": "assets/vuelivelink/overlap/d9e7b35caf90f0292a9e19d9/984ffe80d5341f52fe3653d0b9adac855144fad5db31d14365dda13825c60946.azmaterial"
+        },
+        "height_formats": [
+          2,
+          2,
+          2,
+          2
+        ],
+        "visibility_unchanged": true,
+        "camera_unchanged": true
+      }
+    ],
+    "scene_unchanged": true
+  },
+  "isolated_production_resolver_dxil": {
+    "16": {
+      "arithmetic": {
+        "half": 114,
+        "float": 0
+      },
+      "native_fp16": true,
+      "production": "integrations/o3de/Assets/ShaderLib/TerrainCompositor/TerrainOverlapWeights16.azsli"
+    },
+    "32": {
+      "arithmetic": {
+        "half": 0,
+        "float": 114
+      },
+      "native_fp16": false,
+      "production": "integrations/o3de/Assets/ShaderLib/TerrainCompositor/TerrainOverlapWeights.azsli"
+    }
+  },
+  "production_dx12_shader_arithmetic": {
+    "assets/vuelivelink/vueterrainmesh_mainpipeline_forwardpass_standardlighting_dx12_0.azshadervariant": [
+      {
+        "half": 0,
+        "float": 8
+      },
+      {
+        "half": 27,
+        "float": 8657
+      }
+    ],
+    "assets/vuelivelink/vueterrainoverlap_mainpipeline_forwardpass_standardlighting_dx12_0.azshadervariant": [
+      {
+        "half": 0,
+        "float": 8
+      },
+      {
+        "half": 263,
+        "float": 8969
+      }
+    ],
+    "assets/vuelivelink/vuesimpleterrain_forward_dx12_0.azshadervariant": [
+      {
+        "half": 0,
+        "float": 42
+      },
+      {
+        "half": 83,
+        "float": 8407
+      }
+    ],
+    "assets/vuelivelink/vuesimpleterrain_clipmap_dx12_0.azshadervariant": [
+      {
+        "half": 0,
+        "float": 41
+      },
+      {
+        "half": 9,
+        "float": 237
+      }
+    ]
+  },
+  "assets": {
+    "processed": 658,
+    "failed": 0,
+    "errors": 0,
+    "warnings": 1350
+  },
+  "tests": {
+    "tg_regressions": 52,
+    "normal_tests": 30,
+    "material_canvas_compiler_contract": 3
+  },
+  "performance_measured": false,
+  "geometry_lod_changed": false,
+  "scope": "Retained material height format/arithmetic, half normal fields and half graph cache channels. Coordinate/geometry calculations and FP32 cache factors/tags remain FP32."
+}

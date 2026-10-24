@@ -4,10 +4,10 @@
 // (ACEScg), normals are world-space, and roughness is perceptually linear.
 struct TerrainSurfaceChannels
 {
-    float3 baseColor;
-    float3 normal;
-    float roughness;
-    float metalness;
+    half3 baseColor; // RGBA16F color/roughness cache
+    half3 normal;    // RGBA16F normal/metalness cache
+    half roughness;
+    half metalness;
     float specularFactor;
     float ambientOcclusion;
 };
@@ -30,13 +30,25 @@ float TC_SurfaceFactor(float value, float fallback)
     return isfinite(value) ? saturate(value) : fallback;
 }
 
+half3 TC_SafeNormal16(half3 value, half3 fallback)
+{
+    half lengthSquared = dot(value, value);
+    return all(isfinite(value)) && isfinite(lengthSquared) && lengthSquared > half(0.00006103515625)
+        ? value * rsqrt(lengthSquared) : fallback;
+}
+
+half TC_SurfaceFactor16(half value, half fallback)
+{
+    return isfinite(value) ? saturate(value) : fallback;
+}
+
 TerrainSurfaceChannels TC_ValidateSurface(TerrainSurfaceChannels value, TerrainSurfaceContext context)
 {
     // Do not clamp HDR/overbright working RGB to one.
-    value.baseColor = all(isfinite(value.baseColor)) ? max(value.baseColor, 0.0) : float3(1, 1, 1);
-    value.normal = TC_SafeNormal(value.normal, TC_SafeNormal(context.geometricNormal, float3(0, 0, 1)));
-    value.roughness = TC_SurfaceFactor(value.roughness, 1.0);
-    value.metalness = TC_SurfaceFactor(value.metalness, 0.0);
+    value.baseColor = all(isfinite(value.baseColor)) ? max(value.baseColor, half(0)) : half3(1, 1, 1);
+    value.normal = TC_SafeNormal16(value.normal, TC_SafeNormal16(half3(context.geometricNormal), half3(0, 0, 1)));
+    value.roughness = TC_SurfaceFactor16(value.roughness, half(1));
+    value.metalness = TC_SurfaceFactor16(value.metalness, half(0));
     value.specularFactor = TC_SurfaceFactor(value.specularFactor, 0.5);
     value.ambientOcclusion = TC_SurfaceFactor(value.ambientOcclusion, 1.0);
     return value;
