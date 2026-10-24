@@ -36,7 +36,8 @@ class CompilerContractTests(unittest.TestCase):
             contents = {'probe_Tint.azsli': shader, 'probe_Parameters.azsli': 'struct MaterialParameters { uint id; };',
                         'probe_Material.azsli': '#define TC_GRAPH_MATERIAL\n#include "probe_Parameters.azsli"',
                         'probe_Depth.azsl': '#include "probe_Material.azsli"',
-                        'probe.materialtype': json.dumps({'shaders': [{'file': 'probe_' + p + '.shader'} for p in ['Forward', 'Depth', 'Shadow']]})}
+                        'probe_Clipmap.azsl': '#include "probe_Tint.azsli"\n#include <TerrainCompositor/TerrainGraphClipmapUpdate.azsli>',
+                        'probe.materialtype': json.dumps({'shaders': [{'file': 'probe_' + p + '.shader'} for p in ['Forward', 'Depth', 'Shadow', 'Clipmap']]})}
             for name, text in contents.items(): (root / name).write_text(text)
             generated = list(root.iterdir())
             self.assertEqual(verify_terrain_contract(document, generated)['contract'], 'terrain-graph')

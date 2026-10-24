@@ -32,5 +32,10 @@
     "DrawList": "forward",
     "DisabledRHIBackends": [
         "metal"
-    ]
+    ],
+    "AddBuildArguments": {
+        "dxc": [
+            "-fspv-target-env=vulkan1.1"
+        ]
+    }
 }

@@ -1,6 +1,6 @@
 --- a/TerrainRenderer/TerrainFeatureProcessor.h
 +++ b/TerrainRenderer/TerrainFeatureProcessor.h
-@@ -11,10 +11,6 @@
+@@ -11,11 +11,8 @@
  #include <AzCore/Asset/AssetCommon.h>
  #include <AzFramework/Terrain/TerrainDataRequestBus.h>
  
@@ -9,9 +9,11 @@
 -#include <TerrainRenderer/TerrainMacroMaterialManager.h>
 -#include <TerrainRenderer/TerrainClipmapManager.h>
  #include <TerrainRenderer/TerrainMeshManager.h>
++#include <TerrainRenderer/GraphMaterialClipmaps.h>
  
  #include <Atom/RPI.Public/FeatureProcessor.h>
-@@ -34,7 +30,7 @@
+ #include <Atom/RPI.Public/Image/AttachmentImage.h>
+@@ -34,7 +31,7 @@
  {
      class TerrainFeatureProcessor final
          : public AZ::RPI::FeatureProcessor
@@ -20,7 +22,7 @@
          , private AzFramework::Terrain::TerrainDataNotificationBus::Handler
      {
      public:
-@@ -53,13 +49,18 @@
+@@ -53,13 +50,18 @@
          void Deactivate() override;
          void Render(const AZ::RPI::FeatureProcessor::RenderPacket& packet) override;
  
@@ -42,7 +44,7 @@
      private:
  
          using MaterialInstance = AZ::Data::Instance<AZ::RPI::Material>;
-@@ -75,6 +76,9 @@
+@@ -75,6 +77,9 @@
          //! AZ::Data::AssetBus overrides...
          void OnAssetReady(AZ::Data::Asset<AZ::Data::AssetData> asset) override;
          void OnAssetReloaded(AZ::Data::Asset<AZ::Data::AssetData> asset) override;
@@ -52,7 +54,7 @@
  
          // AzFramework::Terrain::TerrainDataNotificationBus overrides...
          void OnTerrainDataDestroyBegin() override;
-@@ -84,7 +88,6 @@
+@@ -84,7 +89,6 @@
          void OnRenderPipelineChanged(AZ::RPI::RenderPipeline* pipeline, AZ::RPI::SceneNotification::RenderPipelineChangeType changeType) override;
          
          // AZ::RPI::FeatureProcessor overrides...
@@ -60,13 +62,14 @@
  
          void Initialize();
  
-@@ -95,12 +98,19 @@
+@@ -95,12 +99,20 @@
          void CachePasses();
  
          TerrainMeshManager m_meshManager;
 -        TerrainMacroMaterialManager m_macroMaterialManager;
 -        TerrainDetailMaterialManager m_detailMaterialManager;
 -        TerrainClipmapManager m_clipmapManager;
++        TerrainCompositor::GraphMaterialClipmaps m_graphClipmaps;
  
          AZ::Data::Asset<AZ::RPI::MaterialAsset> m_materialAsset;
          MaterialInstance m_materialInstance;

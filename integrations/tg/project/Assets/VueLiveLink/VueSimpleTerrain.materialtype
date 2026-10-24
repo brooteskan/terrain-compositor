@@ -1,0 +1,277 @@
+{
+    "description": "Terrain surface for Vue Simple material color and lighting.",
+    "propertyLayout": {
+        "propertyGroups": [
+            {
+                "name": "settings",
+                "displayName": "Settings",
+                "properties": [
+                    {
+                        "name": "meshCutoutCount",
+                        "type": "UInt",
+                        "visibility": "Hidden",
+                        "connection": {
+                            "type": "ShaderInput",
+                            "name": "m_meshCutoutCount"
+                        }
+                    },
+                    {
+                        "name": "meshCutoutRevision",
+                        "type": "UInt",
+                        "visibility": "Hidden",
+                        "connection": {
+                            "type": "ShaderInput",
+                            "name": "m_meshCutoutRevision"
+                        }
+                    },
+                    {
+                        "name": "meshHeightGapCount",
+                        "type": "UInt",
+                        "visibility": "Hidden",
+                        "connection": {
+                            "type": "ShaderInput",
+                            "name": "m_meshHeightGapCount"
+                        }
+                    },
+                    {
+                        "name": "meshHeightGapRevision",
+                        "type": "UInt",
+                        "visibility": "Hidden",
+                        "connection": {
+                            "type": "ShaderInput",
+                            "name": "m_meshHeightGapRevision"
+                        }
+                    },
+                    {
+                        "name": "surfaceRegionCount",
+                        "type": "UInt",
+                        "visibility": "Hidden",
+                        "connection": {
+                            "type": "ShaderInput",
+                            "name": "m_surfaceRegionCount"
+                        }
+                    },
+                    {
+                        "name": "surfaceRevision",
+                        "type": "UInt",
+                        "visibility": "Hidden",
+                        "connection": {
+                            "type": "ShaderInput",
+                            "name": "m_surfaceRevision"
+                        }
+                    }
+                ]
+            },
+            {
+                "name": "vueSimple",
+                "displayName": "Vue Simple",
+                "properties": [
+                    {
+                        "name": "colorTexture",
+                        "displayName": "Color Map",
+                        "type": "Image",
+                        "connection": {
+                            "type": "ShaderInput",
+                            "name": "m_colorTexture"
+                        }
+                    },
+                    {
+                        "name": "textureScale",
+                        "displayName": "Texture World Size",
+                        "type": "Float",
+                        "defaultValue": 1000.0,
+                        "connection": {
+                            "type": "ShaderInput",
+                            "name": "m_textureScale"
+                        }
+                    },
+                    {
+                        "name": "stochasticTiling",
+                        "displayName": "Seamless Stochastic Tiling",
+                        "type": "Bool",
+                        "defaultValue": true,
+                        "connection": {
+                            "type": "ShaderOption",
+                            "name": "o_stochasticTiling"
+                        }
+                    },
+                    {
+                        "name": "colorTint",
+                        "displayName": "Color Tint",
+                        "type": "Color",
+                        "defaultValue": [
+                            1.0,
+                            1.0,
+                            1.0
+                        ],
+                        "connection": {
+                            "type": "ShaderInput",
+                            "name": "m_colorTint"
+                        }
+                    },
+                    {
+                        "name": "roughness",
+                        "displayName": "Roughness",
+                        "type": "Float",
+                        "defaultValue": 1.0,
+                        "connection": {
+                            "type": "ShaderInput",
+                            "name": "m_roughness"
+                        }
+                    },
+                    {
+                        "name": "specularFactor",
+                        "displayName": "Specular Factor",
+                        "type": "Float",
+                        "defaultValue": 0.5,
+                        "connection": {
+                            "type": "ShaderInput",
+                            "name": "m_specularFactor"
+                        }
+                    },
+                    {
+                        "name": "ambientOcclusion",
+                        "displayName": "Ambient Occlusion",
+                        "type": "Float",
+                        "defaultValue": 1.0,
+                        "connection": {
+                            "type": "ShaderInput",
+                            "name": "m_ambientOcclusion"
+                        }
+                    },
+                    {
+                        "name": "normalTexture",
+                        "displayName": "Tangent normal map",
+                        "type": "Image",
+                        "connection": {
+                            "type": "ShaderInput",
+                            "name": "m_normalTexture"
+                        }
+                    },
+                    {
+                        "name": "normalStrength",
+                        "displayName": "Normal strength",
+                        "type": "Float",
+                        "defaultValue": 1.0,
+                        "min": 0,
+                        "max": 2,
+                        "connection": {
+                            "type": "ShaderInput",
+                            "name": "m_normalStrength"
+                        }
+                    }
+                ]
+            },
+            {
+                "name": "terrain",
+                "displayName": "Terrain Contract",
+                "properties": [
+                    {
+                        "name": "contractVersion",
+                        "type": "UInt",
+                        "defaultValue": 4,
+                        "visibility": "Hidden"
+                    },
+                    {
+                        "name": "clipmapTemporalReuse",
+                        "displayName": "Reuse static material cache between frames",
+                        "description": "Enable only for time- and camera-independent materials. Moved layers, changed geometry, material edits and newly exposed coverage refresh the cache.",
+                        "type": "Bool",
+                        "defaultValue": true
+                    }
+                ]
+            },
+            {
+                "name": "lighting",
+                "displayName": "Lighting",
+                "properties": [
+                    {
+                        "name": "enableIBL",
+                        "displayName": "Receive Skylight",
+                        "type": "Bool",
+                        "defaultValue": true,
+                        "connection": {
+                            "type": "ShaderOption",
+                            "name": "o_enableIBL"
+                        }
+                    },
+                    {
+                        "name": "enableDirectionalLights",
+                        "displayName": "Receive Directional Lights",
+                        "type": "Bool",
+                        "defaultValue": true,
+                        "connection": {
+                            "type": "ShaderOption",
+                            "name": "o_enableDirectionalLights"
+                        }
+                    },
+                    {
+                        "name": "enableShadows",
+                        "displayName": "Receive Shadows",
+                        "type": "Bool",
+                        "defaultValue": true,
+                        "connection": {
+                            "type": "ShaderOption",
+                            "name": "o_enableShadows"
+                        }
+                    }
+                ]
+            },
+            {
+                "$import": "VueResponsePropertyGroup.json"
+            }
+        ]
+    },
+    "shaders": [
+        {
+            "file": "VueSimpleTerrain_Forward.shader"
+        },
+        {
+            "file": "VueSimpleTerrain_Shadow.shader"
+        },
+        {
+            "file": "VueSimpleTerrain_Depth.shader"
+        },
+        {
+            "file": "VueSimpleTerrain_Clipmap.shader"
+        }
+    ],
+    "version": 2,
+    "versionUpdates": [
+        {
+            "toVersion": 2,
+            "actions": [
+                {
+                    "op": "setValue",
+                    "name": "vueResponse.directGain",
+                    "value": 1.0
+                },
+                {
+                    "op": "setValue",
+                    "name": "vueResponse.ambientGain",
+                    "value": 1.0
+                },
+                {
+                    "op": "setValue",
+                    "name": "vueResponse.contrast",
+                    "value": 1.0
+                },
+                {
+                    "op": "setValue",
+                    "name": "vueResponse.backlight",
+                    "value": 0.0
+                },
+                {
+                    "op": "setValue",
+                    "name": "vueResponse.albedoScale",
+                    "value": 1.0
+                },
+                {
+                    "op": "setValue",
+                    "name": "vueResponse.specularGain",
+                    "value": 1.0
+                }
+            ]
+        }
+    ]
+}

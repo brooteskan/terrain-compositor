@@ -1,0 +1,7 @@
+cmake_minimum_required(VERSION 3.24)
+project(GraphMaterialClipmapScheduleTests LANGUAGES CXX)
+enable_testing()
+add_executable(graph_clipmap_schedule_tests GraphMaterialClipmapScheduleTests.cpp)
+target_compile_features(graph_clipmap_schedule_tests PRIVATE cxx_std_20)
+target_include_directories(graph_clipmap_schedule_tests PRIVATE ../../integrations/o3de/EngineOverrides/TerrainRenderer)
+add_test(NAME graph_clipmap_schedule COMMAND graph_clipmap_schedule_tests)

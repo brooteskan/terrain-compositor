@@ -67,6 +67,8 @@ endforeach()
 target_include_directories(Terrain.Static BEFORE PUBLIC
     "${tc_generated_overrides}" "${CMAKE_CURRENT_SOURCE_DIR}/EngineOverrides" "${CMAKE_CURRENT_SOURCE_DIR}/Code/Include")
 target_link_libraries(Terrain.Static PUBLIC polytree::polytree algo::algo)
+target_sources(Terrain.Static PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/EngineOverrides/TerrainRenderer/GraphMaterialClipmaps.cpp")
+set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/EngineOverrides/TerrainRenderer/GraphMaterialClipmaps.cpp" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
 # Isolate polytree construction's exception cleanup from O3DE's default
 # no-unwind translation units. No engine-wide compiler settings are changed.
 set(tc_coverage_source "${CMAKE_CURRENT_SOURCE_DIR}/Code/Source/TerrainSectorCoverage.cpp")
@@ -203,4 +205,10 @@ if(PAL_TRAIT_BUILD_TESTS_SUPPORTED)
             "-DTC_ENGINE_TERRAIN_ROOT=${tc_terrain_source_root}"
             "-DTC_TEST_ROOT=${CMAKE_CURRENT_BINARY_DIR}/EngineOverrideTests"
             -P "${CMAKE_CURRENT_SOURCE_DIR}/Code/Tests/EngineOverridesTests.cmake")
+endif()
+
+# TG consumer copies are supplied by this submodule, including its editor tests.
+if(PAL_TRAIT_BUILD_HOST_TOOLS)
+    include("${CMAKE_CURRENT_SOURCE_DIR}/../tg/SyncProject.cmake")
+    tc_sync_tg_projects()
 endif()

@@ -55,8 +55,10 @@ def verify_terrain_contract(document, generated):
         if '_Material.azsli' not in source(suffix):
             raise ValueError('Raster passes do not share the material declaration')
     material = json.loads(source('.materialtype'))
-    if len(material['shaders']) != 3:
-        raise ValueError('Forward, depth, and shadow shaders are required')
+    if len(material['shaders']) != 4:
+        raise ValueError('Forward, depth, shadow, and clipmap shaders are required')
     if any('Shaders/Terrain/' in s['file'] for s in material['shaders']):
         raise ValueError('Shared shader references cannot carry graph-specific layouts')
+    if 'TerrainGraphClipmapUpdate.azsli' not in source('_Clipmap.azsl') or '_Tint.azsli' not in source('_Clipmap.azsl'):
+        raise ValueError('Clipmap pass does not evaluate the same graph')
     return {'contract': 'terrain-graph', 'connected': sorted(connected), 'parameters': len(re.findall(r';', params))}

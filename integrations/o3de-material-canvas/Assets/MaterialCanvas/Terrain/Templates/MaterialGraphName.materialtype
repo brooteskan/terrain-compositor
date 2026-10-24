@@ -162,6 +162,13 @@
                     "type": "UInt",
                     "defaultValue": 4,
                     "visibility": "Hidden"
+                },
+                {
+                    "displayName": "Reuse static material cache between frames",
+                    "description": "Enable only for time- and camera-independent materials. Moved layers, changed geometry, material edits and newly exposed coverage refresh the cache.",
+                    "type": "Bool",
+                    "defaultValue": false,
+                    "id": "clipmapTemporalReuse"
                 }
             ]
         }
@@ -175,6 +182,9 @@
         },
         {
             "file": "MaterialGraphName_Depth.shader"
+        },
+        {
+            "file": "MaterialGraphName_Clipmap.shader"
         }
     ],
     "functors": []

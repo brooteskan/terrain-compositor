@@ -1,0 +1,102 @@
+#pragma once
+#include <TerrainSurface.azsli>
+// Returns a complete quad decision so derivatives in the original graph remain
+// defined when a missing cache texel or a boundary needs direct evaluation.
+bool TC_CacheQuadAll(bool value)
+{
+    uint v = uint(value);
+    return (v & QuadReadAcrossX(v) & QuadReadAcrossY(v) & QuadReadAcrossDiagonal(v)) != 0;
+}
+float TC_GraphCacheExpectedTag(uint level, int2 cell)
+{
+    int2 tile = int2(floor(float2(cell)/512.0));
+    uint index = (uint(tile.x)&1u) | ((uint(tile.y)&1u)<<1u);
+    return TerrainSrg::m_graphCacheTileTags[level][index];
+}
+TerrainSurfaceChannels TC_ResolveGraphClipmap(TerrainSurfaceContext context, const MaterialParameters params)
+{
+    float2 dx = ddx(context.worldPosition.xy), dy = ddy(context.worldPosition.xy);
+    float footprint = max(length(dx), length(dy));
+    bool found = false;
+    float weight = 0;
+    TerrainSurfaceChannels cached = (TerrainSurfaceChannels)0;
+    if (TerrainSrg::m_graphCacheEnabled != 0)
+    {
+        for (uint level = 0; level < 5; ++level)
+        {
+            float4 mapping = TerrainSrg::m_graphCacheMappings[level];
+            float2 uv = (context.worldPosition.xy - mapping.xy) * mapping.z;
+            // Keep the bilinear footprint away from the cleared/outside border.
+            // Never magnify a cache texel beyond the pixel's world footprint;
+            // the original graph keeps finer detail until the cache resolves it.
+            if (!found && all(uv > 2.0/512.0) && all(uv < 1.0-2.0/512.0) && footprint >= mapping.w)
+            {
+                uint i = NonUniformResourceIndex(level);
+                float4 c;
+                bool valid = true;
+                if (TerrainSrg::m_graphCacheToroidal != 0)
+                {
+                    // Exact per-corner ownership prevents pending/recycled texels
+                    // from passing a bilinear validity test, including at the torus seam.
+                    float2 texel = context.worldPosition.xy/mapping.w-0.5;
+                    int2 cell = int2(floor(texel));
+                    int2 c10=cell+int2(1,0), c01=cell+int2(0,1), c11=cell+int2(1,1);
+                    float4 f00=TerrainSrg::m_graphCacheFactors[i].Load(int3(cell&511,0));
+                    float4 f10=TerrainSrg::m_graphCacheFactors[i].Load(int3(c10&511,0));
+                    float4 f01=TerrainSrg::m_graphCacheFactors[i].Load(int3(c01&511,0));
+                    float4 f11=TerrainSrg::m_graphCacheFactors[i].Load(int3(c11&511,0));
+                    valid = f00.z>0 && f00.z==TC_GraphCacheExpectedTag(level,cell) &&
+                        f10.z==TC_GraphCacheExpectedTag(level,c10) && f01.z==TC_GraphCacheExpectedTag(level,c01) &&
+                        f11.z==TC_GraphCacheExpectedTag(level,c11);
+                    float2 blend=frac(texel);
+                    c=lerp(lerp(f00,f10,blend.x),lerp(f01,f11,blend.x),blend.y);
+                    uv=frac(context.worldPosition.xy*mapping.z);
+                }
+                else c=TerrainSrg::m_graphCacheFactors[i].SampleLevel(TerrainSrg::m_graphCacheSampler,uv,0);
+                float4 a = TerrainSrg::m_graphCacheColor[i].SampleLevel(TerrainSrg::m_graphCacheSampler, uv, 0);
+                float4 b = TerrainSrg::m_graphCacheNormal[i].SampleLevel(TerrainSrg::m_graphCacheSampler, uv, 0);
+                float3 g = TerrainSrg::m_graphCacheGeometry[i].SampleLevel(TerrainSrg::m_graphCacheSampler, uv, 0).xyz;
+                if (valid && c.z > 0.9999 && abs(c.w-context.worldPosition.z) < max(0.01, mapping.w*0.005) && dot(g,g)>0.1)
+                {
+                    g = normalize(g);
+                    float3 n = normalize(context.geometricNormal);
+                    float cosine = dot(g,n);
+                    if (cosine > 0.9995)
+                    {
+                        // Reject changed CLOD context before using cached graph channels.
+                        // Rotate the cached shading normal with the live geometric
+                        // normal. An unperturbed material retains exact live CLOD normals.
+                        float3 axis = cross(g,n);
+                        float3 shading = normalize(b.xyz);
+                        cached.normal = normalize(shading + cross(axis,shading) + cross(axis,cross(axis,shading))/max(1.0+cosine,0.001));
+                        cached.baseColor=a.rgb; cached.roughness=a.a; cached.metalness=b.a;
+                        cached.specularFactor=c.x; cached.ambientOcclusion=c.y;
+                        float2 logicalUv = (context.worldPosition.xy-mapping.xy)*mapping.z;
+                        float edge = min(min(logicalUv.x,logicalUv.y),min(1.0-logicalUv.x,1.0-logicalUv.y));
+                        weight = saturate((edge*512.0-2.0)/8.0) * saturate((footprint/mapping.w-1.0)*4.0);
+                        found = true;
+                    }
+                }
+            }
+        }
+    }
+    bool cacheOnly = TC_CacheQuadAll(found && weight >= 0.9999);
+    TerrainSurfaceChannels result;
+    if (cacheOnly) result = cached;
+    else
+    {
+        result = TC_ValidateSurface(TC_EvaluateTerrainSurface(context,params),context);
+        if (found)
+        {
+            result.baseColor=lerp(result.baseColor,cached.baseColor,weight);
+            result.normal=normalize(lerp(result.normal,cached.normal,weight));
+            result.roughness=lerp(result.roughness,cached.roughness,weight);
+            result.metalness=lerp(result.metalness,cached.metalness,weight);
+            result.specularFactor=lerp(result.specularFactor,cached.specularFactor,weight);
+            result.ambientOcclusion=lerp(result.ambientOcclusion,cached.ambientOcclusion,weight);
+        }
+    }
+    if (TerrainSrg::m_graphCacheDebug != 0)
+        result.baseColor = found ? float3(0,weight,0) : float3(1,0,0);
+    return result;
+}

@@ -12,6 +12,9 @@
                 },
                 "Exclude obsolete terrain material type": {
                     "pattern": "(^|.*/)Materials/Terrain/PbrTerrain\\.materialtype$"
+                },
+                "Exclude obsolete terrain appearance passes": {
+                    "pattern": "(^|.*/)Passes/(Terrain(MacroClipmapGenerationPass|DetailClipmapGenerationPass|ClipmapDebugPass|ParentPass)\\.pass|Terrain(PassRequest|DebugPassRequest)\\.azasset)$"
                 }
             }
         }

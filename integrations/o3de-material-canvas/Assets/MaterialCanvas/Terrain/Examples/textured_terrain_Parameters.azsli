@@ -13,5 +13,4 @@ struct MaterialParameters {
     int    node4_sample_texture_2d_inValue;
     uint   node4_sample_texture_2d_inSampler;
     float3 m_finalPadding;
-}; 
-
+};

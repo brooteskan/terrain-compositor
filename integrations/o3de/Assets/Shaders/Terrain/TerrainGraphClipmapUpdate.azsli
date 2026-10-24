@@ -1,0 +1,46 @@
+#pragma once
+#include <scenesrg_all.srgi>
+#include <TerrainCommon.azsli>
+#include <TerrainSurface.azsli>
+ShaderResourceGroup PassSrg : SRG_PerPass
+{
+    float m_graphCacheTag;
+    float4 m_graphCacheProjection; // world XY origin, reciprocal extent, texel size
+}
+struct TC_CacheVsOutput
+{
+    float4 position : SV_Position;
+    float3 worldPosition : TEXCOORD0;
+    float3 normal : TEXCOORD1;
+};
+TC_CacheVsOutput TC_GraphCacheVS(VertexInput input)
+{
+    TC_CacheVsOutput output;
+    float4 unusedClip;
+    CalculateTerrainPosition(SceneSrg::m_terrainWorldData, ObjectSrg::m_patchData, input,
+        output.worldPosition, unusedClip, output.normal);
+    float2 uv = (output.worldPosition.xy - PassSrg::m_graphCacheProjection.xy) * PassSrg::m_graphCacheProjection.z;
+    output.position = float4(uv * float2(2,-2) + float2(-1,1), 0.5, 1);
+    return output;
+}
+struct TC_CacheOutput
+{
+    float4 colorRoughness : SV_Target0;
+    float4 normalMetalness : SV_Target1;
+    float4 factorsHeight : SV_Target2;
+    float4 geometryNormal : SV_Target3;
+};
+TC_CacheOutput TC_GraphCachePS(TC_CacheVsOutput input)
+{
+    TerrainSurfaceContext context;
+    context.worldPosition = input.worldPosition;
+    context.geometricNormal = normalize(input.normal);
+    TerrainSurfaceChannels surface = TC_ValidateSurface(
+        TC_EvaluateTerrainSurface(context, GetMaterialParameters()), context);
+    TC_CacheOutput output;
+    output.colorRoughness = float4(surface.baseColor, surface.roughness);
+    output.normalMetalness = float4(surface.normal, surface.metalness);
+    output.factorsHeight = float4(surface.specularFactor, surface.ambientOcclusion, PassSrg::m_graphCacheTag, input.worldPosition.z);
+    output.geometryNormal = float4(context.geometricNormal, 0);
+    return output;
+}

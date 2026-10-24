@@ -6,5 +6,4 @@ struct MaterialParameters {
     uint  m_materialInstance;
     float node28_float_input_inValue;
     float m_finalPadding;
-}; 
-
+};

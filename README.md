@@ -42,8 +42,9 @@ The optional [TerrainCompositorCanvas Gem](integrations/o3de-material-canvas/REA
 adds a Material Canvas Terrain Output, procedural and two-texture examples, and a
 Terrain Material scene selector. Enable it alongside the base Gem to author GPU
 color, roughness, normal, metalness, specular-factor, and occlusion formulas.
-The base Gem ships a generated default graph material. Legacy macro/detail shading,
-appearance clipmaps, and old tint graphs are removed; no appearance migration is supplied.
+The base Gem ships a generated default graph material. Legacy macro/detail shading and old tint graphs are removed.
+Graph-authored materials use [budgeted material clipmaps](docs/GraphMaterialClipmaps.md)
+for reusable appearance and distance LOD; geometry LOD retains its existing path.
 
 ## Compatibility
 
@@ -73,3 +74,5 @@ measurement limits for issue #17.
 The [terrain material overlap guide](docs/TerrainMaterialOverlap.md) describes
 source-aware PBR blending, Material Canvas authoring, retained-material integration,
 resource limits and validation for issue #19.
+
+The [TG consumer integration](integrations/tg/README.md) versions the TG-side material, normal-storage and test updates alongside the Gem and synchronizes their managed copies during TG CMake configuration.

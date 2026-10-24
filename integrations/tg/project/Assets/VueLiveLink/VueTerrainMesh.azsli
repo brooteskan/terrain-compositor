@@ -1,0 +1,183 @@
+#pragma once
+
+// Wrap the shared StandardPBR geometry evaluation in both the color and
+// geometric pixel stages (depth and shadow). Position-only passes are disabled
+// by VueTerrainMesh_State.lua so they cannot fill the discarded skirt back in.
+#define EvaluatePixelGeometry EvaluatePixelGeometry_VueTerrain
+#define EvaluateVertexGeometry EvaluateVertexGeometry_VueTerrain
+#if MATERIALPIPELINE_SHADER_HAS_PIXEL_STAGE
+#define EvaluateSurface EvaluateSurface_VueTerrain
+#define InitializeLightingData InitializeLightingData_Vue
+#define FinalizeLightingData FinalizeLightingData_Vue
+#endif
+#include <Atom/Feature/Common/Assets/Materials/Types/StandardPBR.azsli>
+
+#if MATERIALPIPELINE_SHADER_HAS_PIXEL_STAGE
+#include "VueGroundSampling.azsli"
+#ifdef VUE_TERRAIN_OVERLAP
+#include "VueTerrainOverlap.azsli"
+#endif
+Surface EvaluateSurface_VueTerrain(VsOutput IN, VsSystemValues SV, PixelGeometryData geoData, const MaterialParameters params)
+{
+    Surface surface = EvaluateSurface_StandardPBR(IN, SV, geoData, params);
+#if FORCE_OPAQUE
+#ifdef VUE_TERRAIN_OVERLAP
+    surface = VueApplyTerrainOverlap(surface, params);
+#endif
+    float blend = VueGroundBlendWeight(surface.position.z, params);
+    if (params.m_vueBlendHeight > 0.0 && params.m_vueBlendColorTexture >= 0)
+    {
+        // Derivatives must precede the varying height branch. SampleGrad keeps
+        // the original texture footprint for quads crossing the transition.
+        float2 groundPositionDx = ddx(surface.position.xy);
+        float2 groundPositionDy = ddy(surface.position.xy);
+        if (blend > 0.0)
+        {
+            VueGroundParameters ground;
+            ground.m_colorTexture = params.m_vueBlendColorTexture;
+            ground.m_normalTexture = params.m_vueBlendNormalTexture;
+            ground.m_textureScale = params.m_vueBlendTextureScale;
+            ground.m_normalStrength = params.m_vueBlendNormalStrength;
+            ground.m_colorTint = params.m_vueBlendColorTint;
+            ground.m_roughness = params.m_vueBlendRoughness;
+            ground.m_specularFactor = params.m_vueBlendSpecularFactor;
+            ground.m_ambientOcclusion = params.m_vueBlendAmbientOcclusion;
+            VueGroundChannels sampled = VueSampleGroundGrad(surface.position, float3(0,0,1), ground,
+                params.m_vueBlendStochastic, groundPositionDx, groundPositionDy);
+            surface.albedo = lerp(surface.albedo, sampled.baseColor, blend);
+            surface.specularF0 = lerp(surface.specularF0, float3(0.08,0.08,0.08) * sampled.specularFactor, blend);
+            surface.normal = normalize(lerp(surface.normal, sampled.normal, blend));
+            surface.vertexNormal = normalize(lerp(surface.vertexNormal, float3(0,0,1), blend));
+            surface.roughnessLinear = lerp(surface.roughnessLinear, sampled.roughness, blend);
+            surface.CalculateRoughnessA();
+            surface.diffuseAmbientOcclusion = lerp(surface.diffuseAmbientOcclusion, sampled.ambientOcclusion, blend);
+            surface.specularOcclusion = lerp(surface.specularOcclusion, 1.0, blend);
+            surface.emissiveLighting *= 1.0 - blend;
+#if ENABLE_CLEAR_COAT
+            surface.clearCoat.factor *= 1.0 - blend;
+#endif
+        }
+        else
+        {
+            // Zero blend skips texture reads, not the original finalization.
+            // Incoming interpolated normals are not assumed to be unit length.
+            surface.normal = normalize(surface.normal);
+            surface.vertexNormal = normalize(surface.vertexNormal);
+            surface.CalculateRoughnessA();
+        }
+    }
+#endif
+    return surface;
+}
+#include <Atom/Features/Pipeline/Forward/ForwardPassIbl.azsli>
+void ApplyIbl_Vue(Surface surface, inout LightingData data)
+{
+    real3 before = data.diffuseLighting;
+    ApplyIbl_ForwardPass(surface, data);
+#if FORCE_OPAQUE
+    MaterialParameters p = GetMaterialParameters();
+    float gain = lerp(VueAmbientScale(p.m_vueAmbientGain, p.m_vueAlbedoScale), VueAmbientScale(p.m_vueBlendAmbientGain, p.m_vueBlendAlbedoScale), VueGroundBlendWeight(surface.position.z, p));
+    if (gain != 1.0) data.diffuseLighting = before + (data.diffuseLighting - before) * gain;
+#endif
+}
+#define ApplyIbl_ForwardPass ApplyIbl_Vue
+
+void InitializeLightingData_Vue(inout Surface surface, float3 views[MAX_SHADING_VIEWS], inout LightingData data)
+{
+    InitializeLightingData_StandardPBR(surface, views, data);
+#if FORCE_OPAQUE
+    MaterialParameters p = GetMaterialParameters();
+    float gain = saturate(lerp(p.m_vueSpecularGain, p.m_vueBlendSpecularGain, VueGroundBlendWeight(surface.position.z, p)));
+    if (gain != 1.0)
+    {
+        data.specularOcclusion *= gain;
+        // A deliberate matte response must also remove the Fresnel diffuse loss.
+        data.diffuseResponse = lerp(real3(1,1,1), data.diffuseResponse, gain);
+    }
+#endif
+}
+
+void FinalizeLightingData_Vue(inout Surface surface, inout LightingData data)
+{
+    FinalizeLightingData_StandardPBR(surface, data);
+#if FORCE_OPAQUE
+    // Direct diffuse is already finalized. This value is subsequently written
+    // to m_albedo.rgb for deferred IBL/DDGI (including VueAmbient's fill terms).
+    // Do not use diffuseAmbientOcclusion: it also multiplies direct lighting.
+    MaterialParameters p = GetMaterialParameters();
+    float gain = lerp(VueAmbientScale(p.m_vueAmbientGain, p.m_vueAlbedoScale), VueAmbientScale(p.m_vueBlendAmbientGain, p.m_vueBlendAlbedoScale), VueGroundBlendWeight(surface.position.z, p));
+    if (gain != 1.0) data.diffuseResponse *= gain;
+#endif
+}
+#endif
+
+#if MATERIALPIPELINE_SHADER_HAS_PIXEL_STAGE || MATERIALPIPELINE_SHADER_HAS_GEOMETRIC_PIXEL_STAGE
+VsOutput EvaluateVertexGeometry_VueTerrain(VsInput IN, VsSystemValues SV, const MaterialParameters params)
+{
+    VsOutput OUT = EvaluateVertexGeometry_BasePBR(IN, SV, params);
+    // The geometry field follows the mesh UVs even when material tiling changes.
+    OUT.terrainUv = IN.uv0;
+    return OUT;
+}
+
+#if MATERIALPIPELINE_SHADER_HAS_PIXEL_STAGE
+float3 VueSmoothNormal(float2 uv, const MaterialParameters params)
+{
+    // Deliberate lower-order approximation: one sampler-filtered field read
+    // replaces the four-read cubic reconstruction. Fine curvature may change.
+    float2 grid = max(params.m_vueNormalGridSize, float2(2.0, 2.0));
+    uint width, height;
+    GetMaterialTexture(params.m_vueNormalField).GetDimensions(width, height);
+    if (width < grid.x || height < grid.y)
+    {
+        return float3(0.0, 0.0, 0.0);
+    }
+    // Address sample centers within the generated grid, not a padded extent.
+    // Explicit LOD retains the original mip-zero policy and sampler state.
+    float2 texel = (saturate(uv) * (grid - 1.0) + 0.5) / float2(width, height);
+    return GetMaterialTexture(params.m_vueNormalField).SampleLevel(GetMaterialTextureSampler(), texel, 0).xyz;
+}
+#endif
+
+PixelGeometryData EvaluatePixelGeometry_VueTerrain(
+    inout VsOutput IN, VsSystemValues SV, bool isFrontFace, const MaterialParameters params)
+{
+    // VueTerrainMesh_Defines supplies sample-interpolated world position so
+    // clipping and the SV_Depth write agree at the same MSAA sample location.
+    const float groundCutoff = params.m_vueGroundHeight + max(params.m_vueGroundTolerance, 0.0);
+    if (IN.worldPosition.z <= groundCutoff)
+    {
+        discard;
+    }
+#if MATERIALPIPELINE_SHADER_HAS_PIXEL_STAGE
+    if (params.m_vueNormalSmoothing > 0.0)
+    {
+        float3 smoothNormal = VueSmoothNormal(IN.terrainUv, params);
+        if (dot(smoothNormal, smoothNormal) > 0.0001)
+        {
+            float normalSmoothing = saturate(params.m_vueNormalSmoothing);
+            if (normalSmoothing >= 1.0)
+            {
+                // Material-uniform full strength needs only the field normal.
+                // Avoid normalizing the unused incoming normal and blend result.
+                IN.normal = normalize(smoothNormal);
+            }
+            else
+            {
+                IN.normal = normalize(lerp(normalize(IN.normal), normalize(smoothNormal), normalSmoothing));
+            }
+            // Preserve normal-map handedness while making its frame agree with
+            // the reconstructed normal, rather than triangle interpolation.
+            IN.tangent.xyz = normalize(IN.tangent.xyz - IN.normal * dot(IN.normal, IN.tangent.xyz));
+        }
+    }
+#endif
+    return EvaluatePixelGeometry_StandardPBR(IN, SV, isFrontFace, params);
+}
+#else
+// Position-only shaders have no normal field, but still use the shared alias.
+VsOutput EvaluateVertexGeometry_VueTerrain(VsInput IN, VsSystemValues SV, const MaterialParameters params)
+{
+    return EvaluateVertexGeometry_DepthPass(IN, SV, params);
+}
+#endif

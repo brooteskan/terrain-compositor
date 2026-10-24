@@ -16,6 +16,7 @@
 #include <TerrainMeshCutout.azsli>
 #include <TerrainCommon.azsli>
 #include <TerrainSurface.azsli>
+#include <TerrainCompositor/TerrainGraphClipmapSampling.azsli>
 
 #include <Atom/Features/PBR/AlphaUtils.azsli>
 #include <Atom/Features/ColorManagement/TransformColor.azsli>
@@ -77,8 +78,7 @@ ForwardPassOutput TerrainPBR_MainPassPS(VSOutput input)
     TerrainSurfaceContext terrainContext;
     terrainContext.worldPosition = surface.position;
     terrainContext.geometricNormal = surface.vertexNormal;
-    TerrainSurfaceChannels resolved = TC_ValidateSurface(
-        TC_EvaluateTerrainSurface(terrainContext, GetMaterialParameters()), terrainContext);
+    TerrainSurfaceChannels resolved = TC_ResolveGraphClipmap(terrainContext, GetMaterialParameters());
     if (o_unlitTerrain)
     {
         ForwardPassOutput output;

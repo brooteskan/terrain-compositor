@@ -1,0 +1,581 @@
+{
+  "passed": true,
+  "scene_unchanged": true,
+  "excluded_initial_frames": 8,
+  "cases": [
+    {
+      "name": "full-a",
+      "median_ms": 32.95,
+      "p95_ms": 35.69265,
+      "p99_ms": 39.65196,
+      "max_ms": 40.979,
+      "boundary_252_262": {
+        "median_ms": 32.695,
+        "p95_ms": 36.958,
+        "p99_ms": 39.1148,
+        "max_ms": 39.654
+      },
+      "total_texels": 19136512,
+      "max_texels": 1310720,
+      "max_pending": 0,
+      "final_pending": 0,
+      "gpu_total_ms": 101.316,
+      "gpu_samples": 68,
+      "frame_id_gaps": 0,
+      "boundary_rows": [
+        {
+          "index": 252,
+          "wall_ms": 32.60139998747036,
+          "frame_id": 498,
+          "native_frame_ms": 32.89,
+          "texels": 0,
+          "pending": 0,
+          "gpu_ns": 0,
+          "gpu_samples": 0
+        },
+        {
+          "index": 253,
+          "wall_ms": 34.95239999028854,
+          "frame_id": 499,
+          "native_frame_ms": 33.546,
+          "texels": 0,
+          "pending": 0,
+          "gpu_ns": 0,
+          "gpu_samples": 0
+        },
+        {
+          "index": 254,
+          "wall_ms": 32.1123999892734,
+          "frame_id": 500,
+          "native_frame_ms": 34.262,
+          "texels": 0,
+          "pending": 0,
+          "gpu_ns": 0,
+          "gpu_samples": 0
+        },
+        {
+          "index": 255,
+          "wall_ms": 31.900100002530962,
+          "frame_id": 501,
+          "native_frame_ms": 32.695,
+          "texels": 0,
+          "pending": 0,
+          "gpu_ns": 0,
+          "gpu_samples": 0
+        },
+        {
+          "index": 256,
+          "wall_ms": 33.970899996347725,
+          "frame_id": 502,
+          "native_frame_ms": 32.588,
+          "texels": 1048576,
+          "pending": 0,
+          "gpu_ns": 0,
+          "gpu_samples": 0
+        },
+        {
+          "index": 257,
+          "wall_ms": 32.897000026423484,
+          "frame_id": 503,
+          "native_frame_ms": 32.674,
+          "texels": 0,
+          "pending": 0,
+          "gpu_ns": 5915000,
+          "gpu_samples": 4
+        },
+        {
+          "index": 258,
+          "wall_ms": 39.02820000075735,
+          "frame_id": 504,
+          "native_frame_ms": 33.236,
+          "texels": 0,
+          "pending": 0,
+          "gpu_ns": 0,
+          "gpu_samples": 0
+        },
+        {
+          "index": 259,
+          "wall_ms": 32.279100007144734,
+          "frame_id": 505,
+          "native_frame_ms": 39.654,
+          "texels": 0,
+          "pending": 0,
+          "gpu_ns": 0,
+          "gpu_samples": 0
+        },
+        {
+          "index": 260,
+          "wall_ms": 31.960199994500726,
+          "frame_id": 506,
+          "native_frame_ms": 32.568,
+          "texels": 0,
+          "pending": 0,
+          "gpu_ns": 0,
+          "gpu_samples": 0
+        },
+        {
+          "index": 261,
+          "wall_ms": 31.779999990249053,
+          "frame_id": 507,
+          "native_frame_ms": 32.638,
+          "texels": 0,
+          "pending": 0,
+          "gpu_ns": 0,
+          "gpu_samples": 0
+        },
+        {
+          "index": 262,
+          "wall_ms": 32.28899999521673,
+          "frame_id": 508,
+          "native_frame_ms": 31.878,
+          "texels": 0,
+          "pending": 0,
+          "gpu_ns": 0,
+          "gpu_samples": 0
+        }
+      ]
+    },
+    {
+      "name": "strips-a",
+      "median_ms": 33.4945,
+      "p95_ms": 36.436299999999996,
+      "p99_ms": 37.34714,
+      "max_ms": 41.141,
+      "boundary_252_262": {
+        "median_ms": 33.596,
+        "p95_ms": 36.462500000000006,
+        "p99_ms": 36.572500000000005,
+        "max_ms": 36.6
+      },
+      "total_texels": 705280,
+      "max_texels": 13824,
+      "max_pending": 64512,
+      "final_pending": 0,
+      "gpu_total_ms": 196.177,
+      "gpu_samples": 142,
+      "frame_id_gaps": 0,
+      "boundary_rows": [
+        {
+          "index": 252,
+          "wall_ms": 33.78820000216365,
+          "frame_id": 1047,
+          "native_frame_ms": 34.368,
+          "texels": 0,
+          "pending": 0,
+          "gpu_ns": 0,
+          "gpu_samples": 0
+        },
+        {
+          "index": 253,
+          "wall_ms": 32.520400010980666,
+          "frame_id": 1048,
+          "native_frame_ms": 33.306,
+          "texels": 0,
+          "pending": 0,
+          "gpu_ns": 0,
+          "gpu_samples": 0
+        },
+        {
+          "index": 254,
+          "wall_ms": 33.54220002074726,
+          "frame_id": 1049,
+          "native_frame_ms": 33.266,
+          "texels": 0,
+          "pending": 0,
+          "gpu_ns": 0,
+          "gpu_samples": 0
+        },
+        {
+          "index": 255,
+          "wall_ms": 32.861199986655265,
+          "frame_id": 1050,
+          "native_frame_ms": 33.596,
+          "texels": 0,
+          "pending": 0,
+          "gpu_ns": 0,
+          "gpu_samples": 0
+        },
+        {
+          "index": 256,
+          "wall_ms": 34.98039999976754,
+          "frame_id": 1051,
+          "native_frame_ms": 33.132,
+          "texels": 13312,
+          "pending": 64512,
+          "gpu_ns": 0,
+          "gpu_samples": 0
+        },
+        {
+          "index": 257,
+          "wall_ms": 34.32559999055229,
+          "frame_id": 1052,
+          "native_frame_ms": 33.039,
+          "texels": 6400,
+          "pending": 51200,
+          "gpu_ns": 2734000,
+          "gpu_samples": 2
+        },
+        {
+          "index": 258,
+          "wall_ms": 35.698499996215105,
+          "frame_id": 1053,
+          "native_frame_ms": 33.256,
+          "texels": 11008,
+          "pending": 44800,
+          "gpu_ns": 2764000,
+          "gpu_samples": 2
+        },
+        {
+          "index": 259,
+          "wall_ms": 36.59979999065399,
+          "frame_id": 1054,
+          "native_frame_ms": 35.417,
+          "texels": 9984,
+          "pending": 33792,
+          "gpu_ns": 1348000,
+          "gpu_samples": 1
+        },
+        {
+          "index": 260,
+          "wall_ms": 34.69869997934438,
+          "frame_id": 1055,
+          "native_frame_ms": 36.325,
+          "texels": 9984,
+          "pending": 23808,
+          "gpu_ns": 2821000,
+          "gpu_samples": 2
+        },
+        {
+          "index": 261,
+          "wall_ms": 36.22239999822341,
+          "frame_id": 1056,
+          "native_frame_ms": 36.6,
+          "texels": 4864,
+          "pending": 13824,
+          "gpu_ns": 2662000,
+          "gpu_samples": 2
+        },
+        {
+          "index": 262,
+          "wall_ms": 35.90359998634085,
+          "frame_id": 1057,
+          "native_frame_ms": 35.659,
+          "texels": 8960,
+          "pending": 8960,
+          "gpu_ns": 2942000,
+          "gpu_samples": 2
+        }
+      ]
+    },
+    {
+      "name": "strips-b",
+      "median_ms": 33.486000000000004,
+      "p95_ms": 35.9003,
+      "p99_ms": 37.33977,
+      "max_ms": 38.625,
+      "boundary_252_262": {
+        "median_ms": 33.491,
+        "p95_ms": 35.947,
+        "p99_ms": 35.9478,
+        "max_ms": 35.948
+      },
+      "total_texels": 705280,
+      "max_texels": 13824,
+      "max_pending": 64512,
+      "final_pending": 0,
+      "gpu_total_ms": 198.816,
+      "gpu_samples": 144,
+      "frame_id_gaps": 0,
+      "boundary_rows": [
+        {
+          "index": 252,
+          "wall_ms": 32.730999984778464,
+          "frame_id": 1595,
+          "native_frame_ms": 34.122,
+          "texels": 0,
+          "pending": 0,
+          "gpu_ns": 0,
+          "gpu_samples": 0
+        },
+        {
+          "index": 253,
+          "wall_ms": 33.540000003995374,
+          "frame_id": 1596,
+          "native_frame_ms": 32.965,
+          "texels": 0,
+          "pending": 0,
+          "gpu_ns": 0,
+          "gpu_samples": 0
+        },
+        {
+          "index": 254,
+          "wall_ms": 32.43029999430291,
+          "frame_id": 1597,
+          "native_frame_ms": 32.93,
+          "texels": 0,
+          "pending": 0,
+          "gpu_ns": 0,
+          "gpu_samples": 0
+        },
+        {
+          "index": 255,
+          "wall_ms": 32.834800018463284,
+          "frame_id": 1598,
+          "native_frame_ms": 32.831,
+          "texels": 0,
+          "pending": 0,
+          "gpu_ns": 0,
+          "gpu_samples": 0
+        },
+        {
+          "index": 256,
+          "wall_ms": 34.89660000195727,
+          "frame_id": 1599,
+          "native_frame_ms": 32.977,
+          "texels": 13312,
+          "pending": 64512,
+          "gpu_ns": 0,
+          "gpu_samples": 0
+        },
+        {
+          "index": 257,
+          "wall_ms": 34.968199994182214,
+          "frame_id": 1600,
+          "native_frame_ms": 33.024,
+          "texels": 6400,
+          "pending": 51200,
+          "gpu_ns": 2773000,
+          "gpu_samples": 2
+        },
+        {
+          "index": 258,
+          "wall_ms": 35.4049000015948,
+          "frame_id": 1601,
+          "native_frame_ms": 33.491,
+          "texels": 11008,
+          "pending": 44800,
+          "gpu_ns": 2699000,
+          "gpu_samples": 2
+        },
+        {
+          "index": 259,
+          "wall_ms": 35.91819998109713,
+          "frame_id": 1602,
+          "native_frame_ms": 35.948,
+          "texels": 9984,
+          "pending": 33792,
+          "gpu_ns": 1347000,
+          "gpu_samples": 1
+        },
+        {
+          "index": 260,
+          "wall_ms": 34.53580001951195,
+          "frame_id": 1603,
+          "native_frame_ms": 35.614,
+          "texels": 9984,
+          "pending": 23808,
+          "gpu_ns": 2732000,
+          "gpu_samples": 2
+        },
+        {
+          "index": 261,
+          "wall_ms": 35.988799994811416,
+          "frame_id": 1604,
+          "native_frame_ms": 35.853,
+          "texels": 4864,
+          "pending": 13824,
+          "gpu_ns": 2669000,
+          "gpu_samples": 2
+        },
+        {
+          "index": 262,
+          "wall_ms": 36.17659999872558,
+          "frame_id": 1605,
+          "native_frame_ms": 35.946,
+          "texels": 8960,
+          "pending": 8960,
+          "gpu_ns": 2778000,
+          "gpu_samples": 2
+        }
+      ]
+    },
+    {
+      "name": "full-b",
+      "median_ms": 33.027,
+      "p95_ms": 36.11395,
+      "p99_ms": 39.03131,
+      "max_ms": 42.282,
+      "boundary_252_262": {
+        "median_ms": 32.998,
+        "p95_ms": 36.2745,
+        "p99_ms": 38.4877,
+        "max_ms": 39.041
+      },
+      "total_texels": 19136512,
+      "max_texels": 1310720,
+      "max_pending": 0,
+      "final_pending": 0,
+      "gpu_total_ms": 98.341,
+      "gpu_samples": 66,
+      "frame_id_gaps": 0,
+      "boundary_rows": [
+        {
+          "index": 252,
+          "wall_ms": 31.462999992072582,
+          "frame_id": 2149,
+          "native_frame_ms": 32.756,
+          "texels": 0,
+          "pending": 0,
+          "gpu_ns": 0,
+          "gpu_samples": 0
+        },
+        {
+          "index": 253,
+          "wall_ms": 34.49360001832247,
+          "frame_id": 2150,
+          "native_frame_ms": 32.874,
+          "texels": 0,
+          "pending": 0,
+          "gpu_ns": 0,
+          "gpu_samples": 0
+        },
+        {
+          "index": 254,
+          "wall_ms": 32.52819998306222,
+          "frame_id": 2151,
+          "native_frame_ms": 33.137,
+          "texels": 0,
+          "pending": 0,
+          "gpu_ns": 0,
+          "gpu_samples": 0
+        },
+        {
+          "index": 255,
+          "wall_ms": 32.28610000223853,
+          "frame_id": 2152,
+          "native_frame_ms": 32.758,
+          "texels": 0,
+          "pending": 0,
+          "gpu_ns": 0,
+          "gpu_samples": 0
+        },
+        {
+          "index": 256,
+          "wall_ms": 35.49629999906756,
+          "frame_id": 2153,
+          "native_frame_ms": 33.508,
+          "texels": 1048576,
+          "pending": 0,
+          "gpu_ns": 0,
+          "gpu_samples": 0
+        },
+        {
+          "index": 257,
+          "wall_ms": 32.54970000125468,
+          "frame_id": 2154,
+          "native_frame_ms": 33.392,
+          "texels": 0,
+          "pending": 0,
+          "gpu_ns": 5936000,
+          "gpu_samples": 4
+        },
+        {
+          "index": 258,
+          "wall_ms": 37.97329997178167,
+          "frame_id": 2155,
+          "native_frame_ms": 32.998,
+          "texels": 0,
+          "pending": 0,
+          "gpu_ns": 0,
+          "gpu_samples": 0
+        },
+        {
+          "index": 259,
+          "wall_ms": 32.951800007140264,
+          "frame_id": 2156,
+          "native_frame_ms": 39.041,
+          "texels": 0,
+          "pending": 0,
+          "gpu_ns": 0,
+          "gpu_samples": 0
+        },
+        {
+          "index": 260,
+          "wall_ms": 32.56859999964945,
+          "frame_id": 2157,
+          "native_frame_ms": 33.07,
+          "texels": 0,
+          "pending": 0,
+          "gpu_ns": 0,
+          "gpu_samples": 0
+        },
+        {
+          "index": 261,
+          "wall_ms": 32.35230001155287,
+          "frame_id": 2158,
+          "native_frame_ms": 32.936,
+          "texels": 0,
+          "pending": 0,
+          "gpu_ns": 0,
+          "gpu_samples": 0
+        },
+        {
+          "index": 262,
+          "wall_ms": 31.314899999415502,
+          "frame_id": 2159,
+          "native_frame_ms": 32.54,
+          "texels": 0,
+          "pending": 0,
+          "gpu_ns": 0,
+          "gpu_samples": 0
+        }
+      ]
+    }
+  ],
+  "groups": {
+    "full": {
+      "median_ms": 33.0025,
+      "p95_ms": 35.86765,
+      "p99_ms": 39.63173000000001,
+      "max_ms": 42.282,
+      "boundary_252_262": {
+        "median_ms": 32.913,
+        "p95_ms": 38.802049999999994,
+        "p99_ms": 39.52527,
+        "max_ms": 39.654
+      },
+      "total_texels": 38273024,
+      "max_texels": 1310720,
+      "gpu_total_ms": 199.657,
+      "gpu_samples": 134
+    },
+    "strips": {
+      "median_ms": 33.486000000000004,
+      "p95_ms": 36.167300000000004,
+      "p99_ms": 37.48442000000001,
+      "max_ms": 41.141,
+      "boundary_252_262": {
+        "median_ms": 33.543499999999995,
+        "p95_ms": 36.30615,
+        "p99_ms": 36.54225,
+        "max_ms": 36.6
+      },
+      "total_texels": 1410560,
+      "max_texels": 13824,
+      "gpu_total_ms": 394.993,
+      "gpu_samples": 286
+    }
+  },
+  "visuals": {
+    "start": {
+      "mean_rgb_error_255": 0.00012912280701754387,
+      "p99_channel_error_255": 0.0,
+      "max_channel_error_255": 1.0
+    },
+    "end": {
+      "mean_rgb_error_255": 0.0070428070175438595,
+      "p99_channel_error_255": 0.0,
+      "max_channel_error_255": 2.0
+    }
+  }
+}

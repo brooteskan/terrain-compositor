@@ -28,6 +28,25 @@ ShaderResourceGroup TerrainSrg : SRG_Terrain
     };
 
     MeshData m_meshData;
+    // Material appearance cache. Geometry/CLOD state above is unchanged.
+    float4 m_graphCacheMappings[5];
+    float4 m_graphCacheTileTags[5];
+    uint m_graphCacheToroidal;
+    uint m_graphCacheEnabled;
+    uint m_graphCacheDebug;
+    Texture2D<float4> m_graphCacheColor[5];
+    Texture2D<float4> m_graphCacheNormal[5];
+    Texture2D<float4> m_graphCacheFactors[5];
+    Texture2D<float4> m_graphCacheGeometry[5];
+    SamplerState m_graphCacheSampler
+    {
+        MinFilter = Linear;
+        MagFilter = Linear;
+        MipFilter = Point;
+        AddressU = Wrap;
+        AddressV = Wrap;
+    };
+
 
     float CalculateClodDistance(uint lodLevel, float3 worldPosition)
     {

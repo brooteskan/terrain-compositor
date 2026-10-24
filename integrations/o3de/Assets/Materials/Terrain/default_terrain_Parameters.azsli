@@ -5,5 +5,4 @@ struct MaterialParameters {
     uint   m_materialType;
     uint   m_materialInstance;
     float2 m_finalPadding;
-}; 
-
+};

@@ -25,15 +25,15 @@ Compilation never writes `.material` files. Graph formulas belong in the graph; 
 
 Nonfinite colors fall back to white. Invalid or zero normals fall back to a safe normalized geometric normal. Nonfinite factors use their channel defaults; finite factors clamp to [0, 1]. Color Input uses Atom's color conversion; texture samples use the stock node's source/destination color-space controls. Missing images use Atom's material-system null texture, rather than an unbound sample.
 
-The procedural example exposes scale, ground color and roughness, and derives a world-space shading normal from procedural height. The textured example exposes two independent images and coordinate scales, a blend factor, and a color. Sampled appearance always runs per fragment, including far terrain; texture derivatives and normal derivatives use the fragment's geometry.
+The procedural example exposes scale, ground color and roughness, and derives a world-space shading normal from procedural height. The textured example exposes two independent images and coordinate scales, a blend factor, and a color. The direct evaluator runs per fragment. Static materials can opt into budgeted material clipmaps; invalid or unresolved cache coverage retains direct evaluation. See [graph material clipmaps](../../docs/GraphMaterialClipmaps.md).
 
-Emissive, POM, clear coat, transparency, displacement and per-detail-material graphs are unsupported. Surface tags for physics/composition and geometry LOD remain available. Macro/detail material components, appearance clipmaps, noise-tint controls and incoming-surface nodes are removed.
+Emissive, POM, clear coat, transparency, displacement and per-detail-material graphs are unsupported. Surface tags for physics/composition and geometry LOD remain available. Legacy macro/detail material components, noise-tint controls and incoming-surface nodes are removed. The graph material cache provides appearance caching and distance LOD.
 
 ## Binding and reload contract
 
-`TerrainMaterialSrg` owns fixed renderer buffers/counts/revisions and graph parameters in `m_params`. Its cutout/gap buffer names and element strides remain fixed. Graph layouts may differ. Graph property groups `settings` and `terrain`, and shader binding names beginning with `m_`, are reserved for the renderer. The current hidden marker is `terrain.contractVersion = 3`; there are no historical contract branches.
+`TerrainMaterialSrg` owns fixed renderer buffers/counts/revisions and graph parameters in `m_params`. Its cutout/gap buffer names and element strides remain fixed. Graph layouts may differ. Graph property groups `settings` and `terrain`, and shader binding names beginning with `m_`, are reserved for the renderer. The current hidden marker is `terrain.contractVersion = 4`; there are no historical contract branches.
 
-Selection validates required renderer bindings, object/terrain layouts, and forward/depth/shadow layouts. Only publication fields and buffers transfer to a candidate. Activation waits for compilation and an unchanged source publication, candidate change ID and layout. Failed candidates retain the active material; incompatible active reloads restore the bundled default.
+Selection validates required renderer bindings, object/terrain layouts, and forward/depth/shadow layouts, with a graph-specific clipmap shader for caching. Only publication fields and buffers transfer to a candidate. Activation waits for compilation and an unchanged source publication, candidate change ID and layout. Failed candidates retain the active material; incompatible active reloads restore the bundled default.
 
 ## Validation
 

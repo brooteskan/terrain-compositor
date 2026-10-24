@@ -1,0 +1,7 @@
+#include <viewsrg_all.srgi>
+#include "VueSimpleTerrain_Tint.azsli"
+#define TC_EvaluateTerrainSurface TC_VueSimpleSurface
+#define TC_TERRAIN_LIGHTING_INCLUDE "Assets/VueLiveLink/VueGroundResponse.azsli"
+#define TC_INITIALIZE_MATERIAL_LIGHTING(data) VueGroundInitialize(data)
+#define TC_FINALIZE_MATERIAL_LIGHTING(data) VueGroundFinalize(data)
+#include <TerrainCompositor/TerrainGraphClipmapUpdate.azsli>

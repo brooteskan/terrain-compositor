@@ -146,7 +146,9 @@
                 "@gemroot:TerrainCompositorCanvas@/Assets/MaterialCanvas/Terrain/Templates/MaterialGraphName_Parameters.azsli",
                 "@gemroot:TerrainCompositorCanvas@/Assets/MaterialCanvas/Terrain/Templates/MaterialGraphName_Depth.azsl",
                 "@gemroot:TerrainCompositorCanvas@/Assets/MaterialCanvas/Terrain/Templates/MaterialGraphName_Depth.shader",
-                "@gemroot:TerrainCompositorCanvas@/Assets/MaterialCanvas/Terrain/Templates/MaterialGraphName_Shadow.shader"
+                "@gemroot:TerrainCompositorCanvas@/Assets/MaterialCanvas/Terrain/Templates/MaterialGraphName_Shadow.shader",
+                "@gemroot:TerrainCompositorCanvas@/Assets/MaterialCanvas/Terrain/Templates/MaterialGraphName_Clipmap.azsl",
+                "@gemroot:TerrainCompositorCanvas@/Assets/MaterialCanvas/Terrain/Templates/MaterialGraphName_Clipmap.shader"
             ]
         }
     }

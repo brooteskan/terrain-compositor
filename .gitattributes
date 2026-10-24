@@ -1,3 +1,7 @@
 *.patch text eol=lf
 # Unified patches represent blank context lines with a single space.
 integrations/o3de-material-canvas/EnginePatches/*.patch whitespace=-blank-at-eol
+
+# Unified patch context lines intentionally contain a single space.
+integrations/o3de/EnginePatches/**/*.patch whitespace=-blank-at-eol
+*.dds binary

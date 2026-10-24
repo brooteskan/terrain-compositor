@@ -86,6 +86,12 @@
                 "displayName": "Terrain Contract",
                 "properties": [
                     {
+                        "name": "clipmapTemporalReuse",
+                        "displayName": "Reuse static material cache between frames",
+                        "description": "Enable only for time- and camera-independent materials. Moved layers, changed geometry, material edits and newly exposed coverage refresh the cache.",
+                        "type": "Bool"
+                    },
+                    {
                         "name": "contractVersion",
                         "type": "UInt",
                         "defaultValue": 4,
@@ -184,6 +190,9 @@
         },
         {
             "file": "procedural_terrain_Depth.shader"
+        },
+        {
+            "file": "procedural_terrain_Clipmap.shader"
         }
     ]
 }

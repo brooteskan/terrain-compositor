@@ -1,0 +1,294 @@
+{
+    "propertyLayout": {
+        "propertyGroups": [
+            {
+                "name": "settings",
+                "displayName": "Settings",
+                "properties": [
+                    {
+                        "name": "meshCutoutCount",
+                        "type": "UInt",
+                        "visibility": "Hidden",
+                        "connection": {
+                            "type": "ShaderInput",
+                            "name": "m_meshCutoutCount"
+                        }
+                    },
+                    {
+                        "name": "meshCutoutRevision",
+                        "type": "UInt",
+                        "visibility": "Hidden",
+                        "connection": {
+                            "type": "ShaderInput",
+                            "name": "m_meshCutoutRevision"
+                        }
+                    },
+                    {
+                        "name": "meshHeightGapCount",
+                        "type": "UInt",
+                        "visibility": "Hidden",
+                        "connection": {
+                            "type": "ShaderInput",
+                            "name": "m_meshHeightGapCount"
+                        }
+                    },
+                    {
+                        "name": "meshHeightGapRevision",
+                        "type": "UInt",
+                        "visibility": "Hidden",
+                        "connection": {
+                            "type": "ShaderInput",
+                            "name": "m_meshHeightGapRevision"
+                        }
+                    },
+                    {
+                        "name": "surfaceRegionCount",
+                        "displayName": "surfaceRegionCount",
+                        "type": "UInt",
+                        "visibility": "Hidden",
+                        "connection": {
+                            "type": "ShaderInput",
+                            "name": "m_surfaceRegionCount"
+                        }
+                    },
+                    {
+                        "name": "surfaceRevision",
+                        "displayName": "surfaceRevision",
+                        "type": "UInt",
+                        "visibility": "Hidden",
+                        "connection": {
+                            "type": "ShaderInput",
+                            "name": "m_surfaceRevision"
+                        }
+                    }
+                ]
+            },
+            {
+                "name": "surface",
+                "displayName": "Surface",
+                "description": "Surface",
+                "properties": [
+                    {
+                        "name": "baked_ao",
+                        "displayName": "Baked AO",
+                        "description": "Baked AO",
+                        "type": "Image",
+                        "connection": {
+                            "type": "ShaderInput",
+                            "name": "node4_sample_texture_2d_inValue"
+                        }
+                    },
+                    {
+                        "name": "baked_ao_1",
+                        "displayName": "Baked AO (1)",
+                        "description": "Baked AO",
+                        "type": "SamplerState",
+                        "defaultValue": {
+                            "m_anisotropyMax": 16,
+                            "m_filterMin": "Linear",
+                            "m_filterMag": "Linear",
+                            "m_filterMip": "Linear",
+                            "m_addressU": "Clamp",
+                            "m_addressV": "Clamp",
+                            "m_addressW": "Clamp"
+                        },
+                        "connection": {
+                            "type": "ShaderInput",
+                            "name": "node4_sample_texture_2d_inSampler"
+                        }
+                    },
+                    {
+                        "name": "baked_color",
+                        "displayName": "Baked Color",
+                        "description": "Baked Color",
+                        "type": "Image",
+                        "connection": {
+                            "type": "ShaderInput",
+                            "name": "node3_sample_texture_2d_inValue"
+                        }
+                    },
+                    {
+                        "name": "baked_color_1",
+                        "displayName": "Baked Color (1)",
+                        "description": "Baked Color",
+                        "type": "SamplerState",
+                        "defaultValue": {
+                            "m_anisotropyMax": 16,
+                            "m_filterMin": "Linear",
+                            "m_filterMag": "Linear",
+                            "m_filterMip": "Linear",
+                            "m_addressU": "Clamp",
+                            "m_addressV": "Clamp",
+                            "m_addressW": "Clamp"
+                        },
+                        "connection": {
+                            "type": "ShaderInput",
+                            "name": "node3_sample_texture_2d_inSampler"
+                        }
+                    },
+                    {
+                        "name": "outside_color",
+                        "displayName": "Outside Color",
+                        "description": "Outside Color",
+                        "type": "Color",
+                        "defaultValue": [
+                            0.3199999928474426,
+                            0.30000001192092896,
+                            0.27000001072883606
+                        ],
+                        "connection": {
+                            "type": "ShaderInput",
+                            "name": "node10_color_input_inValue"
+                        }
+                    },
+                    {
+                        "name": "roughness",
+                        "displayName": "Roughness",
+                        "description": "Roughness",
+                        "type": "Float",
+                        "defaultValue": 0.8500000238418579,
+                        "connection": {
+                            "type": "ShaderInput",
+                            "name": "node9_float_input_inValue"
+                        }
+                    },
+                    {
+                        "name": "transition_width",
+                        "displayName": "Transition Width",
+                        "description": "Transition Width",
+                        "type": "Float",
+                        "defaultValue": 160.0,
+                        "connection": {
+                            "type": "ShaderInput",
+                            "name": "node7_float_input_inValue"
+                        }
+                    },
+                    {
+                        "name": "variation_scale",
+                        "displayName": "Variation Scale",
+                        "description": "Variation Scale",
+                        "type": "Float",
+                        "defaultValue": 90.0,
+                        "connection": {
+                            "type": "ShaderInput",
+                            "name": "node8_float_input_inValue"
+                        }
+                    }
+                ]
+            },
+            {
+                "name": "terrain",
+                "displayName": "Terrain Contract",
+                "properties": [
+                    {
+                        "name": "contractVersion",
+                        "type": "UInt",
+                        "defaultValue": 4,
+                        "visibility": "Hidden"
+                    },
+                    {
+                        "name": "clipmapTemporalReuse",
+                        "displayName": "Reuse static material cache between frames",
+                        "description": "Enable only for time- and camera-independent materials. Moved layers, changed geometry, material edits and newly exposed coverage refresh the cache.",
+                        "type": "Bool",
+                        "defaultValue": false
+                    }
+                ]
+            },
+            {
+                "name": "general",
+                "properties": [
+                    {
+                        "name": "applySpecularAA",
+                        "displayName": "Apply Specular AA",
+                        "description": "Whether to apply specular anti-aliasing in the shader.",
+                        "type": "Bool",
+                        "connection": {
+                            "type": "ShaderOption",
+                            "name": "o_applySpecularAA"
+                        }
+                    },
+                    {
+                        "name": "enableAreaLights",
+                        "displayName": "Enable Area Lights",
+                        "description": "Whether to use area lights.",
+                        "type": "Bool",
+                        "defaultValue": true,
+                        "connection": {
+                            "type": "ShaderOption",
+                            "name": "o_enableAreaLights"
+                        }
+                    },
+                    {
+                        "name": "enableDirectionalLights",
+                        "displayName": "Enable Directional Lights",
+                        "description": "Whether to use directional lights.",
+                        "type": "Bool",
+                        "defaultValue": true,
+                        "connection": {
+                            "type": "ShaderOption",
+                            "name": "o_enableDirectionalLights"
+                        }
+                    },
+                    {
+                        "name": "enableIBL",
+                        "displayName": "Enable IBL",
+                        "description": "Whether to use Image Based Lighting (IBL).",
+                        "type": "Bool",
+                        "defaultValue": true,
+                        "connection": {
+                            "type": "ShaderOption",
+                            "name": "o_enableIBL"
+                        }
+                    },
+                    {
+                        "name": "enablePunctualLights",
+                        "displayName": "Enable Punctual Lights",
+                        "description": "Whether to use punctual lights.",
+                        "type": "Bool",
+                        "defaultValue": true,
+                        "connection": {
+                            "type": "ShaderOption",
+                            "name": "o_enablePunctualLights"
+                        }
+                    },
+                    {
+                        "name": "enableShadows",
+                        "displayName": "Enable Shadows",
+                        "description": "Whether to use the shadow maps.",
+                        "type": "Bool",
+                        "defaultValue": true,
+                        "connection": {
+                            "type": "ShaderOption",
+                            "name": "o_enableShadows"
+                        }
+                    },
+                    {
+                        "name": "forwardPassIBLSpecular",
+                        "displayName": "Forward Pass IBL Specular",
+                        "description": "Whether to apply IBL specular in the forward pass.",
+                        "type": "Bool",
+                        "connection": {
+                            "type": "ShaderOption",
+                            "name": "o_materialUseForwardPassIBLSpecular"
+                        }
+                    }
+                ]
+            }
+        ]
+    },
+    "shaders": [
+        {
+            "file": "ground_Forward.shader"
+        },
+        {
+            "file": "ground_Shadow.shader"
+        },
+        {
+            "file": "ground_Depth.shader"
+        },
+        {
+            "file": "ground_Clipmap.shader"
+        }
+    ]
+}
