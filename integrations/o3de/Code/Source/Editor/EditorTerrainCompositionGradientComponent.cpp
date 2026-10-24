@@ -14,6 +14,8 @@
 #include <Components/TerrainWorldRendererComponent.h>
 #include <EditorComponents/EditorTerrainWorldRendererComponent.h>
 #include <TerrainCompositor/TerrainExistenceSampling.h>
+#include <TerrainRenderer/TerrainFeatureProcessor.h>
+#include <Atom/RPI.Public/Scene.h>
 
 namespace TerrainCompositor
 {
@@ -92,6 +94,11 @@ namespace TerrainCompositor
     {
         if (auto* behavior = azrtti_cast<AZ::BehaviorContext*>(context))
         {
+            behavior->EBus<TerrainHeightPrecisionRequestBus>("TerrainHeightPrecisionRequestBus")
+                ->Attribute(AZ::Script::Attributes::Scope, AZ::Script::Attributes::ScopeFlags::Automation)
+                ->Attribute(AZ::Script::Attributes::Module, "editor")
+                ->Event("GetRenderedHeightPrecision", &TerrainHeightPrecisionRequests::GetRenderedHeightPrecision)
+                ->Event("GetHeightVertexStride", &TerrainHeightPrecisionRequests::GetHeightVertexStride);
             behavior->EBus<TerrainHeightPrecisionNotificationBus>("TerrainHeightPrecisionNotificationBus")
                 ->Attribute(AZ::Script::Attributes::Scope, AZ::Script::Attributes::ScopeFlags::Automation)
                 ->Attribute(AZ::Script::Attributes::Module, "editor")
@@ -106,6 +113,41 @@ namespace TerrainCompositor
             "Read-only composition preview status.");
     }
 
+    namespace
+    {
+        Terrain::TerrainFeatureProcessor* PrecisionRenderer(AZ::EntityId owner)
+        {
+            AzFramework::EntityContextId context;
+            AzFramework::EntityIdContextQueryBus::EventResult(context, owner,
+                &AzFramework::EntityIdContextQueryBus::Events::GetOwningContextId);
+            auto* scene = AZ::RPI::Scene::GetSceneForEntityContextId(context);
+            return scene ? scene->GetFeatureProcessor<Terrain::TerrainFeatureProcessor>() : nullptr;
+        }
+    }
+
+    AZ::u32 EditorTerrainCompositionGradientComponent::GetRenderedHeightPrecision() const
+    {
+        auto* renderer = PrecisionRenderer(GetEntityId());
+        return renderer ? renderer->GetHeightPrecision() : 0u;
+    }
+
+    AZ::u32 EditorTerrainCompositionGradientComponent::GetHeightVertexStride() const
+    {
+        auto* renderer = PrecisionRenderer(GetEntityId());
+        return renderer ? renderer->GetHeightVertexStride() : 0u;
+    }
+
+    AZStd::string EditorTerrainCompositionGradientComponent::GetStatusText() const
+    {
+        const auto bits = GetRenderedHeightPrecision();
+        auto result = m_preview.GetStatus();
+        if (bits)
+            result += AZStd::string::format(" GPU heights: R%u_FLOAT, %u-bit arithmetic, %u bytes/vertex (including normals).%s",
+                bits, bits, GetHeightVertexStride(), bits != m_configuration.m_materialHeightPrecision ?
+                    " Precision conflict: set all terrain compositors to the same precision." : "");
+        return result;
+    }
+
     void EditorTerrainCompositionGradientComponent::GetProvidedServices(AZ::ComponentDescriptor::DependencyArrayType& services)
     { TerrainCompositionGradientComponent::GetProvidedServices(services); }
     void EditorTerrainCompositionGradientComponent::GetIncompatibleServices(AZ::ComponentDescriptor::DependencyArrayType& services)
@@ -118,6 +160,7 @@ namespace TerrainCompositor
     void EditorTerrainCompositionGradientComponent::Activate()
     {
         BaseClass::Activate();
+        TerrainHeightPrecisionRequestBus::Handler::BusConnect(GetEntityId());
         m_preview.Activate(m_configuration, [this](auto& preview)
         {
             const TerrainQualityBaseline baseline = CaptureTerrainQualityBaseline(GetEntityId());
@@ -128,6 +171,7 @@ namespace TerrainCompositor
 
     void EditorTerrainCompositionGradientComponent::Deactivate()
     {
+        TerrainHeightPrecisionRequestBus::Handler::BusDisconnect();
         AzFramework::EntityDebugDisplayEventBus::Handler::BusDisconnect();
         m_preview.Deactivate();
         BaseClass::Deactivate();

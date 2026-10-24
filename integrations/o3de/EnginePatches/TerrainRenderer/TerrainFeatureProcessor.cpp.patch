@@ -227,7 +227,7 @@
              m_terrainSrg->Compile();
              for (auto* pass : m_passes)
              {
-@@ -305,22 +256,15 @@
+@@ -305,22 +256,36 @@
          }
      }
  
@@ -237,6 +237,27 @@
 -    }
 -    
 +
++
++    void TerrainFeatureProcessor::SetHeightPrecision(AZ::EntityId owner, AZ::u32 bits)
++    {
++        const AZ::u32 normalized = bits == 16 ? 16u : 32u;
++        auto found = m_heightPrecisionOwners.find(owner);
++        if (found != m_heightPrecisionOwners.end() && found->second == normalized) return;
++        m_heightPrecisionOwners[owner] = normalized;
++        const bool fp16 = AZStd::all_of(m_heightPrecisionOwners.begin(), m_heightPrecisionOwners.end(),
++            [](const auto& entry) { return entry.second == 16; });
++        m_meshManager.SetHeightPrecision(fp16);
++        m_graphClipmaps.Invalidate();
++    }
++
++    void TerrainFeatureProcessor::ClearHeightPrecision(AZ::EntityId owner)
++    {
++        if (!m_heightPrecisionOwners.erase(owner)) return;
++        const bool fp16 = !m_heightPrecisionOwners.empty() && AZStd::all_of(
++            m_heightPrecisionOwners.begin(), m_heightPrecisionOwners.end(), [](const auto& entry) { return entry.second == 16; });
++        m_meshManager.SetHeightPrecision(fp16);
++        m_graphClipmaps.Invalidate();
++    }
 +
      void TerrainFeatureProcessor::SetMeshConfiguration(const MeshConfiguration& config)
      {
@@ -256,7 +277,7 @@
      void TerrainFeatureProcessor::CachePasses()
      {
          m_passes.clear();
-@@ -361,8 +305,7 @@
+@@ -361,8 +326,7 @@
          return m_materialInstance;
      }
  

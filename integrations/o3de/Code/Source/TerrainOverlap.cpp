@@ -1,4 +1,5 @@
 #include <TerrainCompositor/TerrainOverlap.h>
+#include <TerrainCompositor/TerrainHeightPrecision.h>
 #include <AzCore/std/algorithm.h>
 #include <cmath>
 #include <cstring>
@@ -59,6 +60,7 @@ namespace TerrainCompositor
         const size_t start = words.size();
         const auto& config = overlap.m_config;
         const size_t count = config.m_sources.size() + (config.m_flatGround ? 1 : 0);
+        const auto sampleWords = [&overlap](size_t n) { return overlap.m_heightFp16 ? (n + 1) / 2 : n; };
         size_t required = count * TerrainOverlapSourceWords;
         for (const auto& c : contributors)
         {
@@ -69,23 +71,28 @@ namespace TerrainCompositor
             {
                 if (!c.m_mesh.m_data) return false;
                 const auto& d = *c.m_mesh.m_data;
-                required += d.m_localHeights.size() + d.m_uncoveredCellBits.size() + d.m_cellDiagonalBits.size();
+                required += sampleWords(d.m_localHeights.size()) + d.m_uncoveredCellBits.size() + d.m_cellDiagonalBits.size();
             }
             else
             {
                 if (!c.m_image.m_image) return false;
-                required += c.m_image.m_reconstruction ? c.m_image.m_reconstruction->m_samples.size() : c.m_image.m_image->m_samples.size();
+                required += sampleWords(c.m_image.m_reconstruction ? c.m_image.m_reconstruction->m_samples.size() : c.m_image.m_image->m_samples.size());
             }
         }
         if (start > maximumWords || required > maximumWords - start) return false;
         words.resize(start + count * TerrainOverlapSourceWords);
         const auto f = [&words](size_t at, double value)
         { const float v = static_cast<float>(value); memcpy(&words[at], &v, sizeof(v)); };
-        const auto floats = [&words](const auto& values)
+        const auto floats = [&words, &overlap, &sampleWords](const auto& values)
         {
             auto offset = aznumeric_cast<AZ::u32>(words.size());
-            words.resize(words.size() + values.size());
-            if (!values.empty()) memcpy(words.data() + offset, values.data(), values.size() * sizeof(float));
+            words.resize(words.size() + sampleWords(values.size()), 0);
+            if (overlap.m_heightFp16)
+            {
+                for (size_t i = 0; i < values.size(); ++i)
+                    words[offset + i / 2] |= AZ::u32(PackTerrainHeight16(values[i])) << ((i & 1) * 16);
+            }
+            else if (!values.empty()) memcpy(words.data() + offset, values.data(), values.size() * sizeof(float));
             return offset;
         };
         const auto integers = [&words](const auto& values)
@@ -97,7 +104,7 @@ namespace TerrainCompositor
         f(header, bounds.GetMin().GetX()); f(header + 1, bounds.GetMin().GetY());
         f(header + 2, bounds.GetMax().GetX()); f(header + 3, bounds.GetMax().GetY());
         words[header + 4] = aznumeric_cast<AZ::u32>(start); words[header + 5] = aznumeric_cast<AZ::u32>(count);
-        f(header + 6, config.m_width); words[header + 7] = config.m_retainedSurfaces ? 1 : 0;
+        f(header + 6, config.m_width); words[header + 7] = (config.m_retainedSurfaces ? 1u : 0u) | (overlap.m_heightFp16 ? 2u : 0u);
         size_t index = 0;
         if (config.m_flatGround)
         {

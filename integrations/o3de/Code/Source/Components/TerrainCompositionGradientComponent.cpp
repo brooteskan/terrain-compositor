@@ -9,6 +9,7 @@
 #include "TerrainCompositionQueryHelpers.h"
 
 #include <Atom/RPI.Public/Scene.h>
+#include <TerrainRenderer/TerrainFeatureProcessor.h>
 #include <AzCore/Component/NonUniformScaleBus.h>
 #include <AzCore/Serialization/EditContext.h>
 #include <AzCore/Serialization/SerializeContext.h>
@@ -225,7 +226,7 @@ namespace TerrainCompositor
                         "Explicit weighted base. O3DE's Default Material is "
                         "only used when no positive mapped surface remains.")
                     ->DataElement(AZ::Edit::UIHandlers::ComboBox, &TerrainCompositionConfig::m_materialHeightPrecision,
-                        "Height Precision", "Retained terrain material height texture format and shader arithmetic. Geometry LOD is unchanged.")
+                        "Height Precision", "GPU height storage and native shader arithmetic for all terrain: retained Vue, heightmap stamps, mesh height stamps and procedural terrain. Geometry LOD settings are unchanged. If compositors disagree, shared geometry uses 32-bit.")
                     ->Attribute(AZ::Edit::Attributes::EnumValues, &TerrainCompositionConfig::GetHeightPrecisionOptions)
                     ->DataElement(AZ::Edit::UIHandlers::Default, &TerrainCompositionConfig::m_materialOverlap,
                         "Material Overlap", "Opt-in material transition between explicitly bound source instances.");
@@ -386,6 +387,9 @@ namespace TerrainCompositor
         AZ::EntityBus::Handler::BusDisconnect();
         const auto address = m_address;
         const auto session = m_session;
+        if (auto* scene = AZ::RPI::Scene::GetSceneForEntityContextId(address.first))
+            if (auto* terrain = scene->GetFeatureProcessor<Terrain::TerrainFeatureProcessor>())
+                terrain->ClearHeightPrecision(address.second);
         if (auto* renderRegistry = AZ::Interface<TerrainMeshCutoutRenderRegistry>::Get())
         {
             renderRegistry->Remove(session);
@@ -553,6 +557,9 @@ namespace TerrainCompositor
         if (m_controlThread.Check() && m_active)
         {
             m_qualityController.Update(m_configuration.m_terrainQuality);
+            if (auto* scene = AZ::RPI::Scene::GetSceneForEntityContextId(m_address.first))
+                if (auto* terrain = scene->GetFeatureProcessor<Terrain::TerrainFeatureProcessor>())
+                    terrain->SetHeightPrecision(m_address.second, m_configuration.m_materialHeightPrecision);
             const bool dependenciesChanged = !m_hasAppliedConfiguration ||
                 m_configuration.m_proceduralSourceEntityId != m_appliedConfiguration.m_proceduralSourceEntityId ||
                 m_configuration.m_targetTerrainRegionEntityId != m_appliedConfiguration.m_targetTerrainRegionEntityId;
@@ -1004,6 +1011,9 @@ namespace TerrainCompositor
             return;
         }
         m_tickRequested = false;
+        if (auto* scene = AZ::RPI::Scene::GetSceneForEntityContextId(m_address.first))
+            if (auto* terrain = scene->GetFeatureProcessor<Terrain::TerrainFeatureProcessor>())
+                terrain->SetHeightPrecision(m_address.second, m_configuration.m_materialHeightPrecision);
         CollectGapActivationChanges();
         const bool heightSettingsChanged = m_qualityController.ConsumeHeightSettingsChanged();
         float liveCollisionGridSpacing = 0.0f;

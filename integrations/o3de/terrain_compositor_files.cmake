@@ -1,4 +1,5 @@
 set(FILES
+    Code/Include/TerrainCompositor/TerrainHeightPrecision.h
     Code/Include/TerrainCompositor/TerrainOverlap.h
     Code/Include/TerrainCompositor/TerrainOverlapConfig.h
     Code/Source/TerrainOverlap.cpp

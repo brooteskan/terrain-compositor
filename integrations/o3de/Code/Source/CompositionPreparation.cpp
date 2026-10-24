@@ -237,6 +237,7 @@ namespace TerrainCompositor::Internal
         });
 
         query.m_overlap = PrepareTerrainOverlap(configuration.m_materialOverlap, query.m_heightContributors);
+        query.m_overlap.m_heightFp16 = configuration.m_materialHeightPrecision == 16;
         return result;
     }
 }

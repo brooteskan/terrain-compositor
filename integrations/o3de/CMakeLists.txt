@@ -133,6 +133,11 @@ if(PAL_TRAIT_BUILD_HOST_TOOLS)
         PROPERTY COMPILE_DEFINITIONS
         VALUES O3DE_GEM_NAME=${gem_name} O3DE_GEM_VERSION=${gem_version}
     )
+    # The scene renderer owns the shared TerrainMeshManager layout. Rebuild its
+    # editor module alongside this Gem after a pinned engine override changes.
+    if(TARGET Terrain.Editor)
+        add_dependencies(${gem_name}.Editor Terrain.Editor)
+    endif()
     ly_create_alias(NAME ${gem_name}.Builders NAMESPACE Gem TARGETS Gem::${gem_name}.Editor)
     ly_create_alias(NAME ${gem_name}.Tools NAMESPACE Gem TARGETS Gem::${gem_name}.Editor)
 endif()

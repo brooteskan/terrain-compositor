@@ -20,6 +20,7 @@ ShaderResourceGroup ObjectSrg : SRG_PerObject
         float m_xyScale;
         uint m_lodLevel;
         float m_rcpLodLevel;
+        uint m_heightFp16;
     };
 
     PatchData m_patchData;
@@ -37,9 +38,9 @@ option bool o_useTerrainClod = true;
 struct VertexInput
 {
     float2 m_xyPosition : POSITION0;
-    float1 m_zPosition : POSITION1;
+    float m_zPosition : POSITION1;
     float2 m_xyNormal : NORMAL0;
-    float1 m_lodZPosition : POSITION2;
+    float m_lodZPosition : POSITION2;
     float2 m_lodXYNormal : NORMAL1;
 };
 
@@ -71,7 +72,12 @@ void CalculateTerrainPosition(
     {
         float clodBlend = saturate(clodDistance * TerrainSrg::m_meshData.m_rcpClodDistance * patchData.m_rcpLodLevel);
         float lodHeight = worldData.m_zMin + input.m_lodZPosition * worldData.m_zExtents;
-        worldPosition.z = lerp(lodHeight, height, clodBlend);
+        if (patchData.m_heightFp16 != 0)
+        {
+            half normalizedHeight = lerp(half(input.m_lodZPosition), half(input.m_zPosition), half(clodBlend));
+            worldPosition.z = worldData.m_zMin + float(normalizedHeight) * worldData.m_zExtents;
+        }
+        else worldPosition.z = lerp(lodHeight, height, clodBlend);
 
         normal = float3(lerp(input.m_lodXYNormal, input.m_xyNormal, clodBlend), 0.0);
     }

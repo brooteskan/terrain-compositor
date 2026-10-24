@@ -54,7 +54,11 @@ try:
         wait(lambda:all(render.MaterialComponentRequestBus(bus.Event,'IsMaterialAssetReady',target['owner'],render.MaterialAssignmentId())
                         for target in response.targets() if not target['ground']))
         general.idle_wait_frames(3)
-        entry={'bits':bits,'materials':{},'height_formats':[]}
+        rendered=int(editor.TerrainHeightPrecisionRequestBus(bus.Event,'GetRenderedHeightPrecision',general.find_editor_entity('Terrain Compositor')))
+        stride=int(editor.TerrainHeightPrecisionRequestBus(bus.Event,'GetHeightVertexStride',general.find_editor_entity('Terrain Compositor')))
+        assert rendered==bits,(bits,rendered)
+        assert stride==(4 if bits==16 else 8),(bits,stride)
+        entry={'bits':bits,'rendered_height_precision':rendered,'vertex_stride':stride,'materials':{},'height_formats':[]}
         for target in response.targets():
             if target['ground']:continue
             path=overlap.raw_path(response.binding(target));source=(P/path).with_suffix('.material')

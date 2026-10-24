@@ -160,7 +160,8 @@ namespace Terrain
 
         void CheckHeightStreamLayout()
         {
-            const auto layout = Manager::CreateTerrainInputStreamLayout();
+            Manager manager;
+            const auto layout = manager.CreateTerrainInputStreamLayout();
             ASSERT_TRUE(layout.IsFinalized());
             const auto buffers = layout.GetStreamBuffers();
             const auto channels = layout.GetStreamChannels();
@@ -176,6 +177,29 @@ namespace Terrain
             }
             EXPECT_EQ(offsetof(Vertex, m_normal), sizeof(float));
             EXPECT_LT(Manager::NoTerrainVertexHeight, 0.0f);
+        }
+
+        void CheckHalfHeightStreamLayout()
+        {
+            Manager manager;
+            manager.m_heightFp16 = true;
+            const auto layout = manager.CreateTerrainInputStreamLayout();
+            ASSERT_TRUE(layout.IsFinalized());
+            const auto buffers = layout.GetStreamBuffers();
+            const auto channels = layout.GetStreamChannels();
+            for (size_t stream = 1; stream < 5; ++stream)
+            {
+                EXPECT_EQ(buffers[stream].m_byteStride, 4);
+                EXPECT_EQ(channels[stream].m_format,
+                    stream % 2 ? AZ::RHI::Format::R16_FLOAT : AZ::RHI::Format::R8G8_SNORM);
+            }
+            AZStd::vector<Vertex> vertices{{0.0f, {-127,127}}, {1.0f, {0,0}}, {-1.0f, {1,-1}}};
+            const auto packed = manager.PackHeightVertices(vertices);
+            ASSERT_EQ(packed.size(), vertices.size());
+            EXPECT_EQ(packed[0], 0x7f810000u);
+            EXPECT_EQ(packed[1], 0x00003c00u);
+            EXPECT_EQ(packed[2], 0xff01bc00u);
+            EXPECT_FLOAT_EQ(vertices[2].m_height, -1.0f); // master records remain untouched
         }
 
         void CheckHeightBounds()
@@ -264,6 +288,8 @@ namespace Terrain
     { CheckHeightPrecision(); }
     TEST_F(TerrainRenderingTests, HeightAndNormalStreamsUseTheInterleavedFloatRecordStride)
     { CheckHeightStreamLayout(); }
+    TEST_F(TerrainRenderingTests, HalfHeightAndNormalStreamsPackRegularAndClodRecordsInFourBytes)
+    { CheckHalfHeightStreamLayout(); }
     TEST_F(TerrainRenderingTests, RayTracingNormalsRemainUnitLengthAtPackedDiskBoundary)
     { CheckRayTracingNormalBoundary(); }
 }

@@ -5,6 +5,7 @@
 #endif
 #include <TerrainCompositor/TerrainSurface.azsli>
 #include <TerrainCompositor/TerrainOverlapWeights.azsli>
+#include <TerrainCompositor/TerrainOverlapWeights16.azsli>
 
 struct TerrainOverlapSource
 {
@@ -99,6 +100,91 @@ TerrainOverlapSource TC_OverlapSource(uint p, float2 worldXY, float width)
     return result;
 }
 
+// Samples are two IEEE binary16 values per uint. f16tof32 only decodes
+// their bits; interpolation, slopes, coverage and envelope weights below use
+// native half instructions. Coordinates/topology deliberately remain FP32.
+half TC_OH(uint data, uint index)
+{
+    uint packed = TC_OW(data + index / 2);
+    return half(f16tof32((packed >> ((index & 1) * 16)) & 0xffff));
+}
+
+TerrainOverlapSource TC_OverlapSource16(uint p, float2 worldXY, float width)
+{
+    TerrainOverlapSource result = (TerrainOverlapSource)0;
+    uint kind = TC_OW(p);
+    result.materialSlot = TC_OW(p + 1);
+    float c = TC_OF(p + 6), s = TC_OF(p + 7), inverseScale = TC_OF(p + 8);
+    float2 delta = worldXY - float2(TC_OF(p + 4), TC_OF(p + 5));
+    precise float2 local = float2(c * delta.x + s * delta.y, -s * delta.x + c * delta.y) * inverseScale;
+    result.localPosition = local;
+    result.localFromWorld = float4(c, s, -s, c) * inverseScale;
+    float2 lo = float2(TC_OF(p + 9), TC_OF(p + 10)), hi = float2(TC_OF(p + 11), TC_OF(p + 12));
+    float2 edge = min(local - lo, hi - local) - TC_OF(p + 18);
+    half height = half(TC_OF(p + 13));
+    half2 slope = half2(0, 0);
+    half coverage = half(TC_OF(p + 15));
+    result.coverage = float(coverage);
+    result.normal = float3(0, 0, 1);
+    result.tangent = float3(c, s, 0); result.bitangent = float3(-s, c, 0);
+    result.worldPosition = float3(worldXY, height);
+    if (any(edge < 0) || result.materialSlot > 3) { result.coverage = 0; return result; }
+    if (kind != 0)
+    {
+        // World metres: scaling an instance never silently scales the authored transition width.
+        coverage *= TC_OverlapRamp16(half(min(edge.x, edge.y) / inverseScale), half(width));
+        half feather = half(TC_OF(p + 16));
+        if (feather > 0)
+            coverage *= pow(TC_OverlapRamp16(half(edge.x), feather) * TC_OverlapRamp16(half(edge.y), feather), half(TC_OF(p + 17)));
+        uint w = TC_OW(p + 2), h = TC_OW(p + 3), data = TC_OW(p + 19);
+        float2 gridScale = kind == 2 ? float2(TC_OF(p + 22), TC_OF(p + 23)) : float2(w - 1, h - 1) / (hi - lo);
+        precise float2 grid = (local - lo) * gridScale;
+        if (kind == 1) grid.y = float(h - 1) - grid.y;
+        uint2 cell = min((uint2)max(grid, 0.0), uint2(max(w, 2u) - 2, max(h, 2u) - 2));
+        float2 cellFraction = saturate(grid - cell);
+        half2 f = half2(cellFraction);
+        if (kind == 2)
+        {
+            uint ci = cell.y * (w - 1) + cell.x;
+            if ((TC_OW(TC_OW(p + 20) + ci / 32) & (1u << (ci % 32))) != 0)
+            { result.coverage = 0; return result; }
+        }
+        uint2 next = min(cell + 1, uint2(w - 1, h - 1));
+        half a = TC_OH(data, cell.y * w + cell.x), b = TC_OH(data, cell.y * w + next.x);
+        half d = TC_OH(data, next.y * w + cell.x), e = TC_OH(data, next.y * w + next.x);
+        half sampled;
+        if (kind == 2)
+        {
+            uint ci = cell.y * (w - 1) + cell.x;
+            bool opposite = (TC_OW(TC_OW(p + 21) + ci / 32) & (1u << (ci % 32))) != 0;
+            if (opposite)
+            {
+                slope = cellFraction.x + cellFraction.y <= 1 ? half2(b - a, d - a) : half2(e - d, e - b);
+                sampled = cellFraction.x + cellFraction.y <= 1 ? a + dot(f, slope) : e - dot(1.0h - f, slope);
+            }
+            else
+            {
+                slope = cellFraction.y <= cellFraction.x ? half2(b - a, e - b) : half2(e - d, d - a);
+                sampled = a + dot(f, slope);
+            }
+        }
+        else
+        {
+            sampled = lerp(lerp(a, b, f.x), lerp(d, e, f.x), f.y);
+            slope = half2(lerp(b - a, e - d, f.y), -lerp(d - a, e - b, f.x));
+        }
+        height += sampled * half(TC_OF(p + 14));
+        slope *= half2(gridScale) * half(TC_OF(p + 14)) * half(inverseScale);
+    }
+    result.worldPosition.z = float(height);
+    result.coverage = float(coverage);
+    half hc = half(c), hs = half(s);
+    result.normal = float3(normalize(half3(-hc * slope.x + hs * slope.y, -hs * slope.x - hc * slope.y, 1)));
+    result.tangent = float3(normalize(half3(hc, hs, slope.x)));
+    result.bitangent = float3(normalize(cross(half3(result.normal), half3(result.tangent))));
+    return result;
+}
+
 TerrainOverlapSet TC_ResolveOverlap(float3 worldPosition)
 {
     TerrainOverlapSet result = (TerrainOverlapSet)0;
@@ -118,6 +204,19 @@ TerrainOverlapSet TC_ResolveOverlap(float3 worldPosition)
         float width = TC_OF(region + 6);
         if (count > 4 || sources + count * 24 > length - 2 || !(width > 0)) return result;
         result.count = count;
+        uint flags = TC_OW(region + 7);
+        if ((flags & 2) != 0)
+        {
+            half4 heights16 = half4(0, 0, 0, 0), coverage16 = half4(0, 0, 0, 0);
+            for (uint i = 0; i < count; ++i)
+            {
+                result.sources[i] = TC_OverlapSource16(sources + i * 24, worldPosition.xy, width);
+                heights16[i] = half(result.sources[i].worldPosition.z);
+                coverage16[i] = half(result.sources[i].coverage);
+            }
+            result.weights = float4(TC_OverlapWeights16(heights16, coverage16, count, half(width), (flags & 1) != 0));
+            return result;
+        }
         float4 heights = float4(0, 0, 0, 0), coverage = float4(0, 0, 0, 0);
         for (uint i = 0; i < count; ++i)
         {
@@ -125,7 +224,7 @@ TerrainOverlapSet TC_ResolveOverlap(float3 worldPosition)
             heights[i] = result.sources[i].worldPosition.z;
             coverage[i] = result.sources[i].coverage;
         }
-        result.weights = TC_OverlapWeights(heights, coverage, count, width, TC_OW(region + 7) != 0);
+        result.weights = TC_OverlapWeights(heights, coverage, count, width, (flags & 1) != 0);
         return result;
     }
     return result;

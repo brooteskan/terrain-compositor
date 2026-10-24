@@ -24,6 +24,11 @@ endfunction()
 function(tc_wire_tg_editor_build)
     if(TARGET TGProject.Editor AND TARGET TerrainCompositor.Editor)
         add_dependencies(TGProject.Editor TerrainCompositor.Editor)
+        # Terrain.Editor owns the renderer feature processor. Engine override
+        # changes must also rebuild its embedded Terrain.Static implementation.
+        if(TARGET Terrain.Editor)
+            add_dependencies(TGProject.Editor Terrain.Editor)
+        endif()
         if(TARGET TerrainCompositorCanvas.Editor)
             add_dependencies(TGProject.Editor TerrainCompositorCanvas.Editor)
         endif()

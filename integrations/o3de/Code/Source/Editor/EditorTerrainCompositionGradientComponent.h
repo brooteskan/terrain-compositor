@@ -15,9 +15,22 @@ namespace TerrainCompositor
     };
     using TerrainHeightPrecisionNotificationBus = AZ::EBus<TerrainHeightPrecisionNotifications>;
 
+    //! Read-only renderer evidence for inspector/automation acceptance tests.
+    class TerrainHeightPrecisionRequests : public AZ::EBusTraits
+    {
+    public:
+        using BusIdType = AZ::EntityId;
+        static constexpr AZ::EBusAddressPolicy AddressPolicy = AZ::EBusAddressPolicy::ById;
+        static constexpr AZ::EBusHandlerPolicy HandlerPolicy = AZ::EBusHandlerPolicy::Single;
+        virtual AZ::u32 GetRenderedHeightPrecision() const = 0;
+        virtual AZ::u32 GetHeightVertexStride() const = 0;
+    };
+    using TerrainHeightPrecisionRequestBus = AZ::EBus<TerrainHeightPrecisionRequests>;
+
     class EditorTerrainCompositionGradientComponent final
         : public AzToolsFramework::Components::EditorComponentBase
         , private AzFramework::EntityDebugDisplayEventBus::Handler
+        , private TerrainHeightPrecisionRequestBus::Handler
     {
     public:
         using BaseClass = AzToolsFramework::Components::EditorComponentBase;
@@ -39,7 +52,9 @@ namespace TerrainCompositor
     private:
         template<class> friend class TerrainEditorPreviewLifecycleTests;
         AZ::u32 OnConfigurationChanged();
-        AZStd::string GetStatusText() const { return m_preview.GetStatus(); }
+        AZStd::string GetStatusText() const;
+        AZ::u32 GetRenderedHeightPrecision() const override;
+        AZ::u32 GetHeightVertexStride() const override;
         void DisplayEntityViewport(const AzFramework::ViewportInfo& viewportInfo,
             AzFramework::DebugDisplayRequests& debugDisplay) override;
 

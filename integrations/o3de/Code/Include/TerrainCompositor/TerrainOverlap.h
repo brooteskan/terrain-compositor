@@ -16,6 +16,7 @@ namespace TerrainCompositor
     struct PreparedTerrainOverlap
     {
         TerrainOverlapConfig m_config;
+        bool m_heightFp16 = false;
         AZStd::string m_diagnostic;
         bool IsActive() const { return m_config.m_enabled && m_config.m_width > 0 && m_diagnostic.empty(); }
     };

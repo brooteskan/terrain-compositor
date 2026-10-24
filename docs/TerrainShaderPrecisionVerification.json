@@ -5,6 +5,8 @@
     "cases": [
       {
         "bits": 32,
+        "rendered_height_precision": 32,
+        "vertex_stride": 8,
         "materials": {
           "Terrain7": "assets/vuelivelink/overlap/9f344ef8359b9976db0ed01a/984ffe80d5341f52fe3653d0b9adac855144fad5db31d14365dda13825c60946.azmaterial",
           "Terrain6": "assets/vuelivelink/overlap/d9e7b35caf90f0292a9e19d9/984ffe80d5341f52fe3653d0b9adac855144fad5db31d14365dda13825c60946.azmaterial"
@@ -20,6 +22,8 @@
       },
       {
         "bits": 16,
+        "rendered_height_precision": 16,
+        "vertex_stride": 4,
         "materials": {
           "Terrain7": "assets/vuelivelink/overlap/9f344ef8359b9976db0ed01a/8e1644bb8ab5b15287a92eba2bdaa659fa852d0ea06f0621737e2db6594d471d.azmaterial",
           "Terrain6": "assets/vuelivelink/overlap/d9e7b35caf90f0292a9e19d9/8e1644bb8ab5b15287a92eba2bdaa659fa852d0ea06f0621737e2db6594d471d.azmaterial"
@@ -35,6 +39,8 @@
       },
       {
         "bits": 32,
+        "rendered_height_precision": 32,
+        "vertex_stride": 8,
         "materials": {
           "Terrain7": "assets/vuelivelink/overlap/9f344ef8359b9976db0ed01a/984ffe80d5341f52fe3653d0b9adac855144fad5db31d14365dda13825c60946.azmaterial",
           "Terrain6": "assets/vuelivelink/overlap/d9e7b35caf90f0292a9e19d9/984ffe80d5341f52fe3653d0b9adac855144fad5db31d14365dda13825c60946.azmaterial"
@@ -51,14 +57,66 @@
     ],
     "scene_unchanged": true
   },
-  "isolated_production_resolver_dxil": {
+  "saved_level_sha256": "70f2db2744cd2d2fa2c5808c157ca463913756744d1bae0025108b859cfc7a5d",
+  "all_height_kernels": {
+    "stamp_32": {
+      "arithmetic": {
+        "half": 0,
+        "float": 91
+      },
+      "assembly": "D:\\brooteskan\\work\\all-height-precision-final\\stamp_32.txt"
+    },
+    "stamp_16": {
+      "arithmetic": {
+        "half": 61,
+        "float": 30
+      },
+      "assembly": "D:\\brooteskan\\work\\all-height-precision-final\\stamp_16.txt"
+    },
+    "geometry_32": {
+      "arithmetic": {
+        "half": 0,
+        "float": 16
+      },
+      "assembly": "D:\\brooteskan\\work\\all-height-precision-final\\geometry_32.txt"
+    },
+    "geometry_16": {
+      "arithmetic": {
+        "half": 3,
+        "float": 13
+      },
+      "assembly": "D:\\brooteskan\\work\\all-height-precision-final\\geometry_16.txt"
+    }
+  },
+  "half_packing": {
+    "passed": true,
+    "cases": 165138,
+    "half_patterns": 65536,
+    "float_patterns": 100000,
+    "production_header": "D:\\diversion\\TG\\TGProject\\Gems\\terrain-compositor\\integrations\\o3de\\Code\\Include\\TerrainCompositor\\TerrainHeightPrecision.h"
+  },
+  "stamp_publications": {
+    "passed": true,
+    "source": "D:\\diversion\\TG\\TGProject\\Gems\\terrain-compositor\\integrations\\o3de\\Code\\Source\\TerrainOverlap.cpp",
+    "test_source": "D:\\diversion\\TG\\TGProject\\Gems\\terrain-compositor\\integrations\\o3de\\Code\\Tests\\TerrainHeightPrecisionTests.cpp",
+    "kinds": [
+      "heightmap",
+      "mesh"
+    ],
+    "precisions": [
+      16,
+      32
+    ]
+  },
+  "native_overlap_resolvers": {
     "16": {
       "arithmetic": {
         "half": 114,
         "float": 0
       },
       "native_fp16": true,
-      "production": "integrations/o3de/Assets/ShaderLib/TerrainCompositor/TerrainOverlapWeights16.azsli"
+      "production": "D:\\diversion\\TG\\TGProject\\Gems\\terrain-compositor\\integrations\\o3de\\Assets\\ShaderLib\\TerrainCompositor\\TerrainOverlapWeights16.azsli",
+      "assembly": "D:\\brooteskan\\work\\native-terrain-precision-final\\production_16.txt"
     },
     "32": {
       "arithmetic": {
@@ -66,63 +124,75 @@
         "float": 114
       },
       "native_fp16": false,
-      "production": "integrations/o3de/Assets/ShaderLib/TerrainCompositor/TerrainOverlapWeights.azsli"
+      "production": "D:\\diversion\\TG\\TGProject\\Gems\\terrain-compositor\\integrations\\o3de\\Assets\\ShaderLib\\TerrainCompositor\\TerrainOverlapWeights.azsli",
+      "assembly": "D:\\brooteskan\\work\\native-terrain-precision-final\\production_32.txt"
     }
   },
-  "production_dx12_shader_arithmetic": {
+  "production_dx12": {
     "assets/vuelivelink/vueterrainmesh_mainpipeline_forwardpass_standardlighting_dx12_0.azshadervariant": [
       {
+        "assembly": "D:\\brooteskan\\work\\native-terrain-production\\vueterrainmesh_mainpipeline_forwardpass_standardlighting_dx12_0_0.txt",
         "half": 0,
         "float": 8
       },
       {
+        "assembly": "D:\\brooteskan\\work\\native-terrain-production\\vueterrainmesh_mainpipeline_forwardpass_standardlighting_dx12_0_1.txt",
         "half": 27,
         "float": 8657
       }
     ],
     "assets/vuelivelink/vueterrainoverlap_mainpipeline_forwardpass_standardlighting_dx12_0.azshadervariant": [
       {
+        "assembly": "D:\\brooteskan\\work\\native-terrain-production\\vueterrainoverlap_mainpipeline_forwardpass_standardlighting_dx12_0_0.txt",
         "half": 0,
         "float": 8
       },
       {
+        "assembly": "D:\\brooteskan\\work\\native-terrain-production\\vueterrainoverlap_mainpipeline_forwardpass_standardlighting_dx12_0_1.txt",
         "half": 263,
         "float": 8969
       }
     ],
     "assets/vuelivelink/vuesimpleterrain_forward_dx12_0.azshadervariant": [
       {
-        "half": 0,
-        "float": 42
+        "assembly": "D:\\brooteskan\\work\\native-terrain-production\\vuesimpleterrain_forward_dx12_0_0.txt",
+        "half": 3,
+        "float": 44
       },
       {
+        "assembly": "D:\\brooteskan\\work\\native-terrain-production\\vuesimpleterrain_forward_dx12_0_1.txt",
         "half": 83,
         "float": 8407
       }
     ],
     "assets/vuelivelink/vuesimpleterrain_clipmap_dx12_0.azshadervariant": [
       {
-        "half": 0,
-        "float": 41
+        "assembly": "D:\\brooteskan\\work\\native-terrain-production\\vuesimpleterrain_clipmap_dx12_0_0.txt",
+        "half": 3,
+        "float": 43
       },
       {
+        "assembly": "D:\\brooteskan\\work\\native-terrain-production\\vuesimpleterrain_clipmap_dx12_0_1.txt",
         "half": 9,
         "float": 237
       }
     ]
   },
-  "assets": {
-    "processed": 658,
+  "asset_processor": {
+    "processed": 49,
     "failed": 0,
     "errors": 0,
-    "warnings": 1350
+    "warnings": 160
   },
-  "tests": {
-    "tg_regressions": 52,
-    "normal_tests": 30,
-    "material_canvas_compiler_contract": 3
+  "regressions": {
+    "tg_unittest": 52
   },
+  "geometry_lod_policy_changed": false,
   "performance_measured": false,
-  "geometry_lod_changed": false,
-  "scope": "Retained material height format/arithmetic, half normal fields and half graph cache channels. Coordinate/geometry calculations and FP32 cache factors/tags remain FP32."
+  "limitations": [
+    "Full native test target cannot be generated: SDK lacks AZ::AzFrameworkTestShared. Actual heightmap/mesh publication tests were compiled and run standalone.",
+    "Existing RenderPass Image Input index 8 out of [0,8) assertion and DynamicDrawContext warnings remain; also present before this change."
+  ],
+  "scope": "GPU height storage and native arithmetic across retained Vue material queries, image/mesh stamp queries and shared procedural/composed terrain geometry. CPU source generation, physics, world coordinates and arbitrary graph-node types remain unchanged.",
+  "build_target": "TGProject.Editor (including Terrain.Editor and both compositor Editor modules)"
 }

@@ -1,7 +1,10 @@
 --- a/TerrainRenderer/TerrainFeatureProcessor.h
 +++ b/TerrainRenderer/TerrainFeatureProcessor.h
-@@ -11,11 +11,8 @@
+@@ -9,13 +9,11 @@
+ #pragma once
+ 
  #include <AzCore/Asset/AssetCommon.h>
++#include <AzCore/std/containers/unordered_map.h>
  #include <AzFramework/Terrain/TerrainDataRequestBus.h>
  
 -#include <TerrainRenderer/Passes/TerrainClipmapComputePass.h>
@@ -13,7 +16,7 @@
  
  #include <Atom/RPI.Public/FeatureProcessor.h>
  #include <Atom/RPI.Public/Image/AttachmentImage.h>
-@@ -34,7 +31,7 @@
+@@ -34,7 +32,7 @@
  {
      class TerrainFeatureProcessor final
          : public AZ::RPI::FeatureProcessor
@@ -22,13 +25,17 @@
          , private AzFramework::Terrain::TerrainDataNotificationBus::Handler
      {
      public:
-@@ -53,13 +50,18 @@
+@@ -53,13 +51,22 @@
          void Deactivate() override;
          void Render(const AZ::RPI::FeatureProcessor::RenderPacket& packet) override;
  
 -        void SetDetailMaterialConfiguration(const DetailMaterialConfiguration& config);
          void SetMeshConfiguration(const MeshConfiguration& config);
 -        void SetClipmapConfiguration(const ClipmapConfiguration& config);
++        void SetHeightPrecision(AZ::EntityId owner, AZ::u32 bits);
++        void ClearHeightPrecision(AZ::EntityId owner);
++        AZ::u32 GetHeightPrecision() const { return m_meshManager.GetHeightFp16() ? 16u : 32u; }
++        AZ::u32 GetHeightVertexStride() const { return m_meshManager.GetHeightVertexStride(); }
  
          const AZ::Data::Instance<AZ::RPI::ShaderResourceGroup> GetTerrainShaderResourceGroup() const;
          const AZ::Data::Instance<AZ::RPI::Material> GetMaterial() const;
@@ -44,7 +51,7 @@
      private:
  
          using MaterialInstance = AZ::Data::Instance<AZ::RPI::Material>;
-@@ -75,6 +77,9 @@
+@@ -75,6 +82,9 @@
          //! AZ::Data::AssetBus overrides...
          void OnAssetReady(AZ::Data::Asset<AZ::Data::AssetData> asset) override;
          void OnAssetReloaded(AZ::Data::Asset<AZ::Data::AssetData> asset) override;
@@ -54,7 +61,7 @@
  
          // AzFramework::Terrain::TerrainDataNotificationBus overrides...
          void OnTerrainDataDestroyBegin() override;
-@@ -84,7 +89,6 @@
+@@ -84,7 +94,6 @@
          void OnRenderPipelineChanged(AZ::RPI::RenderPipeline* pipeline, AZ::RPI::SceneNotification::RenderPipelineChangeType changeType) override;
          
          // AZ::RPI::FeatureProcessor overrides...
@@ -62,9 +69,11 @@
  
          void Initialize();
  
-@@ -95,12 +99,20 @@
+@@ -94,13 +103,22 @@
+ 
          void CachePasses();
  
++        AZStd::unordered_map<AZ::EntityId, AZ::u32> m_heightPrecisionOwners;
          TerrainMeshManager m_meshManager;
 -        TerrainMacroMaterialManager m_macroMaterialManager;
 -        TerrainDetailMaterialManager m_detailMaterialManager;

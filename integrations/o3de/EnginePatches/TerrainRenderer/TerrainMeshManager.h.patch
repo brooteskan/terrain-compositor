@@ -31,10 +31,13 @@
          using MaterialInstance = AZ::Data::Instance<AZ::RPI::Material>;
  
      public:
-@@ -113,18 +120,24 @@
+@@ -113,18 +120,27 @@
          void DrawMeshes(const AZ::RPI::FeatureProcessor::RenderPacket& process, const AZ::RPI::ViewPtr mainView);
  
          void SetRebuildDrawPackets();
++        void SetHeightPrecision(bool fp16);
++        bool GetHeightFp16() const { return m_heightFp16; }
++        uint32_t GetHeightVertexStride() const { return m_heightFp16 ? 4u : 8u; }
 +        AZ::u64 GetGraphCacheGeometryRevision() const { return m_nextCoverageResourceVersion; }
  
      private:
@@ -59,7 +62,7 @@
  
          enum StreamIndex : uint32_t
          {
-@@ -153,10 +166,27 @@
+@@ -153,10 +169,28 @@
              };
  
              AZStd::array<MeshGroup, 5> m_meshGroups; // 0 is the primary, 1-4 are the quadrants.
@@ -76,6 +79,7 @@
 +            float m_xyScale{ 1.0f };
 +            uint32_t m_lodLevel{ 0 };
 +            float m_rcpLodLevel{ 1.0f };
++            uint32_t m_heightFp16 = 0;
 +        };
 +
 +        enum class SectorState { Requested, Preparing, Ready, Committed, Failed, Cancelled, Invalidated, Retired };
@@ -91,7 +95,7 @@
          {
              using GeometryView = AZ::RHI::GeometryView;
              static constexpr auto AllDevices = AZ::RHI::MultiDevice::AllDevices;
-@@ -166,6 +196,18 @@
+@@ -166,6 +200,18 @@
              AZ::Aabb m_aabb = AZ::Aabb::CreateNull();
              AZStd::array<AZ::Aabb, 4> m_quadrantAabbs;
              Vector2i m_worldCoord = AZStd::numeric_limits<int32_t>::max();
@@ -110,7 +114,7 @@
  
              // When drawing, either the m_rhiDrawPacket will be used, or some number of the m_rhiDrawPacketQuadrants
              AZ::RHI::ConstPtr<AZ::RHI::DrawPacket> m_rhiDrawPacket;
-@@ -186,20 +228,27 @@
+@@ -186,20 +232,27 @@
              bool m_isQueuedForSrgCompile = false;
          };
  
@@ -146,7 +150,7 @@
          };
  
          struct alignas(16) ShaderMeshData
-@@ -211,8 +260,15 @@
+@@ -211,8 +264,15 @@
              float m_gridToQuadScale;
          };
  
@@ -162,7 +166,7 @@
              AZ::Vector2 m_worldStartPosition;
              float m_vertexSpacing;
              int16_t m_samplesX;
-@@ -220,6 +276,10 @@
+@@ -220,6 +280,10 @@
              AzFramework::Terrain::TerrainDataRequests::Sampler m_samplerType =
                  AzFramework::Terrain::TerrainDataRequests::Sampler::CLAMP;
              bool m_useVertexOrderRemap = false;
@@ -173,7 +177,7 @@
          };
  
          struct CachedDrawData
-@@ -237,12 +297,24 @@
+@@ -237,12 +301,24 @@
          {
              HeightDataType m_height;
              NormalXYDataType m_normal;
@@ -198,7 +202,7 @@
          };
  
          struct XYPosition
-@@ -251,10 +323,156 @@
+@@ -251,10 +327,158 @@
              uint8_t m_posy;
          };
  
@@ -279,6 +283,8 @@
 +                AZStd::array<AZ::RHI::Ptr<AZ::RHI::Fence>, 4> m_transferFences;
 +                AZStd::vector<AZ::RHI::Ptr<AZ::RHI::DeviceFence>> m_fences;
 +                AZStd::unique_ptr<RtSector> m_rtData;
++                // Async transfer sources must outlive their fences.
++                AZStd::array<AZStd::vector<uint32_t>, 2> m_packedHeights;
 +                bool m_ready = false;
 +            };
 +            std::unique_ptr<Uploads> m_uploads;
@@ -355,7 +361,7 @@
              uint32_t m_lodLevel;
          };
  
-@@ -267,19 +485,74 @@
+@@ -267,19 +491,78 @@
          bool UpdateGridSize(float distanceToFirstLod);
          void BuildDrawPacket(Sector& sector);
          void BuildRtSector(Sector& sector, uint32_t lodLevel);
@@ -363,7 +369,11 @@
 +        void SetSectorBufferViews(CommittedSector& sector);
          void RebuildSectors();
          void RebuildDrawPackets();
-+        static AZ::RHI::InputStreamLayout CreateTerrainInputStreamLayout();
++        AZ::RHI::InputStreamLayout CreateTerrainInputStreamLayout();
++        AZ::RHI::Format GetHeightFormat() const { return m_heightFp16 ? AZ::RHI::Format::R16_FLOAT : HeightFormat; }
++        AZStd::vector<uint32_t> PackHeightVertices(AZStd::span<const HeightNormalVertex> vertices) const;
++        void UpdateHeightBuffer(AZ::Data::Instance<AZ::RPI::Buffer>& buffer, AZStd::span<const HeightNormalVertex> vertices);
++        bool m_heightFp16 = false;
          void RemoveRayTracedMeshes();
          AZ::RHI::StreamBufferView CreateStreamBufferView(AZ::Data::Instance<AZ::RPI::Buffer>& buffer, uint32_t offset = 0);
  
@@ -435,7 +445,7 @@
          void ProcessSectorUpdates(AZStd::vector<AZStd::vector<Sector*>>& sectorUpdates);
  
          AZ::Data::Instance<AZ::RPI::Buffer> CreateMeshBufferInstance(
-@@ -297,12 +570,9 @@
+@@ -297,12 +580,9 @@
          void UpdateCandidateSectors();
          void CreateAabbQuadrants(const AZ::Aabb& aabb, AZStd::span<AZ::Aabb, 4> quadrantAabb);
  
@@ -450,7 +460,7 @@
  
          MaterialInstance m_materialInstance;
          AZStd::vector<CachedDrawData> m_cachedDrawData; // Holds common parts of draw packets
-@@ -318,8 +588,27 @@
+@@ -318,8 +598,27 @@
          AZ::Data::Instance<AZ::RPI::Buffer> m_dummyLodHeightsNormalsBuffer;
          AZ::RHI::IndexBufferView m_indexBufferView;
  
@@ -478,7 +488,7 @@
          AZStd::vector<Sector*> m_sectorsThatNeedSrgCompiled;
          uint32_t m_1dSectorCount = 0;
  
-@@ -333,11 +622,16 @@
+@@ -333,11 +632,16 @@
          AzFramework::Terrain::FloatRange m_worldHeightBounds;
          float m_sampleSpacing = 1.0f;
          AZ::RPI::Material::ChangeId m_lastMaterialChangeId;
@@ -495,7 +505,7 @@
  
          uint8_t m_gridSize = 0; // number of quads in a single row of a sector
          uint8_t m_gridVerts1D = 0; // number of vertices along sector edge (m_gridSize + 1)
-@@ -352,6 +646,6 @@
+@@ -352,6 +656,6 @@
          AZ::RHI::Handle<uint32_t> m_meshMovedFlag;
  
          // Cached MeshFeatureProcessor
