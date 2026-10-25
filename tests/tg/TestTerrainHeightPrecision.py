@@ -19,13 +19,13 @@ class HeightPrecisionTests(unittest.TestCase):
         full,lo,span=model.height_field(RAW,4,32)
         half,lo16,span16=model.height_field(RAW,4,16)
         self.assertEqual((lo,span),(lo16,span16))
-        self.assertEqual(struct.unpack_from('<I',full,128)[0],2)
-        self.assertEqual(struct.unpack_from('<I',half,128)[0],10)
-        self.assertEqual(struct.unpack_from('<I',full,20)[0],64)
-        self.assertEqual(struct.unpack_from('<I',half,20)[0],32)
-        self.assertEqual(len(full),148+16*16);self.assertEqual(len(half),148+16*8)
-        for f,h in zip(struct.iter_unpack('<4f',full[148:]),struct.iter_unpack('<4e',half[148:])):
-            self.assertEqual(h,struct.unpack('<4e',struct.pack('<4e',*f)))
+        self.assertEqual(struct.unpack_from('<I',full,128)[0],41)
+        self.assertEqual(struct.unpack_from('<I',half,128)[0],54)
+        self.assertEqual(struct.unpack_from('<I',full,20)[0],16)
+        self.assertEqual(struct.unpack_from('<I',half,20)[0],8)
+        self.assertEqual(len(full),148+16*4);self.assertEqual(len(half),148+16*2)
+        for f,h in zip(struct.iter_unpack('<f',full[148:]),struct.iter_unpack('<e',half[148:])):
+            self.assertEqual(h,struct.unpack('<e',struct.pack('<e',*f)))
     def test_invalid_precision_and_half_overflow_are_rejected(self):
         with self.assertRaises(ValueError):model.height_field(RAW,4,8)
         with self.assertRaises(ValueError):model.height_field(RAW.replace('1.23456','70000'),4,16)

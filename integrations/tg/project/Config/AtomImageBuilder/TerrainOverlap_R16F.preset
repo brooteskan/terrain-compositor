@@ -1,0 +1,17 @@
+{
+  "Type": "JsonSerialization",
+  "Version": 1,
+  "ClassName": "MultiplatformPresetSettings",
+  "ClassData": {
+    "DefaultPreset": {
+      "UUID": "{4873BE62-D2EB-44D4-A3C9-C19BD9F3DE31}",
+      "Name": "TerrainOverlap_R16F",
+      "Description": "Lossless linear single-channel FP16 height queries; no color or height normalization.",
+      "SourceColor": "Linear",
+      "DestColor": "Linear",
+      "PixelFormat": "R16F",
+      "SuppressEngineReduce": true
+    },
+    "PlatformsPresets": {}
+  }
+}

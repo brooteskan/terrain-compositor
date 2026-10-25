@@ -338,6 +338,15 @@
             "displayName": "16-bit Height Arithmetic",
             "name": "heightFp16",
             "type": "Bool"
+          },
+          {
+            "connection": {
+              "name": "o_terrainOverlapFixedHeightExtent",
+              "type": "ShaderOption"
+            },
+            "defaultValue": false,
+            "name": "fixedHeightExtent",
+            "type": "Bool"
           }
         ]
       },

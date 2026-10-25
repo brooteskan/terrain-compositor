@@ -56,6 +56,17 @@ class VueTerrainOverlapTests(unittest.TestCase):
             connections = {p['name']:p['connection'] for p in group['properties']}
             self.assertEqual(connections['count'],{'type':'ShaderOption','name':'o_terrainOverlapSourceCount'})
             self.assertEqual(connections['heightFp16'],{'type':'ShaderOption','name':'o_terrainHeightFp16'})
+            self.assertEqual(connections['fixedHeightExtent'],{'type':'ShaderOption','name':'o_terrainOverlapFixedHeightExtent'})
+            fixed = next(p for p in group['properties'] if p['name']=='fixedHeightExtent')
+            self.assertFalse(fixed['defaultValue'])
+            header = (folder/'VueTerrainOverlapInputs.azsli').read_text(encoding='utf-8')
+            self.assertIn(f'VueOverlapHeightFieldSize = {overlap.FIELD_SIZE}u;',header)
+            original = overlap.fingerprint(project,[],10.0,16)
+            with patch.object(overlap,'FIELD_SIZE',128):
+                self.assertNotEqual(original,overlap.fingerprint(project,[],10.0,16))
+                overlap.install_material_layout(project)
+                self.assertIn('VueOverlapHeightFieldSize = 128u;',(folder/'VueTerrainOverlapInputs.azsli').read_text(encoding='utf-8'))
+
 
     def test_equivalent_response_defaults_allow_blending_but_authored_differences_do_not(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -110,9 +121,8 @@ class VueTerrainOverlapTests(unittest.TestCase):
             for x in range(size):
                 u, v = min(.998046875, x/(size-1)), min(.998046875, 1-y/(size-1))
                 raw_x, raw_y = 256*u-128, 256*v-128
-                height, coverage, _, _ = struct.unpack_from('<4f', data, 148+(y*size+x)*16)
+                height, = struct.unpack_from('<f', data, 148+(y*size+x)*4)
                 self.assertAlmostEqual(height, 3*raw_x+2*raw_y, places=3)
-                self.assertEqual(coverage, 1)
                 world = [100-5*raw_y, -50+3*raw_x, 1]
                 self.assertAlmostEqual(sum(a*b for a,b in zip(values['uvRow0'], world)), u)
                 self.assertAlmostEqual(sum(a*b for a,b in zip(values['uvRow1'], world)), 1-v)
@@ -344,12 +354,11 @@ class VueTerrainOverlapTests(unittest.TestCase):
     def test_geometry_height_and_imported_v_flip(self):
         data, lo, span = overlap.height_field(RAW, 8)
         self.assertEqual((lo, span), ([-1, -1], [2, 2]))
-        self.assertEqual(len(data), 148 + 8*8*16)
+        self.assertEqual(len(data), 148 + 8*8*4)
         for y in range(8):
             for x in range(8):
-                height, coverage, _, _ = struct.unpack_from('<4f', data, 148 + (y*8+x)*16)
+                height, = struct.unpack_from('<f', data, 148 + (y*8+x)*4)
                 self.assertAlmostEqual(height, 3*(2*x/7-1) + 2*(1-2*y/7), places=5)
-                self.assertEqual(coverage, 1)
 
     def test_mapping_preserves_rotated_scaled_instance_uv(self):
         matrix = [[0, -5, 0], [3, 0, 0], [0, 0, 7]]
@@ -391,6 +400,16 @@ class VueTerrainOverlapTests(unittest.TestCase):
             self.assertEqual(overlap.original_material(project, owned), 'assets/source0/terrain.azmaterial')
             data = json.loads(content)['propertyValues']
             self.assertEqual(data['overlapSource0.normalField'], 'Assets/source0/normals.dds')
+            self.assertTrue(data['terrainOverlap.fixedHeightExtent'])
+            self.assertIn('_s256',data['overlapSource0.heightMap'])
+            with patch.object(overlap,'FIELD_SIZE',8):
+                resized = overlap.prepare(project,sources)
+                resized_data = json.loads(resized['0'].read_text())['propertyValues']
+                field = project/resized_data['overlapSource0.heightMap']
+                self.assertIn('_s8',field.name)
+                self.assertEqual(struct.unpack_from('<II',field.read_bytes(),12),(8,8))
+                self.assertEqual(len(field.read_bytes()),148+8*8*4)
+            self.assertEqual(first['0'].read_bytes(),content)
             self.assertAlmostEqual(data['overlapSource1.roughness'], .6)
             sources[1]['translation'][0] += 4
             moved = overlap.prepare(project, sources)

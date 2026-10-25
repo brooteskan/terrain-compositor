@@ -3,6 +3,9 @@
 #include <TerrainCompositor/TerrainOverlapWeights.azsli>
 #include <TerrainCompositor/TerrainOverlapWeights16.azsli>
 option bool o_terrainHeightFp16 = false;
+// Owned query fields use the extent emitted by the same publisher. Legacy or
+// manually authored materials keep the dynamic-dimension path by default.
+option bool o_terrainOverlapFixedHeightExtent = false;
 // Source count participates in native pipeline specialization, like precision.
 // Fixed loop bounds also allow inactive sources to be removed by the compiler.
 [[range(0, 4)]]
@@ -47,7 +50,14 @@ VueOverlapQuery VueQueryOverlap(VueOverlapSource source, float3 world, float wid
     q.uv = float2(dot(source.uvRow0, float3(world.xy, 1)), dot(source.uvRow1, float3(world.xy, 1)));
     if (source.heightMap < 0 || any(q.uv < 0) || any(q.uv > 1)) return q;
     uint w, h;
-    GetMaterialTexture(source.heightMap).GetDimensions(w, h);
+    if (o_terrainOverlapFixedHeightExtent)
+    {
+        w = h = VueOverlapHeightFieldSize;
+    }
+    else
+    {
+        GetMaterialTexture(source.heightMap).GetDimensions(w, h);
+    }
     float2 texel = (q.uv * (float2(w, h) - 1) + 0.5) / float2(w, h);
     q.height = GetMaterialTexture(source.heightMap).SampleLevel(GetMaterialTextureSampler(), texel, 0).x *
         source.heightScaleOffset.x + source.heightScaleOffset.y;
@@ -87,7 +97,14 @@ VueOverlapQuery VueQueryOverlap16(VueOverlapSource source, float3 world, float w
     q.uv = float2(dot(source.uvRow0, float3(world.xy, 1)), dot(source.uvRow1, float3(world.xy, 1)));
     if (source.heightMap < 0 || any(q.uv < 0) || any(q.uv > 1)) return q;
     uint w, h;
-    GetMaterialTexture(source.heightMap).GetDimensions(w, h);
+    if (o_terrainOverlapFixedHeightExtent)
+    {
+        w = h = VueOverlapHeightFieldSize;
+    }
+    else
+    {
+        GetMaterialTexture(source.heightMap).GetDimensions(w, h);
+    }
     float2 texel = (q.uv * (float2(w, h) - 1) + 0.5) / float2(w, h);
     half rawHeight = half(GetMaterialTexture(source.heightMap).SampleLevel(GetMaterialTextureSampler(), texel, 0).x);
     half heightScale = half(source.heightScaleOffset.x);
@@ -126,10 +143,27 @@ bool VueOverlapPairEndpoint16(half2 heights, half2 coverage, half width)
            (coverage.y == 1.0h && TC_OverlapRamp16(heights.y - heights.x, width) == 1.0h);
 }
 
+// A pair needs both footprints. Reject missing footprints before either
+// height read. Enable alongside the owned fixed-extent specialization; legacy
+// materials retain the original query path for compatibility and A/B profiling.
+// The query functions retain their original checks and arithmetic.
+bool VueOverlapPairFootprints(const MaterialParameters params, float3 world)
+{
+    [unroll] for (uint i = 0; i < 2; ++i)
+    {
+        VueOverlapSource source = VueGetOverlapSource(i, params);
+        float2 uv = float2(dot(source.uvRow0, float3(world.xy, 1)),
+                          dot(source.uvRow1, float3(world.xy, 1)));
+        if (source.heightMap < 0 || any(uv < 0) || any(uv > 1)) return false;
+    }
+    return true;
+}
+
 bool VueTryTerrainOverlap32(VsOutput IN, VsSystemValues SV, PixelGeometryData geoData,
     const MaterialParameters params, float4 uvDxDy, float4 worldDerivatives, out Surface surface)
 {
     if (params.m_vueOverlapWidth <= 0 || o_terrainOverlapSourceCount < 2 || o_terrainOverlapSourceCount > 4) return false;
+    if (o_terrainOverlapFixedHeightExtent && o_terrainOverlapSourceCount == 2 && !VueOverlapPairFootprints(params, geoData.positionWS)) return false;
     VueOverlapQuery queries[4];
     float4 heights = 0, coverage = 0;
     [unroll] for (uint i = 0; i < 4; ++i)
@@ -188,6 +222,7 @@ bool VueTryTerrainOverlap16(VsOutput IN, VsSystemValues SV, PixelGeometryData ge
     const MaterialParameters params, float4 uvDxDy, float4 worldDerivatives, out Surface surface)
 {
     if (params.m_vueOverlapWidth <= 0 || o_terrainOverlapSourceCount < 2 || o_terrainOverlapSourceCount > 4) return false;
+    if (o_terrainOverlapFixedHeightExtent && o_terrainOverlapSourceCount == 2 && !VueOverlapPairFootprints(params, geoData.positionWS)) return false;
     VueOverlapQuery queries[4];
     half4 heights = 0, coverage = 0;
     [unroll] for (uint i = 0; i < 4; ++i)

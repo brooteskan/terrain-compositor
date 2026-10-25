@@ -153,7 +153,7 @@ try:
     assert values['terrainOverlap.count']==len(MESHES) and values['terrainOverlap.heightFp16']==(bits==16)
     for index in range(len(MESHES)):
      data=(P/values['overlapSource%d.heightMap'%index]).read_bytes()
-     dxgi=int.from_bytes(data[128:132],'little');assert dxgi==(10 if bits==16 else 2)
+     dxgi=int.from_bytes(data[128:132],'little');assert dxgi==(54 if bits==16 else 41)
      publication['height_formats'].append(dxgi)
    R.setdefault('precision_publications',{})[name]=publication
    overlap.stop()
