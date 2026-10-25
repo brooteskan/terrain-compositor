@@ -108,7 +108,9 @@ try:
  # Keep background focus from changing pacing during capture. No resolution,
  # camera, material, precision, or LOD changes are made for the baseline.
  cv('ed_keepEditorActive',1);cv('ed_backgroundUpdatePeriod',-1)
- assert general.open_level_no_prompt('VueLiveLink');settle(CONFIG.get('warmup_seconds',15))
+ if not CONFIG.get('use_current_level',False):assert general.open_level_no_prompt('VueLiveLink')
+ R['using_current_level']=CONFIG.get('use_current_level',False)
+ settle(CONFIG.get('warmup_seconds',15))
  CAMERA=camera();size=general.get_viewport_size();VIEWPORT=[int(size.x),int(size.y)];VIS=visibility()
  R['camera']=CAMERA;R['viewport']=VIEWPORT
  R['original_pacing']={n:general.get_cvar(n) for n in ('sys_MaxFPS','vsync_interval')}
@@ -209,4 +211,5 @@ finally:
  R['passed']=R['passed'] and all(R['restoration'].values());R.pop('active_case',None);save()
  general.idle_enable(False)
  from PySide6 import QtCore
- QtCore.QTimer.singleShot(0,general.exit_no_prompt)
+ if CONFIG.get('exit_editor',True):QtCore.QTimer.singleShot(0,general.exit_no_prompt)
+ else:print('TERRAIN_SCENE_PROFILE_FINISHED',R['passed'],str(OUT),flush=True)

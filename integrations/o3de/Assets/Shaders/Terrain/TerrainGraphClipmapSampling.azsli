@@ -7,6 +7,12 @@ bool TC_CacheQuadAll(bool value)
     uint v = uint(value);
     return (v & QuadReadAcrossX(v) & QuadReadAcrossY(v) & QuadReadAcrossDiagonal(v)) != 0;
 }
+// Bounded material factors are half; cache ownership tags and world heights
+// retain their exact float interpolation and validation independently.
+half2 TC_GraphCacheBlendFactors16(half2 a, half2 b, half2 c, half2 d, half2 blend)
+{
+    return lerp(lerp(a,b,blend.x),lerp(c,d,blend.x),blend.y);
+}
 float TC_GraphCacheExpectedTag(uint level, int2 cell)
 {
     int2 tile = int2(floor(float2(cell)/512.0));
@@ -33,6 +39,7 @@ TerrainSurfaceChannels TC_ResolveGraphClipmap(TerrainSurfaceContext context, con
             {
                 uint i = NonUniformResourceIndex(level);
                 float4 c;
+                half2 materialFactors;
                 bool valid = true;
                 if (TerrainSrg::m_graphCacheToroidal != 0)
                 {
@@ -50,9 +57,14 @@ TerrainSurfaceChannels TC_ResolveGraphClipmap(TerrainSurfaceContext context, con
                         f11.z==TC_GraphCacheExpectedTag(level,c11);
                     float2 blend=frac(texel);
                     c=lerp(lerp(f00,f10,blend.x),lerp(f01,f11,blend.x),blend.y);
+                    materialFactors=TC_GraphCacheBlendFactors16(half2(f00.xy),half2(f10.xy),half2(f01.xy),half2(f11.xy),half2(blend));
                     uv=frac(context.worldPosition.xy*mapping.z);
                 }
-                else c=TerrainSrg::m_graphCacheFactors[i].SampleLevel(TerrainSrg::m_graphCacheSampler,uv,0);
+                else
+                {
+                    c=TerrainSrg::m_graphCacheFactors[i].SampleLevel(TerrainSrg::m_graphCacheSampler,uv,0);
+                    materialFactors=half2(c.xy);
+                }
                 half4 a = half4(TerrainSrg::m_graphCacheColor[i].SampleLevel(TerrainSrg::m_graphCacheSampler, uv, 0));
                 half4 b = half4(TerrainSrg::m_graphCacheNormal[i].SampleLevel(TerrainSrg::m_graphCacheSampler, uv, 0));
                 half3 g = half3(TerrainSrg::m_graphCacheGeometry[i].SampleLevel(TerrainSrg::m_graphCacheSampler, uv, 0).xyz);
@@ -70,7 +82,7 @@ TerrainSurfaceChannels TC_ResolveGraphClipmap(TerrainSurfaceContext context, con
                         half3 shading = normalize(b.xyz);
                         cached.normal = normalize(shading + cross(axis,shading) + cross(axis,cross(axis,shading))/max(half(1)+cosine,half(0.001)));
                         cached.baseColor=a.rgb; cached.roughness=a.a; cached.metalness=b.a;
-                        cached.specularFactor=c.x; cached.ambientOcclusion=c.y;
+                        cached.specularFactor=materialFactors.x; cached.ambientOcclusion=materialFactors.y;
                         float2 logicalUv = (context.worldPosition.xy-mapping.xy)*mapping.z;
                         float edge = min(min(logicalUv.x,logicalUv.y),min(1.0-logicalUv.x,1.0-logicalUv.y));
                         weight = saturate((edge*512.0-2.0)/8.0) * saturate((footprint/mapping.w-1.0)*4.0);
@@ -92,8 +104,8 @@ TerrainSurfaceChannels TC_ResolveGraphClipmap(TerrainSurfaceContext context, con
             result.normal=normalize(lerp(half3(result.normal),half3(cached.normal),half(weight)));
             result.roughness=lerp(half(result.roughness),half(cached.roughness),half(weight));
             result.metalness=lerp(half(result.metalness),half(cached.metalness),half(weight));
-            result.specularFactor=lerp(result.specularFactor,cached.specularFactor,weight);
-            result.ambientOcclusion=lerp(result.ambientOcclusion,cached.ambientOcclusion,weight);
+            result.specularFactor=lerp(result.specularFactor,cached.specularFactor,half(weight));
+            result.ambientOcclusion=lerp(result.ambientOcclusion,cached.ambientOcclusion,half(weight));
         }
     }
     if (TerrainSrg::m_graphCacheDebug != 0)

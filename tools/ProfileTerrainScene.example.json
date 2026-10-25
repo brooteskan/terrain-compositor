@@ -40,5 +40,7 @@
       "name": "baseline-restored",
       "screenshot": true
     }
-  ]
+  ],
+  "use_current_level": true,
+  "exit_editor": false
 }

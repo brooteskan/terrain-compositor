@@ -8,8 +8,8 @@ struct TerrainSurfaceChannels
     half3 normal;    // RGBA16F normal/metalness cache
     half roughness;
     half metalness;
-    float specularFactor;
-    float ambientOcclusion;
+    half specularFactor;
+    half ambientOcclusion;
 };
 
 struct TerrainSurfaceContext
@@ -49,7 +49,7 @@ TerrainSurfaceChannels TC_ValidateSurface(TerrainSurfaceChannels value, TerrainS
     value.normal = TC_SafeNormal16(value.normal, TC_SafeNormal16(half3(context.geometricNormal), half3(0, 0, 1)));
     value.roughness = TC_SurfaceFactor16(value.roughness, half(1));
     value.metalness = TC_SurfaceFactor16(value.metalness, half(0));
-    value.specularFactor = TC_SurfaceFactor(value.specularFactor, 0.5);
-    value.ambientOcclusion = TC_SurfaceFactor(value.ambientOcclusion, 1.0);
+    value.specularFactor = TC_SurfaceFactor16(value.specularFactor, half(0.5));
+    value.ambientOcclusion = TC_SurfaceFactor16(value.ambientOcclusion, half(1));
     return value;
 }

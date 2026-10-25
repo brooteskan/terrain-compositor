@@ -1,0 +1,68 @@
+#pragma once
+#if MATERIALPIPELINE_SHADER_HAS_PIXEL_STAGE
+#define GetDiffuseLighting(surface, lightingData, lightIntensity, dirToLight) GetDiffuseLighting_Vue(surface, lightingData, lightIntensity, dirToLight)
+#endif
+#include <Atom/Feature/Common/Assets/Materials/Types/StandardPBR_Defines.azsli>
+
+#if MATERIALPIPELINE_SHADER_HAS_PIXEL_STAGE
+#include "VueMaterialResponse.azsli"
+float VueGroundBlendWeight(float z, const MaterialParameters p)
+{
+    if (p.m_vueBlendHeight <= 0.0 || p.m_vueBlendColorTexture < 0) return 0.0;
+    float cutoff = p.m_vueGroundHeight + max(p.m_vueGroundTolerance, 0.0);
+    return 1.0 - smoothstep(0.0, p.m_vueBlendHeight, max(0.0, z - cutoff));
+}
+real3 GetDiffuseLighting_Vue(Surface surface, LightingData lightingData, real3 lightIntensity, real3 dirToLight)
+{
+#if FORCE_OPAQUE
+    MaterialParameters p = GetMaterialParameters();
+    half blend = half(VueGroundBlendWeight(surface.position.z, p));
+    half gain = lerp(VueDirectScale(p.m_vueDirectGain, p.m_vueAlbedoScale), VueDirectScale(p.m_vueBlendDirectGain, p.m_vueBlendAlbedoScale), blend);
+    half contrast = lerp(half(p.m_vueContrast), half(p.m_vueBlendContrast), blend);
+    half backlight = lerp(half(p.m_vueBacklight), half(p.m_vueBlendBacklight), blend);
+    if (contrast != 1.0 || backlight != 0.0)
+    {
+        // Change the diffuse cosine only. Clear coat uses the actual light
+        // direction, and the caller still applies the light's shadow visibility.
+        real3 result = VueDiffuseLambert16(half3(surface.albedo), half3(surface.GetDiffuseNormal()), half3(surface.GetDiffuseNormal()), half3(lightingData.diffuseResponse)) * lightIntensity;
+#if ENABLE_CLEAR_COAT
+        if (o_clearCoat_feature_enabled)
+        {
+            real HdotV = saturate(dot(normalize(dirToLight + lightingData.dirToCamera[0]), lightingData.dirToCamera[0]));
+            result *= 1.0 - FresnelSchlick(HdotV, 0.04) * surface.clearCoat.factor;
+        }
+#endif
+        return result * gain * VueDiffuseLobe(dot(surface.GetDiffuseNormal(), dirToLight), contrast, backlight);
+    }
+#if ENABLE_CLEAR_COAT
+    // Sharp clear-coat Fresnel/BRDF and HDR intensity retain the SDK float path.
+    if (o_clearCoat_feature_enabled)
+        return GetDiffuseLighting_StandardPBR(surface, lightingData, lightIntensity, dirToLight) * float(gain);
+#endif
+    return float3(VueDiffuseLambert16(half3(surface.albedo), half3(surface.GetDiffuseNormal()),
+        half3(dirToLight), half3(lightingData.diffuseResponse))) * lightIntensity * float(gain);
+#endif
+    return GetDiffuseLighting_StandardPBR(surface, lightingData, lightIntensity, dirToLight);
+}
+#endif
+
+#if MATERIALPIPELINE_SHADER_HAS_PIXEL_STAGE || MATERIALPIPELINE_SHADER_HAS_GEOMETRIC_PIXEL_STAGE
+// The custom-depth pipeline writes SV_Depth. Its default centroid position
+// broadcasts one depth to every MSAA sample, which can overlap the ground even
+// when the mesh is above it. Preserve raster depth and evaluate the ground
+// cutoff at each sample in both the depth and color passes.
+#define VsOutput VsOutput_VueTerrain
+struct VsOutput_VueTerrain
+{
+    precise sample float4 position : SV_Position;
+    sample float3 worldPosition : UV4;
+    float3 normal : NORMAL;
+    float4 tangent : TANGENT;
+    float2 uvs[UvSetCount] : UV0;
+    float3 localPosition : UV5;
+    float4 color0 : UV7;
+    sample float2 terrainUv : UV8;
+    float groundCullDistance : SV_CullDistance0;
+    uint m_instanceId : SV_InstanceID;
+};
+#endif

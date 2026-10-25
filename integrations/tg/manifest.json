@@ -33,7 +33,8 @@
       "accepted_sha256": [
         "4028640256be67ab79b5804dca6397a594158ffa556870e727347b632412ca98",
         "6a61d85724d502044a7004dac205c85b5ecfbad3f2b5234dc7d89caab279e112",
-        "5dbf7731223ca640af3bdf4f3a3dcbf62a7ba296f93ba3a8ef3bf1158117c8ed"
+        "5dbf7731223ca640af3bdf4f3a3dcbf62a7ba296f93ba3a8ef3bf1158117c8ed",
+        "a82573b4598f39a0df29ca294927d5c95ad15cf5267d107d8e29601acf394156"
       ],
       "accepted_json_sha256": []
     },
@@ -307,6 +308,42 @@
       "binary": false,
       "accepted_sha256": [
         "b9dce7ac721f8858b979826d9b8f66ff2eceddb574c8318042d7ab88177afaca"
+      ],
+      "accepted_json_sha256": []
+    },
+    {
+      "path": "Assets/VueLiveLink/VueTerrainMesh_Defines.azsli",
+      "source": "project/Assets/VueLiveLink/VueTerrainMesh_Defines.azsli",
+      "binary": false,
+      "accepted_sha256": [
+        "a876d6e35e5c701727570b988698114ef2cd2880b6178db9dd25838d598c741f"
+      ],
+      "accepted_json_sha256": []
+    },
+    {
+      "path": "Assets/VueLiveLink/VueGroundSampling.azsli",
+      "source": "project/Assets/VueLiveLink/VueGroundSampling.azsli",
+      "binary": false,
+      "accepted_sha256": [
+        "3cf6e441b3669055e66a3de8e2fc67da3a74a140be6fd9b7c5601d3d64b2c8a2"
+      ],
+      "accepted_json_sha256": []
+    },
+    {
+      "path": "Assets/VueLiveLink/VueMaterialResponse.azsli",
+      "source": "project/Assets/VueLiveLink/VueMaterialResponse.azsli",
+      "binary": false,
+      "accepted_sha256": [
+        "0f0c505cda54d46403e6f2d919b7146325b00caa68f80f27261bb805e63a8042"
+      ],
+      "accepted_json_sha256": []
+    },
+    {
+      "path": "Assets/VueLiveLink/VueGroundResponse.azsli",
+      "source": "project/Assets/VueLiveLink/VueGroundResponse.azsli",
+      "binary": false,
+      "accepted_sha256": [
+        "389b307361e83b3e25f0d16373b2bed7e4e81e95dc4e96fc3f794e62ba02d8b7"
       ],
       "accepted_json_sha256": []
     }

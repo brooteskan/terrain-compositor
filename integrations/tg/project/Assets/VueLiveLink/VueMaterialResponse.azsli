@@ -1,0 +1,42 @@
+#pragma once
+
+// Explicit TG equivalents, not undocumented Vue slider conversions.
+// Contrast and backlight fast paths avoid unnecessary per-light powers.
+half VueDiffuseLobe(half ndotl, half contrast, half backlight)
+{
+    half exponent = clamp(contrast, half(0.1), half(8.0));
+    half back = saturate(backlight);
+    if (exponent == half(1.0))
+    {
+        if (back == half(0.0))
+        {
+            return saturate(ndotl);
+        }
+        return (saturate(ndotl) + back * saturate(-ndotl)) / (half(1.0) + back);
+    }
+    if (back == half(0.0))
+    {
+        return pow(saturate(ndotl), exponent);
+    }
+    // Only one hemisphere is nonzero; the clamped exponent is positive.
+    half lobe = pow(saturate(abs(ndotl)), exponent);
+    return lobe * (ndotl < half(0.0) ? back : half(1.0)) / (half(1.0) + back);
+}
+
+half VueDirectScale(half directGain, half albedoScale)
+{
+    return clamp(directGain, half(0.0), half(4.0)) * saturate(albedoScale);
+}
+
+half VueAmbientScale(half ambientGain, half albedoScale)
+{
+    return clamp(ambientGain, half(0.0), half(4.0)) * saturate(albedoScale);
+}
+
+// Unit-range BRDF terms use native FP16. Light intensity and HDR accumulation
+// stay in the caller's float path, after this bounded result is returned.
+half3 VueDiffuseLambert16(half3 albedo, half3 normal, half3 dirToLight, half3 diffuseResponse)
+{
+    half ndotl = saturate(dot(normal, dirToLight));
+    return albedo * ndotl * half(0.3183098861837907) * diffuseResponse;
+}

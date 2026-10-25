@@ -1,0 +1,37 @@
+#pragma once
+#include "VueMaterialResponse.azsli"
+#include <Atom/Features/PBR/Microfacet/Brdf.azsli>
+
+half3 VueGroundDiffuse(half3 albedo, half3 normal, half3 dirToLight, half3 diffuseResponse)
+{
+    MaterialParameters p = GetMaterialParameters();
+    half gain = VueDirectScale(p.m_vueDirectGain, p.m_vueAlbedoScale);
+    if (p.m_vueContrast == 1.0 && p.m_vueBacklight == 0.0)
+    {
+        half3 stock = VueDiffuseLambert16(albedo, normal, dirToLight, diffuseResponse);
+        return gain == 1.0 ? stock : stock * gain;
+    }
+    return VueDiffuseLambert16(albedo, normal, normal, diffuseResponse) * gain *
+        VueDiffuseLobe(dot(normal, dirToLight), p.m_vueContrast, p.m_vueBacklight);
+}
+
+#define DiffuseLambertian VueGroundDiffuse
+#include <Atom/Features/PBR/Lighting/StandardLighting.azsli>
+#undef DiffuseLambertian
+
+void VueGroundInitialize(inout LightingData data)
+{
+    half gain = saturate(half(GetMaterialParameters().m_vueSpecularGain));
+    if (gain != 1.0)
+    {
+        data.specularOcclusion = half(data.specularOcclusion) * gain;
+        data.diffuseResponse = lerp(half3(1,1,1), half3(data.diffuseResponse), gain);
+    }
+}
+
+void VueGroundFinalize(inout LightingData data)
+{
+    MaterialParameters p = GetMaterialParameters();
+    half gain = VueAmbientScale(p.m_vueAmbientGain, p.m_vueAlbedoScale);
+    if (gain != 1.0) data.diffuseResponse = half3(data.diffuseResponse) * gain;
+}

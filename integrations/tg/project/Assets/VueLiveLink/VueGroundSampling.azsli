@@ -1,0 +1,199 @@
+#pragma once
+#include <Atom/Features/ColorManagement/TransformColor.azsli>
+
+// One sampler shared by the ground and the terrain contact transition.
+struct VueGroundParameters
+{
+    int m_colorTexture;
+    int m_normalTexture;
+    float m_textureScale;
+    float m_normalStrength;
+    float4 m_colorTint;
+    float m_roughness;
+    float m_specularFactor;
+    float m_ambientOcclusion;
+};
+struct VueGroundChannels
+{
+    half3 baseColor;
+    half3 normal;
+    half roughness;
+    half metalness;
+    half specularFactor;
+    half ambientOcclusion;
+};
+
+static const float TC_GroundPatchFraction = 0.35;
+
+// Performance-first cell randomization: arithmetic rather than sine hashing.
+// This intentionally changes patch distribution, not the interior-UV bounds.
+// Both color and normal sampling must use this same deterministic mapping.
+float4 TC_GroundCellRandom(float2 cell)
+{
+    float4 p = frac(float4(cell.xy, cell.xy) * float4(0.1031, 0.1030, 0.0973, 0.1099));
+    p += dot(p, p.wzxy + 33.33);
+    return frac((p.xxyz + p.yzzw) * p.zywx);
+}
+
+// Sample independently oriented patches from the interior of Vue's bake.
+// The bake is not tileable, so no sample may reach a wrapped texture edge.
+// Share coordinate preparation between each patch's color and normal fetch.
+struct TC_GroundPatchCoordinates
+{
+    float2 uv;
+    float2 dx;
+    float2 dy;
+    float2 flip;
+    bool swapped;
+};
+
+TC_GroundPatchCoordinates TC_PrepareGroundPatch(float2 uv, float2 cell,
+    float2 uvDx, float2 uvDy)
+{
+    float4 random = TC_GroundCellRandom(cell);
+    float2 local = uv - cell;
+    bool swapped = random.z >= 0.5;
+    if (swapped)
+    {
+        local = local.yx;
+        uvDx = uvDx.yx;
+        uvDy = uvDy.yx;
+    }
+    float2 flip = 1.0 - 2.0 * step(float2(0.5, 0.5), float2(random.z, random.w));
+    local *= flip;
+    uvDx *= flip;
+    uvDy *= flip;
+    TC_GroundPatchCoordinates patch;
+    patch.uv = 0.5 + TC_GroundPatchFraction * local + 0.26 * (float2(random.x, random.y) - 0.5);
+    patch.dx = TC_GroundPatchFraction * uvDx;
+    patch.dy = TC_GroundPatchFraction * uvDy;
+    patch.flip = flip;
+    patch.swapped = swapped;
+    return patch;
+}
+
+// Use the SDK's exact constant transform, quantized once for half arithmetic.
+half3 TC_GroundColorToAces16(half3 color)
+{
+    static const half3x3 transform = half3x3(mul(XYZToAP1Mat, mul(D65ToD60Cat, SRGBToXYZMat)));
+    return mul(transform, color);
+}
+half4 TC_BlendGroundColors16(half4 a, half4 b, half4 c, half3 weights)
+{
+    return a * weights.x + b * weights.y + c * weights.z;
+}
+half3 TC_GroundNormal16(half3 geometricNormal, half2 xy, half strength)
+{
+    half3 n = normalize(geometricNormal);
+    half3 axis = abs(n.x) < half(0.99) ? half3(1,0,0) : half3(0,1,0);
+    half3 tangent = normalize(axis - n * dot(axis, n));
+    half3 bitangent = cross(n, tangent);
+    half z = sqrt(saturate(half(1) - dot(xy, xy)));
+    return normalize(tangent * xy.x * strength + bitangent * xy.y * strength + n * max(z, half(0.0001)));
+}
+
+half4 TC_SampleGroundPatch(const VueGroundParameters params,
+    const TC_GroundPatchCoordinates patch)
+{
+    return half4(GetMaterialTexture(params.m_colorTexture).SampleGrad(
+        GetMaterialTextureSampler(), patch.uv, patch.dx, patch.dy));
+}
+
+half2 TC_SampleGroundNormalPatch(const VueGroundParameters params,
+    const TC_GroundPatchCoordinates patch)
+{
+    half2 xy = half2(GetMaterialTexture(params.m_normalTexture).SampleGrad(
+        GetMaterialTextureSampler(), patch.uv, patch.dx, patch.dy).xy) * half(2) - half(1);
+    // Invert in reverse order: flip first, then undo the coordinate swap.
+    xy *= half2(patch.flip);
+    return patch.swapped ? xy.yx : xy;
+}
+
+// Supply world-XY derivatives from uniform control flow before calling this
+// entry point inside a varying branch. Every texture fetch uses those gradients.
+VueGroundChannels VueSampleGroundGrad(float3 worldPosition, float3 geometricNormal,
+    const VueGroundParameters params, bool stochasticTiling,
+    float2 worldPositionDx, float2 worldPositionDy)
+{
+    float textureScale = max(params.m_textureScale, 0.0001);
+    float2 uv = worldPosition.xy / textureScale;
+    float2 uvDx = worldPositionDx / textureScale;
+    float2 uvDy = worldPositionDy / textureScale;
+    // A patch samples only part of the bake. Compensate before choosing cells
+    // so both tiling modes retain the bake's texels per world unit. Derivatives
+    // and tangent normal sampling use this same compensated coordinate.
+    if (stochasticTiling)
+    {
+        uv /= TC_GroundPatchFraction;
+        uvDx /= TC_GroundPatchFraction;
+        uvDy /= TC_GroundPatchFraction;
+    }
+    half4 sampledColor;
+    float2 cell = float2(0.0, 0.0);
+    float2 corner = float2(0.0, 0.0);
+    float3 patchWeights = float3(0.0, 0.0, 0.0);
+    TC_GroundPatchCoordinates patchA;
+    TC_GroundPatchCoordinates patchB;
+    TC_GroundPatchCoordinates patchC;
+    if (stochasticTiling)
+    {
+        cell = floor(uv);
+        float2 blend = frac(uv);
+        blend = blend * blend * (3.0 - 2.0 * blend);
+        // Split the smoothed square into two triangles: three fetches, not four.
+        // Both triangles share the same diagonal edge and patch identities.
+        // This intentionally changes blending; no histogram correction is used.
+        bool upper = blend.x + blend.y > 1.0;
+        corner = upper ? cell + float2(1.0, 1.0) : cell;
+        patchWeights = upper
+            ? float3(blend.x + blend.y - 1.0, 1.0 - blend.y, 1.0 - blend.x)
+            : float3(1.0 - blend.x - blend.y, blend.x, blend.y);
+        patchA = TC_PrepareGroundPatch(uv, corner, uvDx, uvDy);
+        patchB = TC_PrepareGroundPatch(uv, cell + float2(1.0, 0.0), uvDx, uvDy);
+        patchC = TC_PrepareGroundPatch(uv, cell + float2(0.0, 1.0), uvDx, uvDy);
+        sampledColor = TC_BlendGroundColors16(TC_SampleGroundPatch(params, patchA),
+            TC_SampleGroundPatch(params, patchB), TC_SampleGroundPatch(params, patchC), half3(patchWeights));
+    }
+    else
+    {
+        sampledColor = half4(GetMaterialTexture(params.m_colorTexture).SampleGrad(
+            GetMaterialTextureSampler(), uv, uvDx, uvDy));
+    }
+    half3 colorAces = TC_GroundColorToAces16(sampledColor.rgb);
+
+    VueGroundChannels result;
+    result.baseColor = colorAces * half3(params.m_colorTint.rgb);
+    result.normal = geometricNormal;
+    if (params.m_normalTexture >= 0 && params.m_normalStrength > 0.0)
+    {
+        half2 xy;
+        if (stochasticTiling)
+        {
+            // Reuse the color stencil, weights and derivatives for aligned normals.
+            xy =
+                TC_SampleGroundNormalPatch(params, patchA) * half(patchWeights.x) +
+                TC_SampleGroundNormalPatch(params, patchB) * half(patchWeights.y) +
+                TC_SampleGroundNormalPatch(params, patchC) * half(patchWeights.z);
+        }
+        else
+            xy = half2(GetMaterialTexture(params.m_normalTexture).SampleGrad(
+                GetMaterialTextureSampler(), uv, uvDx, uvDy).xy) * half(2) - half(1);
+        result.normal = TC_GroundNormal16(half3(geometricNormal), xy, half(params.m_normalStrength));
+    }
+    result.roughness = params.m_roughness;
+    result.metalness = 0.0;
+    result.specularFactor = params.m_specularFactor;
+    result.ambientOcclusion = params.m_ambientOcclusion;
+    return result;
+}
+
+// Compatibility entry point: existing callers must still invoke this from
+// uniform control flow. Conditional callers use VueSampleGroundGrad instead.
+VueGroundChannels VueSampleGround(float3 worldPosition, float3 geometricNormal,
+    const VueGroundParameters params, bool stochasticTiling)
+{
+    float2 worldPositionDx = ddx(worldPosition.xy);
+    float2 worldPositionDy = ddy(worldPosition.xy);
+    return VueSampleGroundGrad(worldPosition, geometricNormal, params,
+        stochasticTiling, worldPositionDx, worldPositionDy);
+}
