@@ -273,5 +273,13 @@
                 }
             ]
         }
+    ],
+    "functors": [
+        {
+            "type": "Lua",
+            "args": {
+                "file": "Materials/Terrain/TerrainCutoutSpecialization.lua"
+            }
+        }
     ]
 }

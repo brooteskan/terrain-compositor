@@ -3,6 +3,11 @@
 #include <TerrainMaterialSrg.azsli>
 #include <TerrainMeshHeightGapPredicate.azsli>
 
+// Default to the complete path for materials without the count functor.
+// The functor specializes only features whose published count is zero.
+option bool o_terrainHasMeshCutouts = true;
+option bool o_terrainHasHeightGaps = true;
+
 float3 TGMeshCutoutRotate(float4 quaternion, float3 value)
 {
     return value + 2.0 * cross(quaternion.xyz, cross(quaternion.xyz, value) + quaternion.w * value);
@@ -102,12 +107,12 @@ bool TGMeshCutoutDiscardsTerrain(float3 worldPosition)
 {
     // Mesh-height gaps are a remove-only XY union. No ordered Restore operation
     // may fill them, and neither collision padding nor triangle raycasts applies.
-    for (uint gapIndex = 0; gapIndex < TerrainMaterialSrg::m_meshHeightGapCount; ++gapIndex)
+    for (uint gapIndex = 0; o_terrainHasHeightGaps && gapIndex < TerrainMaterialSrg::m_meshHeightGapCount; ++gapIndex)
     {
         if (TGMeshHeightGapContains(worldPosition, TerrainMaterialSrg::m_meshHeightGaps[gapIndex])) return true;
     }
     bool terrainExists = true;
-    for (uint index = 0; index < TerrainMaterialSrg::m_meshCutoutCount; ++index)
+    for (uint index = 0; o_terrainHasMeshCutouts && index < TerrainMaterialSrg::m_meshCutoutCount; ++index)
     {
         TerrainMaterialSrg::MeshCutout cutout = TerrainMaterialSrg::m_meshCutouts[index];
         if (TGMeshCutoutContains(worldPosition, cutout))
