@@ -31,7 +31,6 @@ Surface VueOverlapSurfaceBase(VsOutput IN, VsSystemValues SV, PixelGeometryData 
 struct VueOverlapQuery
 {
     float2 uv;
-    float4 derivatives;
     float height;
     float coverage;
 };
@@ -46,10 +45,6 @@ VueOverlapQuery VueQueryOverlap(VueOverlapSource source, float3 world, float wid
 {
     VueOverlapQuery q = (VueOverlapQuery)0;
     q.uv = float2(dot(source.uvRow0, float3(world.xy, 1)), dot(source.uvRow1, float3(world.xy, 1)));
-    // Derivatives of continuous world XY, before contributor selection.
-    float2 dx = ddx(world.xy), dy = ddy(world.xy);
-    q.derivatives = float4(dot(source.uvRow0.xy, dx), dot(source.uvRow1.xy, dx),
-                          dot(source.uvRow0.xy, dy), dot(source.uvRow1.xy, dy));
     if (source.heightMap < 0 || any(q.uv < 0) || any(q.uv > 1)) return q;
     uint w, h;
     GetMaterialTexture(source.heightMap).GetDimensions(w, h);
@@ -59,6 +54,16 @@ VueOverlapQuery VueQueryOverlap(VueOverlapSource source, float3 world, float wid
     float2 distance = min(q.uv, 1.0 - q.uv) / max(float2(length(source.uvRow0.xy), length(source.uvRow1.xy)), 1e-8);
     q.coverage = q.height > cutoff ? TC_OverlapRamp(min(distance.x, distance.y), width) : 0;
     return q;
+}
+
+// Apply each source transform only when its material is sampled. The input
+// derivatives were captured before contributor selection, so quad footprints
+// remain identical without carrying four gradient vectors through height tests.
+float4 VueOverlapDerivatives(VueOverlapSource source, float4 worldDerivatives)
+{
+    float2 dx = worldDerivatives.xy, dy = worldDerivatives.zw;
+    return float4(dot(source.uvRow0.xy, dx), dot(source.uvRow1.xy, dx),
+                  dot(source.uvRow0.xy, dy), dot(source.uvRow1.xy, dy));
 }
 
 half3 VueOverlapVertexNormal(VueOverlapSource s, float2 uv)
@@ -80,10 +85,6 @@ VueOverlapQuery VueQueryOverlap16(VueOverlapSource source, float3 world, float w
 {
     VueOverlapQuery q = (VueOverlapQuery)0;
     q.uv = float2(dot(source.uvRow0, float3(world.xy, 1)), dot(source.uvRow1, float3(world.xy, 1)));
-    // Derivatives of continuous world XY, before contributor selection.
-    float2 dx = ddx(world.xy), dy = ddy(world.xy);
-    q.derivatives = float4(dot(source.uvRow0.xy, dx), dot(source.uvRow1.xy, dx),
-                          dot(source.uvRow0.xy, dy), dot(source.uvRow1.xy, dy));
     if (source.heightMap < 0 || any(q.uv < 0) || any(q.uv > 1)) return q;
     uint w, h;
     GetMaterialTexture(source.heightMap).GetDimensions(w, h);
@@ -103,8 +104,30 @@ half3 VueOverlapSafeNormal16(half3 value, half3 fallback)
     half lengthSquared = dot(value, value);
     return lengthSquared > half(0.00006103515625) && all(isfinite(value)) ? value * rsqrt(lengthSquared) : fallback;
 }
+// Necessary endpoint test only: all actual blends still use the original
+// weight resolver, including its precision, normalization, and thresholds.
+bool VueOverlapPairEndpoint32(float2 heights, float2 coverage, float width)
+{
+    if (!(width > 0) || !isfinite(width)) return true;
+    coverage = saturate(coverage);
+    if (any(coverage <= 0) || !all(isfinite(coverage)) || !all(isfinite(heights))) return true;
+    return (coverage.x == 1.0 && TC_OverlapRamp(heights.x - heights.y, width) == 1.0) ||
+           (coverage.y == 1.0 && TC_OverlapRamp(heights.y - heights.x, width) == 1.0);
+}
+
+// Necessary endpoint test only: all actual blends still use the original
+// weight resolver, including its precision, normalization, and thresholds.
+bool VueOverlapPairEndpoint16(half2 heights, half2 coverage, half width)
+{
+    if (!(width > 0) || !isfinite(width)) return true;
+    coverage = saturate(coverage);
+    if (any(coverage <= 0) || !all(isfinite(coverage)) || !all(isfinite(heights))) return true;
+    return (coverage.x == 1.0h && TC_OverlapRamp16(heights.x - heights.y, width) == 1.0h) ||
+           (coverage.y == 1.0h && TC_OverlapRamp16(heights.y - heights.x, width) == 1.0h);
+}
+
 bool VueTryTerrainOverlap32(VsOutput IN, VsSystemValues SV, PixelGeometryData geoData,
-    const MaterialParameters params, float4 uvDxDy, out Surface surface)
+    const MaterialParameters params, float4 uvDxDy, float4 worldDerivatives, out Surface surface)
 {
     if (params.m_vueOverlapWidth <= 0 || o_terrainOverlapSourceCount < 2 || o_terrainOverlapSourceCount > 4) return false;
     VueOverlapQuery queries[4];
@@ -116,7 +139,12 @@ bool VueTryTerrainOverlap32(VsOutput IN, VsSystemValues SV, PixelGeometryData ge
         queries[i] = VueQueryOverlap(source, geoData.positionWS, params.m_vueOverlapWidth,
             params.m_vueGroundHeight + max(params.m_vueGroundTolerance, 0.0));
         heights[i] = queries[i].height; coverage[i] = queries[i].coverage;
+        // With two sources, either missing contributor makes a blend impossible.
+        // Derivatives were captured before this varying exit.
+        if (o_terrainOverlapSourceCount == 2 &&
+            (coverage[i] <= 0 || !isfinite(heights[i]))) return false;
     }
+    if (o_terrainOverlapSourceCount == 2 && VueOverlapPairEndpoint32(heights.xy, coverage.xy, float(params.m_vueOverlapWidth))) return false;
     float4 weights = TC_OverlapWeights(heights, coverage, o_terrainOverlapSourceCount, params.m_vueOverlapWidth, true);
     // Preserve the stock endpoint away from intersections. Both retained meshes
     // evaluate the identical set at a crossing, independent of raster winner.
@@ -131,22 +159,23 @@ bool VueTryTerrainOverlap32(VsOutput IN, VsSystemValues SV, PixelGeometryData ge
     {
         if (j >= o_terrainOverlapSourceCount || weights[j] <= 0) continue;
         VueOverlapSource s = VueGetOverlapSource(j, params); VueOverlapQuery q = queries[j];
+        float4 derivatives = VueOverlapDerivatives(s, worldDerivatives);
         half3 n = VueOverlapVertexNormal(s, q.uv);
         half3 tangent = half3(s.tangent);
         half3 t = normalize(tangent - n * dot(tangent, n));
         half3 b = -normalize(cross(n, t)); // Imported UV0 has flipped V.
         float3 sampled = GetBaseColorInput(GetMaterialTexture(s.colorMap), GetMaterialTextureSampler(), q.uv,
-            s.color.rgb, s.colorMap >= 0, q.derivatives, true);
+            s.color.rgb, s.colorMap >= 0, derivatives, true);
         color += weights[j] * BlendBaseColor(sampled, s.color.rgb, s.colorFactor, TextureBlendMode::Multiply, s.colorMap >= 0);
         normal += half(weights[j]) * half3(GetNormalInputWS(GetMaterialTexture(s.normalMap), GetMaterialTextureSampler(), q.uv,
-            false, false, true, n, t, b, CreateIdentity3x3_real(), s.normalMap >= 0, s.normalStrength, q.derivatives, true));
+            false, false, true, n, t, b, CreateIdentity3x3_real(), s.normalMap >= 0, s.normalStrength, derivatives, true));
         vertexNormal += half(weights[j]) * n;
         roughness += weights[j] * s.roughness;
         metallic += weights[j] * s.metallic;
         specular += weights[j] * GetSpecularInput(GetMaterialTexture(s.specularMap), GetMaterialTextureSampler(), q.uv,
-            s.specular, s.specularMap >= 0, q.derivatives, true);
+            s.specular, s.specularMap >= 0, derivatives, true);
         occlusion += weights[j] * GetOcclusionInput(GetMaterialTexture(s.occlusionMap), GetMaterialTextureSampler(), q.uv,
-            s.occlusion, s.occlusionMap >= 0, q.derivatives, true);
+            s.occlusion, s.occlusionMap >= 0, derivatives, true);
     }
     surface.SetAlbedoAndSpecularF0(color, specular, metallic);
     surface.vertexNormal = VueOverlapSafeNormal16(vertexNormal, half3(surface.vertexNormal));
@@ -156,7 +185,7 @@ bool VueTryTerrainOverlap32(VsOutput IN, VsSystemValues SV, PixelGeometryData ge
     return true;
 }
 bool VueTryTerrainOverlap16(VsOutput IN, VsSystemValues SV, PixelGeometryData geoData,
-    const MaterialParameters params, float4 uvDxDy, out Surface surface)
+    const MaterialParameters params, float4 uvDxDy, float4 worldDerivatives, out Surface surface)
 {
     if (params.m_vueOverlapWidth <= 0 || o_terrainOverlapSourceCount < 2 || o_terrainOverlapSourceCount > 4) return false;
     VueOverlapQuery queries[4];
@@ -168,7 +197,12 @@ bool VueTryTerrainOverlap16(VsOutput IN, VsSystemValues SV, PixelGeometryData ge
         queries[i] = VueQueryOverlap16(source, geoData.positionWS, params.m_vueOverlapWidth,
             params.m_vueGroundHeight + max(params.m_vueGroundTolerance, 0.0));
         heights[i] = queries[i].height; coverage[i] = queries[i].coverage;
+        // With two sources, either missing contributor makes a blend impossible.
+        // Derivatives were captured before this varying exit.
+        if (o_terrainOverlapSourceCount == 2 &&
+            (coverage[i] <= 0 || !isfinite(heights[i]))) return false;
     }
+    if (o_terrainOverlapSourceCount == 2 && VueOverlapPairEndpoint16(heights.xy, coverage.xy, half(params.m_vueOverlapWidth))) return false;
     half4 weights = TC_OverlapWeights16(heights, coverage, o_terrainOverlapSourceCount, half(params.m_vueOverlapWidth), true);
     // Preserve the stock endpoint away from intersections. Both retained meshes
     // evaluate the identical set at a crossing, independent of raster winner.
@@ -182,22 +216,23 @@ bool VueTryTerrainOverlap16(VsOutput IN, VsSystemValues SV, PixelGeometryData ge
     {
         if (j >= o_terrainOverlapSourceCount || weights[j] <= 0) continue;
         VueOverlapSource s = VueGetOverlapSource(j, params); VueOverlapQuery q = queries[j];
+        float4 derivatives = VueOverlapDerivatives(s, worldDerivatives);
         half3 n = VueOverlapVertexNormal(s, q.uv);
         half3 tangent = half3(s.tangent);
         half3 t = normalize(tangent - n * dot(tangent, n));
         half3 b = -normalize(cross(n, t)); // Imported UV0 has flipped V.
         float3 sampled = GetBaseColorInput(GetMaterialTexture(s.colorMap), GetMaterialTextureSampler(), q.uv,
-            s.color.rgb, s.colorMap >= 0, q.derivatives, true);
+            s.color.rgb, s.colorMap >= 0, derivatives, true);
         color += weights[j] * half3(BlendBaseColor(sampled, s.color.rgb, s.colorFactor, TextureBlendMode::Multiply, s.colorMap >= 0));
         normal += weights[j] * half3(GetNormalInputWS(GetMaterialTexture(s.normalMap), GetMaterialTextureSampler(), q.uv,
-            false, false, true, n, t, b, CreateIdentity3x3_real(), s.normalMap >= 0, s.normalStrength, q.derivatives, true));
+            false, false, true, n, t, b, CreateIdentity3x3_real(), s.normalMap >= 0, s.normalStrength, derivatives, true));
         vertexNormal += weights[j] * n;
         roughness += weights[j] * half(s.roughness);
         metallic += weights[j] * half(s.metallic);
         specular += weights[j] * half(GetSpecularInput(GetMaterialTexture(s.specularMap), GetMaterialTextureSampler(), q.uv,
-            s.specular, s.specularMap >= 0, q.derivatives, true));
+            s.specular, s.specularMap >= 0, derivatives, true));
         occlusion += weights[j] * half(GetOcclusionInput(GetMaterialTexture(s.occlusionMap), GetMaterialTextureSampler(), q.uv,
-            s.occlusion, s.occlusionMap >= 0, q.derivatives, true));
+            s.occlusion, s.occlusionMap >= 0, derivatives, true));
     }
     surface.SetAlbedoAndSpecularF0(color, specular, metallic);
     surface.vertexNormal = VueOverlapSafeNormal16(vertexNormal, half3(surface.vertexNormal));
@@ -210,6 +245,8 @@ bool VueTryTerrainOverlap16(VsOutput IN, VsSystemValues SV, PixelGeometryData ge
 bool VueTryTerrainOverlap(VsOutput IN, VsSystemValues SV, PixelGeometryData geoData,
     const MaterialParameters params, float4 uvDxDy, out Surface surface)
 {
-    if (o_terrainHeightFp16) return VueTryTerrainOverlap16(IN, SV, geoData, params, uvDxDy, surface);
-    return VueTryTerrainOverlap32(IN, SV, geoData, params, uvDxDy, surface);
+    // SampleGrad footprints must be continuous across pair endpoint exits.
+    float4 worldDerivatives = float4(ddx(geoData.positionWS.xy), ddy(geoData.positionWS.xy));
+    if (o_terrainHeightFp16) return VueTryTerrainOverlap16(IN, SV, geoData, params, uvDxDy, worldDerivatives, surface);
+    return VueTryTerrainOverlap32(IN, SV, geoData, params, uvDxDy, worldDerivatives, surface);
 }

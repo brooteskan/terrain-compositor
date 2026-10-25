@@ -1,0 +1,760 @@
+{
+  "adapter": "AMD Radeon(TM) Graphics",
+  "viewport": [
+    1203,
+    656
+  ],
+  "msaa": 2,
+  "height_precision": 16,
+  "captures": {
+    "before": {
+      "folder": "D:\\diversion\\TG\\TGProject\\user\\TerrainSceneProfile\\20261024-overlap-pair-before",
+      "rows": [
+        {
+          "name": "before",
+          "configuration": {
+            "name": "before",
+            "screenshot": true
+          },
+          "Engine Cpu Time": {
+            "median_ms": 51.624,
+            "p95_ms": 54.807199999999995,
+            "samples": 239
+          },
+          "Frame Gpu Time": {
+            "median_ms": 50.915,
+            "p95_ms": 53.088899999999995,
+            "samples": 238
+          },
+          "Graphics Render Time": {
+            "median_ms": 49.0865,
+            "p95_ms": 51.7659,
+            "samples": 240
+          },
+          "passes": [
+            {
+              "passName": "Root",
+              "vertexCount": 41352773,
+              "primitiveCount": 13784284,
+              "vertexShaderInvocationCount": 10758204,
+              "rasterizedPrimitiveCount": 13784284,
+              "renderedPrimitiveCount": 10477638,
+              "pixelShaderInvocationCount": 21005590,
+              "computeShaderInvocationCount": 3195521
+            },
+            {
+              "passName": "DepthPass",
+              "vertexCount": 7280202,
+              "primitiveCount": 2426734,
+              "vertexShaderInvocationCount": 1891720,
+              "rasterizedPrimitiveCount": 2426734,
+              "renderedPrimitiveCount": 1742208,
+              "pixelShaderInvocationCount": 1348471,
+              "computeShaderInvocationCount": 0
+            },
+            {
+              "passName": "Forward",
+              "vertexCount": 7280202,
+              "primitiveCount": 2426734,
+              "vertexShaderInvocationCount": 1891720,
+              "rasterizedPrimitiveCount": 2426734,
+              "renderedPrimitiveCount": 1742208,
+              "pixelShaderInvocationCount": 994108,
+              "computeShaderInvocationCount": 0
+            }
+          ]
+        },
+        {
+          "name": "before-repeat",
+          "configuration": {
+            "name": "before-repeat",
+            "screenshot": true
+          },
+          "Engine Cpu Time": {
+            "median_ms": 51.412,
+            "p95_ms": 53.7802,
+            "samples": 239
+          },
+          "Frame Gpu Time": {
+            "median_ms": 50.748,
+            "p95_ms": 52.6152,
+            "samples": 239
+          },
+          "Graphics Render Time": {
+            "median_ms": 48.968,
+            "p95_ms": 51.0882,
+            "samples": 240
+          },
+          "passes": [
+            {
+              "passName": "Root",
+              "vertexCount": 41352773,
+              "primitiveCount": 13784284,
+              "vertexShaderInvocationCount": 10758204,
+              "rasterizedPrimitiveCount": 13784284,
+              "renderedPrimitiveCount": 10477638,
+              "pixelShaderInvocationCount": 21006314,
+              "computeShaderInvocationCount": 3195521
+            },
+            {
+              "passName": "DepthPass",
+              "vertexCount": 7280202,
+              "primitiveCount": 2426734,
+              "vertexShaderInvocationCount": 1891720,
+              "rasterizedPrimitiveCount": 2426734,
+              "renderedPrimitiveCount": 1742208,
+              "pixelShaderInvocationCount": 1348471,
+              "computeShaderInvocationCount": 0
+            },
+            {
+              "passName": "Forward",
+              "vertexCount": 7280202,
+              "primitiveCount": 2426734,
+              "vertexShaderInvocationCount": 1891720,
+              "rasterizedPrimitiveCount": 2426734,
+              "renderedPrimitiveCount": 1742208,
+              "pixelShaderInvocationCount": 994108,
+              "computeShaderInvocationCount": 0
+            }
+          ]
+        }
+      ],
+      "camera": [
+        [
+          1025.0732421875,
+          488.1408386230469,
+          43.456932067871094
+        ],
+        [
+          -13.2926664352417,
+          4.55283784866333,
+          161.42835998535156
+        ]
+      ],
+      "restoration": {
+        "camera": true,
+        "entity_visibility": true,
+        "mesh_visibility": true,
+        "material_bindings": true,
+        "height_precision": true,
+        "level_file": true
+      },
+      "overlap_status": {
+        "phase": "ready",
+        "detail": "",
+        "contributors": 2,
+        "width": 10.0,
+        "revision": "8e1644bb8ab5b15287a92eba2bdaa659fa852d0ea06f0621737e2db6594d471d",
+        "materials": {
+          "82b2e8c01b5c41e99883138b20d758d0:terrain:2ad83d8:31a7c446:0": "assets/vuelivelink/overlap/d9e7b35caf90f0292a9e19d9/8e1644bb8ab5b15287a92eba2bdaa659fa852d0ea06f0621737e2db6594d471d.azmaterial",
+          "82b2e8c01b5c41e99883138b20d758d0:terrain:3445e7a6:395c14b3:0": "assets/vuelivelink/overlap/9f344ef8359b9976db0ed01a/8e1644bb8ab5b15287a92eba2bdaa659fa852d0ea06f0621737e2db6594d471d.azmaterial"
+        }
+      }
+    },
+    "endpoints": {
+      "folder": "D:\\diversion\\TG\\TGProject\\user\\TerrainSceneProfile\\20261024-overlap-pair-after",
+      "rows": [
+        {
+          "name": "after",
+          "configuration": {
+            "name": "after",
+            "screenshot": true
+          },
+          "Engine Cpu Time": {
+            "median_ms": 50.313,
+            "p95_ms": 52.577400000000004,
+            "samples": 239
+          },
+          "Frame Gpu Time": {
+            "median_ms": 49.76,
+            "p95_ms": 51.428200000000004,
+            "samples": 239
+          },
+          "Graphics Render Time": {
+            "median_ms": 47.730999999999995,
+            "p95_ms": 49.6257,
+            "samples": 240
+          },
+          "passes": [
+            {
+              "passName": "Root",
+              "vertexCount": 41352773,
+              "primitiveCount": 13784284,
+              "vertexShaderInvocationCount": 10758204,
+              "rasterizedPrimitiveCount": 13784284,
+              "renderedPrimitiveCount": 10477638,
+              "pixelShaderInvocationCount": 21005398,
+              "computeShaderInvocationCount": 3195521
+            },
+            {
+              "passName": "DepthPass",
+              "vertexCount": 7280202,
+              "primitiveCount": 2426734,
+              "vertexShaderInvocationCount": 1891720,
+              "rasterizedPrimitiveCount": 2426734,
+              "renderedPrimitiveCount": 1742208,
+              "pixelShaderInvocationCount": 1348471,
+              "computeShaderInvocationCount": 0
+            },
+            {
+              "passName": "Forward",
+              "vertexCount": 7280202,
+              "primitiveCount": 2426734,
+              "vertexShaderInvocationCount": 1891720,
+              "rasterizedPrimitiveCount": 2426734,
+              "renderedPrimitiveCount": 1742208,
+              "pixelShaderInvocationCount": 994108,
+              "computeShaderInvocationCount": 0
+            }
+          ]
+        },
+        {
+          "name": "after-repeat",
+          "configuration": {
+            "name": "after-repeat",
+            "screenshot": true
+          },
+          "Engine Cpu Time": {
+            "median_ms": 50.451,
+            "p95_ms": 53.2507,
+            "samples": 239
+          },
+          "Frame Gpu Time": {
+            "median_ms": 49.756,
+            "p95_ms": 51.858549999999994,
+            "samples": 240
+          },
+          "Graphics Render Time": {
+            "median_ms": 47.907,
+            "p95_ms": 50.7626,
+            "samples": 240
+          },
+          "passes": [
+            {
+              "passName": "Root",
+              "vertexCount": 41352773,
+              "primitiveCount": 13784284,
+              "vertexShaderInvocationCount": 10758204,
+              "rasterizedPrimitiveCount": 13784284,
+              "renderedPrimitiveCount": 10477638,
+              "pixelShaderInvocationCount": 21006934,
+              "computeShaderInvocationCount": 3195521
+            },
+            {
+              "passName": "DepthPass",
+              "vertexCount": 7280202,
+              "primitiveCount": 2426734,
+              "vertexShaderInvocationCount": 1891720,
+              "rasterizedPrimitiveCount": 2426734,
+              "renderedPrimitiveCount": 1742208,
+              "pixelShaderInvocationCount": 1348471,
+              "computeShaderInvocationCount": 0
+            },
+            {
+              "passName": "Forward",
+              "vertexCount": 7280202,
+              "primitiveCount": 2426734,
+              "vertexShaderInvocationCount": 1891720,
+              "rasterizedPrimitiveCount": 2426734,
+              "renderedPrimitiveCount": 1742208,
+              "pixelShaderInvocationCount": 994108,
+              "computeShaderInvocationCount": 0
+            }
+          ]
+        }
+      ],
+      "camera": [
+        [
+          1025.0732421875,
+          488.1408386230469,
+          43.456932067871094
+        ],
+        [
+          -13.2926664352417,
+          4.55283784866333,
+          161.42835998535156
+        ]
+      ],
+      "restoration": {
+        "camera": true,
+        "entity_visibility": true,
+        "mesh_visibility": true,
+        "material_bindings": true,
+        "height_precision": true,
+        "level_file": true
+      },
+      "overlap_status": {
+        "phase": "ready",
+        "detail": "",
+        "contributors": 2,
+        "width": 10.0,
+        "revision": "8e1644bb8ab5b15287a92eba2bdaa659fa852d0ea06f0621737e2db6594d471d",
+        "materials": {
+          "82b2e8c01b5c41e99883138b20d758d0:terrain:2ad83d8:31a7c446:0": "assets/vuelivelink/overlap/d9e7b35caf90f0292a9e19d9/8e1644bb8ab5b15287a92eba2bdaa659fa852d0ea06f0621737e2db6594d471d.azmaterial",
+          "82b2e8c01b5c41e99883138b20d758d0:terrain:3445e7a6:395c14b3:0": "assets/vuelivelink/overlap/9f344ef8359b9976db0ed01a/8e1644bb8ab5b15287a92eba2bdaa659fa852d0ea06f0621737e2db6594d471d.azmaterial"
+        }
+      }
+    },
+    "gradients": {
+      "folder": "D:\\diversion\\TG\\TGProject\\user\\TerrainSceneProfile\\20261024-overlap-deferred-gradients",
+      "rows": [
+        {
+          "name": "deferred",
+          "configuration": {
+            "name": "deferred",
+            "screenshot": true
+          },
+          "Engine Cpu Time": {
+            "median_ms": 50.071,
+            "p95_ms": 52.000299999999996,
+            "samples": 239
+          },
+          "Frame Gpu Time": {
+            "median_ms": 49.61,
+            "p95_ms": 50.28804999999999,
+            "samples": 238
+          },
+          "Graphics Render Time": {
+            "median_ms": 47.55,
+            "p95_ms": 49.14875,
+            "samples": 240
+          },
+          "passes": [
+            {
+              "passName": "Root",
+              "vertexCount": 41352773,
+              "primitiveCount": 13784284,
+              "vertexShaderInvocationCount": 10758204,
+              "rasterizedPrimitiveCount": 13784284,
+              "renderedPrimitiveCount": 10477638,
+              "pixelShaderInvocationCount": 21006358,
+              "computeShaderInvocationCount": 3195521
+            },
+            {
+              "passName": "DepthPass",
+              "vertexCount": 7280202,
+              "primitiveCount": 2426734,
+              "vertexShaderInvocationCount": 1891720,
+              "rasterizedPrimitiveCount": 2426734,
+              "renderedPrimitiveCount": 1742208,
+              "pixelShaderInvocationCount": 1348471,
+              "computeShaderInvocationCount": 0
+            },
+            {
+              "passName": "Forward",
+              "vertexCount": 7280202,
+              "primitiveCount": 2426734,
+              "vertexShaderInvocationCount": 1891720,
+              "rasterizedPrimitiveCount": 2426734,
+              "renderedPrimitiveCount": 1742208,
+              "pixelShaderInvocationCount": 994108,
+              "computeShaderInvocationCount": 0
+            }
+          ]
+        },
+        {
+          "name": "overlap-off",
+          "configuration": {
+            "name": "overlap-off",
+            "base_material": true,
+            "screenshot": true
+          },
+          "Engine Cpu Time": {
+            "median_ms": 45.927,
+            "p95_ms": 47.7049,
+            "samples": 239
+          },
+          "Frame Gpu Time": {
+            "median_ms": 45.722,
+            "p95_ms": 46.576,
+            "samples": 240
+          },
+          "Graphics Render Time": {
+            "median_ms": 43.7585,
+            "p95_ms": 45.33975,
+            "samples": 240
+          },
+          "passes": [
+            {
+              "passName": "Root",
+              "vertexCount": 41352773,
+              "primitiveCount": 13784284,
+              "vertexShaderInvocationCount": 10758204,
+              "rasterizedPrimitiveCount": 13784284,
+              "renderedPrimitiveCount": 10477638,
+              "pixelShaderInvocationCount": 21008594,
+              "computeShaderInvocationCount": 3195521
+            },
+            {
+              "passName": "DepthPass",
+              "vertexCount": 7280202,
+              "primitiveCount": 2426734,
+              "vertexShaderInvocationCount": 1891720,
+              "rasterizedPrimitiveCount": 2426734,
+              "renderedPrimitiveCount": 1742208,
+              "pixelShaderInvocationCount": 1348471,
+              "computeShaderInvocationCount": 0
+            },
+            {
+              "passName": "Forward",
+              "vertexCount": 7280202,
+              "primitiveCount": 2426734,
+              "vertexShaderInvocationCount": 1891720,
+              "rasterizedPrimitiveCount": 2426734,
+              "renderedPrimitiveCount": 1742208,
+              "pixelShaderInvocationCount": 994108,
+              "computeShaderInvocationCount": 0
+            }
+          ]
+        },
+        {
+          "name": "deferred-repeat",
+          "configuration": {
+            "name": "deferred-repeat",
+            "screenshot": true
+          },
+          "Engine Cpu Time": {
+            "median_ms": 50.204,
+            "p95_ms": 53.1506,
+            "samples": 239
+          },
+          "Frame Gpu Time": {
+            "median_ms": 49.5795,
+            "p95_ms": 51.299499999999995,
+            "samples": 240
+          },
+          "Graphics Render Time": {
+            "median_ms": 47.658500000000004,
+            "p95_ms": 50.194849999999995,
+            "samples": 240
+          },
+          "passes": [
+            {
+              "passName": "Root",
+              "vertexCount": 41352773,
+              "primitiveCount": 13784284,
+              "vertexShaderInvocationCount": 10758204,
+              "rasterizedPrimitiveCount": 13784284,
+              "renderedPrimitiveCount": 10477638,
+              "pixelShaderInvocationCount": 21005314,
+              "computeShaderInvocationCount": 3195521
+            },
+            {
+              "passName": "DepthPass",
+              "vertexCount": 7280202,
+              "primitiveCount": 2426734,
+              "vertexShaderInvocationCount": 1891720,
+              "rasterizedPrimitiveCount": 2426734,
+              "renderedPrimitiveCount": 1742208,
+              "pixelShaderInvocationCount": 1348471,
+              "computeShaderInvocationCount": 0
+            },
+            {
+              "passName": "Forward",
+              "vertexCount": 7280202,
+              "primitiveCount": 2426734,
+              "vertexShaderInvocationCount": 1891720,
+              "rasterizedPrimitiveCount": 2426734,
+              "renderedPrimitiveCount": 1742208,
+              "pixelShaderInvocationCount": 994108,
+              "computeShaderInvocationCount": 0
+            }
+          ]
+        }
+      ],
+      "camera": [
+        [
+          1025.0732421875,
+          488.1408386230469,
+          43.456932067871094
+        ],
+        [
+          -13.2926664352417,
+          4.55283784866333,
+          161.42835998535156
+        ]
+      ],
+      "restoration": {
+        "camera": true,
+        "entity_visibility": true,
+        "mesh_visibility": true,
+        "material_bindings": true,
+        "height_precision": true,
+        "level_file": true
+      },
+      "overlap_status": {
+        "phase": "ready",
+        "detail": "",
+        "contributors": 2,
+        "width": 10.0,
+        "revision": "8e1644bb8ab5b15287a92eba2bdaa659fa852d0ea06f0621737e2db6594d471d",
+        "materials": {
+          "82b2e8c01b5c41e99883138b20d758d0:terrain:2ad83d8:31a7c446:0": "assets/vuelivelink/overlap/d9e7b35caf90f0292a9e19d9/8e1644bb8ab5b15287a92eba2bdaa659fa852d0ea06f0621737e2db6594d471d.azmaterial",
+          "82b2e8c01b5c41e99883138b20d758d0:terrain:3445e7a6:395c14b3:0": "assets/vuelivelink/overlap/9f344ef8359b9976db0ed01a/8e1644bb8ab5b15287a92eba2bdaa659fa852d0ea06f0621737e2db6594d471d.azmaterial"
+        }
+      }
+    },
+    "final": {
+      "folder": "D:\\diversion\\TG\\TGProject\\user\\TerrainSceneProfile\\20261024-overlap-pair-final",
+      "rows": [
+        {
+          "name": "final",
+          "configuration": {
+            "name": "final",
+            "screenshot": true
+          },
+          "Engine Cpu Time": {
+            "median_ms": 50.114,
+            "p95_ms": 51.8274,
+            "samples": 239
+          },
+          "Frame Gpu Time": {
+            "median_ms": 49.651,
+            "p95_ms": 50.9788,
+            "samples": 239
+          },
+          "Graphics Render Time": {
+            "median_ms": 47.6945,
+            "p95_ms": 49.287349999999996,
+            "samples": 240
+          },
+          "passes": [
+            {
+              "passName": "Root",
+              "vertexCount": 41352773,
+              "primitiveCount": 13784284,
+              "vertexShaderInvocationCount": 10758204,
+              "rasterizedPrimitiveCount": 13784284,
+              "renderedPrimitiveCount": 10477638,
+              "pixelShaderInvocationCount": 21007382,
+              "computeShaderInvocationCount": 3195521
+            },
+            {
+              "passName": "DepthPass",
+              "vertexCount": 7280202,
+              "primitiveCount": 2426734,
+              "vertexShaderInvocationCount": 1891720,
+              "rasterizedPrimitiveCount": 2426734,
+              "renderedPrimitiveCount": 1742208,
+              "pixelShaderInvocationCount": 1348471,
+              "computeShaderInvocationCount": 0
+            },
+            {
+              "passName": "Forward",
+              "vertexCount": 7280202,
+              "primitiveCount": 2426734,
+              "vertexShaderInvocationCount": 1891720,
+              "rasterizedPrimitiveCount": 2426734,
+              "renderedPrimitiveCount": 1742208,
+              "pixelShaderInvocationCount": 994108,
+              "computeShaderInvocationCount": 0
+            }
+          ]
+        },
+        {
+          "name": "final-repeat",
+          "configuration": {
+            "name": "final-repeat",
+            "screenshot": true
+          },
+          "Engine Cpu Time": {
+            "median_ms": 50.169,
+            "p95_ms": 52.4422,
+            "samples": 239
+          },
+          "Frame Gpu Time": {
+            "median_ms": 49.684,
+            "p95_ms": 51.32855,
+            "samples": 240
+          },
+          "Graphics Render Time": {
+            "median_ms": 47.7245,
+            "p95_ms": 49.47495,
+            "samples": 240
+          },
+          "passes": [
+            {
+              "passName": "Root",
+              "vertexCount": 41352773,
+              "primitiveCount": 13784284,
+              "vertexShaderInvocationCount": 10758204,
+              "rasterizedPrimitiveCount": 13784284,
+              "renderedPrimitiveCount": 10477638,
+              "pixelShaderInvocationCount": 21006210,
+              "computeShaderInvocationCount": 3195521
+            },
+            {
+              "passName": "DepthPass",
+              "vertexCount": 7280202,
+              "primitiveCount": 2426734,
+              "vertexShaderInvocationCount": 1891720,
+              "rasterizedPrimitiveCount": 2426734,
+              "renderedPrimitiveCount": 1742208,
+              "pixelShaderInvocationCount": 1348471,
+              "computeShaderInvocationCount": 0
+            },
+            {
+              "passName": "Forward",
+              "vertexCount": 7280202,
+              "primitiveCount": 2426734,
+              "vertexShaderInvocationCount": 1891720,
+              "rasterizedPrimitiveCount": 2426734,
+              "renderedPrimitiveCount": 1742208,
+              "pixelShaderInvocationCount": 994108,
+              "computeShaderInvocationCount": 0
+            }
+          ]
+        }
+      ],
+      "camera": [
+        [
+          1025.0732421875,
+          488.1408386230469,
+          43.456932067871094
+        ],
+        [
+          -13.2926664352417,
+          4.55283784866333,
+          161.42835998535156
+        ]
+      ],
+      "restoration": {
+        "camera": true,
+        "entity_visibility": true,
+        "mesh_visibility": true,
+        "material_bindings": true,
+        "height_precision": true,
+        "level_file": true
+      },
+      "overlap_status": {
+        "phase": "ready",
+        "detail": "",
+        "contributors": 2,
+        "width": 10.0,
+        "revision": "8e1644bb8ab5b15287a92eba2bdaa659fa852d0ea06f0621737e2db6594d471d",
+        "materials": {
+          "82b2e8c01b5c41e99883138b20d758d0:terrain:2ad83d8:31a7c446:0": "assets/vuelivelink/overlap/d9e7b35caf90f0292a9e19d9/8e1644bb8ab5b15287a92eba2bdaa659fa852d0ea06f0621737e2db6594d471d.azmaterial",
+          "82b2e8c01b5c41e99883138b20d758d0:terrain:3445e7a6:395c14b3:0": "assets/vuelivelink/overlap/9f344ef8359b9976db0ed01a/8e1644bb8ab5b15287a92eba2bdaa659fa852d0ea06f0621737e2db6594d471d.azmaterial"
+        }
+      }
+    }
+  },
+  "images": [
+    {
+      "a": "D:\\diversion\\TG\\TGProject\\user\\TerrainSceneProfile\\20261024-overlap-pair-before\\before.png",
+      "b": "D:\\diversion\\TG\\TGProject\\user\\TerrainSceneProfile\\20261024-overlap-pair-after\\after.png",
+      "compared_pixels": 701588,
+      "changed_pixels": 0,
+      "max_rgb_difference": 0
+    },
+    {
+      "a": "D:\\diversion\\TG\\TGProject\\user\\TerrainSceneProfile\\20261024-overlap-pair-before\\before.png",
+      "b": "D:\\diversion\\TG\\TGProject\\user\\TerrainSceneProfile\\20261024-overlap-deferred-gradients\\deferred.png",
+      "compared_pixels": 701588,
+      "changed_pixels": 0,
+      "max_rgb_difference": 0
+    },
+    {
+      "a": "D:\\diversion\\TG\\TGProject\\user\\TerrainSceneProfile\\20261024-overlap-pair-before\\before.png",
+      "b": "D:\\diversion\\TG\\TGProject\\user\\TerrainSceneProfile\\20261024-overlap-pair-final\\final.png",
+      "compared_pixels": 701588,
+      "changed_pixels": 0,
+      "max_rgb_difference": 0
+    },
+    {
+      "a": "D:\\diversion\\TG\\TGProject\\user\\TerrainSceneProfile\\20261024-overlap-pair-before\\before.png",
+      "b": "D:\\diversion\\TG\\TGProject\\user\\TerrainSceneProfile\\20261024-overlap-pair-final\\final-repeat.png",
+      "compared_pixels": 701588,
+      "changed_pixels": 0,
+      "max_rgb_difference": 0
+    }
+  ],
+  "precision_probe": {
+    "production_hlsl": "D:\\diversion\\TG\\TGProject\\Cache\\pc\\assets\\vuelivelink\\vueterrainoverlap_mainpipeline_forwardpass_standardlighting_dx12.hlsl",
+    "cases": [
+      {
+        "precision": 16,
+        "compiled": true,
+        "arithmetic": {
+          "half": 12,
+          "float": 0
+        }
+      },
+      {
+        "precision": 32,
+        "compiled": true,
+        "arithmetic": {
+          "half": 0,
+          "float": 12
+        }
+      }
+    ]
+  },
+  "compiled_combinations": {
+    "production_hlsl": "D:\\diversion\\TG\\TGProject\\Cache\\pc\\assets\\vuelivelink\\vueterrainoverlap_mainpipeline_forwardpass_standardlighting_dx12.hlsl",
+    "native_specialization_ids": {
+      "o_terrainOverlapSourceCount": 52,
+      "o_terrainHeightFp16": 51
+    },
+    "cases": [
+      {
+        "count": 2,
+        "precision": 16,
+        "compiled": true,
+        "dxil_bytes": 211968
+      },
+      {
+        "count": 2,
+        "precision": 32,
+        "compiled": true,
+        "dxil_bytes": 211316
+      },
+      {
+        "count": 3,
+        "precision": 16,
+        "compiled": true,
+        "dxil_bytes": 216248
+      },
+      {
+        "count": 3,
+        "precision": 32,
+        "compiled": true,
+        "dxil_bytes": 215528
+      },
+      {
+        "count": 4,
+        "precision": 16,
+        "compiled": true,
+        "dxil_bytes": 221700
+      },
+      {
+        "count": 4,
+        "precision": 32,
+        "compiled": true,
+        "dxil_bytes": 220872
+      }
+    ]
+  },
+  "rounded_reference_checks": [
+    {
+      "precision": 16,
+      "cases": 504096,
+      "rejected": 222406,
+      "false_rejections": 0
+    },
+    {
+      "precision": 32,
+      "cases": 504096,
+      "rejected": 239314,
+      "false_rejections": 0
+    }
+  ],
+  "level_sha256": "70f2db2744cd2d2fa2c5808c157ca463913756744d1bae0025108b859cfc7a5d",
+  "comparison": {
+    "before_ms": 51.518,
+    "final_ms": 50.14149999999999,
+    "saved_ms": 1.3765000000000072,
+    "frame_time_reduction_percent": 2.6718816724251857
+  },
+  "reload_note": "One ShaderVariant option-layout assertion occurred during deferred-candidate warmup. No option/property declarations changed. Captures completed with identical images and counts; final settled run is reported separately."
+}
