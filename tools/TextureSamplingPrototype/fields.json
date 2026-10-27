@@ -1,0 +1,54 @@
+[
+  {
+    "original": "Assets/VueLiveLink/terrains/82b2e8c01b5c41e99883138b20d758d0/2ad83d8_31a7c446/b/terrain_normals.dds",
+    "size": [
+      512,
+      512
+    ],
+    "original_payload_bytes": 2097152,
+    "representations": {
+      "xy": {
+        "path": "Assets/VueLiveLink/texture_sampling_fields/xy/2ad83d8_31a7c446_normals.dds",
+        "payload_bytes": 1048576,
+        "random_samples": 100000,
+        "mean_angular_error_degrees": 0.015720097348093987,
+        "p99_angular_error_degrees": 0.14681410789489746,
+        "max_angular_error_degrees": 1.3203564882278442
+      },
+      "octa": {
+        "path": "Assets/VueLiveLink/texture_sampling_fields/octa/2ad83d8_31a7c446_normals.dds",
+        "payload_bytes": 1048576,
+        "random_samples": 100000,
+        "mean_angular_error_degrees": 0.02111775614321232,
+        "p99_angular_error_degrees": 0.3377936780452728,
+        "max_angular_error_degrees": 4.83096170425415
+      }
+    }
+  },
+  {
+    "original": "Assets/VueLiveLink/terrains/82b2e8c01b5c41e99883138b20d758d0/3445e7a6_395c14b3/b/terrain_normals.dds",
+    "size": [
+      128,
+      128
+    ],
+    "original_payload_bytes": 131072,
+    "representations": {
+      "xy": {
+        "path": "Assets/VueLiveLink/texture_sampling_fields/xy/3445e7a6_395c14b3_normals.dds",
+        "payload_bytes": 65536,
+        "random_samples": 100000,
+        "mean_angular_error_degrees": 0.003972685430198908,
+        "p99_angular_error_degrees": 0.09008565545082092,
+        "max_angular_error_degrees": 0.5627279877662659
+      },
+      "octa": {
+        "path": "Assets/VueLiveLink/texture_sampling_fields/octa/3445e7a6_395c14b3_normals.dds",
+        "payload_bytes": 65536,
+        "random_samples": 100000,
+        "mean_angular_error_degrees": 0.011700025759637356,
+        "p99_angular_error_degrees": 0.2229412943124771,
+        "max_angular_error_degrees": 2.874325752258301
+      }
+    }
+  }
+]

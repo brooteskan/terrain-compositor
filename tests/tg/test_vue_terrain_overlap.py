@@ -40,6 +40,56 @@ def adaptive_raw(complete=True):
 
 
 class VueTerrainOverlapTests(unittest.TestCase):
+    def test_optimized_default_leaves_frozen_contributor_rejection_unkeyed(self):
+        # Default adoption must not depend on a frozen terrain publication.
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            folder = project/'Assets/VueLiveLink'
+            folder.mkdir(parents=True)
+            (folder/'VueTerrainMesh.materialtype').write_bytes(
+                (PROJECT/'Assets/VueLiveLink/VueTerrainMesh.materialtype').read_bytes())
+            overlap.install_material_layout(project)
+            layout = json.loads((folder/'VueTerrainOverlap.materialtype').read_text())
+            group = next(g for g in layout['propertyLayout']['propertyGroups'] if g.get('name') == 'contributorSelection')
+            props = {p['name']:p for p in group['properties']}
+            self.assertIs(props['enabled']['defaultValue'], True)
+            self.assertEqual(props['enabled']['connection'],
+                {'type':'ShaderOption', 'name':'o_terrainContributorTiles'})
+            self.assertEqual(props['key']['defaultValue'], 0)
+            self.assertEqual(props['key']['connection'],
+                {'type':'ShaderInput', 'name':'m_vueContributorKey'})
+
+    def test_normal_quality_control_and_runtime_assets_ship_together(self):
+        canonical = Path(__file__).resolve().parents[2]/'integrations/tg/project'
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            folder = project/'Assets/VueLiveLink'
+            folder.mkdir(parents=True)
+            (folder/'VueTerrainMesh.materialtype').write_bytes(
+                (PROJECT/'Assets/VueLiveLink/VueTerrainMesh.materialtype').read_bytes())
+            overlap.install_material_layout(project)
+            layout = json.loads((folder/'VueTerrainOverlap.materialtype').read_text())
+        groups = layout['propertyLayout']['propertyGroups']
+        quality = next(g for g in groups if g.get('name') == 'contributorSelection')
+        detail = next(p for p in quality['properties'] if p['name'] == 'detailNormals')
+        self.assertIs(detail['defaultValue'], False)
+        self.assertEqual(detail['connection'],
+            {'type':'ShaderOption', 'name':'o_terrainDetailNormalMaps'})
+        self.assertIn({'$import':'VueTerrainNormalPropertyGroup.json'}, groups)
+        self.assertIn({'type':'Lua', 'args':{'file':'Assets/VueLiveLink/VueTerrainNormalPolicy.lua'}},
+            layout['functors'])
+        normal = json.loads((canonical/'Assets/VueLiveLink/VueTerrainNormalPropertyGroup.json').read_text())
+        self.assertNotIn('functors', normal)  # Exactly one owner of o_normal_useTexture.
+        props = {p['name']:p for p in normal['properties']}
+        self.assertIs(props['useTexture']['defaultValue'], True)
+        self.assertEqual(props['textureMap']['connection'],
+            {'type':'ShaderInput', 'name':'m_normalMap'})
+        manifest = json.loads((canonical.parent/'manifest.json').read_text())
+        for rel in ('Assets/VueLiveLink/VueTerrainNormalPropertyGroup.json',
+                    'Assets/VueLiveLink/VueTerrainNormalPolicy.lua'):
+            entry = next(e for e in manifest['files'] if e['path'] == rel)
+            self.assertEqual((canonical.parent/entry['source']).read_bytes(), (PROJECT/rel).read_bytes())
+
     def test_generated_layout_specializes_published_count_and_precision(self):
         # Exercise the generator, rather than a second hand-maintained layout.
         with tempfile.TemporaryDirectory() as directory:

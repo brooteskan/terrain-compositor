@@ -1,0 +1,26 @@
+{
+  "disabled": [
+    {
+      "type": "Sky Atmosphere",
+      "disabled": 1
+    },
+    {
+      "type": "HDRI Sky",
+      "disabled": 1
+    },
+    {
+      "type": "Finite Cloud Volume",
+      "disabled": 2
+    },
+    {
+      "type": "Fog",
+      "disabled": 0
+    },
+    {
+      "type": "Volumetric Fog",
+      "disabled": 0
+    }
+  ],
+  "aerial_controls": 1,
+  "restored": true
+}

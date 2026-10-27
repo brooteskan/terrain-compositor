@@ -1,0 +1,368 @@
+{
+  "passed": true,
+  "restoration": {
+    "camera": true,
+    "entity_visibility": true,
+    "mesh_visibility": true,
+    "material_bindings": true,
+    "height_precision": true,
+    "level_file": true
+  },
+  "rows": [
+    {
+      "name": "complete",
+      "gpu_ms": 39.402,
+      "cpu_ms": 39.873,
+      "local_memory_bytes": 1817538560,
+      "enabled_pipeline_ms": 39.2445,
+      "versus_complete": {
+        "changed_pixels": 0,
+        "max_rgb_difference": 0,
+        "pixels_over_one": 0,
+        "compared_pixels": 701014
+      }
+    },
+    {
+      "name": "default",
+      "gpu_ms": 26.192500000000003,
+      "cpu_ms": 26.612,
+      "local_memory_bytes": 1817538560,
+      "enabled_pipeline_ms": 26.200499999999998,
+      "versus_complete": {
+        "changed_pixels": 0,
+        "max_rgb_difference": 0,
+        "pixels_over_one": 0,
+        "compared_pixels": 701014
+      }
+    },
+    {
+      "name": "color-first",
+      "gpu_ms": 26.2105,
+      "cpu_ms": 26.617,
+      "local_memory_bytes": 1817538560,
+      "enabled_pipeline_ms": 26.231499999999997,
+      "versus_complete": {
+        "changed_pixels": 0,
+        "max_rgb_difference": 0,
+        "pixels_over_one": 0,
+        "compared_pixels": 701014
+      }
+    },
+    {
+      "name": "normal-last",
+      "gpu_ms": 26.1995,
+      "cpu_ms": 26.573,
+      "local_memory_bytes": 1817538560,
+      "enabled_pipeline_ms": 26.2125,
+      "versus_complete": {
+        "changed_pixels": 0,
+        "max_rgb_difference": 0,
+        "pixels_over_one": 0,
+        "compared_pixels": 701014
+      }
+    },
+    {
+      "name": "late-base",
+      "gpu_ms": 26.5345,
+      "cpu_ms": 26.95,
+      "local_memory_bytes": 1817538560,
+      "enabled_pipeline_ms": 26.261,
+      "versus_complete": {
+        "changed_pixels": 0,
+        "max_rgb_difference": 0,
+        "pixels_over_one": 0,
+        "compared_pixels": 701014
+      }
+    },
+    {
+      "name": "default-repeat",
+      "gpu_ms": 26.235500000000002,
+      "cpu_ms": 26.783,
+      "local_memory_bytes": 1817538560,
+      "enabled_pipeline_ms": 26.243000000000002,
+      "versus_complete": {
+        "changed_pixels": 0,
+        "max_rgb_difference": 0,
+        "pixels_over_one": 0,
+        "compared_pixels": 701014
+      }
+    },
+    {
+      "name": "late-base-repeat",
+      "gpu_ms": 26.241500000000002,
+      "cpu_ms": 26.665,
+      "local_memory_bytes": 1817538560,
+      "enabled_pipeline_ms": 27.738500000000002,
+      "versus_complete": {
+        "changed_pixels": 0,
+        "max_rgb_difference": 0,
+        "pixels_over_one": 0,
+        "compared_pixels": 701014
+      }
+    },
+    {
+      "name": "normal-last-repeat",
+      "gpu_ms": 27.7885,
+      "cpu_ms": 28.133,
+      "local_memory_bytes": 1817538560,
+      "enabled_pipeline_ms": 27.862000000000002,
+      "versus_complete": {
+        "changed_pixels": 0,
+        "max_rgb_difference": 0,
+        "pixels_over_one": 0,
+        "compared_pixels": 701014
+      }
+    },
+    {
+      "name": "color-first-repeat",
+      "gpu_ms": 28.667,
+      "cpu_ms": 29.045,
+      "local_memory_bytes": 1817538560,
+      "enabled_pipeline_ms": 28.9075,
+      "versus_complete": {
+        "changed_pixels": 0,
+        "max_rgb_difference": 0,
+        "pixels_over_one": 0,
+        "compared_pixels": 701014
+      }
+    },
+    {
+      "name": "default-final",
+      "gpu_ms": 28.85,
+      "cpu_ms": 29.15,
+      "local_memory_bytes": 1817538560,
+      "enabled_pipeline_ms": 28.704500000000003,
+      "versus_complete": {
+        "changed_pixels": 0,
+        "max_rgb_difference": 0,
+        "pixels_over_one": 0,
+        "compared_pixels": 701014
+      }
+    },
+    {
+      "name": "complete-final",
+      "gpu_ms": 41.917,
+      "cpu_ms": 42.224,
+      "local_memory_bytes": 1817538560,
+      "enabled_pipeline_ms": 41.8445,
+      "versus_complete": {
+        "changed_pixels": 0,
+        "max_rgb_difference": 0,
+        "pixels_over_one": 0,
+        "compared_pixels": 701014
+      }
+    }
+  ],
+  "environment": {
+    "disabled": [
+      {
+        "type": "Sky Atmosphere",
+        "disabled": 1
+      },
+      {
+        "type": "HDRI Sky",
+        "disabled": 1
+      },
+      {
+        "type": "Finite Cloud Volume",
+        "disabled": 2
+      },
+      {
+        "type": "Fog",
+        "disabled": 0
+      },
+      {
+        "type": "Volumetric Fog",
+        "disabled": 0
+      }
+    ],
+    "aerial_controls": 1,
+    "restored": true
+  },
+  "capture_directory": "D:\\diversion\\TG\\TGProject\\user\\TerrainSceneProfile\\20261024-live-data",
+  "groups": {
+    "complete": {
+      "label": "Original fallback",
+      "gpu_ms": 40.6595,
+      "gpu_case_median_min": 39.402,
+      "gpu_case_median_max": 41.917,
+      "cpu_ms": 41.0485,
+      "max_changed_pixels": 0,
+      "resident_mib": [
+        1733.33984375
+      ],
+      "gpu_change_vs_default_percent": 54.97894074822282
+    },
+    "default": {
+      "label": "Faster default",
+      "gpu_ms": 26.235500000000002,
+      "gpu_case_median_min": 26.192500000000003,
+      "gpu_case_median_max": 28.85,
+      "cpu_ms": 26.783,
+      "max_changed_pixels": 0,
+      "resident_mib": [
+        1733.33984375
+      ],
+      "gpu_change_vs_default_percent": 0.0
+    },
+    "color-first": {
+      "label": "Color before normal frame",
+      "gpu_ms": 27.43875,
+      "gpu_case_median_min": 26.2105,
+      "gpu_case_median_max": 28.667,
+      "cpu_ms": 27.831000000000003,
+      "max_changed_pixels": 0,
+      "resident_mib": [
+        1733.33984375
+      ],
+      "gpu_change_vs_default_percent": 4.586342932286394
+    },
+    "normal-last": {
+      "label": "Normal frame last",
+      "gpu_ms": 26.994,
+      "gpu_case_median_min": 26.1995,
+      "gpu_case_median_max": 27.7885,
+      "cpu_ms": 27.353,
+      "max_changed_pixels": 0,
+      "resident_mib": [
+        1733.33984375
+      ],
+      "gpu_change_vs_default_percent": 2.8911208095900514
+    },
+    "late-base": {
+      "label": "Normal frame last and late surface",
+      "gpu_ms": 26.388,
+      "gpu_case_median_min": 26.241500000000002,
+      "gpu_case_median_max": 26.5345,
+      "cpu_ms": 26.807499999999997,
+      "max_changed_pixels": 0,
+      "resident_mib": [
+        1733.33984375
+      ],
+      "gpu_change_vs_default_percent": 0.5812734653427601
+    }
+  },
+  "native_probes": [
+    {
+      "case": "original",
+      "sample_calls": 289,
+      "DEVICE": "gfx90c",
+      "SCRATCH_MEM": "560",
+      "THREADS_PER_WORKGROUP": "0",
+      "WAVEFRONT_SIZE": "0",
+      "AVAILABLE_LDS_BYTES": "65536",
+      "USED_LDS_BYTES": "N/A",
+      "AVAILABLE_SGPRs": "102",
+      "USED_SGPRs": "104",
+      "SGPR_SPILLS": "0",
+      "AVAILABLE_VGPRs": "256",
+      "USED_VGPRs": "256",
+      "VGPR_SPILLS": "0",
+      "CL_WORKGROUP_X_DIMENSION": "0",
+      "CL_WORKGROUP_Y_DIMENSION": "0",
+      "CL_WORKGROUP_Z_DIMENSION": "0",
+      "ISA_SIZE": "94392"
+    },
+    {
+      "case": "default",
+      "sample_calls": 289,
+      "DEVICE": "gfx90c",
+      "SCRATCH_MEM": "1584",
+      "THREADS_PER_WORKGROUP": "0",
+      "WAVEFRONT_SIZE": "0",
+      "AVAILABLE_LDS_BYTES": "65536",
+      "USED_LDS_BYTES": "N/A",
+      "AVAILABLE_SGPRs": "102",
+      "USED_SGPRs": "104",
+      "SGPR_SPILLS": "0",
+      "AVAILABLE_VGPRs": "256",
+      "USED_VGPRs": "195",
+      "VGPR_SPILLS": "0",
+      "CL_WORKGROUP_X_DIMENSION": "0",
+      "CL_WORKGROUP_Y_DIMENSION": "0",
+      "CL_WORKGROUP_Z_DIMENSION": "0",
+      "ISA_SIZE": "95160"
+    },
+    {
+      "case": "color-first",
+      "sample_calls": 289,
+      "DEVICE": "gfx90c",
+      "SCRATCH_MEM": "1632",
+      "THREADS_PER_WORKGROUP": "0",
+      "WAVEFRONT_SIZE": "0",
+      "AVAILABLE_LDS_BYTES": "65536",
+      "USED_LDS_BYTES": "N/A",
+      "AVAILABLE_SGPRs": "102",
+      "USED_SGPRs": "104",
+      "SGPR_SPILLS": "0",
+      "AVAILABLE_VGPRs": "256",
+      "USED_VGPRs": "188",
+      "VGPR_SPILLS": "0",
+      "CL_WORKGROUP_X_DIMENSION": "0",
+      "CL_WORKGROUP_Y_DIMENSION": "0",
+      "CL_WORKGROUP_Z_DIMENSION": "0",
+      "ISA_SIZE": "95288"
+    },
+    {
+      "case": "normal-last",
+      "sample_calls": 289,
+      "DEVICE": "gfx90c",
+      "SCRATCH_MEM": "1584",
+      "THREADS_PER_WORKGROUP": "0",
+      "WAVEFRONT_SIZE": "0",
+      "AVAILABLE_LDS_BYTES": "65536",
+      "USED_LDS_BYTES": "N/A",
+      "AVAILABLE_SGPRs": "102",
+      "USED_SGPRs": "104",
+      "SGPR_SPILLS": "0",
+      "AVAILABLE_VGPRs": "256",
+      "USED_VGPRs": "195",
+      "VGPR_SPILLS": "0",
+      "CL_WORKGROUP_X_DIMENSION": "0",
+      "CL_WORKGROUP_Y_DIMENSION": "0",
+      "CL_WORKGROUP_Z_DIMENSION": "0",
+      "ISA_SIZE": "95192"
+    },
+    {
+      "case": "late-base",
+      "sample_calls": 289,
+      "DEVICE": "gfx90c",
+      "SCRATCH_MEM": "1632",
+      "THREADS_PER_WORKGROUP": "0",
+      "WAVEFRONT_SIZE": "0",
+      "AVAILABLE_LDS_BYTES": "65536",
+      "USED_LDS_BYTES": "N/A",
+      "AVAILABLE_SGPRs": "102",
+      "USED_SGPRs": "104",
+      "SGPR_SPILLS": "0",
+      "AVAILABLE_VGPRs": "256",
+      "USED_VGPRs": "177",
+      "VGPR_SPILLS": "0",
+      "CL_WORKGROUP_X_DIMENSION": "0",
+      "CL_WORKGROUP_Y_DIMENSION": "0",
+      "CL_WORKGROUP_Z_DIMENSION": "0",
+      "ISA_SIZE": "95160"
+    }
+  ],
+  "native_probe_limitation": "Controlled offline source probes, not a live driver PSO dump; unrelated renderer/material options remain volatile.",
+  "appearance_vs_previous_default": {
+    "changed_pixels": 0,
+    "max_rgb_difference": 0,
+    "pixels_over_one": 0,
+    "compared_pixels": 701014
+  },
+  "saved_level_sha256": "faec5fd3f9b69643b918af3a917623776d31bf7cc962485cfba712313a36a922",
+  "source_restoration": {
+    "canonical/Assets/VueLiveLink/VueTerrainOverlap.azsli": true,
+    "canonical/Assets/VueLiveLink/VueTerrainOverlap.materialtype": true,
+    "canonical/Gem/Source/Editor/VueLiveLink/terrain_overlap.py": true,
+    "consumer/Assets/VueLiveLink/VueTerrainOverlap.azsli": true,
+    "consumer/Assets/VueLiveLink/VueTerrainOverlap.materialtype": true,
+    "consumer/Gem/Source/Editor/VueLiveLink/terrain_overlap.py": true
+  },
+  "default_retained": "All three changed source files and manifest restored byte-for-byte to the pre-experiment faster-default version. Original fallback remains available.",
+  "focused_overlap_tests_passed": 14,
+  "delivery_pending": [],
+  "diff_check_passed": true,
+  "decision": "No lifetime variant adopted: no demonstrated repeatable GPU gain or resident-memory saving. Established faster default and original fallback restored byte-for-byte."
+}

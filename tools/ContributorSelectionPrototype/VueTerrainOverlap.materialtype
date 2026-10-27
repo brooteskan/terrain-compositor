@@ -1,0 +1,1444 @@
+{
+  "description": "Vue baked terrain with world-space clipping against the infinite ground plane.",
+  "functors": [
+    {
+      "args": {
+        "file": "Assets/VueLiveLink/VueTerrainMesh_State.lua"
+      },
+      "type": "Lua"
+    }
+  ],
+  "lightingModel": "Standard",
+  "materialShaderCode": "VueTerrainMesh.azsli",
+  "materialShaderDefines": "VueTerrainOverlap_Defines.azsli",
+  "propertyLayout": {
+    "propertyGroups": [
+      {
+        "$import": "@gemroot:Atom_Feature_Common@/Assets/Materials/Types/MaterialInputs/BaseColorPropertyGroup.json"
+      },
+      {
+        "$import": "@gemroot:Atom_Feature_Common@/Assets/Materials/Types/MaterialInputs/VertexColorPropertyGroup.json"
+      },
+      {
+        "$import": "@gemroot:Atom_Feature_Common@/Assets/Materials/Types/MaterialInputs/MetallicPropertyGroup.json"
+      },
+      {
+        "$import": "@gemroot:Atom_Feature_Common@/Assets/Materials/Types/MaterialInputs/RoughnessPropertyGroup.json"
+      },
+      {
+        "$import": "@gemroot:Atom_Feature_Common@/Assets/Materials/Types/MaterialInputs/SpecularPropertyGroup.json"
+      },
+      {
+        "$import": "@gemroot:Atom_Feature_Common@/Assets/Materials/Types/MaterialInputs/NormalPropertyGroup.json"
+      },
+      {
+        "$import": "@gemroot:Atom_Feature_Common@/Assets/Materials/Types/MaterialInputs/OcclusionPropertyGroup.json"
+      },
+      {
+        "$import": "@gemroot:Atom_Feature_Common@/Assets/Materials/Types/MaterialInputs/EmissivePropertyGroup.json"
+      },
+      {
+        "$import": "@gemroot:Atom_Feature_Common@/Assets/Materials/Types/MaterialInputs/ClearCoatPropertyGroup.json"
+      },
+      {
+        "$import": "@gemroot:Atom_Feature_Common@/Assets/Materials/Types/MaterialInputs/ParallaxPropertyGroup.json"
+      },
+      {
+        "$import": "@gemroot:Atom_Feature_Common@/Assets/Materials/Types/MaterialInputs/OpacityPropertyGroup.json"
+      },
+      {
+        "$import": "@gemroot:Atom_Feature_Common@/Assets/Materials/Types/MaterialInputs/UvPropertyGroup.json"
+      },
+      {
+        "$import": "@gemroot:Atom_Feature_Common@/Assets/Materials/Types/MaterialInputs/IrradiancePropertyGroup.json"
+      },
+      {
+        "$import": "@gemroot:Atom_Feature_Common@/Assets/Materials/Types/MaterialInputs/GeneralCommonPropertyGroup.json"
+      },
+      {
+        "$import": "@gemroot:Atom_Feature_Common@/Assets/Materials/Types/MaterialInputs/SilhouetteBlockerPropertyGroup.json"
+      },
+      {
+        "displayName": "Ground Contact",
+        "name": "groundContact",
+        "properties": [
+          {
+            "connection": {
+              "name": "m_vueGroundHeight",
+              "type": "ShaderInput"
+            },
+            "defaultValue": 0.0,
+            "description": "World Z of the flat infinite ground, in meters.",
+            "displayName": "Ground Height",
+            "name": "height",
+            "type": "Float"
+          },
+          {
+            "connection": {
+              "name": "m_vueGroundTolerance",
+              "type": "ShaderInput"
+            },
+            "defaultValue": 0.001,
+            "description": "Clip terrain at or below ground height plus this distance, in meters.",
+            "displayName": "Contact Tolerance",
+            "min": 0.0,
+            "name": "tolerance",
+            "type": "Float"
+          }
+        ]
+      },
+      {
+        "displayName": "Terrain Normal Smoothing",
+        "name": "normalSmoothing",
+        "properties": [
+          {
+            "connection": {
+              "name": "m_vueNormalField",
+              "type": "ShaderInput"
+            },
+            "description": "Generated during terrain baking; paired with Generated Grid Size. Read-only.",
+            "displayName": "Generated Normal Field",
+            "name": "field",
+            "type": "Image"
+          },
+          {
+            "connection": {
+              "name": "m_vueNormalGridSize",
+              "type": "ShaderInput"
+            },
+            "defaultValue": [
+              2,
+              2
+            ],
+            "description": "Actual sample count in the generated normal field, not a smoothing or resolution control. Read-only.",
+            "displayName": "Generated Grid Size",
+            "name": "gridSize",
+            "type": "Vector2"
+          },
+          {
+            "connection": {
+              "name": "m_vueNormalSmoothing",
+              "type": "ShaderInput"
+            },
+            "defaultValue": 0.0,
+            "description": "Bicubic terrain normals. Zero restores the original interpolated mesh normals; one uses the smooth field. Does not move geometry.",
+            "displayName": "Smoothing Strength",
+            "max": 1.0,
+            "min": 0.0,
+            "name": "strength",
+            "type": "Float"
+          }
+        ]
+      },
+      {
+        "$import": "VueResponsePropertyGroup.json"
+      },
+      {
+        "displayName": "Ground Material Transition",
+        "name": "groundBlend",
+        "properties": [
+          {
+            "connection": {
+              "name": "m_vueBlendHeight",
+              "type": "ShaderInput"
+            },
+            "defaultValue": 0.0,
+            "description": "World height above the clipped ground contact over which terrain fades into the ground material. Zero disables blending.",
+            "displayName": "Transition Height",
+            "min": 0.0,
+            "name": "height",
+            "type": "Float"
+          },
+          {
+            "connection": {
+              "name": "m_vueBlendColorTexture",
+              "type": "ShaderInput"
+            },
+            "displayName": "Ground Color Map",
+            "name": "colorTexture",
+            "type": "Image"
+          },
+          {
+            "connection": {
+              "name": "m_vueBlendNormalTexture",
+              "type": "ShaderInput"
+            },
+            "displayName": "Ground Normal Map",
+            "name": "normalTexture",
+            "type": "Image"
+          },
+          {
+            "connection": {
+              "name": "m_vueBlendTextureScale",
+              "type": "ShaderInput"
+            },
+            "defaultValue": 1000.0,
+            "displayName": "Ground Texture World Size",
+            "name": "textureScale",
+            "type": "Float"
+          },
+          {
+            "connection": {
+              "name": "m_vueBlendStochastic",
+              "type": "ShaderInput"
+            },
+            "defaultValue": true,
+            "displayName": "Ground Stochastic Tiling",
+            "name": "stochastic",
+            "type": "Bool"
+          },
+          {
+            "connection": {
+              "name": "m_vueBlendNormalStrength",
+              "type": "ShaderInput"
+            },
+            "defaultValue": 1.0,
+            "displayName": "Ground Normal Strength",
+            "name": "normalStrength",
+            "type": "Float"
+          },
+          {
+            "connection": {
+              "name": "m_vueBlendColorTint",
+              "type": "ShaderInput"
+            },
+            "defaultValue": [
+              1.0,
+              1.0,
+              1.0,
+              1.0
+            ],
+            "displayName": "Ground Color Tint",
+            "name": "colorTint",
+            "type": "Color"
+          },
+          {
+            "connection": {
+              "name": "m_vueBlendRoughness",
+              "type": "ShaderInput"
+            },
+            "defaultValue": 1.0,
+            "displayName": "Ground Roughness",
+            "name": "roughness",
+            "type": "Float"
+          },
+          {
+            "connection": {
+              "name": "m_vueBlendSpecularFactor",
+              "type": "ShaderInput"
+            },
+            "defaultValue": 0.5,
+            "displayName": "Ground Specular Factor",
+            "name": "specularFactor",
+            "type": "Float"
+          },
+          {
+            "connection": {
+              "name": "m_vueBlendAmbientOcclusion",
+              "type": "ShaderInput"
+            },
+            "defaultValue": 1.0,
+            "displayName": "Ground AO",
+            "name": "ambientOcclusion",
+            "type": "Float"
+          },
+          {
+            "connection": {
+              "name": "m_vueBlendDirectGain",
+              "type": "ShaderInput"
+            },
+            "defaultValue": 1,
+            "displayName": "Ground directGain",
+            "name": "directGain",
+            "type": "Float"
+          },
+          {
+            "connection": {
+              "name": "m_vueBlendAmbientGain",
+              "type": "ShaderInput"
+            },
+            "defaultValue": 1,
+            "displayName": "Ground ambientGain",
+            "name": "ambientGain",
+            "type": "Float"
+          },
+          {
+            "connection": {
+              "name": "m_vueBlendAlbedoScale",
+              "type": "ShaderInput"
+            },
+            "defaultValue": 1,
+            "displayName": "Ground albedoScale",
+            "name": "albedoScale",
+            "type": "Float"
+          },
+          {
+            "connection": {
+              "name": "m_vueBlendSpecularGain",
+              "type": "ShaderInput"
+            },
+            "defaultValue": 1,
+            "displayName": "Ground specularGain",
+            "name": "specularGain",
+            "type": "Float"
+          },
+          {
+            "connection": {
+              "name": "m_vueBlendContrast",
+              "type": "ShaderInput"
+            },
+            "defaultValue": 1,
+            "displayName": "Ground contrast",
+            "name": "contrast",
+            "type": "Float"
+          },
+          {
+            "connection": {
+              "name": "m_vueBlendBacklight",
+              "type": "ShaderInput"
+            },
+            "defaultValue": 0,
+            "displayName": "Ground backlight",
+            "name": "backlight",
+            "type": "Float"
+          }
+        ]
+      },
+      {
+        "displayName": "Terrain Overlap",
+        "name": "terrainOverlap",
+        "properties": [
+          {
+            "connection": {
+              "name": "m_vueOverlapWidth",
+              "type": "ShaderInput"
+            },
+            "defaultValue": 0.0,
+            "min": 0.0,
+            "name": "width",
+            "type": "Float"
+          },
+          {
+            "connection": {
+              "name": "o_terrainOverlapSourceCount",
+              "type": "ShaderOption"
+            },
+            "defaultValue": 0,
+            "max": 4,
+            "min": 0,
+            "name": "count",
+            "type": "UInt"
+          },
+          {
+            "connection": {
+              "name": "o_terrainHeightFp16",
+              "type": "ShaderOption"
+            },
+            "defaultValue": false,
+            "displayName": "16-bit Height Arithmetic",
+            "name": "heightFp16",
+            "type": "Bool"
+          },
+          {
+            "connection": {
+              "name": "o_terrainOverlapFixedHeightExtent",
+              "type": "ShaderOption"
+            },
+            "defaultValue": false,
+            "name": "fixedHeightExtent",
+            "type": "Bool"
+          }
+        ]
+      },
+      {
+        "displayName": "Overlap Pages (Prototype)",
+        "name": "overlapPages",
+        "properties": [
+          {
+            "connection": {
+              "name": "o_terrainOverlapPages",
+              "type": "ShaderOption"
+            },
+            "defaultValue": false,
+            "name": "enabled",
+            "type": "Bool"
+          },
+          {
+            "connection": {
+              "name": "m_vuePagesDebug",
+              "type": "ShaderInput"
+            },
+            "defaultValue": false,
+            "name": "debug",
+            "type": "Bool"
+          },
+          {
+            "connection": {
+              "name": "m_vuePagesLow",
+              "type": "ShaderInput"
+            },
+            "defaultValue": [
+              0.0,
+              0.0
+            ],
+            "name": "low",
+            "type": "Vector2"
+          },
+          {
+            "connection": {
+              "name": "m_vuePagesExtent",
+              "type": "ShaderInput"
+            },
+            "defaultValue": [
+              1.0,
+              1.0
+            ],
+            "name": "extent",
+            "type": "Vector2"
+          },
+          {
+            "connection": {
+              "name": "m_vuePagesSize",
+              "type": "ShaderInput"
+            },
+            "defaultValue": 1024.0,
+            "name": "size",
+            "type": "Float"
+          },
+          {
+            "connection": {
+              "name": "m_vuePagesChannel0",
+              "type": "ShaderInput"
+            },
+            "name": "channel0",
+            "type": "Image"
+          },
+          {
+            "connection": {
+              "name": "m_vuePagesChannel1",
+              "type": "ShaderInput"
+            },
+            "name": "channel1",
+            "type": "Image"
+          },
+          {
+            "connection": {
+              "name": "m_vuePagesChannel2",
+              "type": "ShaderInput"
+            },
+            "name": "channel2",
+            "type": "Image"
+          },
+          {
+            "connection": {
+              "name": "m_vuePagesChannel3",
+              "type": "ShaderInput"
+            },
+            "name": "channel3",
+            "type": "Image"
+          }
+        ]
+      },
+      {
+        "displayName": "Contributor Controls (Experiment)",
+        "name": "contributorSelection",
+        "properties": [
+          {
+            "connection": {
+              "name": "o_terrainContributorControl",
+              "type": "ShaderOption"
+            },
+            "defaultValue": 0,
+            "max": 4,
+            "min": 0,
+            "name": "mode",
+            "type": "UInt"
+          },
+          {
+            "connection": {
+              "name": "m_vueContributorKey",
+              "type": "ShaderInput"
+            },
+            "defaultValue": 0,
+            "name": "key",
+            "type": "UInt"
+          }
+        ]
+      },
+      {
+        "displayName": "Overlap Source 1",
+        "name": "overlapSource0",
+        "properties": [
+          {
+            "connection": {
+              "name": "m_vueOverlap0_heightMap",
+              "type": "ShaderInput"
+            },
+            "name": "heightMap",
+            "type": "Image"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap0_colorMap",
+              "type": "ShaderInput"
+            },
+            "name": "colorMap",
+            "type": "Image"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap0_normalMap",
+              "type": "ShaderInput"
+            },
+            "name": "normalMap",
+            "type": "Image"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap0_normalField",
+              "type": "ShaderInput"
+            },
+            "name": "normalField",
+            "type": "Image"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap0_specularMap",
+              "type": "ShaderInput"
+            },
+            "name": "specularMap",
+            "type": "Image"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap0_occlusionMap",
+              "type": "ShaderInput"
+            },
+            "name": "occlusionMap",
+            "type": "Image"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap0_uvRow0",
+              "type": "ShaderInput"
+            },
+            "defaultValue": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "name": "uvRow0",
+            "type": "Vector3"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap0_uvRow1",
+              "type": "ShaderInput"
+            },
+            "defaultValue": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "name": "uvRow1",
+            "type": "Vector3"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap0_heightScaleOffset",
+              "type": "ShaderInput"
+            },
+            "defaultValue": [
+              1.0,
+              0.0
+            ],
+            "name": "heightScaleOffset",
+            "type": "Vector2"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap0_gridSize",
+              "type": "ShaderInput"
+            },
+            "defaultValue": [
+              2.0,
+              2.0
+            ],
+            "name": "gridSize",
+            "type": "Vector2"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap0_normalRow0",
+              "type": "ShaderInput"
+            },
+            "defaultValue": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "name": "normalRow0",
+            "type": "Vector3"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap0_normalRow1",
+              "type": "ShaderInput"
+            },
+            "defaultValue": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "name": "normalRow1",
+            "type": "Vector3"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap0_normalRow2",
+              "type": "ShaderInput"
+            },
+            "defaultValue": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "name": "normalRow2",
+            "type": "Vector3"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap0_tangent",
+              "type": "ShaderInput"
+            },
+            "defaultValue": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "name": "tangent",
+            "type": "Vector3"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap0_color",
+              "type": "ShaderInput"
+            },
+            "defaultValue": [
+              1.0,
+              1.0,
+              1.0,
+              1.0
+            ],
+            "name": "color",
+            "type": "Color"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap0_colorFactor",
+              "type": "ShaderInput"
+            },
+            "defaultValue": 1.0,
+            "name": "colorFactor",
+            "type": "Float"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap0_roughness",
+              "type": "ShaderInput"
+            },
+            "defaultValue": 0.5,
+            "name": "roughness",
+            "type": "Float"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap0_metallic",
+              "type": "ShaderInput"
+            },
+            "defaultValue": 0.0,
+            "name": "metallic",
+            "type": "Float"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap0_specular",
+              "type": "ShaderInput"
+            },
+            "defaultValue": 0.5,
+            "name": "specular",
+            "type": "Float"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap0_normalStrength",
+              "type": "ShaderInput"
+            },
+            "defaultValue": 1.0,
+            "name": "normalStrength",
+            "type": "Float"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap0_occlusion",
+              "type": "ShaderInput"
+            },
+            "defaultValue": 1.0,
+            "name": "occlusion",
+            "type": "Float"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap0_smooth",
+              "type": "ShaderInput"
+            },
+            "defaultValue": 1.0,
+            "name": "smooth",
+            "type": "Float"
+          }
+        ]
+      },
+      {
+        "displayName": "Overlap Source 2",
+        "name": "overlapSource1",
+        "properties": [
+          {
+            "connection": {
+              "name": "m_vueOverlap1_heightMap",
+              "type": "ShaderInput"
+            },
+            "name": "heightMap",
+            "type": "Image"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap1_colorMap",
+              "type": "ShaderInput"
+            },
+            "name": "colorMap",
+            "type": "Image"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap1_normalMap",
+              "type": "ShaderInput"
+            },
+            "name": "normalMap",
+            "type": "Image"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap1_normalField",
+              "type": "ShaderInput"
+            },
+            "name": "normalField",
+            "type": "Image"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap1_specularMap",
+              "type": "ShaderInput"
+            },
+            "name": "specularMap",
+            "type": "Image"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap1_occlusionMap",
+              "type": "ShaderInput"
+            },
+            "name": "occlusionMap",
+            "type": "Image"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap1_uvRow0",
+              "type": "ShaderInput"
+            },
+            "defaultValue": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "name": "uvRow0",
+            "type": "Vector3"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap1_uvRow1",
+              "type": "ShaderInput"
+            },
+            "defaultValue": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "name": "uvRow1",
+            "type": "Vector3"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap1_heightScaleOffset",
+              "type": "ShaderInput"
+            },
+            "defaultValue": [
+              1.0,
+              0.0
+            ],
+            "name": "heightScaleOffset",
+            "type": "Vector2"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap1_gridSize",
+              "type": "ShaderInput"
+            },
+            "defaultValue": [
+              2.0,
+              2.0
+            ],
+            "name": "gridSize",
+            "type": "Vector2"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap1_normalRow0",
+              "type": "ShaderInput"
+            },
+            "defaultValue": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "name": "normalRow0",
+            "type": "Vector3"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap1_normalRow1",
+              "type": "ShaderInput"
+            },
+            "defaultValue": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "name": "normalRow1",
+            "type": "Vector3"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap1_normalRow2",
+              "type": "ShaderInput"
+            },
+            "defaultValue": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "name": "normalRow2",
+            "type": "Vector3"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap1_tangent",
+              "type": "ShaderInput"
+            },
+            "defaultValue": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "name": "tangent",
+            "type": "Vector3"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap1_color",
+              "type": "ShaderInput"
+            },
+            "defaultValue": [
+              1.0,
+              1.0,
+              1.0,
+              1.0
+            ],
+            "name": "color",
+            "type": "Color"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap1_colorFactor",
+              "type": "ShaderInput"
+            },
+            "defaultValue": 1.0,
+            "name": "colorFactor",
+            "type": "Float"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap1_roughness",
+              "type": "ShaderInput"
+            },
+            "defaultValue": 0.5,
+            "name": "roughness",
+            "type": "Float"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap1_metallic",
+              "type": "ShaderInput"
+            },
+            "defaultValue": 0.0,
+            "name": "metallic",
+            "type": "Float"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap1_specular",
+              "type": "ShaderInput"
+            },
+            "defaultValue": 0.5,
+            "name": "specular",
+            "type": "Float"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap1_normalStrength",
+              "type": "ShaderInput"
+            },
+            "defaultValue": 1.0,
+            "name": "normalStrength",
+            "type": "Float"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap1_occlusion",
+              "type": "ShaderInput"
+            },
+            "defaultValue": 1.0,
+            "name": "occlusion",
+            "type": "Float"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap1_smooth",
+              "type": "ShaderInput"
+            },
+            "defaultValue": 1.0,
+            "name": "smooth",
+            "type": "Float"
+          }
+        ]
+      },
+      {
+        "displayName": "Overlap Source 3",
+        "name": "overlapSource2",
+        "properties": [
+          {
+            "connection": {
+              "name": "m_vueOverlap2_heightMap",
+              "type": "ShaderInput"
+            },
+            "name": "heightMap",
+            "type": "Image"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap2_colorMap",
+              "type": "ShaderInput"
+            },
+            "name": "colorMap",
+            "type": "Image"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap2_normalMap",
+              "type": "ShaderInput"
+            },
+            "name": "normalMap",
+            "type": "Image"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap2_normalField",
+              "type": "ShaderInput"
+            },
+            "name": "normalField",
+            "type": "Image"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap2_specularMap",
+              "type": "ShaderInput"
+            },
+            "name": "specularMap",
+            "type": "Image"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap2_occlusionMap",
+              "type": "ShaderInput"
+            },
+            "name": "occlusionMap",
+            "type": "Image"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap2_uvRow0",
+              "type": "ShaderInput"
+            },
+            "defaultValue": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "name": "uvRow0",
+            "type": "Vector3"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap2_uvRow1",
+              "type": "ShaderInput"
+            },
+            "defaultValue": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "name": "uvRow1",
+            "type": "Vector3"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap2_heightScaleOffset",
+              "type": "ShaderInput"
+            },
+            "defaultValue": [
+              1.0,
+              0.0
+            ],
+            "name": "heightScaleOffset",
+            "type": "Vector2"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap2_gridSize",
+              "type": "ShaderInput"
+            },
+            "defaultValue": [
+              2.0,
+              2.0
+            ],
+            "name": "gridSize",
+            "type": "Vector2"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap2_normalRow0",
+              "type": "ShaderInput"
+            },
+            "defaultValue": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "name": "normalRow0",
+            "type": "Vector3"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap2_normalRow1",
+              "type": "ShaderInput"
+            },
+            "defaultValue": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "name": "normalRow1",
+            "type": "Vector3"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap2_normalRow2",
+              "type": "ShaderInput"
+            },
+            "defaultValue": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "name": "normalRow2",
+            "type": "Vector3"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap2_tangent",
+              "type": "ShaderInput"
+            },
+            "defaultValue": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "name": "tangent",
+            "type": "Vector3"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap2_color",
+              "type": "ShaderInput"
+            },
+            "defaultValue": [
+              1.0,
+              1.0,
+              1.0,
+              1.0
+            ],
+            "name": "color",
+            "type": "Color"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap2_colorFactor",
+              "type": "ShaderInput"
+            },
+            "defaultValue": 1.0,
+            "name": "colorFactor",
+            "type": "Float"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap2_roughness",
+              "type": "ShaderInput"
+            },
+            "defaultValue": 0.5,
+            "name": "roughness",
+            "type": "Float"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap2_metallic",
+              "type": "ShaderInput"
+            },
+            "defaultValue": 0.0,
+            "name": "metallic",
+            "type": "Float"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap2_specular",
+              "type": "ShaderInput"
+            },
+            "defaultValue": 0.5,
+            "name": "specular",
+            "type": "Float"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap2_normalStrength",
+              "type": "ShaderInput"
+            },
+            "defaultValue": 1.0,
+            "name": "normalStrength",
+            "type": "Float"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap2_occlusion",
+              "type": "ShaderInput"
+            },
+            "defaultValue": 1.0,
+            "name": "occlusion",
+            "type": "Float"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap2_smooth",
+              "type": "ShaderInput"
+            },
+            "defaultValue": 1.0,
+            "name": "smooth",
+            "type": "Float"
+          }
+        ]
+      },
+      {
+        "displayName": "Overlap Source 4",
+        "name": "overlapSource3",
+        "properties": [
+          {
+            "connection": {
+              "name": "m_vueOverlap3_heightMap",
+              "type": "ShaderInput"
+            },
+            "name": "heightMap",
+            "type": "Image"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap3_colorMap",
+              "type": "ShaderInput"
+            },
+            "name": "colorMap",
+            "type": "Image"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap3_normalMap",
+              "type": "ShaderInput"
+            },
+            "name": "normalMap",
+            "type": "Image"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap3_normalField",
+              "type": "ShaderInput"
+            },
+            "name": "normalField",
+            "type": "Image"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap3_specularMap",
+              "type": "ShaderInput"
+            },
+            "name": "specularMap",
+            "type": "Image"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap3_occlusionMap",
+              "type": "ShaderInput"
+            },
+            "name": "occlusionMap",
+            "type": "Image"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap3_uvRow0",
+              "type": "ShaderInput"
+            },
+            "defaultValue": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "name": "uvRow0",
+            "type": "Vector3"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap3_uvRow1",
+              "type": "ShaderInput"
+            },
+            "defaultValue": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "name": "uvRow1",
+            "type": "Vector3"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap3_heightScaleOffset",
+              "type": "ShaderInput"
+            },
+            "defaultValue": [
+              1.0,
+              0.0
+            ],
+            "name": "heightScaleOffset",
+            "type": "Vector2"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap3_gridSize",
+              "type": "ShaderInput"
+            },
+            "defaultValue": [
+              2.0,
+              2.0
+            ],
+            "name": "gridSize",
+            "type": "Vector2"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap3_normalRow0",
+              "type": "ShaderInput"
+            },
+            "defaultValue": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "name": "normalRow0",
+            "type": "Vector3"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap3_normalRow1",
+              "type": "ShaderInput"
+            },
+            "defaultValue": [
+              0.0,
+              1.0,
+              0.0
+            ],
+            "name": "normalRow1",
+            "type": "Vector3"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap3_normalRow2",
+              "type": "ShaderInput"
+            },
+            "defaultValue": [
+              0.0,
+              0.0,
+              1.0
+            ],
+            "name": "normalRow2",
+            "type": "Vector3"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap3_tangent",
+              "type": "ShaderInput"
+            },
+            "defaultValue": [
+              1.0,
+              0.0,
+              0.0
+            ],
+            "name": "tangent",
+            "type": "Vector3"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap3_color",
+              "type": "ShaderInput"
+            },
+            "defaultValue": [
+              1.0,
+              1.0,
+              1.0,
+              1.0
+            ],
+            "name": "color",
+            "type": "Color"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap3_colorFactor",
+              "type": "ShaderInput"
+            },
+            "defaultValue": 1.0,
+            "name": "colorFactor",
+            "type": "Float"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap3_roughness",
+              "type": "ShaderInput"
+            },
+            "defaultValue": 0.5,
+            "name": "roughness",
+            "type": "Float"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap3_metallic",
+              "type": "ShaderInput"
+            },
+            "defaultValue": 0.0,
+            "name": "metallic",
+            "type": "Float"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap3_specular",
+              "type": "ShaderInput"
+            },
+            "defaultValue": 0.5,
+            "name": "specular",
+            "type": "Float"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap3_normalStrength",
+              "type": "ShaderInput"
+            },
+            "defaultValue": 1.0,
+            "name": "normalStrength",
+            "type": "Float"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap3_occlusion",
+              "type": "ShaderInput"
+            },
+            "defaultValue": 1.0,
+            "name": "occlusion",
+            "type": "Float"
+          },
+          {
+            "connection": {
+              "name": "m_vueOverlap3_smooth",
+              "type": "ShaderInput"
+            },
+            "defaultValue": 1.0,
+            "name": "smooth",
+            "type": "Float"
+          }
+        ]
+      }
+    ]
+  },
+  "uvNameMap": {
+    "UV0": "Tiled",
+    "UV1": "Unwrapped"
+  },
+  "version": 2,
+  "versionUpdates": [
+    {
+      "actions": [
+        {
+          "name": "vueResponse.directGain",
+          "op": "setValue",
+          "value": 1.0
+        },
+        {
+          "name": "vueResponse.ambientGain",
+          "op": "setValue",
+          "value": 1.0
+        },
+        {
+          "name": "vueResponse.contrast",
+          "op": "setValue",
+          "value": 1.0
+        },
+        {
+          "name": "vueResponse.backlight",
+          "op": "setValue",
+          "value": 0.0
+        },
+        {
+          "name": "vueResponse.albedoScale",
+          "op": "setValue",
+          "value": 1.0
+        },
+        {
+          "name": "vueResponse.specularGain",
+          "op": "setValue",
+          "value": 1.0
+        }
+      ],
+      "toVersion": 2
+    }
+  ]
+}

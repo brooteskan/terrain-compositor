@@ -1,0 +1,1407 @@
+{
+  "cause": {
+    "capture_directory": "D:\\diversion\\TG\\TGProject\\user\\TerrainSceneProfile\\20261024-lookup-cause",
+    "passed": true,
+    "restoration": {
+      "camera": true,
+      "entity_visibility": true,
+      "mesh_visibility": true,
+      "material_bindings": true,
+      "height_precision": true,
+      "level_file": true
+    },
+    "rows": [
+      {
+        "name": "complete",
+        "gpu_ms": 39.222,
+        "cpu_ms": 39.724,
+        "local_memory_bytes": 1790799872,
+        "enabled_pipeline_ms": 39.248,
+        "versus_complete": {
+          "changed_pixels": 0,
+          "max_rgb_difference": 0,
+          "pixels_over_one": 0,
+          "compared_pixels": 701014
+        }
+      },
+      {
+        "name": "tiny",
+        "gpu_ms": 39.499,
+        "cpu_ms": 40.054,
+        "local_memory_bytes": 1790799872,
+        "enabled_pipeline_ms": 39.4875,
+        "versus_complete": {
+          "changed_pixels": 0,
+          "max_rgb_difference": 0,
+          "pixels_over_one": 0,
+          "compared_pixels": 701014
+        }
+      },
+      {
+        "name": "branch",
+        "gpu_ms": 39.319,
+        "cpu_ms": 39.787,
+        "local_memory_bytes": 1790799872,
+        "enabled_pipeline_ms": 39.319,
+        "versus_complete": {
+          "changed_pixels": 0,
+          "max_rgb_difference": 0,
+          "pixels_over_one": 0,
+          "compared_pixels": 701014
+        }
+      },
+      {
+        "name": "full-table",
+        "gpu_ms": 27.6815,
+        "cpu_ms": 28.105,
+        "local_memory_bytes": 1919774720,
+        "enabled_pipeline_ms": 27.708,
+        "versus_complete": {
+          "changed_pixels": 0,
+          "max_rgb_difference": 0,
+          "pixels_over_one": 0,
+          "compared_pixels": 701014
+        }
+      },
+      {
+        "name": "complete-repeat",
+        "gpu_ms": 39.244,
+        "cpu_ms": 39.715,
+        "local_memory_bytes": 1919774720,
+        "enabled_pipeline_ms": 39.2825,
+        "versus_complete": {
+          "changed_pixels": 0,
+          "max_rgb_difference": 0,
+          "pixels_over_one": 0,
+          "compared_pixels": 701014
+        }
+      },
+      {
+        "name": "full-table-repeat",
+        "gpu_ms": 27.676499999999997,
+        "cpu_ms": 28.07,
+        "local_memory_bytes": 1919774720,
+        "enabled_pipeline_ms": 27.799500000000002,
+        "versus_complete": {
+          "changed_pixels": 0,
+          "max_rgb_difference": 0,
+          "pixels_over_one": 0,
+          "compared_pixels": 701014
+        }
+      },
+      {
+        "name": "branch-repeat",
+        "gpu_ms": 39.604,
+        "cpu_ms": 40.095,
+        "local_memory_bytes": 1919774720,
+        "enabled_pipeline_ms": 39.3525,
+        "versus_complete": {
+          "changed_pixels": 0,
+          "max_rgb_difference": 0,
+          "pixels_over_one": 0,
+          "compared_pixels": 701014
+        }
+      },
+      {
+        "name": "tiny-repeat",
+        "gpu_ms": 39.4535,
+        "cpu_ms": 39.937,
+        "local_memory_bytes": 1919774720,
+        "enabled_pipeline_ms": 39.3635,
+        "versus_complete": {
+          "changed_pixels": 0,
+          "max_rgb_difference": 0,
+          "pixels_over_one": 0,
+          "compared_pixels": 701014
+        }
+      },
+      {
+        "name": "complete-final",
+        "gpu_ms": 39.231,
+        "cpu_ms": 39.8,
+        "local_memory_bytes": 1919774720,
+        "enabled_pipeline_ms": 39.218,
+        "versus_complete": {
+          "changed_pixels": 0,
+          "max_rgb_difference": 0,
+          "pixels_over_one": 0,
+          "compared_pixels": 701014
+        }
+      }
+    ]
+  },
+  "small": {
+    "capture_directory": "D:\\diversion\\TG\\TGProject\\user\\TerrainSceneProfile\\20261024-lookup-small",
+    "passed": true,
+    "restoration": {
+      "camera": true,
+      "entity_visibility": true,
+      "mesh_visibility": true,
+      "material_bindings": true,
+      "height_precision": true,
+      "level_file": true
+    },
+    "rows": [
+      {
+        "name": "complete",
+        "gpu_ms": 39.301,
+        "cpu_ms": 39.772,
+        "local_memory_bytes": 1786605568,
+        "enabled_pipeline_ms": 39.2975,
+        "versus_complete": {
+          "changed_pixels": 0,
+          "max_rgb_difference": 0,
+          "pixels_over_one": 0,
+          "compared_pixels": 701014
+        }
+      },
+      {
+        "name": "small-lookup",
+        "gpu_ms": 39.6455,
+        "cpu_ms": 40.057,
+        "local_memory_bytes": 1789751296,
+        "enabled_pipeline_ms": 39.8855,
+        "versus_complete": {
+          "changed_pixels": 0,
+          "max_rgb_difference": 0,
+          "pixels_over_one": 0,
+          "compared_pixels": 701014
+        }
+      },
+      {
+        "name": "selection",
+        "gpu_ms": 39.189,
+        "cpu_ms": 39.625,
+        "local_memory_bytes": 1789751296,
+        "enabled_pipeline_ms": 39.1635,
+        "versus_complete": {
+          "changed_pixels": 0,
+          "max_rgb_difference": 0,
+          "pixels_over_one": 0,
+          "compared_pixels": 701014
+        }
+      },
+      {
+        "name": "complete-repeat",
+        "gpu_ms": 39.2735,
+        "cpu_ms": 39.719,
+        "local_memory_bytes": 1789751296,
+        "enabled_pipeline_ms": 39.304,
+        "versus_complete": {
+          "changed_pixels": 0,
+          "max_rgb_difference": 0,
+          "pixels_over_one": 0,
+          "compared_pixels": 701014
+        }
+      },
+      {
+        "name": "selection-repeat",
+        "gpu_ms": 39.168499999999995,
+        "cpu_ms": 39.584,
+        "local_memory_bytes": 1789751296,
+        "enabled_pipeline_ms": 39.179500000000004,
+        "versus_complete": {
+          "changed_pixels": 0,
+          "max_rgb_difference": 0,
+          "pixels_over_one": 0,
+          "compared_pixels": 701014
+        }
+      },
+      {
+        "name": "small-lookup-repeat",
+        "gpu_ms": 39.5995,
+        "cpu_ms": 39.996,
+        "local_memory_bytes": 1789751296,
+        "enabled_pipeline_ms": 39.831,
+        "versus_complete": {
+          "changed_pixels": 0,
+          "max_rgb_difference": 0,
+          "pixels_over_one": 0,
+          "compared_pixels": 701014
+        }
+      },
+      {
+        "name": "complete-final",
+        "gpu_ms": 39.757999999999996,
+        "cpu_ms": 40.139,
+        "local_memory_bytes": 1789751296,
+        "enabled_pipeline_ms": 39.869,
+        "versus_complete": {
+          "changed_pixels": 0,
+          "max_rgb_difference": 0,
+          "pixels_over_one": 0,
+          "compared_pixels": 701014
+        }
+      }
+    ]
+  },
+  "active": {
+    "capture_directory": "D:\\diversion\\TG\\TGProject\\user\\TerrainSceneProfile\\20261024-lookup-active",
+    "passed": true,
+    "restoration": {
+      "camera": true,
+      "entity_visibility": true,
+      "mesh_visibility": true,
+      "material_bindings": true,
+      "height_precision": true,
+      "level_file": true
+    },
+    "rows": [
+      {
+        "name": "complete",
+        "gpu_ms": 39.6225,
+        "cpu_ms": 39.97,
+        "local_memory_bytes": 1794994176,
+        "enabled_pipeline_ms": 39.4975,
+        "versus_complete": {
+          "changed_pixels": 0,
+          "max_rgb_difference": 0,
+          "pixels_over_one": 0,
+          "compared_pixels": 701014
+        }
+      },
+      {
+        "name": "active-marker",
+        "gpu_ms": 39.72,
+        "cpu_ms": 40.158,
+        "local_memory_bytes": 1798139904,
+        "enabled_pipeline_ms": 39.813500000000005,
+        "versus_complete": {
+          "changed_pixels": 392203,
+          "max_rgb_difference": 194,
+          "pixels_over_one": 392189,
+          "compared_pixels": 701014
+        }
+      },
+      {
+        "name": "key-fallback",
+        "gpu_ms": 39.336,
+        "cpu_ms": 39.884,
+        "local_memory_bytes": 1798139904,
+        "enabled_pipeline_ms": 39.309,
+        "versus_complete": {
+          "changed_pixels": 0,
+          "max_rgb_difference": 0,
+          "pixels_over_one": 0,
+          "compared_pixels": 701014
+        }
+      }
+    ]
+  },
+  "alternatives": {
+    "capture_directory": "D:\\diversion\\TG\\TGProject\\user\\TerrainSceneProfile\\20261024-lookup-alternatives",
+    "passed": true,
+    "restoration": {
+      "camera": true,
+      "entity_visibility": true,
+      "mesh_visibility": true,
+      "material_bindings": true,
+      "height_precision": true,
+      "level_file": true
+    },
+    "rows": [
+      {
+        "name": "complete",
+        "gpu_ms": 38.9745,
+        "cpu_ms": 39.314,
+        "local_memory_bytes": 1792897024,
+        "enabled_pipeline_ms": 38.999,
+        "versus_complete": {
+          "changed_pixels": 0,
+          "max_rgb_difference": 0,
+          "pixels_over_one": 0,
+          "compared_pixels": 701014
+        }
+      },
+      {
+        "name": "branch-hint",
+        "gpu_ms": 39.309,
+        "cpu_ms": 39.606,
+        "local_memory_bytes": 1792897024,
+        "enabled_pipeline_ms": 39.432500000000005,
+        "versus_complete": {
+          "changed_pixels": 0,
+          "max_rgb_difference": 0,
+          "pixels_over_one": 0,
+          "compared_pixels": 701014
+        }
+      },
+      {
+        "name": "recompute",
+        "gpu_ms": 39.3685,
+        "cpu_ms": 39.641,
+        "local_memory_bytes": 1792897024,
+        "enabled_pipeline_ms": 39.3665,
+        "versus_complete": {
+          "changed_pixels": 0,
+          "max_rgb_difference": 0,
+          "pixels_over_one": 0,
+          "compared_pixels": 701014
+        }
+      },
+      {
+        "name": "medium-lookup",
+        "gpu_ms": 27.6595,
+        "cpu_ms": 28.051,
+        "local_memory_bytes": 1821208576,
+        "enabled_pipeline_ms": 27.570999999999998,
+        "versus_complete": {
+          "changed_pixels": 0,
+          "max_rgb_difference": 0,
+          "pixels_over_one": 0,
+          "compared_pixels": 701014
+        }
+      },
+      {
+        "name": "selection",
+        "gpu_ms": 27.503500000000003,
+        "cpu_ms": 27.904,
+        "local_memory_bytes": 1821208576,
+        "enabled_pipeline_ms": 27.5155,
+        "versus_complete": {
+          "changed_pixels": 0,
+          "max_rgb_difference": 0,
+          "pixels_over_one": 0,
+          "compared_pixels": 701014
+        }
+      },
+      {
+        "name": "complete-repeat",
+        "gpu_ms": 39.061,
+        "cpu_ms": 39.413,
+        "local_memory_bytes": 1821208576,
+        "enabled_pipeline_ms": 38.963499999999996,
+        "versus_complete": {
+          "changed_pixels": 0,
+          "max_rgb_difference": 0,
+          "pixels_over_one": 0,
+          "compared_pixels": 701014
+        }
+      },
+      {
+        "name": "selection-repeat",
+        "gpu_ms": 27.5165,
+        "cpu_ms": 27.949,
+        "local_memory_bytes": 1821208576,
+        "enabled_pipeline_ms": 27.4805,
+        "versus_complete": {
+          "changed_pixels": 0,
+          "max_rgb_difference": 0,
+          "pixels_over_one": 0,
+          "compared_pixels": 701014
+        }
+      },
+      {
+        "name": "recompute-repeat",
+        "gpu_ms": 39.388000000000005,
+        "cpu_ms": 39.784,
+        "local_memory_bytes": 1821208576,
+        "enabled_pipeline_ms": 40.9495,
+        "versus_complete": {
+          "changed_pixels": 0,
+          "max_rgb_difference": 0,
+          "pixels_over_one": 0,
+          "compared_pixels": 701014
+        }
+      },
+      {
+        "name": "branch-hint-repeat",
+        "gpu_ms": 41.168,
+        "cpu_ms": 41.463,
+        "local_memory_bytes": 1821208576,
+        "enabled_pipeline_ms": 41.0965,
+        "versus_complete": {
+          "changed_pixels": 0,
+          "max_rgb_difference": 0,
+          "pixels_over_one": 0,
+          "compared_pixels": 701014
+        }
+      },
+      {
+        "name": "medium-lookup-repeat",
+        "gpu_ms": 29.34,
+        "cpu_ms": 29.659,
+        "local_memory_bytes": 1821208576,
+        "enabled_pipeline_ms": 29.267,
+        "versus_complete": {
+          "changed_pixels": 0,
+          "max_rgb_difference": 0,
+          "pixels_over_one": 0,
+          "compared_pixels": 701014
+        }
+      },
+      {
+        "name": "complete-final",
+        "gpu_ms": 40.553,
+        "cpu_ms": 40.887,
+        "local_memory_bytes": 1821208576,
+        "enabled_pipeline_ms": 40.5965,
+        "versus_complete": {
+          "changed_pixels": 0,
+          "max_rgb_difference": 0,
+          "pixels_over_one": 0,
+          "compared_pixels": 701014
+        }
+      }
+    ]
+  },
+  "candidate": {
+    "capture_directory": "D:\\diversion\\TG\\TGProject\\user\\TerrainSceneProfile\\20261024-lookup-candidate",
+    "passed": true,
+    "restoration": {
+      "camera": true,
+      "entity_visibility": true,
+      "mesh_visibility": true,
+      "material_bindings": true,
+      "height_precision": true,
+      "level_file": true
+    },
+    "rows": [
+      {
+        "name": "complete",
+        "gpu_ms": 40.963499999999996,
+        "cpu_ms": 41.389,
+        "local_memory_bytes": 1790799872,
+        "enabled_pipeline_ms": 40.5025,
+        "versus_complete": {
+          "changed_pixels": 0,
+          "max_rgb_difference": 0,
+          "pixels_over_one": 0,
+          "compared_pixels": 701014
+        }
+      },
+      {
+        "name": "candidate",
+        "gpu_ms": 28.484499999999997,
+        "cpu_ms": 28.895,
+        "local_memory_bytes": 1819111424,
+        "enabled_pipeline_ms": 28.819000000000003,
+        "versus_complete": {
+          "changed_pixels": 0,
+          "max_rgb_difference": 0,
+          "pixels_over_one": 0,
+          "compared_pixels": 701014
+        }
+      },
+      {
+        "name": "key-fallback",
+        "gpu_ms": 28.7485,
+        "cpu_ms": 29.224,
+        "local_memory_bytes": 1819111424,
+        "enabled_pipeline_ms": 28.504,
+        "versus_complete": {
+          "changed_pixels": 0,
+          "max_rgb_difference": 0,
+          "pixels_over_one": 0,
+          "compared_pixels": 701014
+        }
+      },
+      {
+        "name": "complete-repeat",
+        "gpu_ms": 40.455,
+        "cpu_ms": 40.8,
+        "local_memory_bytes": 1819111424,
+        "enabled_pipeline_ms": 40.0895,
+        "versus_complete": {
+          "changed_pixels": 0,
+          "max_rgb_difference": 0,
+          "pixels_over_one": 0,
+          "compared_pixels": 701014
+        }
+      },
+      {
+        "name": "candidate-repeat",
+        "gpu_ms": 28.450499999999998,
+        "cpu_ms": 28.807,
+        "local_memory_bytes": 1819111424,
+        "enabled_pipeline_ms": 28.387,
+        "versus_complete": {
+          "changed_pixels": 0,
+          "max_rgb_difference": 0,
+          "pixels_over_one": 0,
+          "compared_pixels": 701014
+        }
+      },
+      {
+        "name": "complete-final",
+        "gpu_ms": 40.052,
+        "cpu_ms": 40.368,
+        "local_memory_bytes": 1819111424,
+        "enabled_pipeline_ms": 40.204,
+        "versus_complete": {
+          "changed_pixels": 0,
+          "max_rgb_difference": 0,
+          "pixels_over_one": 0,
+          "compared_pixels": 701014
+        }
+      }
+    ]
+  },
+  "native_probes": {
+    "offline": {
+      "limitation": "Offline source probes, not a dump of the live driver PSO. Other renderer/material options are volatile except in the explicitly representative material probe.",
+      "rows": [
+        {
+          "file": "gfx90c_mode0-stats_pixel.txt",
+          "DEVICE": "gfx90c",
+          "SCRATCH_MEM": "784",
+          "THREADS_PER_WORKGROUP": "0",
+          "WAVEFRONT_SIZE": "0",
+          "AVAILABLE_LDS_BYTES": "65536",
+          "USED_LDS_BYTES": "N/A",
+          "AVAILABLE_SGPRs": "102",
+          "USED_SGPRs": "104",
+          "SGPR_SPILLS": "0",
+          "AVAILABLE_VGPRs": "256",
+          "USED_VGPRs": "255",
+          "VGPR_SPILLS": "0",
+          "CL_WORKGROUP_X_DIMENSION": "0",
+          "CL_WORKGROUP_Y_DIMENSION": "0",
+          "CL_WORKGROUP_Z_DIMENSION": "0",
+          "ISA_SIZE": "94576"
+        },
+        {
+          "file": "gfx90c_mode4-stats_pixel.txt",
+          "DEVICE": "gfx90c",
+          "SCRATCH_MEM": "4880",
+          "THREADS_PER_WORKGROUP": "0",
+          "WAVEFRONT_SIZE": "0",
+          "AVAILABLE_LDS_BYTES": "65536",
+          "USED_LDS_BYTES": "N/A",
+          "AVAILABLE_SGPRs": "102",
+          "USED_SGPRs": "104",
+          "SGPR_SPILLS": "0",
+          "AVAILABLE_VGPRs": "256",
+          "USED_VGPRs": "198",
+          "VGPR_SPILLS": "0",
+          "CL_WORKGROUP_X_DIMENSION": "0",
+          "CL_WORKGROUP_Y_DIMENSION": "0",
+          "CL_WORKGROUP_Z_DIMENSION": "0",
+          "ISA_SIZE": "97256"
+        },
+        {
+          "file": "gfx90c_mode5-stats_pixel.txt",
+          "DEVICE": "gfx90c",
+          "SCRATCH_MEM": "784",
+          "THREADS_PER_WORKGROUP": "0",
+          "WAVEFRONT_SIZE": "0",
+          "AVAILABLE_LDS_BYTES": "65536",
+          "USED_LDS_BYTES": "N/A",
+          "AVAILABLE_SGPRs": "102",
+          "USED_SGPRs": "104",
+          "SGPR_SPILLS": "0",
+          "AVAILABLE_VGPRs": "256",
+          "USED_VGPRs": "255",
+          "VGPR_SPILLS": "0",
+          "CL_WORKGROUP_X_DIMENSION": "0",
+          "CL_WORKGROUP_Y_DIMENSION": "0",
+          "CL_WORKGROUP_Z_DIMENSION": "0",
+          "ISA_SIZE": "94736"
+        },
+        {
+          "file": "gfx90c_mode6-stats_pixel.txt",
+          "DEVICE": "gfx90c",
+          "SCRATCH_MEM": "784",
+          "THREADS_PER_WORKGROUP": "0",
+          "WAVEFRONT_SIZE": "0",
+          "AVAILABLE_LDS_BYTES": "65536",
+          "USED_LDS_BYTES": "N/A",
+          "AVAILABLE_SGPRs": "102",
+          "USED_SGPRs": "104",
+          "SGPR_SPILLS": "0",
+          "AVAILABLE_VGPRs": "256",
+          "USED_VGPRs": "255",
+          "VGPR_SPILLS": "0",
+          "CL_WORKGROUP_X_DIMENSION": "0",
+          "CL_WORKGROUP_Y_DIMENSION": "0",
+          "CL_WORKGROUP_Z_DIMENSION": "0",
+          "ISA_SIZE": "94848"
+        },
+        {
+          "file": "gfx90c_words128-stats_pixel.txt",
+          "DEVICE": "gfx90c",
+          "SCRATCH_MEM": "1808",
+          "THREADS_PER_WORKGROUP": "0",
+          "WAVEFRONT_SIZE": "0",
+          "AVAILABLE_LDS_BYTES": "65536",
+          "USED_LDS_BYTES": "N/A",
+          "AVAILABLE_SGPRs": "102",
+          "USED_SGPRs": "104",
+          "SGPR_SPILLS": "0",
+          "AVAILABLE_VGPRs": "256",
+          "USED_VGPRs": "198",
+          "VGPR_SPILLS": "0",
+          "CL_WORKGROUP_X_DIMENSION": "0",
+          "CL_WORKGROUP_Y_DIMENSION": "0",
+          "CL_WORKGROUP_Z_DIMENSION": "0",
+          "ISA_SIZE": "95092"
+        },
+        {
+          "file": "gfx90c_words16-stats_pixel.txt",
+          "DEVICE": "gfx90c",
+          "SCRATCH_MEM": "912",
+          "THREADS_PER_WORKGROUP": "0",
+          "WAVEFRONT_SIZE": "0",
+          "AVAILABLE_LDS_BYTES": "65536",
+          "USED_LDS_BYTES": "N/A",
+          "AVAILABLE_SGPRs": "102",
+          "USED_SGPRs": "104",
+          "SGPR_SPILLS": "0",
+          "AVAILABLE_VGPRs": "256",
+          "USED_VGPRs": "255",
+          "VGPR_SPILLS": "0",
+          "CL_WORKGROUP_X_DIMENSION": "0",
+          "CL_WORKGROUP_Y_DIMENSION": "0",
+          "CL_WORKGROUP_Z_DIMENSION": "0",
+          "ISA_SIZE": "95216"
+        },
+        {
+          "file": "gfx90c_words32-stats_pixel.txt",
+          "DEVICE": "gfx90c",
+          "SCRATCH_MEM": "1040",
+          "THREADS_PER_WORKGROUP": "0",
+          "WAVEFRONT_SIZE": "0",
+          "AVAILABLE_LDS_BYTES": "65536",
+          "USED_LDS_BYTES": "N/A",
+          "AVAILABLE_SGPRs": "102",
+          "USED_SGPRs": "104",
+          "SGPR_SPILLS": "0",
+          "AVAILABLE_VGPRs": "256",
+          "USED_VGPRs": "198",
+          "VGPR_SPILLS": "0",
+          "CL_WORKGROUP_X_DIMENSION": "0",
+          "CL_WORKGROUP_Y_DIMENSION": "0",
+          "CL_WORKGROUP_Z_DIMENSION": "0",
+          "ISA_SIZE": "94656"
+        },
+        {
+          "file": "gfx90c_words8-stats_pixel.txt",
+          "DEVICE": "gfx90c",
+          "SCRATCH_MEM": "848",
+          "THREADS_PER_WORKGROUP": "0",
+          "WAVEFRONT_SIZE": "0",
+          "AVAILABLE_LDS_BYTES": "65536",
+          "USED_LDS_BYTES": "N/A",
+          "AVAILABLE_SGPRs": "102",
+          "USED_SGPRs": "104",
+          "SGPR_SPILLS": "0",
+          "AVAILABLE_VGPRs": "256",
+          "USED_VGPRs": "255",
+          "VGPR_SPILLS": "0",
+          "CL_WORKGROUP_X_DIMENSION": "0",
+          "CL_WORKGROUP_Y_DIMENSION": "0",
+          "CL_WORKGROUP_Z_DIMENSION": "0",
+          "ISA_SIZE": "95184"
+        }
+      ]
+    },
+    "offline-small": {
+      "limitation": "Offline source probes, not a dump of the live driver PSO. Other renderer/material options are volatile except in the explicitly representative material probe.",
+      "rows": [
+        {
+          "file": "gfx90c_mode0-stats_pixel.txt",
+          "DEVICE": "gfx90c",
+          "SCRATCH_MEM": "784",
+          "THREADS_PER_WORKGROUP": "0",
+          "WAVEFRONT_SIZE": "0",
+          "AVAILABLE_LDS_BYTES": "65536",
+          "USED_LDS_BYTES": "N/A",
+          "AVAILABLE_SGPRs": "102",
+          "USED_SGPRs": "104",
+          "SGPR_SPILLS": "0",
+          "AVAILABLE_VGPRs": "256",
+          "USED_VGPRs": "255",
+          "VGPR_SPILLS": "0",
+          "CL_WORKGROUP_X_DIMENSION": "0",
+          "CL_WORKGROUP_Y_DIMENSION": "0",
+          "CL_WORKGROUP_Z_DIMENSION": "0",
+          "ISA_SIZE": "94576"
+        },
+        {
+          "file": "gfx90c_mode3-stats_pixel.txt",
+          "DEVICE": "gfx90c",
+          "SCRATCH_MEM": "1040",
+          "THREADS_PER_WORKGROUP": "0",
+          "WAVEFRONT_SIZE": "0",
+          "AVAILABLE_LDS_BYTES": "65536",
+          "USED_LDS_BYTES": "N/A",
+          "AVAILABLE_SGPRs": "102",
+          "USED_SGPRs": "104",
+          "SGPR_SPILLS": "0",
+          "AVAILABLE_VGPRs": "256",
+          "USED_VGPRs": "194",
+          "VGPR_SPILLS": "0",
+          "CL_WORKGROUP_X_DIMENSION": "0",
+          "CL_WORKGROUP_Y_DIMENSION": "0",
+          "CL_WORKGROUP_Z_DIMENSION": "0",
+          "ISA_SIZE": "94504"
+        },
+        {
+          "file": "gfx90c_mode4-stats_pixel.txt",
+          "DEVICE": "gfx90c",
+          "SCRATCH_MEM": "1040",
+          "THREADS_PER_WORKGROUP": "0",
+          "WAVEFRONT_SIZE": "0",
+          "AVAILABLE_LDS_BYTES": "65536",
+          "USED_LDS_BYTES": "N/A",
+          "AVAILABLE_SGPRs": "102",
+          "USED_SGPRs": "104",
+          "SGPR_SPILLS": "0",
+          "AVAILABLE_VGPRs": "256",
+          "USED_VGPRs": "198",
+          "VGPR_SPILLS": "0",
+          "CL_WORKGROUP_X_DIMENSION": "0",
+          "CL_WORKGROUP_Y_DIMENSION": "0",
+          "CL_WORKGROUP_Z_DIMENSION": "0",
+          "ISA_SIZE": "94704"
+        }
+      ]
+    },
+    "offline-alternatives": {
+      "limitation": "Offline source probes, not a dump of the live driver PSO. Other renderer/material options are volatile except in the explicitly representative material probe.",
+      "rows": [
+        {
+          "file": "gfx90c_mode0-stats_pixel.txt",
+          "DEVICE": "gfx90c",
+          "SCRATCH_MEM": "784",
+          "THREADS_PER_WORKGROUP": "0",
+          "WAVEFRONT_SIZE": "0",
+          "AVAILABLE_LDS_BYTES": "65536",
+          "USED_LDS_BYTES": "N/A",
+          "AVAILABLE_SGPRs": "102",
+          "USED_SGPRs": "104",
+          "SGPR_SPILLS": "0",
+          "AVAILABLE_VGPRs": "256",
+          "USED_VGPRs": "255",
+          "VGPR_SPILLS": "0",
+          "CL_WORKGROUP_X_DIMENSION": "0",
+          "CL_WORKGROUP_Y_DIMENSION": "0",
+          "CL_WORKGROUP_Z_DIMENSION": "0",
+          "ISA_SIZE": "94288"
+        },
+        {
+          "file": "gfx90c_mode4-stats_pixel.txt",
+          "DEVICE": "gfx90c",
+          "SCRATCH_MEM": "1808",
+          "THREADS_PER_WORKGROUP": "0",
+          "WAVEFRONT_SIZE": "0",
+          "AVAILABLE_LDS_BYTES": "65536",
+          "USED_LDS_BYTES": "N/A",
+          "AVAILABLE_SGPRs": "102",
+          "USED_SGPRs": "104",
+          "SGPR_SPILLS": "0",
+          "AVAILABLE_VGPRs": "256",
+          "USED_VGPRs": "198",
+          "VGPR_SPILLS": "0",
+          "CL_WORKGROUP_X_DIMENSION": "0",
+          "CL_WORKGROUP_Y_DIMENSION": "0",
+          "CL_WORKGROUP_Z_DIMENSION": "0",
+          "ISA_SIZE": "95152"
+        },
+        {
+          "file": "gfx90c_mode5-stats_pixel.txt",
+          "DEVICE": "gfx90c",
+          "SCRATCH_MEM": "784",
+          "THREADS_PER_WORKGROUP": "0",
+          "WAVEFRONT_SIZE": "0",
+          "AVAILABLE_LDS_BYTES": "65536",
+          "USED_LDS_BYTES": "N/A",
+          "AVAILABLE_SGPRs": "102",
+          "USED_SGPRs": "104",
+          "SGPR_SPILLS": "0",
+          "AVAILABLE_VGPRs": "256",
+          "USED_VGPRs": "254",
+          "VGPR_SPILLS": "0",
+          "CL_WORKGROUP_X_DIMENSION": "0",
+          "CL_WORKGROUP_Y_DIMENSION": "0",
+          "CL_WORKGROUP_Z_DIMENSION": "0",
+          "ISA_SIZE": "94320"
+        },
+        {
+          "file": "gfx90c_mode6-stats_pixel.txt",
+          "DEVICE": "gfx90c",
+          "SCRATCH_MEM": "784",
+          "THREADS_PER_WORKGROUP": "0",
+          "WAVEFRONT_SIZE": "0",
+          "AVAILABLE_LDS_BYTES": "65536",
+          "USED_LDS_BYTES": "N/A",
+          "AVAILABLE_SGPRs": "102",
+          "USED_SGPRs": "104",
+          "SGPR_SPILLS": "0",
+          "AVAILABLE_VGPRs": "256",
+          "USED_VGPRs": "255",
+          "VGPR_SPILLS": "0",
+          "CL_WORKGROUP_X_DIMENSION": "0",
+          "CL_WORKGROUP_Y_DIMENSION": "0",
+          "CL_WORKGROUP_Z_DIMENSION": "0",
+          "ISA_SIZE": "94496"
+        }
+      ]
+    },
+    "offline-candidate": {
+      "limitation": "Offline source probes, not a dump of the live driver PSO. Other renderer/material options are volatile except in the explicitly representative material probe.",
+      "rows": [
+        {
+          "file": "gfx90c_candidate-stats_pixel.txt",
+          "DEVICE": "gfx90c",
+          "SCRATCH_MEM": "1808",
+          "THREADS_PER_WORKGROUP": "0",
+          "WAVEFRONT_SIZE": "0",
+          "AVAILABLE_LDS_BYTES": "65536",
+          "USED_LDS_BYTES": "N/A",
+          "AVAILABLE_SGPRs": "102",
+          "USED_SGPRs": "104",
+          "SGPR_SPILLS": "0",
+          "AVAILABLE_VGPRs": "256",
+          "USED_VGPRs": "194",
+          "VGPR_SPILLS": "0",
+          "CL_WORKGROUP_X_DIMENSION": "0",
+          "CL_WORKGROUP_Y_DIMENSION": "0",
+          "CL_WORKGROUP_Z_DIMENSION": "0",
+          "ISA_SIZE": "95240"
+        },
+        {
+          "file": "gfx90c_fallback-stats_pixel.txt",
+          "DEVICE": "gfx90c",
+          "SCRATCH_MEM": "784",
+          "THREADS_PER_WORKGROUP": "0",
+          "WAVEFRONT_SIZE": "0",
+          "AVAILABLE_LDS_BYTES": "65536",
+          "USED_LDS_BYTES": "N/A",
+          "AVAILABLE_SGPRs": "102",
+          "USED_SGPRs": "104",
+          "SGPR_SPILLS": "0",
+          "AVAILABLE_VGPRs": "256",
+          "USED_VGPRs": "255",
+          "VGPR_SPILLS": "0",
+          "CL_WORKGROUP_X_DIMENSION": "0",
+          "CL_WORKGROUP_Y_DIMENSION": "0",
+          "CL_WORKGROUP_Z_DIMENSION": "0",
+          "ISA_SIZE": "94576"
+        }
+      ]
+    },
+    "offline-material": {
+      "limitation": "Offline source probes, not a dump of the live driver PSO. Other renderer/material options are volatile except in the explicitly representative material probe.",
+      "rows": [
+        {
+          "file": "gfx90c_mode0-stats_pixel.txt",
+          "DEVICE": "gfx90c",
+          "SCRATCH_MEM": "736",
+          "THREADS_PER_WORKGROUP": "0",
+          "WAVEFRONT_SIZE": "0",
+          "AVAILABLE_LDS_BYTES": "65536",
+          "USED_LDS_BYTES": "N/A",
+          "AVAILABLE_SGPRs": "102",
+          "USED_SGPRs": "104",
+          "SGPR_SPILLS": "0",
+          "AVAILABLE_VGPRs": "256",
+          "USED_VGPRs": "253",
+          "VGPR_SPILLS": "0",
+          "CL_WORKGROUP_X_DIMENSION": "0",
+          "CL_WORKGROUP_Y_DIMENSION": "0",
+          "CL_WORKGROUP_Z_DIMENSION": "0",
+          "ISA_SIZE": "77060"
+        },
+        {
+          "file": "gfx90c_mode4-stats_pixel.txt",
+          "DEVICE": "gfx90c",
+          "SCRATCH_MEM": "4832",
+          "THREADS_PER_WORKGROUP": "0",
+          "WAVEFRONT_SIZE": "0",
+          "AVAILABLE_LDS_BYTES": "65536",
+          "USED_LDS_BYTES": "N/A",
+          "AVAILABLE_SGPRs": "102",
+          "USED_SGPRs": "104",
+          "SGPR_SPILLS": "0",
+          "AVAILABLE_VGPRs": "256",
+          "USED_VGPRs": "146",
+          "VGPR_SPILLS": "0",
+          "CL_WORKGROUP_X_DIMENSION": "0",
+          "CL_WORKGROUP_Y_DIMENSION": "0",
+          "CL_WORKGROUP_Z_DIMENSION": "0",
+          "ISA_SIZE": "79852"
+        }
+      ]
+    }
+  },
+  "clocks": {
+    "small": [
+      {
+        "case": "selection",
+        "window_basis": "Frame file mtime minus summed Engine Cpu Time; exclude 1 second at each end",
+        "samples": 7,
+        "engine_clock": {
+          "min": 200000,
+          "median": 200000,
+          "max": 200000
+        },
+        "memory_clock": {
+          "min": 106700,
+          "median": 106700,
+          "max": 106700
+        },
+        "activity": {
+          "min": 99,
+          "median": 99,
+          "max": 99
+        }
+      },
+      {
+        "case": "complete-repeat",
+        "window_basis": "Frame file mtime minus summed Engine Cpu Time; exclude 1 second at each end",
+        "samples": 8,
+        "engine_clock": {
+          "min": 200000,
+          "median": 200000.0,
+          "max": 200000
+        },
+        "memory_clock": {
+          "min": 106700,
+          "median": 106700.0,
+          "max": 106700
+        },
+        "activity": {
+          "min": 99,
+          "median": 99.0,
+          "max": 99
+        }
+      },
+      {
+        "case": "selection-repeat",
+        "window_basis": "Frame file mtime minus summed Engine Cpu Time; exclude 1 second at each end",
+        "samples": 7,
+        "engine_clock": {
+          "min": 200000,
+          "median": 200000,
+          "max": 200000
+        },
+        "memory_clock": {
+          "min": 106700,
+          "median": 106700,
+          "max": 106700
+        },
+        "activity": {
+          "min": 99,
+          "median": 99,
+          "max": 99
+        }
+      },
+      {
+        "case": "small-lookup-repeat",
+        "window_basis": "Frame file mtime minus summed Engine Cpu Time; exclude 1 second at each end",
+        "samples": 8,
+        "engine_clock": {
+          "min": 200000,
+          "median": 200000.0,
+          "max": 200000
+        },
+        "memory_clock": {
+          "min": 106700,
+          "median": 106700.0,
+          "max": 106700
+        },
+        "activity": {
+          "min": 99,
+          "median": 99.0,
+          "max": 99
+        }
+      },
+      {
+        "case": "complete-final",
+        "window_basis": "Frame file mtime minus summed Engine Cpu Time; exclude 1 second at each end",
+        "samples": 8,
+        "engine_clock": {
+          "min": 200000,
+          "median": 200000.0,
+          "max": 200000
+        },
+        "memory_clock": {
+          "min": 106700,
+          "median": 106700.0,
+          "max": 106700
+        },
+        "activity": {
+          "min": 99,
+          "median": 99.0,
+          "max": 99
+        }
+      }
+    ],
+    "alternatives": [
+      {
+        "case": "complete",
+        "window_basis": "Frame file mtime minus summed Engine Cpu Time; exclude 1 second at each end",
+        "samples": 7,
+        "engine_clock": {
+          "min": 200000,
+          "median": 200000,
+          "max": 200000
+        },
+        "memory_clock": {
+          "min": 106700,
+          "median": 106700,
+          "max": 106700
+        },
+        "activity": {
+          "min": 99,
+          "median": 99,
+          "max": 99
+        }
+      },
+      {
+        "case": "branch-hint",
+        "window_basis": "Frame file mtime minus summed Engine Cpu Time; exclude 1 second at each end",
+        "samples": 7,
+        "engine_clock": {
+          "min": 200000,
+          "median": 200000,
+          "max": 200000
+        },
+        "memory_clock": {
+          "min": 106700,
+          "median": 106700,
+          "max": 106700
+        },
+        "activity": {
+          "min": 99,
+          "median": 99,
+          "max": 99
+        }
+      },
+      {
+        "case": "recompute",
+        "window_basis": "Frame file mtime minus summed Engine Cpu Time; exclude 1 second at each end",
+        "samples": 8,
+        "engine_clock": {
+          "min": 200000,
+          "median": 200000.0,
+          "max": 200000
+        },
+        "memory_clock": {
+          "min": 106700,
+          "median": 106700.0,
+          "max": 106700
+        },
+        "activity": {
+          "min": 98,
+          "median": 99.0,
+          "max": 99
+        }
+      },
+      {
+        "case": "medium-lookup",
+        "window_basis": "Frame file mtime minus summed Engine Cpu Time; exclude 1 second at each end",
+        "samples": 5,
+        "engine_clock": {
+          "min": 200000,
+          "median": 200000,
+          "max": 200000
+        },
+        "memory_clock": {
+          "min": 106700,
+          "median": 106700,
+          "max": 106700
+        },
+        "activity": {
+          "min": 99,
+          "median": 99,
+          "max": 99
+        }
+      },
+      {
+        "case": "selection",
+        "window_basis": "Frame file mtime minus summed Engine Cpu Time; exclude 1 second at each end",
+        "samples": 5,
+        "engine_clock": {
+          "min": 200000,
+          "median": 200000,
+          "max": 200000
+        },
+        "memory_clock": {
+          "min": 106700,
+          "median": 106700,
+          "max": 106700
+        },
+        "activity": {
+          "min": 99,
+          "median": 99,
+          "max": 99
+        }
+      },
+      {
+        "case": "complete-repeat",
+        "window_basis": "Frame file mtime minus summed Engine Cpu Time; exclude 1 second at each end",
+        "samples": 8,
+        "engine_clock": {
+          "min": 200000,
+          "median": 200000.0,
+          "max": 200000
+        },
+        "memory_clock": {
+          "min": 106700,
+          "median": 106700.0,
+          "max": 106700
+        },
+        "activity": {
+          "min": 99,
+          "median": 99.0,
+          "max": 99
+        }
+      },
+      {
+        "case": "selection-repeat",
+        "window_basis": "Frame file mtime minus summed Engine Cpu Time; exclude 1 second at each end",
+        "samples": 4,
+        "engine_clock": {
+          "min": 200000,
+          "median": 200000.0,
+          "max": 200000
+        },
+        "memory_clock": {
+          "min": 106700,
+          "median": 106700.0,
+          "max": 106700
+        },
+        "activity": {
+          "min": 99,
+          "median": 99.0,
+          "max": 99
+        }
+      },
+      {
+        "case": "recompute-repeat",
+        "window_basis": "Frame file mtime minus summed Engine Cpu Time; exclude 1 second at each end",
+        "samples": 8,
+        "engine_clock": {
+          "min": 200000,
+          "median": 200000.0,
+          "max": 200000
+        },
+        "memory_clock": {
+          "min": 106700,
+          "median": 106700.0,
+          "max": 106700
+        },
+        "activity": {
+          "min": 98,
+          "median": 98.0,
+          "max": 99
+        }
+      },
+      {
+        "case": "branch-hint-repeat",
+        "window_basis": "Frame file mtime minus summed Engine Cpu Time; exclude 1 second at each end",
+        "samples": 8,
+        "engine_clock": {
+          "min": 200000,
+          "median": 200000.0,
+          "max": 200000
+        },
+        "memory_clock": {
+          "min": 106700,
+          "median": 106700.0,
+          "max": 106700
+        },
+        "activity": {
+          "min": 98,
+          "median": 98.0,
+          "max": 99
+        }
+      },
+      {
+        "case": "medium-lookup-repeat",
+        "window_basis": "Frame file mtime minus summed Engine Cpu Time; exclude 1 second at each end",
+        "samples": 5,
+        "engine_clock": {
+          "min": 200000,
+          "median": 200000,
+          "max": 200000
+        },
+        "memory_clock": {
+          "min": 106700,
+          "median": 106700,
+          "max": 106700
+        },
+        "activity": {
+          "min": 98,
+          "median": 98,
+          "max": 98
+        }
+      },
+      {
+        "case": "complete-final",
+        "window_basis": "Frame file mtime minus summed Engine Cpu Time; exclude 1 second at each end",
+        "samples": 8,
+        "engine_clock": {
+          "min": 200000,
+          "median": 200000.0,
+          "max": 200000
+        },
+        "memory_clock": {
+          "min": 106700,
+          "median": 106700.0,
+          "max": 106700
+        },
+        "activity": {
+          "min": 98,
+          "median": 98.0,
+          "max": 98
+        }
+      }
+    ]
+  },
+  "appearance_original_to_candidate_fallback": {
+    "changed_pixels": 0,
+    "max_rgb_difference": 0,
+    "pixels_over_one": 0,
+    "compared_pixels": 701014
+  },
+  "restoration": {
+    "cause": {
+      "disabled": [
+        {
+          "type": "Sky Atmosphere",
+          "disabled": 1
+        },
+        {
+          "type": "HDRI Sky",
+          "disabled": 1
+        },
+        {
+          "type": "Finite Cloud Volume",
+          "disabled": 2
+        },
+        {
+          "type": "Fog",
+          "disabled": 0
+        },
+        {
+          "type": "Volumetric Fog",
+          "disabled": 0
+        }
+      ],
+      "aerial_controls": 1,
+      "restored": true
+    },
+    "small": {
+      "disabled": [
+        {
+          "type": "Sky Atmosphere",
+          "disabled": 1
+        },
+        {
+          "type": "HDRI Sky",
+          "disabled": 1
+        },
+        {
+          "type": "Finite Cloud Volume",
+          "disabled": 2
+        },
+        {
+          "type": "Fog",
+          "disabled": 0
+        },
+        {
+          "type": "Volumetric Fog",
+          "disabled": 0
+        }
+      ],
+      "aerial_controls": 1,
+      "restored": true
+    },
+    "active": {
+      "disabled": [
+        {
+          "type": "Sky Atmosphere",
+          "disabled": 1
+        },
+        {
+          "type": "HDRI Sky",
+          "disabled": 1
+        },
+        {
+          "type": "Finite Cloud Volume",
+          "disabled": 2
+        },
+        {
+          "type": "Fog",
+          "disabled": 0
+        },
+        {
+          "type": "Volumetric Fog",
+          "disabled": 0
+        }
+      ],
+      "aerial_controls": 1,
+      "restored": true
+    },
+    "alternatives": {
+      "disabled": [
+        {
+          "type": "Sky Atmosphere",
+          "disabled": 1
+        },
+        {
+          "type": "HDRI Sky",
+          "disabled": 1
+        },
+        {
+          "type": "Finite Cloud Volume",
+          "disabled": 2
+        },
+        {
+          "type": "Fog",
+          "disabled": 0
+        },
+        {
+          "type": "Volumetric Fog",
+          "disabled": 0
+        }
+      ],
+      "aerial_controls": 1,
+      "restored": true
+    },
+    "candidate": {
+      "disabled": [
+        {
+          "type": "Sky Atmosphere",
+          "disabled": 1
+        },
+        {
+          "type": "HDRI Sky",
+          "disabled": 1
+        },
+        {
+          "type": "Finite Cloud Volume",
+          "disabled": 2
+        },
+        {
+          "type": "Fog",
+          "disabled": 0
+        },
+        {
+          "type": "Volumetric Fog",
+          "disabled": 0
+        }
+      ],
+      "aerial_controls": 1,
+      "restored": true
+    }
+  },
+  "saved_level_sha256": "faec5fd3f9b69643b918af3a917623776d31bf7cc962485cfba712313a36a922",
+  "fallback_default_off_verified": true,
+  "focused_tests": {
+    "terrain_overlap_tests": 13,
+    "bounds_tests": 3,
+    "validation_points_per_new_table": 300000,
+    "packed_cells_32_verified": 1024,
+    "packed_cells_64_verified": 4096
+  },
+  "hardware": {
+    "cpu": "user-reported Ryzen 7 5700G",
+    "gpu": "AMD Radeon(TM) Graphics (capture metadata)",
+    "system_ram_gib": 32,
+    "memory_measurement": "Per-process DXGI local CurrentUsage on the shared-memory integrated GPU; not dedicated VRAM."
+  }
+}

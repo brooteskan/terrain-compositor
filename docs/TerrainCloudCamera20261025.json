@@ -1,0 +1,305 @@
+{
+  "passed": true,
+  "restoration": {
+    "camera": true,
+    "entity_visibility": true,
+    "mesh_visibility": true,
+    "material_bindings": true,
+    "height_precision": true,
+    "level_file": true
+  },
+  "rows": [
+    {
+      "name": "complete",
+      "gpu_ms": 301.38,
+      "cpu_ms": 303.035,
+      "local_memory_bytes": 1847291904,
+      "enabled_pipeline_ms": 300.86199999999997,
+      "versus_complete": {
+        "changed_pixels": 0,
+        "max_rgb_difference": 0,
+        "pixels_over_one": 0,
+        "compared_pixels": 876033
+      }
+    },
+    {
+      "name": "previous-fast",
+      "gpu_ms": 285.67650000000003,
+      "cpu_ms": 286.754,
+      "local_memory_bytes": 1854631936,
+      "enabled_pipeline_ms": 286.3605,
+      "versus_complete": {
+        "changed_pixels": 0,
+        "max_rgb_difference": 0,
+        "pixels_over_one": 0,
+        "compared_pixels": 876033
+      }
+    },
+    {
+      "name": "default",
+      "gpu_ms": 282.168,
+      "cpu_ms": 283.243,
+      "local_memory_bytes": 1854631936,
+      "enabled_pipeline_ms": 282.4735,
+      "versus_complete": {
+        "changed_pixels": 9584,
+        "max_rgb_difference": 1,
+        "pixels_over_one": 0,
+        "compared_pixels": 876033
+      }
+    },
+    {
+      "name": "previous-fast-repeat",
+      "gpu_ms": 285.66150000000005,
+      "cpu_ms": 286.661,
+      "local_memory_bytes": 1854631936,
+      "enabled_pipeline_ms": 285.61850000000004,
+      "versus_complete": {
+        "changed_pixels": 0,
+        "max_rgb_difference": 0,
+        "pixels_over_one": 0,
+        "compared_pixels": 876033
+      }
+    },
+    {
+      "name": "default-repeat",
+      "gpu_ms": 282.421,
+      "cpu_ms": 283.639,
+      "local_memory_bytes": 1854631936,
+      "enabled_pipeline_ms": 282.5895,
+      "versus_complete": {
+        "changed_pixels": 9584,
+        "max_rgb_difference": 1,
+        "pixels_over_one": 0,
+        "compared_pixels": 876033
+      }
+    },
+    {
+      "name": "complete-final",
+      "gpu_ms": 301.1815,
+      "cpu_ms": 302.156,
+      "local_memory_bytes": 1854631936,
+      "enabled_pipeline_ms": 301.31550000000004,
+      "versus_complete": {
+        "changed_pixels": 0,
+        "max_rgb_difference": 0,
+        "pixels_over_one": 0,
+        "compared_pixels": 876033
+      }
+    }
+  ],
+  "environment": {
+    "enabled": [
+      {
+        "type": "Sky Atmosphere",
+        "enabled": 1
+      },
+      {
+        "type": "HDRI Sky",
+        "enabled": 1
+      },
+      {
+        "type": "Finite Cloud Volume",
+        "enabled": 2
+      }
+    ],
+    "aerial_controls": 1,
+    "restored": true
+  },
+  "camera": [
+    [
+      1370.7984619140625,
+      -583.088134765625,
+      65.9495620727539
+    ],
+    [
+      -4.212778568267822,
+      24.837879180908203,
+      99.94619750976562
+    ]
+  ],
+  "viewport": [
+    1267,
+    761
+  ],
+  "aggregate_gpu_ms": {
+    "Original fallback": 301.28075,
+    "Previous faster shader": 285.66900000000004,
+    "New default": 282.29449999999997
+  },
+  "cloud_pass_ms": {
+    "complete": 245.333,
+    "previous-fast": 246.2855,
+    "default": 245.54649999999998,
+    "previous-fast-repeat": 245.772,
+    "default-repeat": 246.16750000000002,
+    "complete-final": 245.922
+  },
+  "effective_controls": {
+    "lighting": {
+      "direction": [
+        -0.260139,
+        -0.371031,
+        0.891439
+      ],
+      "illumination": [
+        4.82078,
+        2.08879,
+        0.621313
+      ],
+      "skyAmbient": [
+        0.8,
+        1,
+        1.3
+      ],
+      "groundAmbient": [
+        0.12,
+        0.1,
+        0.08
+      ],
+      "viewSteps": 192,
+      "lightSteps": 16,
+      "cloudAttenuation": true
+    },
+    "properties": {
+      "Configuration|Sun entity": "[5143543984528665351]",
+      "Configuration|Receiver light samples": "32",
+      "Configuration|Reference and quality|Diagnostic": "0",
+      "Configuration|Solar disc samples": "1",
+      "Configuration|Reference and quality|Backward scattering": "-0.20000000298023224",
+      "Configuration|Reference and quality|Sun illumination": "(x=12.0000000,y=11.5000000,z=11.0000000)",
+      "Configuration|Reference and quality|Scattering albedo": "0.9800000190734863",
+      "Configuration|Reference and quality|Forward weight": "0.8500000238418579",
+      "Configuration|Reference and quality|Direction toward sun": "(x=0.0000000,y=-1.0000000,z=1.0000000)",
+      "Configuration|Reference and quality|Sky ambient": "(x=0.8000000,y=1.0000000,z=1.3000000)",
+      "Configuration|Sun illumination scale": "1.0",
+      "Configuration|Reference and quality|Extinction per metre": "0.00800000037997961",
+      "Configuration|Reference and quality|Multiple scattering": "0.6000000238418579",
+      "Configuration|Reference and quality|Light samples": "16",
+      "Configuration|Volume sun attenuation": "True",
+      "Configuration|Cloud receiver shadows": "True",
+      "Configuration|Reference and quality": "<AZStd::any via PythonProxyObject at 2629096914864>",
+      "Configuration|Reference and quality|Enabled": "True",
+      "Configuration|Sun companion": "[4294967295]",
+      "Configuration|Use scene sun": "True",
+      "Configuration|Combine opaque aerial transport": "True",
+      "Configuration|Measure transport cost": "False",
+      "Configuration|Reference and quality|Density asset": "{00000000-0000-0000-0000-000000000000}:0",
+      "Configuration|Reference and quality|Forward scattering": "0.6499999761581421",
+      "Configuration|Reference and quality|Ground ambient": "(x=0.1200000,y=0.1000000,z=0.0800000)",
+      "Configuration|Reference and quality|View samples": "192"
+    },
+    "measurements": {
+      "gpuCloudNs": 0,
+      "gpuCopyNs": 0,
+      "gpuOpaqueNs": 0,
+      "gpuPipelineNs": 0,
+      "pipelineTimestamp": 0,
+      "cloudTimestamp": 21124504227834,
+      "opaqueTimestamp": 21124530515862,
+      "cpuSceneSrgNs": 0,
+      "cpuPassSrgNs": 0,
+      "densityBytes": 4711056,
+      "pendingDensityBytes": 0,
+      "gpuPoolResidentBytes": 0,
+      "gpuPoolUsedBytes": 0,
+      "hostPoolUsedBytes": 0,
+      "memoryStatisticsAvailable": false,
+      "cloudCount": 2,
+      "sunIndex": 0,
+      "companionIndex": 4294967295,
+      "receiverShadows": true,
+      "profileEnabled": false,
+      "method": "Atom delayed enabled-pass pipeline span and per-pass queries; RHI all-scene pool memory; CPU measures SRG preparation only"
+    }
+  },
+  "verified_defaults": {
+    "enabled": true,
+    "detailNormals": false,
+    "key": 0
+  },
+  "volume_controls": [
+    {
+      "entity": "[3864668029437469593]",
+      "properties": {
+        "Configuration|View samples": "48",
+        "Configuration|Multiple scattering": "0.6000000238418579",
+        "Configuration|Sun illumination": "(x=12.0000000,y=11.5000000,z=11.0000000)",
+        "Configuration|Ground ambient": "(x=0.1200000,y=0.1000000,z=0.0800000)",
+        "Configuration|Diagnostic": "0",
+        "Configuration|Forward weight": "0.8500000238418579",
+        "Configuration|Sky ambient": "(x=0.8000000,y=1.0000000,z=1.3000000)",
+        "Configuration|Scattering albedo": "0.9800000190734863",
+        "Configuration|Extinction per metre": "0.009999999776482582",
+        "Configuration|Direction toward sun": "(x=0.0000000,y=-1.0000000,z=1.0000000)",
+        "Configuration|Density asset": "{03F453CD-FBFD-5954-8CA8-38FD61BBF1BF}:1",
+        "Configuration|Forward scattering": "0.6499999761581421",
+        "Configuration|Backward scattering": "-0.20000000298023224",
+        "Configuration": "<AZStd::any via PythonProxyObject at 2629097150304>",
+        "Configuration|Enabled": "True",
+        "Configuration|Light samples": "8"
+      },
+      "status": "Ready: world-baked finite density"
+    },
+    {
+      "entity": "[13622100604556123018]",
+      "properties": {
+        "Configuration|View samples": "192",
+        "Configuration|Multiple scattering": "0.6000000238418579",
+        "Configuration|Sun illumination": "(x=12.0000000,y=11.5000000,z=11.0000000)",
+        "Configuration|Ground ambient": "(x=0.1200000,y=0.1000000,z=0.0800000)",
+        "Configuration|Diagnostic": "0",
+        "Configuration|Forward weight": "0.8500000238418579",
+        "Configuration|Sky ambient": "(x=0.8000000,y=1.0000000,z=1.3000000)",
+        "Configuration|Scattering albedo": "0.9800000190734863",
+        "Configuration|Extinction per metre": "0.05000000074505806",
+        "Configuration|Direction toward sun": "(x=0.0000000,y=-1.0000000,z=1.0000000)",
+        "Configuration|Density asset": "{803AE083-18A4-5868-9C36-42D7B70679F4}:1",
+        "Configuration|Forward scattering": "0.6499999761581421",
+        "Configuration|Backward scattering": "-0.20000000298023224",
+        "Configuration": "<AZStd::any via PythonProxyObject at 2629097146864>",
+        "Configuration|Enabled": "True",
+        "Configuration|Light samples": "16"
+      },
+      "status": "Ready: world-baked finite density"
+    }
+  ],
+  "density_grids": [
+    {
+      "dimensions": [
+        161,
+        39,
+        178
+      ],
+      "voxelSize": 15.83900103190365,
+      "boundsMin": [
+        -2636.680831245708,
+        -1645.460605570571,
+        468.80272174915234
+      ],
+      "boundsMax": [
+        -86.60166510920203,
+        1173.8815781082837,
+        1086.5237619933946
+      ]
+    },
+    {
+      "dimensions": [
+        53,
+        21,
+        54
+      ],
+      "voxelSize": 40.001726502212705,
+      "boundsMin": [
+        -699.1869024468863,
+        -1776.9272908725482,
+        72.10726893641203
+      ],
+      "boundsMax": [
+        1420.904602170387,
+        383.1659402469379,
+        912.14352548288
+      ]
+    }
+  ]
+}

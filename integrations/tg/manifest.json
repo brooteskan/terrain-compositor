@@ -23,7 +23,11 @@
         "8b21502fa77fa879b929f6fc35a10ea85aa02461cac6735cb6b511519ef96c5d",
         "851c55fa730f5e0a69252e73a84711788c293f756c48c16fb59158908e8b6955",
         "c6319be8c7cbb217cd64878d53c906464e0e6660da711fbb735dd59448de6803",
-        "bfdf0e43947ee24d35044816ad30289a547b54556e16175a2e719bff3363874c"
+        "bfdf0e43947ee24d35044816ad30289a547b54556e16175a2e719bff3363874c",
+        "c22be829db07608fc6972a1480fd43a46aafd6c330407fb1eed5177d3ebced99",
+        "cdf13c764db998d2276e3f8d5f83dd363733d12c44cf93bca2e819c319ed51fa",
+        "c120d9a0616279ac5afd3b93fdcceb763e957586237bc98bb9cea4e8a0c1861f",
+        "b36b04f2d70769fbf6d99d62e47d1ea6ef01c899c7bfd3e6ea5f361bfeaf86b6"
       ],
       "accepted_json_sha256": []
     },
@@ -35,7 +39,8 @@
         "4028640256be67ab79b5804dca6397a594158ffa556870e727347b632412ca98",
         "6a61d85724d502044a7004dac205c85b5ecfbad3f2b5234dc7d89caab279e112",
         "5dbf7731223ca640af3bdf4f3a3dcbf62a7ba296f93ba3a8ef3bf1158117c8ed",
-        "a82573b4598f39a0df29ca294927d5c95ad15cf5267d107d8e29601acf394156"
+        "a82573b4598f39a0df29ca294927d5c95ad15cf5267d107d8e29601acf394156",
+        "54816437db455e3cf241b0bf1ebdd87c6434a84b2bb56d65163a6fbf5a4d6d50"
       ],
       "accepted_json_sha256": []
     },
@@ -282,7 +287,12 @@
         "4e2cfca333220b7b952515c7d50d86adf28c4d527649899a40dff7001f88c296",
         "c762e68e293923458af878b46d473f0c82a3fefbe7e91c4cd5e5ff3febd0198e",
         "71ba87cf266fb380b2bad15d9bc47b6b15067fef961d97bbb51df7dfbbb3edb8",
-        "6bf4f32e5a4cceb166c6418321099921c0d0c34c7985aeffbe6e01c4014b9a01"
+        "6bf4f32e5a4cceb166c6418321099921c0d0c34c7985aeffbe6e01c4014b9a01",
+        "35280241a0822729387d5efaf0934b6e5ab5792cfdb0a88dec53a3657ad66590",
+        "34f06ee6f41fe30b76e92b9af7904397c61602c07ad44277c575f69be0b71d73",
+        "c64fd2e9c2683a9152373d4e15c1196422af7dbc8b9bd6551f23b2977eef8482",
+        "16763f97677371db8279cd7094c2090dbbd67aae8353f5dfaf6c1d921e5362f9",
+        "589a9ba4ca9318995c7cf99d761f7465418faa746a1a21eb2850b8a2a496cce9"
       ],
       "accepted_json_sha256": []
     },
@@ -293,7 +303,11 @@
       "accepted_sha256": [
         "f17a650a4c27b5e52ce518e4e55d44c995cac7c645a5dd7fccd618adf8c9a131",
         "369ec505fde3ca4ac2cc34efdbc27b29fc7d3653039c0ee3bb81822b3e928e84",
-        "a24e3b40bb609c7acf7d440be64d3c866ae72fe5c395ec7814b96d80a772a195"
+        "a24e3b40bb609c7acf7d440be64d3c866ae72fe5c395ec7814b96d80a772a195",
+        "ff2d7415ca98b9c97868a99ff53750e301b95da4dacae641f9bcb26230049d2f",
+        "a115aa1bbce2599ab9178ecaeaaf75fe9d25d3bed4d66d52eec49dd51c2a5215",
+        "6e3adbc094f9a5aa7e89d8f3b50c4bf8ef27bd7f664daaad87cf64f2382292ab",
+        "75b46fef349b72f52a92691d576272382aea26e4ac0d75d7613ba21a3b5c04af"
       ],
       "accepted_json_sha256": []
     },
@@ -302,7 +316,8 @@
       "source": "project/Assets/VueLiveLink/VueTerrainOverlapInputs.azsli",
       "binary": false,
       "accepted_sha256": [
-        "58d40ae08535dc99b7f718274569cfada0ad73f904b748ad9fb5bb18afc0fb31"
+        "58d40ae08535dc99b7f718274569cfada0ad73f904b748ad9fb5bb18afc0fb31",
+        "2f60ae0c16ec3784b1881ce17b11009b3a4cc7dc79258f8f652831a028123a91"
       ],
       "accepted_json_sha256": []
     },
@@ -354,6 +369,27 @@
     {
       "path": "Config/AtomImageBuilder/TerrainOverlap_R16F.preset",
       "source": "project/Config/AtomImageBuilder/TerrainOverlap_R16F.preset",
+      "binary": false,
+      "accepted_sha256": [],
+      "accepted_json_sha256": []
+    },
+    {
+      "path": "Assets/VueLiveLink/VueTerrainContributorTiles.azsli",
+      "source": "project/Assets/VueLiveLink/VueTerrainContributorTiles.azsli",
+      "binary": false,
+      "accepted_sha256": [],
+      "accepted_json_sha256": []
+    },
+    {
+      "path": "Assets/VueLiveLink/VueTerrainNormalPropertyGroup.json",
+      "source": "project/Assets/VueLiveLink/VueTerrainNormalPropertyGroup.json",
+      "binary": false,
+      "accepted_sha256": [],
+      "accepted_json_sha256": []
+    },
+    {
+      "path": "Assets/VueLiveLink/VueTerrainNormalPolicy.lua",
+      "source": "project/Assets/VueLiveLink/VueTerrainNormalPolicy.lua",
       "binary": false,
       "accepted_sha256": [],
       "accepted_json_sha256": []

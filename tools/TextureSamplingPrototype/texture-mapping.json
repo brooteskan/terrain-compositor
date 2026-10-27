@@ -1,0 +1,10 @@
+{
+  "xy": {
+    "Assets/VueLiveLink/terrains/82b2e8c01b5c41e99883138b20d758d0/2ad83d8_31a7c446/b/terrain_normals.dds": "Assets/VueLiveLink/texture_sampling_fields/xy/2ad83d8_31a7c446_normals.dds",
+    "Assets/VueLiveLink/terrains/82b2e8c01b5c41e99883138b20d758d0/3445e7a6_395c14b3/b/terrain_normals.dds": "Assets/VueLiveLink/texture_sampling_fields/xy/3445e7a6_395c14b3_normals.dds"
+  },
+  "octa": {
+    "Assets/VueLiveLink/terrains/82b2e8c01b5c41e99883138b20d758d0/2ad83d8_31a7c446/b/terrain_normals.dds": "Assets/VueLiveLink/texture_sampling_fields/octa/2ad83d8_31a7c446_normals.dds",
+    "Assets/VueLiveLink/terrains/82b2e8c01b5c41e99883138b20d758d0/3445e7a6_395c14b3/b/terrain_normals.dds": "Assets/VueLiveLink/texture_sampling_fields/octa/3445e7a6_395c14b3_normals.dds"
+  }
+}

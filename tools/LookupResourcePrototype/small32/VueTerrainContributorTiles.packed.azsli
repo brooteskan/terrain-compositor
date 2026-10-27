@@ -1,0 +1,16 @@
+// Generated conservative contributor tiles. Frozen publication; no texture resource.
+#pragma once
+static const uint VueContributorKey = 147107816u;
+static const float2 VueContributorLow = float2(839.609741, -597.380554);
+static const float2 VueContributorHigh = float2(1394.60278, 402.674164);
+static const float2 VueContributorScale = float2(0.0576583855, 0.0319982506);
+static const uint VueContributorPacked[64] = { 1342177621u,1431655765u,1365u,1431655765u,1365u,1431655764u,1365u,1431655744u,5461u,1431655680u,21845u,1431655744u,21845u,1431655765u,1073829205u,1431655765u,1073829205u,1431655765u,1409307989u,1431655765u,1426085205u,1431655765u,1430263125u,1431655765u,1430263125u,1431655765u,1431307605u,1431655765u,1431306581u,1431655765u,1431568469u,1431655765u,1431568469u,1431655765u,1431568389u,1431655765u,1431633921u,1431655765u,1431654400u,1431655765u,1431655680u,1431655765u,1431655744u,1431655765u,1431655764u,1431655765u,1431655765u,1431655765u,1431655765u,1431655765u,1431655765u,1431655765u,1431655765u,1431655765u,1431655765u,1431655765u,1431655765u,1431655765u,1431655765u,1431655765u,1431655765u,1431655765u,1431655765u,1431655765u };
+uint VueContributorTile(float2 world)
+{
+    if (!all(isfinite(world))) return 0;
+    if (any(world < VueContributorLow) || any(world > VueContributorHigh)) return 1;
+    uint2 cell = min(uint2(max((world - VueContributorLow) * VueContributorScale, 0.0)), 31u);
+    uint index = cell.y * 32u + cell.x;
+    uint packed = VueContributorPacked[index >> 4u];
+    return (packed >> ((index & 15u) * 2u)) & 3u;
+}

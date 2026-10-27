@@ -6,6 +6,12 @@
         "file": "Assets/VueLiveLink/VueTerrainMesh_State.lua"
       },
       "type": "Lua"
+    },
+    {
+      "args": {
+        "file": "Assets/VueLiveLink/VueTerrainNormalPolicy.lua"
+      },
+      "type": "Lua"
     }
   ],
   "lightingModel": "Standard",
@@ -29,7 +35,7 @@
         "$import": "@gemroot:Atom_Feature_Common@/Assets/Materials/Types/MaterialInputs/SpecularPropertyGroup.json"
       },
       {
-        "$import": "@gemroot:Atom_Feature_Common@/Assets/Materials/Types/MaterialInputs/NormalPropertyGroup.json"
+        "$import": "VueTerrainNormalPropertyGroup.json"
       },
       {
         "$import": "@gemroot:Atom_Feature_Common@/Assets/Materials/Types/MaterialInputs/OcclusionPropertyGroup.json"
@@ -347,6 +353,132 @@
             "defaultValue": false,
             "name": "fixedHeightExtent",
             "type": "Bool"
+          }
+        ]
+      },
+      {
+        "displayName": "Overlap Pages (Prototype)",
+        "name": "overlapPages",
+        "properties": [
+          {
+            "connection": {
+              "name": "o_terrainOverlapPages",
+              "type": "ShaderOption"
+            },
+            "defaultValue": false,
+            "name": "enabled",
+            "type": "Bool"
+          },
+          {
+            "connection": {
+              "name": "m_vuePagesDebug",
+              "type": "ShaderInput"
+            },
+            "defaultValue": false,
+            "name": "debug",
+            "type": "Bool"
+          },
+          {
+            "connection": {
+              "name": "m_vuePagesLow",
+              "type": "ShaderInput"
+            },
+            "defaultValue": [
+              0.0,
+              0.0
+            ],
+            "name": "low",
+            "type": "Vector2"
+          },
+          {
+            "connection": {
+              "name": "m_vuePagesExtent",
+              "type": "ShaderInput"
+            },
+            "defaultValue": [
+              1.0,
+              1.0
+            ],
+            "name": "extent",
+            "type": "Vector2"
+          },
+          {
+            "connection": {
+              "name": "m_vuePagesSize",
+              "type": "ShaderInput"
+            },
+            "defaultValue": 1024.0,
+            "name": "size",
+            "type": "Float"
+          },
+          {
+            "connection": {
+              "name": "m_vuePagesChannel0",
+              "type": "ShaderInput"
+            },
+            "name": "channel0",
+            "type": "Image"
+          },
+          {
+            "connection": {
+              "name": "m_vuePagesChannel1",
+              "type": "ShaderInput"
+            },
+            "name": "channel1",
+            "type": "Image"
+          },
+          {
+            "connection": {
+              "name": "m_vuePagesChannel2",
+              "type": "ShaderInput"
+            },
+            "name": "channel2",
+            "type": "Image"
+          },
+          {
+            "connection": {
+              "name": "m_vuePagesChannel3",
+              "type": "ShaderInput"
+            },
+            "name": "channel3",
+            "type": "Image"
+          }
+        ]
+      },
+      {
+        "displayName": "Terrain Shader",
+        "name": "contributorSelection",
+        "properties": [
+          {
+            "connection": {
+              "name": "o_terrainContributorTiles",
+              "type": "ShaderOption"
+            },
+            "defaultValue": true,
+            "description": "Measured resource-layout optimization. Disable to use the original shader.",
+            "displayName": "Optimized Shader",
+            "name": "enabled",
+            "type": "Bool"
+          },
+          {
+            "connection": {
+              "name": "o_terrainDetailNormalMaps",
+              "type": "ShaderOption"
+            },
+            "defaultValue": false,
+            "description": "Adds fine bumps from normal textures. Off keeps the geometric normal field. The original shader fallback retains authored normal settings.",
+            "displayName": "Detail Normal Maps",
+            "name": "detailNormals",
+            "type": "Bool"
+          },
+          {
+            "connection": {
+              "name": "m_vueContributorKey",
+              "type": "ShaderInput"
+            },
+            "defaultValue": 0,
+            "name": "key",
+            "type": "UInt"
           }
         ]
       },

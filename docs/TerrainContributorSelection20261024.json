@@ -1,0 +1,342 @@
+{
+  "controls": {
+    "capture_directory": "D:\\diversion\\TG\\TGProject\\user\\TerrainSceneProfile\\20261024-contributor-controls-assets",
+    "passed": true,
+    "restoration": {
+      "camera": true,
+      "entity_visibility": true,
+      "mesh_visibility": true,
+      "material_bindings": true,
+      "height_precision": true,
+      "level_file": true
+    },
+    "rows": [
+      {
+        "name": "complete",
+        "gpu_ms": 42.33,
+        "cpu_ms": 42.918,
+        "local_memory_bytes": 1790799872,
+        "enabled_pipeline_ms": 42.843500000000006,
+        "versus_complete": {
+          "changed_pixels": 0,
+          "max_rgb_difference": 0,
+          "pixels_over_one": 0,
+          "compared_pixels": 701014
+        }
+      },
+      {
+        "name": "discard-after",
+        "gpu_ms": 41.688,
+        "cpu_ms": 42.202,
+        "local_memory_bytes": 1790799872,
+        "enabled_pipeline_ms": 41.75,
+        "versus_complete": {
+          "changed_pixels": 1976,
+          "max_rgb_difference": 242,
+          "pixels_over_one": 1976,
+          "compared_pixels": 701014
+        }
+      },
+      {
+        "name": "discard-before",
+        "gpu_ms": 30.991500000000002,
+        "cpu_ms": 31.598,
+        "local_memory_bytes": 1919774720,
+        "enabled_pipeline_ms": 30.556,
+        "versus_complete": {
+          "changed_pixels": 1976,
+          "max_rgb_difference": 242,
+          "pixels_over_one": 1976,
+          "compared_pixels": 701014
+        }
+      },
+      {
+        "name": "complete-repeat",
+        "gpu_ms": 42.444,
+        "cpu_ms": 43.024,
+        "local_memory_bytes": 1919774720,
+        "enabled_pipeline_ms": 42.3925,
+        "versus_complete": {
+          "changed_pixels": 0,
+          "max_rgb_difference": 0,
+          "pixels_over_one": 0,
+          "compared_pixels": 701014
+        }
+      },
+      {
+        "name": "discard-before-repeat",
+        "gpu_ms": 30.829,
+        "cpu_ms": 31.156,
+        "local_memory_bytes": 1919774720,
+        "enabled_pipeline_ms": 30.4765,
+        "versus_complete": {
+          "changed_pixels": 1976,
+          "max_rgb_difference": 242,
+          "pixels_over_one": 1976,
+          "compared_pixels": 701014
+        }
+      },
+      {
+        "name": "discard-after-repeat",
+        "gpu_ms": 41.6525,
+        "cpu_ms": 42.148,
+        "local_memory_bytes": 1919774720,
+        "enabled_pipeline_ms": 41.936,
+        "versus_complete": {
+          "changed_pixels": 1976,
+          "max_rgb_difference": 242,
+          "pixels_over_one": 1976,
+          "compared_pixels": 701014
+        }
+      },
+      {
+        "name": "complete-final",
+        "gpu_ms": 42.3095,
+        "cpu_ms": 42.808,
+        "local_memory_bytes": 1919774720,
+        "enabled_pipeline_ms": 42.075,
+        "versus_complete": {
+          "changed_pixels": 0,
+          "max_rgb_difference": 0,
+          "pixels_over_one": 0,
+          "compared_pixels": 701014
+        }
+      }
+    ],
+    "discard_equivalence": {
+      "changed_pixels": 0,
+      "max_rgb_difference": 0,
+      "pixels_over_one": 0,
+      "compared_pixels": 701014
+    }
+  },
+  "selection": {
+    "capture_directory": "D:\\diversion\\TG\\TGProject\\user\\TerrainSceneProfile\\20261024-contributor-selection-assets",
+    "passed": true,
+    "restoration": {
+      "camera": true,
+      "entity_visibility": true,
+      "mesh_visibility": true,
+      "material_bindings": true,
+      "height_precision": true,
+      "level_file": true
+    },
+    "rows": [
+      {
+        "name": "complete",
+        "gpu_ms": 42.5835,
+        "cpu_ms": 43.091,
+        "local_memory_bytes": 1788702720,
+        "enabled_pipeline_ms": 42.146,
+        "versus_complete": {
+          "changed_pixels": 0,
+          "max_rgb_difference": 0,
+          "pixels_over_one": 0,
+          "compared_pixels": 701014
+        }
+      },
+      {
+        "name": "selection",
+        "gpu_ms": 30.5585,
+        "cpu_ms": 30.871,
+        "local_memory_bytes": 1917677568,
+        "enabled_pipeline_ms": 30.474,
+        "versus_complete": {
+          "changed_pixels": 0,
+          "max_rgb_difference": 0,
+          "pixels_over_one": 0,
+          "compared_pixels": 701014
+        }
+      },
+      {
+        "name": "complete-repeat",
+        "gpu_ms": 42.4505,
+        "cpu_ms": 43.068,
+        "local_memory_bytes": 1917677568,
+        "enabled_pipeline_ms": 42.091,
+        "versus_complete": {
+          "changed_pixels": 0,
+          "max_rgb_difference": 0,
+          "pixels_over_one": 0,
+          "compared_pixels": 701014
+        }
+      },
+      {
+        "name": "selection-repeat",
+        "gpu_ms": 30.622999999999998,
+        "cpu_ms": 30.945,
+        "local_memory_bytes": 1917677568,
+        "enabled_pipeline_ms": 30.5325,
+        "versus_complete": {
+          "changed_pixels": 0,
+          "max_rgb_difference": 0,
+          "pixels_over_one": 0,
+          "compared_pixels": 701014
+        }
+      },
+      {
+        "name": "coverage",
+        "gpu_ms": 30.678,
+        "cpu_ms": 31.068,
+        "local_memory_bytes": 1917677568,
+        "enabled_pipeline_ms": 30.869500000000002,
+        "versus_complete": {
+          "changed_pixels": 397013,
+          "max_rgb_difference": 232,
+          "pixels_over_one": 397002,
+          "compared_pixels": 701014
+        }
+      }
+    ]
+  },
+  "lookup_control": {
+    "capture_directory": "D:\\diversion\\TG\\TGProject\\user\\TerrainSceneProfile\\20261024-contributor-lookup-control",
+    "passed": true,
+    "restoration": {
+      "camera": true,
+      "entity_visibility": true,
+      "mesh_visibility": true,
+      "material_bindings": true,
+      "height_precision": true,
+      "level_file": true
+    },
+    "rows": [
+      {
+        "name": "complete",
+        "gpu_ms": 41.712,
+        "cpu_ms": 42.512,
+        "local_memory_bytes": 1792897024,
+        "enabled_pipeline_ms": 42.167,
+        "versus_complete": {
+          "changed_pixels": 0,
+          "max_rgb_difference": 0,
+          "pixels_over_one": 0,
+          "compared_pixels": 701014
+        }
+      },
+      {
+        "name": "lookup-only",
+        "gpu_ms": 30.026,
+        "cpu_ms": 30.532,
+        "local_memory_bytes": 1921871872,
+        "enabled_pipeline_ms": 30.0245,
+        "versus_complete": {
+          "changed_pixels": 0,
+          "max_rgb_difference": 0,
+          "pixels_over_one": 0,
+          "compared_pixels": 701014
+        }
+      },
+      {
+        "name": "selection",
+        "gpu_ms": 30.0765,
+        "cpu_ms": 30.571,
+        "local_memory_bytes": 1921871872,
+        "enabled_pipeline_ms": 29.921,
+        "versus_complete": {
+          "changed_pixels": 0,
+          "max_rgb_difference": 0,
+          "pixels_over_one": 0,
+          "compared_pixels": 701014
+        }
+      },
+      {
+        "name": "complete-repeat",
+        "gpu_ms": 41.539500000000004,
+        "cpu_ms": 42.157,
+        "local_memory_bytes": 1921871872,
+        "enabled_pipeline_ms": 41.4505,
+        "versus_complete": {
+          "changed_pixels": 0,
+          "max_rgb_difference": 0,
+          "pixels_over_one": 0,
+          "compared_pixels": 701014
+        }
+      },
+      {
+        "name": "lookup-only-repeat",
+        "gpu_ms": 30.011000000000003,
+        "cpu_ms": 30.438,
+        "local_memory_bytes": 1921871872,
+        "enabled_pipeline_ms": 29.9785,
+        "versus_complete": {
+          "changed_pixels": 0,
+          "max_rgb_difference": 0,
+          "pixels_over_one": 0,
+          "compared_pixels": 701014
+        }
+      },
+      {
+        "name": "selection-repeat",
+        "gpu_ms": 29.933999999999997,
+        "cpu_ms": 30.374,
+        "local_memory_bytes": 1921871872,
+        "enabled_pipeline_ms": 29.9095,
+        "versus_complete": {
+          "changed_pixels": 0,
+          "max_rgb_difference": 0,
+          "pixels_over_one": 0,
+          "compared_pixels": 701014
+        }
+      }
+    ]
+  },
+  "restored": {
+    "capture_directory": "D:\\diversion\\TG\\TGProject\\user\\TerrainSceneProfile\\20261024-contributor-restored",
+    "passed": true,
+    "restoration": {
+      "camera": true,
+      "entity_visibility": true,
+      "mesh_visibility": true,
+      "material_bindings": true,
+      "height_precision": true,
+      "level_file": true
+    },
+    "rows": [
+      {
+        "name": "complete",
+        "gpu_ms": 41.494,
+        "cpu_ms": 42.106,
+        "local_memory_bytes": 1792897024,
+        "enabled_pipeline_ms": 41.4125,
+        "versus_complete": {
+          "changed_pixels": 0,
+          "max_rgb_difference": 0,
+          "pixels_over_one": 0,
+          "compared_pixels": 701014
+        }
+      },
+      {
+        "name": "complete-repeat",
+        "gpu_ms": 43.032,
+        "cpu_ms": 43.515,
+        "local_memory_bytes": 1792897024,
+        "enabled_pipeline_ms": 42.9005,
+        "versus_complete": {
+          "changed_pixels": 0,
+          "max_rgb_difference": 0,
+          "pixels_over_one": 0,
+          "compared_pixels": 701014
+        }
+      }
+    ]
+  },
+  "source_restoration": {
+    "canonical/Assets/VueLiveLink/VueTerrainOverlap.azsli": true,
+    "consumer/Assets/VueLiveLink/VueTerrainOverlap.azsli": true,
+    "canonical/Assets/VueLiveLink/VueTerrainMesh.azsli": true,
+    "consumer/Assets/VueLiveLink/VueTerrainMesh.azsli": true,
+    "canonical/Assets/VueLiveLink/VueTerrainOverlap.materialtype": true,
+    "consumer/Assets/VueLiveLink/VueTerrainOverlap.materialtype": true,
+    "canonical/Gem/Source/Editor/VueLiveLink/terrain_overlap.py": true,
+    "consumer/Gem/Source/Editor/VueLiveLink/terrain_overlap.py": true,
+    "manifest": true,
+    "saved_level_sha256": "faec5fd3f9b69643b918af3a917623776d31bf7cc962485cfba712313a36a922"
+  },
+  "hardware": {
+    "cpu_user_reported": "Ryzen 7 5700G",
+    "gpu_capture": "AMD Radeon(TM) Graphics",
+    "system_ram_gib_user_reported": 32,
+    "memory_note": "DXGI local CurrentUsage is process GPU allocation on an integrated/shared-memory GPU, not dedicated VRAM consumption."
+  }
+}

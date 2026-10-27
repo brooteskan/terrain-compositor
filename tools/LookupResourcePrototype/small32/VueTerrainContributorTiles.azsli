@@ -1,0 +1,19 @@
+// Generated conservative contributor tiles. Frozen publication; no texture resource.
+#pragma once
+static const uint VueContributorKey = 147107816u;
+static const float2 VueContributorLow = float2(839.609741, -597.380554);
+static const float2 VueContributorHigh = float2(1394.60278, 402.674164);
+static const float2 VueContributorScale = float2(0.0576583855, 0.0319982506);
+static const uint VueContributorEndpoint[32] = { 4294950943u,4294901823u,4294836287u,4294443071u,4293918847u,4294443263u,4294902015u,4294935039u,4294935039u,4294959359u,4294963455u,4294965375u,4294965375u,4294966335u,4294966303u,4294966799u,4294966799u,4294966787u,4294967041u,4294967232u,4294967280u,4294967288u,4294967294u,4294967295u,4294967295u,4294967295u,4294967295u,4294967295u,4294967295u,4294967295u,4294967295u,4294967295u };
+static const uint VueContributorBlend[32] = { 0u,0u,0u,0u,0u,0u,0u,0u,0u,0u,0u,0u,0u,0u,0u,0u,0u,0u,0u,0u,0u,0u,0u,0u,0u,0u,0u,0u,0u,0u,0u,0u };
+uint VueContributorTile(float2 world)
+{
+    if (!all(isfinite(world))) return 0;
+    if (any(world < VueContributorLow) || any(world > VueContributorHigh)) return 1;
+    uint2 cell = min(uint2(max((world - VueContributorLow) * VueContributorScale, 0.0)), 31u);
+    uint index = cell.y * 32u + cell.x;
+    uint bit = 1u << (index & 31u);
+    if ((VueContributorEndpoint[index >> 5u] & bit) != 0u) return 1;
+    if ((VueContributorBlend[index >> 5u] & bit) != 0u) return 2;
+    return 0;
+}

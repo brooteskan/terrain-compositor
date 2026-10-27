@@ -1,0 +1,610 @@
+{
+  "materials": {
+    "assets\\vuelivelink\\overlap\\d9e7b35caf90f0292a9e19d9\\13d046a1907c1ddef8a6ce2438e433a7af1396d73b7006df19a4376676016fcd.material": {
+      "baseColor.color": [
+        0.8,
+        0.8,
+        0.8,
+        1.0
+      ],
+      "baseColor.textureMap": "Assets/VueLiveLink/terrains/82b2e8c01b5c41e99883138b20d758d0/2ad83d8_31a7c446/b/Maps/Terrain6_Default_baked_Color.png",
+      "emissive.color": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "emissive.enable": false,
+      "groundBlend.albedoScale": 1.0,
+      "groundBlend.ambientGain": 1.0,
+      "groundBlend.ambientOcclusion": 1.0,
+      "groundBlend.backlight": 0.0,
+      "groundBlend.colorTexture": "Assets/VueLiveLink/ground_color.png",
+      "groundBlend.colorTint": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "groundBlend.contrast": 1.0,
+      "groundBlend.directGain": 1.0,
+      "groundBlend.height": 10.0,
+      "groundBlend.normalStrength": 1.0,
+      "groundBlend.normalTexture": "",
+      "groundBlend.roughness": 1.0,
+      "groundBlend.specularFactor": 0.5,
+      "groundBlend.specularGain": 1,
+      "groundBlend.stochastic": true,
+      "groundBlend.textureScale": 1000.0,
+      "normal.textureMap": "Assets/VueLiveLink/terrains/82b2e8c01b5c41e99883138b20d758d0/2ad83d8_31a7c446/b/Maps/Terrain6_Default_baked_Normal.png",
+      "normalSmoothing.field": "Assets/VueLiveLink/terrains/82b2e8c01b5c41e99883138b20d758d0/2ad83d8_31a7c446/b/terrain_normals.dds",
+      "normalSmoothing.gridSize": [
+        512,
+        512
+      ],
+      "normalSmoothing.strength": 1.0,
+      "opacity.factor": 1.0,
+      "overlapSource0.color": [
+        0.8,
+        0.8,
+        0.8,
+        1.0
+      ],
+      "overlapSource0.colorFactor": 1,
+      "overlapSource0.colorMap": "Assets/VueLiveLink/terrains/82b2e8c01b5c41e99883138b20d758d0/2ad83d8_31a7c446/b/Maps/Terrain6_Default_baked_Color.png",
+      "overlapSource0.gridSize": [
+        512,
+        512
+      ],
+      "overlapSource0.heightMap": "Assets/VueLiveLink/overlap/d9e7b35caf90f0292a9e19d9/v4_f36a27c475416a5d3fcd5e0c_s256_16f.dds",
+      "overlapSource0.heightScaleOffset": [
+        19.826589584350586,
+        -3.4280014038085938
+      ],
+      "overlapSource0.metallic": 0,
+      "overlapSource0.normalField": "Assets/VueLiveLink/terrains/82b2e8c01b5c41e99883138b20d758d0/2ad83d8_31a7c446/b/terrain_normals.dds",
+      "overlapSource0.normalMap": "Assets/VueLiveLink/terrains/82b2e8c01b5c41e99883138b20d758d0/2ad83d8_31a7c446/b/Maps/Terrain6_Default_baked_Normal.png",
+      "overlapSource0.normalRow0": [
+        -1.0,
+        0.0,
+        0.0
+      ],
+      "overlapSource0.normalRow1": [
+        0.0,
+        -1.0,
+        0.0
+      ],
+      "overlapSource0.normalRow2": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "overlapSource0.normalStrength": 1,
+      "overlapSource0.occlusion": 1,
+      "overlapSource0.occlusionMap": "",
+      "overlapSource0.roughness": 0.9036020036098448,
+      "overlapSource0.smooth": 1.0,
+      "overlapSource0.specular": 0.0,
+      "overlapSource0.specularMap": "",
+      "overlapSource0.tangent": [
+        6.502057075500488,
+        -5.701269626617432,
+        0
+      ],
+      "overlapSource0.uvRow0": [
+        0.00033963954617278005,
+        -0.0002978098558539605,
+        0.4213969595435652
+      ],
+      "overlapSource0.uvRow1": [
+        -0.0006592882018160554,
+        -0.0007518903328828174,
+        0.6544561467080818
+      ],
+      "overlapSource1.color": [
+        0.8,
+        0.8,
+        0.8,
+        1.0
+      ],
+      "overlapSource1.colorFactor": 1,
+      "overlapSource1.colorMap": "Assets/VueLiveLink/terrains/82b2e8c01b5c41e99883138b20d758d0/3445e7a6_395c14b3/b/Maps/Terrain7_Default_baked_Color.png",
+      "overlapSource1.gridSize": [
+        72,
+        72
+      ],
+      "overlapSource1.heightMap": "Assets/VueLiveLink/overlap/9f344ef8359b9976db0ed01a/v4_b94b6f6ebad937a910b143e7_s256_16f.dds",
+      "overlapSource1.heightScaleOffset": [
+        7.8125,
+        -0.0008999999845400453
+      ],
+      "overlapSource1.metallic": 0,
+      "overlapSource1.normalField": "Assets/VueLiveLink/terrains/82b2e8c01b5c41e99883138b20d758d0/3445e7a6_395c14b3/b/terrain_normals.dds",
+      "overlapSource1.normalMap": "Assets/VueLiveLink/terrains/82b2e8c01b5c41e99883138b20d758d0/3445e7a6_395c14b3/b/Maps/Terrain7_Default_baked_Normal.png",
+      "overlapSource1.normalRow0": [
+        -1.0,
+        0.0,
+        0.0
+      ],
+      "overlapSource1.normalRow1": [
+        0.0,
+        -1.0,
+        0.0
+      ],
+      "overlapSource1.normalRow2": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "overlapSource1.normalStrength": 1,
+      "overlapSource1.occlusion": 1,
+      "overlapSource1.occlusionMap": "",
+      "overlapSource1.roughness": 0.9036020036098448,
+      "overlapSource1.smooth": 1.0,
+      "overlapSource1.specular": 0.0,
+      "overlapSource1.specularMap": "",
+      "overlapSource1.tangent": [
+        3.90625,
+        0.0,
+        0
+      ],
+      "overlapSource1.uvRow0": [
+        0.001,
+        -0.0,
+        -0.8396370849609376
+      ],
+      "overlapSource1.uvRow1": [
+        0.0,
+        -0.001,
+        0.4026468200683594
+      ],
+      "roughness.factor": 0.9036020036098448,
+      "specularF0.factor": 0.0,
+      "terrainOverlap.count": 2,
+      "terrainOverlap.fixedHeightExtent": true,
+      "terrainOverlap.heightFp16": true,
+      "terrainOverlap.width": 10.0,
+      "vueResponse.albedoScale": 1.0,
+      "vueResponse.ambientGain": 1.0,
+      "vueResponse.backlight": 0.0,
+      "vueResponse.contrast": 1.0,
+      "vueResponse.directGain": 1.0,
+      "vueResponse.specularGain": 0.0
+    },
+    "assets\\vuelivelink\\overlap\\9f344ef8359b9976db0ed01a\\13d046a1907c1ddef8a6ce2438e433a7af1396d73b7006df19a4376676016fcd.material": {
+      "baseColor.color": [
+        0.8,
+        0.8,
+        0.8,
+        1.0
+      ],
+      "baseColor.textureMap": "Assets/VueLiveLink/terrains/82b2e8c01b5c41e99883138b20d758d0/3445e7a6_395c14b3/b/Maps/Terrain7_Default_baked_Color.png",
+      "emissive.color": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "emissive.enable": false,
+      "groundBlend.albedoScale": 1.0,
+      "groundBlend.ambientGain": 1.0,
+      "groundBlend.ambientOcclusion": 1.0,
+      "groundBlend.backlight": 0.0,
+      "groundBlend.colorTexture": "Assets/VueLiveLink/ground_color.png",
+      "groundBlend.colorTint": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "groundBlend.contrast": 1.0,
+      "groundBlend.directGain": 1.0,
+      "groundBlend.height": 10.0,
+      "groundBlend.normalStrength": 1.0,
+      "groundBlend.normalTexture": "",
+      "groundBlend.roughness": 1.0,
+      "groundBlend.specularFactor": 0.5,
+      "groundBlend.specularGain": 1,
+      "groundBlend.stochastic": true,
+      "groundBlend.textureScale": 1000.0,
+      "normal.textureMap": "Assets/VueLiveLink/terrains/82b2e8c01b5c41e99883138b20d758d0/3445e7a6_395c14b3/b/Maps/Terrain7_Default_baked_Normal.png",
+      "normalSmoothing.field": "Assets/VueLiveLink/terrains/82b2e8c01b5c41e99883138b20d758d0/3445e7a6_395c14b3/b/terrain_normals.dds",
+      "normalSmoothing.gridSize": [
+        72,
+        72
+      ],
+      "normalSmoothing.strength": 1.0,
+      "opacity.factor": 1.0,
+      "overlapSource0.color": [
+        0.8,
+        0.8,
+        0.8,
+        1.0
+      ],
+      "overlapSource0.colorFactor": 1,
+      "overlapSource0.colorMap": "Assets/VueLiveLink/terrains/82b2e8c01b5c41e99883138b20d758d0/2ad83d8_31a7c446/b/Maps/Terrain6_Default_baked_Color.png",
+      "overlapSource0.gridSize": [
+        512,
+        512
+      ],
+      "overlapSource0.heightMap": "Assets/VueLiveLink/overlap/d9e7b35caf90f0292a9e19d9/v4_f36a27c475416a5d3fcd5e0c_s256_16f.dds",
+      "overlapSource0.heightScaleOffset": [
+        19.826589584350586,
+        -3.4280014038085938
+      ],
+      "overlapSource0.metallic": 0,
+      "overlapSource0.normalField": "Assets/VueLiveLink/terrains/82b2e8c01b5c41e99883138b20d758d0/2ad83d8_31a7c446/b/terrain_normals.dds",
+      "overlapSource0.normalMap": "Assets/VueLiveLink/terrains/82b2e8c01b5c41e99883138b20d758d0/2ad83d8_31a7c446/b/Maps/Terrain6_Default_baked_Normal.png",
+      "overlapSource0.normalRow0": [
+        -1.0,
+        0.0,
+        0.0
+      ],
+      "overlapSource0.normalRow1": [
+        0.0,
+        -1.0,
+        0.0
+      ],
+      "overlapSource0.normalRow2": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "overlapSource0.normalStrength": 1,
+      "overlapSource0.occlusion": 1,
+      "overlapSource0.occlusionMap": "",
+      "overlapSource0.roughness": 0.9036020036098448,
+      "overlapSource0.smooth": 1.0,
+      "overlapSource0.specular": 0.0,
+      "overlapSource0.specularMap": "",
+      "overlapSource0.tangent": [
+        6.502057075500488,
+        -5.701269626617432,
+        0
+      ],
+      "overlapSource0.uvRow0": [
+        0.00033963954617278005,
+        -0.0002978098558539605,
+        0.4213969595435652
+      ],
+      "overlapSource0.uvRow1": [
+        -0.0006592882018160554,
+        -0.0007518903328828174,
+        0.6544561467080818
+      ],
+      "overlapSource1.color": [
+        0.8,
+        0.8,
+        0.8,
+        1.0
+      ],
+      "overlapSource1.colorFactor": 1,
+      "overlapSource1.colorMap": "Assets/VueLiveLink/terrains/82b2e8c01b5c41e99883138b20d758d0/3445e7a6_395c14b3/b/Maps/Terrain7_Default_baked_Color.png",
+      "overlapSource1.gridSize": [
+        72,
+        72
+      ],
+      "overlapSource1.heightMap": "Assets/VueLiveLink/overlap/9f344ef8359b9976db0ed01a/v4_b94b6f6ebad937a910b143e7_s256_16f.dds",
+      "overlapSource1.heightScaleOffset": [
+        7.8125,
+        -0.0008999999845400453
+      ],
+      "overlapSource1.metallic": 0,
+      "overlapSource1.normalField": "Assets/VueLiveLink/terrains/82b2e8c01b5c41e99883138b20d758d0/3445e7a6_395c14b3/b/terrain_normals.dds",
+      "overlapSource1.normalMap": "Assets/VueLiveLink/terrains/82b2e8c01b5c41e99883138b20d758d0/3445e7a6_395c14b3/b/Maps/Terrain7_Default_baked_Normal.png",
+      "overlapSource1.normalRow0": [
+        -1.0,
+        0.0,
+        0.0
+      ],
+      "overlapSource1.normalRow1": [
+        0.0,
+        -1.0,
+        0.0
+      ],
+      "overlapSource1.normalRow2": [
+        0.0,
+        0.0,
+        1.0
+      ],
+      "overlapSource1.normalStrength": 1,
+      "overlapSource1.occlusion": 1,
+      "overlapSource1.occlusionMap": "",
+      "overlapSource1.roughness": 0.9036020036098448,
+      "overlapSource1.smooth": 1.0,
+      "overlapSource1.specular": 0.0,
+      "overlapSource1.specularMap": "",
+      "overlapSource1.tangent": [
+        3.90625,
+        0.0,
+        0
+      ],
+      "overlapSource1.uvRow0": [
+        0.001,
+        -0.0,
+        -0.8396370849609376
+      ],
+      "overlapSource1.uvRow1": [
+        0.0,
+        -0.001,
+        0.4026468200683594
+      ],
+      "roughness.factor": 0.9036020036098448,
+      "specularF0.factor": 0.0,
+      "terrainOverlap.count": 2,
+      "terrainOverlap.fixedHeightExtent": true,
+      "terrainOverlap.heightFp16": true,
+      "terrainOverlap.width": 10.0,
+      "vueResponse.albedoScale": 1.0,
+      "vueResponse.ambientGain": 1.0,
+      "vueResponse.backlight": 0.0,
+      "vueResponse.contrast": 1.0,
+      "vueResponse.directGain": 1.0,
+      "vueResponse.specularGain": 0.0
+    }
+  },
+  "textures": [
+    {
+      "path": "Assets/VueLiveLink/terrains/82b2e8c01b5c41e99883138b20d758d0/2ad83d8_31a7c446/b/Maps/Terrain6_Default_baked_Color.png",
+      "uses": [
+        "baseColor.textureMap",
+        "overlapSource0.colorMap",
+        "overlapSource0.colorMap"
+      ],
+      "source_bytes": 633198,
+      "sha256": "e63e6683c0a6a3295f28eca90899ace90903726cf0b286ae4bd8e8ab7a3913f4",
+      "width": 800,
+      "height": 800,
+      "mode": "RGB",
+      "cooked_products": [
+        {
+          "path": "Cache\\pc\\assets\\vuelivelink\\terrains\\82b2e8c01b5c41e99883138b20d758d0\\2ad83d8_31a7c446\\b\\maps\\terrain6_default_baked_color.png.1002.imagemipchain",
+          "bytes": 84810
+        },
+        {
+          "path": "Cache\\pc\\assets\\vuelivelink\\terrains\\82b2e8c01b5c41e99883138b20d758d0\\2ad83d8_31a7c446\\b\\maps\\terrain6_default_baked_color.png.1003.imagemipchain",
+          "bytes": 324810
+        },
+        {
+          "path": "Cache\\pc\\assets\\vuelivelink\\terrains\\82b2e8c01b5c41e99883138b20d758d0\\2ad83d8_31a7c446\\b\\maps\\terrain6_default_baked_color.png.streamingimage",
+          "bytes": 32651
+        }
+      ],
+      "cooked_total_bytes": 442271
+    },
+    {
+      "path": "Assets/VueLiveLink/ground_color.png",
+      "uses": [
+        "groundBlend.colorTexture",
+        "groundBlend.colorTexture",
+        "ground and terrain contact"
+      ],
+      "source_bytes": 598357,
+      "sha256": "ef77d42f40747ee9f7af33bbe0ee86a629e6d00d077085aa11d864d52a27dc00",
+      "width": 800,
+      "height": 800,
+      "mode": "RGB",
+      "cooked_products": [
+        {
+          "path": "Cache\\pc\\assets\\vuelivelink\\ground_color.png.1002.imagemipchain",
+          "bytes": 84810
+        },
+        {
+          "path": "Cache\\pc\\assets\\vuelivelink\\ground_color.png.1003.imagemipchain",
+          "bytes": 324810
+        },
+        {
+          "path": "Cache\\pc\\assets\\vuelivelink\\ground_color.png.streamingimage",
+          "bytes": 32651
+        }
+      ],
+      "cooked_total_bytes": 442271
+    },
+    {
+      "path": "Assets/VueLiveLink/terrains/82b2e8c01b5c41e99883138b20d758d0/2ad83d8_31a7c446/b/Maps/Terrain6_Default_baked_Normal.png",
+      "uses": [
+        "normal.textureMap",
+        "overlapSource0.normalMap",
+        "overlapSource0.normalMap"
+      ],
+      "source_bytes": 28382,
+      "sha256": "cfabfaa28e111899d162db52e1f90ecac119ace3ecfc3b36ea4164b35ad27bd4",
+      "width": 800,
+      "height": 800,
+      "mode": "RGB",
+      "cooked_products": [
+        {
+          "path": "Cache\\pc\\assets\\vuelivelink\\terrains\\82b2e8c01b5c41e99883138b20d758d0\\2ad83d8_31a7c446\\b\\maps\\terrain6_default_baked_normal.png.1002.imagemipchain",
+          "bytes": 164810
+        },
+        {
+          "path": "Cache\\pc\\assets\\vuelivelink\\terrains\\82b2e8c01b5c41e99883138b20d758d0\\2ad83d8_31a7c446\\b\\maps\\terrain6_default_baked_normal.png.1003.imagemipchain",
+          "bytes": 644810
+        },
+        {
+          "path": "Cache\\pc\\assets\\vuelivelink\\terrains\\82b2e8c01b5c41e99883138b20d758d0\\2ad83d8_31a7c446\\b\\maps\\terrain6_default_baked_normal.png.streamingimage",
+          "bytes": 57651
+        }
+      ],
+      "cooked_total_bytes": 867271
+    },
+    {
+      "path": "Assets/VueLiveLink/terrains/82b2e8c01b5c41e99883138b20d758d0/2ad83d8_31a7c446/b/terrain_normals.dds",
+      "uses": [
+        "normalSmoothing.field",
+        "overlapSource0.normalField",
+        "overlapSource0.normalField"
+      ],
+      "source_bytes": 2097300,
+      "sha256": "efb43d686f41867fa72f79ba45955db7201d09a9fe72760c4ef61aaa363966eb",
+      "width": 512,
+      "height": 512,
+      "dxgi": 10,
+      "payload_bytes": 2097152,
+      "min_xyz": [
+        -0.97021484375,
+        -0.92724609375,
+        0.1549072265625
+      ],
+      "max_xyz": [
+        0.9091796875,
+        0.92724609375,
+        1.0
+      ],
+      "alpha_unique": [
+        1.0
+      ],
+      "compact_xy_valid_hemisphere": true,
+      "cooked_products": [
+        {
+          "path": "Cache\\pc\\assets\\vuelivelink\\terrains\\82b2e8c01b5c41e99883138b20d758d0\\2ad83d8_31a7c446\\b\\terrain_normals.dds.streamingimage",
+          "bytes": 2104472
+        }
+      ],
+      "cooked_total_bytes": 2104472
+    },
+    {
+      "path": "Assets/VueLiveLink/overlap/d9e7b35caf90f0292a9e19d9/v4_f36a27c475416a5d3fcd5e0c_s256_16f.dds",
+      "uses": [
+        "overlapSource0.heightMap",
+        "overlapSource0.heightMap"
+      ],
+      "source_bytes": 131220,
+      "sha256": "d12e22d33241f15837941aeb0508b36cbe6a78ba4886b25e2ddacd6a1774c95d",
+      "width": 256,
+      "height": 256,
+      "dxgi": 54,
+      "payload_bytes": 131072,
+      "cooked_products": [
+        {
+          "path": "Cache\\pc\\assets\\vuelivelink\\overlap\\d9e7b35caf90f0292a9e19d9\\v4_f36a27c475416a5d3fcd5e0c_s256_16f.dds.streamingimage",
+          "bytes": 138392
+        }
+      ],
+      "cooked_total_bytes": 138392
+    },
+    {
+      "path": "Assets/VueLiveLink/terrains/82b2e8c01b5c41e99883138b20d758d0/3445e7a6_395c14b3/b/Maps/Terrain7_Default_baked_Color.png",
+      "uses": [
+        "overlapSource1.colorMap",
+        "baseColor.textureMap",
+        "overlapSource1.colorMap"
+      ],
+      "source_bytes": 614291,
+      "sha256": "a37ee09c24966a10865f7ebfb52a992d83f0b373f0b7f40bf499e3ec9fda7f6e",
+      "width": 800,
+      "height": 800,
+      "mode": "RGB",
+      "cooked_products": [
+        {
+          "path": "Cache\\pc\\assets\\vuelivelink\\terrains\\82b2e8c01b5c41e99883138b20d758d0\\3445e7a6_395c14b3\\b\\maps\\terrain7_default_baked_color.png.1002.imagemipchain",
+          "bytes": 84810
+        },
+        {
+          "path": "Cache\\pc\\assets\\vuelivelink\\terrains\\82b2e8c01b5c41e99883138b20d758d0\\3445e7a6_395c14b3\\b\\maps\\terrain7_default_baked_color.png.1003.imagemipchain",
+          "bytes": 324810
+        },
+        {
+          "path": "Cache\\pc\\assets\\vuelivelink\\terrains\\82b2e8c01b5c41e99883138b20d758d0\\3445e7a6_395c14b3\\b\\maps\\terrain7_default_baked_color.png.streamingimage",
+          "bytes": 32651
+        }
+      ],
+      "cooked_total_bytes": 442271
+    },
+    {
+      "path": "Assets/VueLiveLink/overlap/9f344ef8359b9976db0ed01a/v4_b94b6f6ebad937a910b143e7_s256_16f.dds",
+      "uses": [
+        "overlapSource1.heightMap",
+        "overlapSource1.heightMap"
+      ],
+      "source_bytes": 131220,
+      "sha256": "9f73ab947ded92f55fb00631cd0172d35dfd4592189b8475949cf7151fbcff01",
+      "width": 256,
+      "height": 256,
+      "dxgi": 54,
+      "payload_bytes": 131072,
+      "cooked_products": [
+        {
+          "path": "Cache\\pc\\assets\\vuelivelink\\overlap\\9f344ef8359b9976db0ed01a\\v4_b94b6f6ebad937a910b143e7_s256_16f.dds.streamingimage",
+          "bytes": 138392
+        }
+      ],
+      "cooked_total_bytes": 138392
+    },
+    {
+      "path": "Assets/VueLiveLink/terrains/82b2e8c01b5c41e99883138b20d758d0/3445e7a6_395c14b3/b/terrain_normals.dds",
+      "uses": [
+        "overlapSource1.normalField",
+        "normalSmoothing.field",
+        "overlapSource1.normalField"
+      ],
+      "source_bytes": 131220,
+      "sha256": "5ea781b7adde224cfb06e353a2c8dc5506d00fdcc7269b1cb0de11a0b701e405",
+      "width": 128,
+      "height": 128,
+      "dxgi": 10,
+      "payload_bytes": 131072,
+      "min_xyz": [
+        -0.71435546875,
+        -0.61572265625,
+        0.68408203125
+      ],
+      "max_xyz": [
+        0.65185546875,
+        0.65283203125,
+        1.0
+      ],
+      "alpha_unique": [
+        1.0
+      ],
+      "compact_xy_valid_hemisphere": true,
+      "cooked_products": [
+        {
+          "path": "Cache\\pc\\assets\\vuelivelink\\terrains\\82b2e8c01b5c41e99883138b20d758d0\\3445e7a6_395c14b3\\b\\terrain_normals.dds.streamingimage",
+          "bytes": 138392
+        }
+      ],
+      "cooked_total_bytes": 138392
+    },
+    {
+      "path": "Assets/VueLiveLink/terrains/82b2e8c01b5c41e99883138b20d758d0/3445e7a6_395c14b3/b/Maps/Terrain7_Default_baked_Normal.png",
+      "uses": [
+        "overlapSource1.normalMap",
+        "normal.textureMap",
+        "overlapSource1.normalMap"
+      ],
+      "source_bytes": 11560,
+      "sha256": "bc4b31ef2d7955342cb86cacd5d6015b269292cc5a3903c8e648dd840effce20",
+      "width": 800,
+      "height": 800,
+      "mode": "RGB",
+      "cooked_products": [
+        {
+          "path": "Cache\\pc\\assets\\vuelivelink\\terrains\\82b2e8c01b5c41e99883138b20d758d0\\3445e7a6_395c14b3\\b\\maps\\terrain7_default_baked_normal.png.1002.imagemipchain",
+          "bytes": 164810
+        },
+        {
+          "path": "Cache\\pc\\assets\\vuelivelink\\terrains\\82b2e8c01b5c41e99883138b20d758d0\\3445e7a6_395c14b3\\b\\maps\\terrain7_default_baked_normal.png.1003.imagemipchain",
+          "bytes": 644810
+        },
+        {
+          "path": "Cache\\pc\\assets\\vuelivelink\\terrains\\82b2e8c01b5c41e99883138b20d758d0\\3445e7a6_395c14b3\\b\\maps\\terrain7_default_baked_normal.png.streamingimage",
+          "bytes": 57651
+        }
+      ],
+      "cooked_total_bytes": 867271
+    }
+  ],
+  "absent_channels": {
+    "assets\\vuelivelink\\overlap\\d9e7b35caf90f0292a9e19d9\\13d046a1907c1ddef8a6ce2438e433a7af1396d73b7006df19a4376676016fcd.material": [
+      "overlapSource0.occlusionMap",
+      "overlapSource0.specularMap",
+      "overlapSource1.occlusionMap",
+      "overlapSource1.specularMap"
+    ],
+    "assets\\vuelivelink\\overlap\\9f344ef8359b9976db0ed01a\\13d046a1907c1ddef8a6ce2438e433a7af1396d73b7006df19a4376676016fcd.material": [
+      "overlapSource0.occlusionMap",
+      "overlapSource0.specularMap",
+      "overlapSource1.occlusionMap",
+      "overlapSource1.specularMap"
+    ]
+  }
+}

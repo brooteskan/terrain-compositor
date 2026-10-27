@@ -1,0 +1,380 @@
+{
+  "version": 1,
+  "description": "Canonical TG consumer updates delivered with the terrain-compositor submodule.",
+  "files": [
+    {
+      "path": "Gem/Source/Editor/VueLiveLink/terrain_normals.py",
+      "source": "project/Gem/Source/Editor/VueLiveLink/terrain_normals.py",
+      "binary": false,
+      "accepted_sha256": [
+        "2fb00930adee23500be40d85f3e345d13b01e7624711f4d59fbff3532b72a6b6",
+        "d86944589e41e1c2d79ef2b57d26f449ef4ef432b8c40a09b43505efb8b73fec"
+      ],
+      "accepted_json_sha256": []
+    },
+    {
+      "path": "Gem/Source/Editor/VueLiveLink/terrain_overlap.py",
+      "source": "project/Gem/Source/Editor/VueLiveLink/terrain_overlap.py",
+      "binary": false,
+      "accepted_sha256": [
+        "515c690770b5a2e77f294b8c1d3fc1b3633e049c95b8fd7f52642f60e86de68d",
+        "b4822d27d752034c876e077c045fdd60b4946109fd9914feb505b5a7a8391088",
+        "0225d9328b4759e8d1caf1d665c89529debc7eecc3553e73186184fe927dd4e1",
+        "8b21502fa77fa879b929f6fc35a10ea85aa02461cac6735cb6b511519ef96c5d",
+        "851c55fa730f5e0a69252e73a84711788c293f756c48c16fb59158908e8b6955",
+        "c6319be8c7cbb217cd64878d53c906464e0e6660da711fbb735dd59448de6803",
+        "bfdf0e43947ee24d35044816ad30289a547b54556e16175a2e719bff3363874c",
+        "c22be829db07608fc6972a1480fd43a46aafd6c330407fb1eed5177d3ebced99",
+        "cdf13c764db998d2276e3f8d5f83dd363733d12c44cf93bca2e819c319ed51fa",
+        "c120d9a0616279ac5afd3b93fdcceb763e957586237bc98bb9cea4e8a0c1861f"
+      ],
+      "accepted_json_sha256": []
+    },
+    {
+      "path": "Assets/VueLiveLink/VueTerrainMesh.azsli",
+      "source": "project/Assets/VueLiveLink/VueTerrainMesh.azsli",
+      "binary": false,
+      "accepted_sha256": [
+        "4028640256be67ab79b5804dca6397a594158ffa556870e727347b632412ca98",
+        "6a61d85724d502044a7004dac205c85b5ecfbad3f2b5234dc7d89caab279e112",
+        "5dbf7731223ca640af3bdf4f3a3dcbf62a7ba296f93ba3a8ef3bf1158117c8ed",
+        "a82573b4598f39a0df29ca294927d5c95ad15cf5267d107d8e29601acf394156"
+      ],
+      "accepted_json_sha256": []
+    },
+    {
+      "path": "Assets/VueLiveLink/VueSimpleTerrain_Clipmap.azsl",
+      "source": "project/Assets/VueLiveLink/VueSimpleTerrain_Clipmap.azsl",
+      "binary": false,
+      "accepted_sha256": [
+        "0c19e8eb39ec3e1cd635e81b2314c51842ea11a8064185291df2fdaa9bd4f518"
+      ],
+      "accepted_json_sha256": []
+    },
+    {
+      "path": "Assets/VueLiveLink/VueSimpleTerrain_Clipmap.shader",
+      "source": "project/Assets/VueLiveLink/VueSimpleTerrain_Clipmap.shader",
+      "binary": false,
+      "accepted_sha256": [
+        "f109a020d76885c240de9c3b7dcf9e053324f97fed7034903792bb70cf5a0a10"
+      ],
+      "accepted_json_sha256": [
+        "eb3a9d7ef000184b59ef74ce985cc737d7a0bb0585d7e72e247f31f0200f0871"
+      ]
+    },
+    {
+      "path": "Assets/VueLiveLink/VueSimpleTerrain.materialtype",
+      "source": "project/Assets/VueLiveLink/VueSimpleTerrain.materialtype",
+      "binary": false,
+      "accepted_sha256": [
+        "1fa315d2cd8ab24ec27e5471cc70e00e73199b96162ec887fd6e1c51393517b0",
+        "eea36ddfb1fe32db5f25f3ad786dcae4c269a65989006f241a43167480a4efa2"
+      ],
+      "accepted_json_sha256": [
+        "d0f5b93713d70af2e990eaf121bd04e082676a21e549171d75847a4fa2187a00",
+        "d84733613c7d6996341328e84cce8900b257b4f6c18533664567ce807bf8738e"
+      ]
+    },
+    {
+      "path": "Assets/VueScenes/MountainExport2/ground_Clipmap.azsl",
+      "source": "project/Assets/VueScenes/MountainExport2/ground_Clipmap.azsl",
+      "binary": false,
+      "accepted_sha256": [
+        "b338d7999e751978eb0a9976c13abd994cfc7020c5ad3d4d77d9c0e34b783a62"
+      ],
+      "accepted_json_sha256": []
+    },
+    {
+      "path": "Assets/VueScenes/MountainExport2/ground_Clipmap.shader",
+      "source": "project/Assets/VueScenes/MountainExport2/ground_Clipmap.shader",
+      "binary": false,
+      "accepted_sha256": [
+        "927ace864f2701d289460b28811ea959a8cd0523633fb922f52884324727a4ff"
+      ],
+      "accepted_json_sha256": [
+        "3ae78b15ce74752ae0b9e03bd12085527e413fb8495afaba73603eeef21156e4"
+      ]
+    },
+    {
+      "path": "Assets/VueScenes/MountainExport2/ground.materialtype",
+      "source": "project/Assets/VueScenes/MountainExport2/ground.materialtype",
+      "binary": false,
+      "accepted_sha256": [
+        "528a31f9e3ddbc0a8a6013321f6cd1c615b76704c4f9639a146eec8d0345262e",
+        "89dce67e47a94cba01b47f30527a04ef22948399327dbfdfacb337847c7f3723"
+      ],
+      "accepted_json_sha256": [
+        "711f18032005d89fa2b16736096bdf6320874ff65c8d480a483295803f3db192",
+        "befea3d4abf411d29ebcde93d575cb2b801d0f56305b1b54c540037a02b7624c"
+      ]
+    },
+    {
+      "path": "Assets/VueLiveLink/VueSimpleTerrain_Forward.shader",
+      "source": "project/Assets/VueLiveLink/VueSimpleTerrain_Forward.shader",
+      "binary": false,
+      "accepted_sha256": [
+        "48f8cb7f57ccc26ddf9f0143c68c51d34d7ab87f3bc3031463a1d120a2fb7325",
+        "53fe447b32713a5e16b9aed3354221e6e2f6a643bd63717ae44cad054debdaa7",
+        "877b3d90a365dd9367bd388565335f317c77e65f70d7534e496079d62c942631",
+        "c9142d3ca0ef3ce3441cc2eedffc89e9a88d9511a2af7c8307e7d48c9260d792"
+      ],
+      "accepted_json_sha256": [
+        "17282b7325b4902d7bf37b3ff390b4007774063f25f8e809482dfe41e2a7b075",
+        "7c955e10e92dfd51d80b69ab9458ed104f81df32c38101689ad0b3fefd6b2cdb",
+        "e3d9b69b1487a89788ec4096b0e2d0b81654398bd638e7d2b8758e0de277dfd7"
+      ]
+    },
+    {
+      "path": "Assets/VueScenes/MountainExport2/ground_Forward.shader",
+      "source": "project/Assets/VueScenes/MountainExport2/ground_Forward.shader",
+      "binary": false,
+      "accepted_sha256": [
+        "14b519e9fe78ae1d254d0d0d2d706b7644e941e200569d424a2e76a89d9ff436",
+        "5158e3b99f99860eb002638b92dff87d9d81d7a46698f9184da9a1feb9c6a9f2",
+        "a3f8f60794baf9b81b0767a7cfee1b9a8f12cfa0c0683c432f04e9b8ca4a8fa0"
+      ],
+      "accepted_json_sha256": [
+        "5eab02bcfa5d6472fc54f9b843671a8ae7033cb4005cddc95a1b58cfc2c7529c",
+        "92bde41de4477f1f3f143446ed45e5f789ae2a4f90cbdc244026bb3629216ee3",
+        "dc009f5eeaa910c9af0ce5b02b6fa313d7adbf4363220f95ba6a2e9db1e1c404"
+      ]
+    },
+    {
+      "path": "Assets/VueLiveLink/terrains/82b2e8c01b5c41e99883138b20d758d0/2ad83d8_31a7c446/b/terrain_normals.dds",
+      "source": "project/Assets/VueLiveLink/terrains/82b2e8c01b5c41e99883138b20d758d0/2ad83d8_31a7c446/b/terrain_normals.dds",
+      "binary": true,
+      "accepted_sha256": [
+        "51b9804088a3ce2a8583b97a4c99c8a88f386d0d7a4a47a17f3f0f891ee27741",
+        "efb43d686f41867fa72f79ba45955db7201d09a9fe72760c4ef61aaa363966eb"
+      ],
+      "accepted_json_sha256": []
+    },
+    {
+      "path": "Assets/VueLiveLink/terrains/82b2e8c01b5c41e99883138b20d758d0/2ad83d8_31a7c446/b/terrain_normals.dds.assetinfo",
+      "source": "project/Assets/VueLiveLink/terrains/82b2e8c01b5c41e99883138b20d758d0/2ad83d8_31a7c446/b/terrain_normals.dds.assetinfo",
+      "binary": false,
+      "accepted_sha256": [
+        "43389282f04813cd7a6d3c509d7170bbe0efdb145bd9097dec7a6b1ff1743a36",
+        "445f869988cdcc466a0070a4070fa5bd93c4f0a59894fb2c9a20eff138808de8"
+      ],
+      "accepted_json_sha256": []
+    },
+    {
+      "path": "Assets/VueLiveLink/terrains/82b2e8c01b5c41e99883138b20d758d0/3445e7a6_395c14b3/b/terrain_normals.dds",
+      "source": "project/Assets/VueLiveLink/terrains/82b2e8c01b5c41e99883138b20d758d0/3445e7a6_395c14b3/b/terrain_normals.dds",
+      "binary": true,
+      "accepted_sha256": [
+        "19d49018818e63d30558f24dfa6717843dbb7b7b4775ef437570b5517edadd2f",
+        "5ea781b7adde224cfb06e353a2c8dc5506d00fdcc7269b1cb0de11a0b701e405"
+      ],
+      "accepted_json_sha256": []
+    },
+    {
+      "path": "Assets/VueLiveLink/terrains/82b2e8c01b5c41e99883138b20d758d0/3445e7a6_395c14b3/b/terrain_normals.dds.assetinfo",
+      "source": "project/Assets/VueLiveLink/terrains/82b2e8c01b5c41e99883138b20d758d0/3445e7a6_395c14b3/b/terrain_normals.dds.assetinfo",
+      "binary": false,
+      "accepted_sha256": [
+        "43389282f04813cd7a6d3c509d7170bbe0efdb145bd9097dec7a6b1ff1743a36",
+        "445f869988cdcc466a0070a4070fa5bd93c4f0a59894fb2c9a20eff138808de8"
+      ],
+      "accepted_json_sha256": []
+    },
+    {
+      "path": "Gem/Tests/verify_graph_material_clipmaps_editor.py",
+      "source": "project/Gem/Tests/verify_graph_material_clipmaps_editor.py",
+      "binary": false,
+      "accepted_sha256": [
+        "28b65f4a93333e384cdbdee54b77b5a20e4574e002beee9539475584b3586ea5",
+        "eced66a931e3c130f51641ef75fad32196b3676217b8a85d734c2184661516a6"
+      ],
+      "accepted_json_sha256": []
+    },
+    {
+      "path": "Gem/Tests/verify_incremental_material_clipmaps_editor.py",
+      "source": "project/Gem/Tests/verify_incremental_material_clipmaps_editor.py",
+      "binary": false,
+      "accepted_sha256": [
+        "0fd10c5d94ade304b23bc116a93445a881e82fe7541d56cb28c5162d031d0884",
+        "2562df424460a6338f7ee4aa89344396517a6a830f0e3548d23b3acd5abd69cb"
+      ],
+      "accepted_json_sha256": []
+    },
+    {
+      "path": "Gem/Tests/benchmark_material_clipmap_updates_editor.py",
+      "source": "project/Gem/Tests/benchmark_material_clipmap_updates_editor.py",
+      "binary": false,
+      "accepted_sha256": [
+        "9504c5e6d35d0bfd817ef668e7d8f332507c38b524c57fbe6ac6bc32da1957e3",
+        "bcfacd1ded0746bc9aa5be15d1eaffa9647fe4b2a0a858badcbdd5b2ef92f607"
+      ],
+      "accepted_json_sha256": []
+    },
+    {
+      "path": "Gem/Tests/test_terrain_normal_half_float.py",
+      "source": "project/Gem/Tests/test_terrain_normal_half_float.py",
+      "binary": false,
+      "accepted_sha256": [
+        "2461fde27815a494c2ed171246f27bc2f0b95af6b6f95aa851e35f3a95a42199",
+        "8ab59240a9110f2e26b39cce96c87f3991956a19b6acc34ab47f5127352e27b8"
+      ],
+      "accepted_json_sha256": []
+    },
+    {
+      "path": "Gem/Tests/test_vue_terrain_normal_dds_storage_consistency.py",
+      "source": "project/Gem/Tests/test_vue_terrain_normal_dds_storage_consistency.py",
+      "binary": false,
+      "accepted_sha256": [
+        "1b59bb038d666e0d5ded2063c72f02d1df06dbaf564c455dada99907d19ee37f",
+        "acca30835e50428467a5d7bd0548a130917027afe5d2cb7a55c9426fb8ef5279"
+      ],
+      "accepted_json_sha256": []
+    },
+    {
+      "path": "Gem/Tests/test_vue_terrain_normal_dds_contract.py",
+      "source": "project/Gem/Tests/test_vue_terrain_normal_dds_contract.py",
+      "binary": false,
+      "accepted_sha256": [
+        "6b340bd55889faa755e84ac67970faa096186e7331bb661717f9f131507fdd0b",
+        "7a0820ce477ac5e79006e028ce2fd0cb8ad9fc843aafa71be63ddad43f183a83",
+        "cce4e88c4481d43fc70e23724ef2c40add433c2916d91940de537946d8dbc5df"
+      ],
+      "accepted_json_sha256": []
+    },
+    {
+      "path": "Gem/Tests/test_vue_terrain_normals.py",
+      "source": "project/Gem/Tests/test_vue_terrain_normals.py",
+      "binary": false,
+      "accepted_sha256": [
+        "881f03fade3f6b8ef1ad048b890cfdbad502622274bd2f9337045dea3ead9dd4",
+        "b2474b5920ee6722beb96e317e85f8c3d373c8fe676ae18892221eb5e10ecd15",
+        "cb09639653d4fd81d73cf14b2ca76d2c468e9b9442d7ae357580d52459d3fa3e"
+      ],
+      "accepted_json_sha256": []
+    },
+    {
+      "path": "Gem/Tests/test_vue_terrain_normal_shortcut.py",
+      "source": "project/Gem/Tests/test_vue_terrain_normal_shortcut.py",
+      "binary": false,
+      "accepted_sha256": [
+        "6dc24298e84b80c8122e7e86d12742d4fc9199e4f560f98d53daa28641714683",
+        "99c5884ce7beaf56a9c253d244ae5390cb4899eb47ec6b0021a88a23f940aa69",
+        "fa34e7334ef0de7808a6586b3a9edff9316fc039748f1e5b79565165f260c8a6"
+      ],
+      "accepted_json_sha256": []
+    },
+    {
+      "path": "Gem/Source/Editor/VueLiveLink/terrain_overlap_editor.py",
+      "source": "project/Gem/Source/Editor/VueLiveLink/terrain_overlap_editor.py",
+      "binary": false,
+      "accepted_sha256": [
+        "57b4f1bb0a71285152344c2eef47b72712904261b9fc7827a4a4d1ae0edd759f",
+        "6d4b506cfb29709ac2a8f71709d65810c457cfea9bff414f0146a2d9b25b8c84",
+        "556f19559ea28fe4e08dbd3d303f7e5314ddfe31fc7d3be086d60b2340621557",
+        "53cfbb2d21d24bef9d2093c390353969d3badfd57ab6dae4808ca7b35315cb93",
+        "da43b09ce07afaa842ee3956e362185f9ca8e0e4de6d8970917131351dbb3d67"
+      ],
+      "accepted_json_sha256": []
+    },
+    {
+      "path": "Assets/VueLiveLink/VueTerrainOverlap.azsli",
+      "source": "project/Assets/VueLiveLink/VueTerrainOverlap.azsli",
+      "binary": false,
+      "accepted_sha256": [
+        "b58ccc9cbda64fef8835b9f9554ed38f512905c9939bbf23344ca58d22acda28",
+        "b312bbdf7c79df2ac86cf823929a719c08cc8e4137eea86468b93a8425d1b4e8",
+        "4e2cfca333220b7b952515c7d50d86adf28c4d527649899a40dff7001f88c296",
+        "c762e68e293923458af878b46d473f0c82a3fefbe7e91c4cd5e5ff3febd0198e",
+        "71ba87cf266fb380b2bad15d9bc47b6b15067fef961d97bbb51df7dfbbb3edb8",
+        "6bf4f32e5a4cceb166c6418321099921c0d0c34c7985aeffbe6e01c4014b9a01",
+        "35280241a0822729387d5efaf0934b6e5ab5792cfdb0a88dec53a3657ad66590",
+        "34f06ee6f41fe30b76e92b9af7904397c61602c07ad44277c575f69be0b71d73",
+        "c64fd2e9c2683a9152373d4e15c1196422af7dbc8b9bd6551f23b2977eef8482",
+        "16763f97677371db8279cd7094c2090dbbd67aae8353f5dfaf6c1d921e5362f9"
+      ],
+      "accepted_json_sha256": []
+    },
+    {
+      "path": "Assets/VueLiveLink/VueTerrainOverlap.materialtype",
+      "source": "project/Assets/VueLiveLink/VueTerrainOverlap.materialtype",
+      "binary": false,
+      "accepted_sha256": [
+        "f17a650a4c27b5e52ce518e4e55d44c995cac7c645a5dd7fccd618adf8c9a131",
+        "369ec505fde3ca4ac2cc34efdbc27b29fc7d3653039c0ee3bb81822b3e928e84",
+        "a24e3b40bb609c7acf7d440be64d3c866ae72fe5c395ec7814b96d80a772a195",
+        "ff2d7415ca98b9c97868a99ff53750e301b95da4dacae641f9bcb26230049d2f",
+        "a115aa1bbce2599ab9178ecaeaaf75fe9d25d3bed4d66d52eec49dd51c2a5215",
+        "6e3adbc094f9a5aa7e89d8f3b50c4bf8ef27bd7f664daaad87cf64f2382292ab"
+      ],
+      "accepted_json_sha256": []
+    },
+    {
+      "path": "Assets/VueLiveLink/VueTerrainOverlapInputs.azsli",
+      "source": "project/Assets/VueLiveLink/VueTerrainOverlapInputs.azsli",
+      "binary": false,
+      "accepted_sha256": [
+        "58d40ae08535dc99b7f718274569cfada0ad73f904b748ad9fb5bb18afc0fb31",
+        "2f60ae0c16ec3784b1881ce17b11009b3a4cc7dc79258f8f652831a028123a91"
+      ],
+      "accepted_json_sha256": []
+    },
+    {
+      "path": "Gem/Tests/test_vue_terrain_overlap.py",
+      "source": "project/Gem/Tests/test_vue_terrain_overlap.py",
+      "binary": false,
+      "accepted_sha256": [
+        "b9dce7ac721f8858b979826d9b8f66ff2eceddb574c8318042d7ab88177afaca"
+      ],
+      "accepted_json_sha256": []
+    },
+    {
+      "path": "Assets/VueLiveLink/VueTerrainMesh_Defines.azsli",
+      "source": "project/Assets/VueLiveLink/VueTerrainMesh_Defines.azsli",
+      "binary": false,
+      "accepted_sha256": [
+        "a876d6e35e5c701727570b988698114ef2cd2880b6178db9dd25838d598c741f"
+      ],
+      "accepted_json_sha256": []
+    },
+    {
+      "path": "Assets/VueLiveLink/VueGroundSampling.azsli",
+      "source": "project/Assets/VueLiveLink/VueGroundSampling.azsli",
+      "binary": false,
+      "accepted_sha256": [
+        "3cf6e441b3669055e66a3de8e2fc67da3a74a140be6fd9b7c5601d3d64b2c8a2"
+      ],
+      "accepted_json_sha256": []
+    },
+    {
+      "path": "Assets/VueLiveLink/VueMaterialResponse.azsli",
+      "source": "project/Assets/VueLiveLink/VueMaterialResponse.azsli",
+      "binary": false,
+      "accepted_sha256": [
+        "0f0c505cda54d46403e6f2d919b7146325b00caa68f80f27261bb805e63a8042"
+      ],
+      "accepted_json_sha256": []
+    },
+    {
+      "path": "Assets/VueLiveLink/VueGroundResponse.azsli",
+      "source": "project/Assets/VueLiveLink/VueGroundResponse.azsli",
+      "binary": false,
+      "accepted_sha256": [
+        "389b307361e83b3e25f0d16373b2bed7e4e81e95dc4e96fc3f794e62ba02d8b7"
+      ],
+      "accepted_json_sha256": []
+    },
+    {
+      "path": "Config/AtomImageBuilder/TerrainOverlap_R16F.preset",
+      "source": "project/Config/AtomImageBuilder/TerrainOverlap_R16F.preset",
+      "binary": false,
+      "accepted_sha256": [],
+      "accepted_json_sha256": []
+    },
+    {
+      "path": "Assets/VueLiveLink/VueTerrainContributorTiles.azsli",
+      "source": "project/Assets/VueLiveLink/VueTerrainContributorTiles.azsli",
+      "binary": false,
+      "accepted_sha256": [],
+      "accepted_json_sha256": []
+    }
+  ]
+}

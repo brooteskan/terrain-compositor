@@ -1,0 +1,326 @@
+{
+  "small": [
+    {
+      "case": "selection",
+      "window_basis": "Frame file mtime minus summed Engine Cpu Time; exclude 1 second at each end",
+      "samples": 7,
+      "engine_clock": {
+        "min": 200000,
+        "median": 200000,
+        "max": 200000
+      },
+      "memory_clock": {
+        "min": 106700,
+        "median": 106700,
+        "max": 106700
+      },
+      "activity": {
+        "min": 99,
+        "median": 99,
+        "max": 99
+      }
+    },
+    {
+      "case": "complete-repeat",
+      "window_basis": "Frame file mtime minus summed Engine Cpu Time; exclude 1 second at each end",
+      "samples": 8,
+      "engine_clock": {
+        "min": 200000,
+        "median": 200000.0,
+        "max": 200000
+      },
+      "memory_clock": {
+        "min": 106700,
+        "median": 106700.0,
+        "max": 106700
+      },
+      "activity": {
+        "min": 99,
+        "median": 99.0,
+        "max": 99
+      }
+    },
+    {
+      "case": "selection-repeat",
+      "window_basis": "Frame file mtime minus summed Engine Cpu Time; exclude 1 second at each end",
+      "samples": 7,
+      "engine_clock": {
+        "min": 200000,
+        "median": 200000,
+        "max": 200000
+      },
+      "memory_clock": {
+        "min": 106700,
+        "median": 106700,
+        "max": 106700
+      },
+      "activity": {
+        "min": 99,
+        "median": 99,
+        "max": 99
+      }
+    },
+    {
+      "case": "small-lookup-repeat",
+      "window_basis": "Frame file mtime minus summed Engine Cpu Time; exclude 1 second at each end",
+      "samples": 8,
+      "engine_clock": {
+        "min": 200000,
+        "median": 200000.0,
+        "max": 200000
+      },
+      "memory_clock": {
+        "min": 106700,
+        "median": 106700.0,
+        "max": 106700
+      },
+      "activity": {
+        "min": 99,
+        "median": 99.0,
+        "max": 99
+      }
+    },
+    {
+      "case": "complete-final",
+      "window_basis": "Frame file mtime minus summed Engine Cpu Time; exclude 1 second at each end",
+      "samples": 8,
+      "engine_clock": {
+        "min": 200000,
+        "median": 200000.0,
+        "max": 200000
+      },
+      "memory_clock": {
+        "min": 106700,
+        "median": 106700.0,
+        "max": 106700
+      },
+      "activity": {
+        "min": 99,
+        "median": 99.0,
+        "max": 99
+      }
+    }
+  ],
+  "alternatives": [
+    {
+      "case": "complete",
+      "window_basis": "Frame file mtime minus summed Engine Cpu Time; exclude 1 second at each end",
+      "samples": 7,
+      "engine_clock": {
+        "min": 200000,
+        "median": 200000,
+        "max": 200000
+      },
+      "memory_clock": {
+        "min": 106700,
+        "median": 106700,
+        "max": 106700
+      },
+      "activity": {
+        "min": 99,
+        "median": 99,
+        "max": 99
+      }
+    },
+    {
+      "case": "branch-hint",
+      "window_basis": "Frame file mtime minus summed Engine Cpu Time; exclude 1 second at each end",
+      "samples": 7,
+      "engine_clock": {
+        "min": 200000,
+        "median": 200000,
+        "max": 200000
+      },
+      "memory_clock": {
+        "min": 106700,
+        "median": 106700,
+        "max": 106700
+      },
+      "activity": {
+        "min": 99,
+        "median": 99,
+        "max": 99
+      }
+    },
+    {
+      "case": "recompute",
+      "window_basis": "Frame file mtime minus summed Engine Cpu Time; exclude 1 second at each end",
+      "samples": 8,
+      "engine_clock": {
+        "min": 200000,
+        "median": 200000.0,
+        "max": 200000
+      },
+      "memory_clock": {
+        "min": 106700,
+        "median": 106700.0,
+        "max": 106700
+      },
+      "activity": {
+        "min": 98,
+        "median": 99.0,
+        "max": 99
+      }
+    },
+    {
+      "case": "medium-lookup",
+      "window_basis": "Frame file mtime minus summed Engine Cpu Time; exclude 1 second at each end",
+      "samples": 5,
+      "engine_clock": {
+        "min": 200000,
+        "median": 200000,
+        "max": 200000
+      },
+      "memory_clock": {
+        "min": 106700,
+        "median": 106700,
+        "max": 106700
+      },
+      "activity": {
+        "min": 99,
+        "median": 99,
+        "max": 99
+      }
+    },
+    {
+      "case": "selection",
+      "window_basis": "Frame file mtime minus summed Engine Cpu Time; exclude 1 second at each end",
+      "samples": 5,
+      "engine_clock": {
+        "min": 200000,
+        "median": 200000,
+        "max": 200000
+      },
+      "memory_clock": {
+        "min": 106700,
+        "median": 106700,
+        "max": 106700
+      },
+      "activity": {
+        "min": 99,
+        "median": 99,
+        "max": 99
+      }
+    },
+    {
+      "case": "complete-repeat",
+      "window_basis": "Frame file mtime minus summed Engine Cpu Time; exclude 1 second at each end",
+      "samples": 8,
+      "engine_clock": {
+        "min": 200000,
+        "median": 200000.0,
+        "max": 200000
+      },
+      "memory_clock": {
+        "min": 106700,
+        "median": 106700.0,
+        "max": 106700
+      },
+      "activity": {
+        "min": 99,
+        "median": 99.0,
+        "max": 99
+      }
+    },
+    {
+      "case": "selection-repeat",
+      "window_basis": "Frame file mtime minus summed Engine Cpu Time; exclude 1 second at each end",
+      "samples": 4,
+      "engine_clock": {
+        "min": 200000,
+        "median": 200000.0,
+        "max": 200000
+      },
+      "memory_clock": {
+        "min": 106700,
+        "median": 106700.0,
+        "max": 106700
+      },
+      "activity": {
+        "min": 99,
+        "median": 99.0,
+        "max": 99
+      }
+    },
+    {
+      "case": "recompute-repeat",
+      "window_basis": "Frame file mtime minus summed Engine Cpu Time; exclude 1 second at each end",
+      "samples": 8,
+      "engine_clock": {
+        "min": 200000,
+        "median": 200000.0,
+        "max": 200000
+      },
+      "memory_clock": {
+        "min": 106700,
+        "median": 106700.0,
+        "max": 106700
+      },
+      "activity": {
+        "min": 98,
+        "median": 98.0,
+        "max": 99
+      }
+    },
+    {
+      "case": "branch-hint-repeat",
+      "window_basis": "Frame file mtime minus summed Engine Cpu Time; exclude 1 second at each end",
+      "samples": 8,
+      "engine_clock": {
+        "min": 200000,
+        "median": 200000.0,
+        "max": 200000
+      },
+      "memory_clock": {
+        "min": 106700,
+        "median": 106700.0,
+        "max": 106700
+      },
+      "activity": {
+        "min": 98,
+        "median": 98.0,
+        "max": 99
+      }
+    },
+    {
+      "case": "medium-lookup-repeat",
+      "window_basis": "Frame file mtime minus summed Engine Cpu Time; exclude 1 second at each end",
+      "samples": 5,
+      "engine_clock": {
+        "min": 200000,
+        "median": 200000,
+        "max": 200000
+      },
+      "memory_clock": {
+        "min": 106700,
+        "median": 106700,
+        "max": 106700
+      },
+      "activity": {
+        "min": 98,
+        "median": 98,
+        "max": 98
+      }
+    },
+    {
+      "case": "complete-final",
+      "window_basis": "Frame file mtime minus summed Engine Cpu Time; exclude 1 second at each end",
+      "samples": 8,
+      "engine_clock": {
+        "min": 200000,
+        "median": 200000.0,
+        "max": 200000
+      },
+      "memory_clock": {
+        "min": 106700,
+        "median": 106700.0,
+        "max": 106700
+      },
+      "activity": {
+        "min": 98,
+        "median": 98.0,
+        "max": 98
+      }
+    }
+  ]
+}

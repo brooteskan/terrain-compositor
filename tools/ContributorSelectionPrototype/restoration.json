@@ -1,0 +1,12 @@
+{
+  "canonical/Assets/VueLiveLink/VueTerrainOverlap.azsli": true,
+  "consumer/Assets/VueLiveLink/VueTerrainOverlap.azsli": true,
+  "canonical/Assets/VueLiveLink/VueTerrainMesh.azsli": true,
+  "consumer/Assets/VueLiveLink/VueTerrainMesh.azsli": true,
+  "canonical/Assets/VueLiveLink/VueTerrainOverlap.materialtype": true,
+  "consumer/Assets/VueLiveLink/VueTerrainOverlap.materialtype": true,
+  "canonical/Gem/Source/Editor/VueLiveLink/terrain_overlap.py": true,
+  "consumer/Gem/Source/Editor/VueLiveLink/terrain_overlap.py": true,
+  "manifest": true,
+  "saved_level_sha256": "faec5fd3f9b69643b918af3a917623776d31bf7cc962485cfba712313a36a922"
+}

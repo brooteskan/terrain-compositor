@@ -1,0 +1,819 @@
+{
+  "passed": true,
+  "restoration": {
+    "camera": true,
+    "entity_visibility": true,
+    "mesh_visibility": true,
+    "material_bindings": true,
+    "height_precision": true,
+    "level_file": true
+  },
+  "active_case": null,
+  "exception": null,
+  "rows": [
+    {
+      "name": "light-16",
+      "light_steps": 16,
+      "gpu_ms": 282.332,
+      "gpu_samples": 237,
+      "local_memory_bytes": 1854631936,
+      "lighting": {
+        "direction": [
+          -0.260139,
+          -0.371031,
+          0.891439
+        ],
+        "illumination": [
+          4.82078,
+          2.08879,
+          0.621313
+        ],
+        "skyAmbient": [
+          0.8,
+          1,
+          1.3
+        ],
+        "groundAmbient": [
+          0.12,
+          0.1,
+          0.08
+        ],
+        "viewSteps": 192,
+        "lightSteps": 16,
+        "cloudAttenuation": true
+      },
+      "cloud_ms": 246.0895,
+      "density_bytes": 4711056,
+      "pool_resident_bytes": 961871871,
+      "pool_used_bytes": 948174847,
+      "cloud_counts": [
+        2
+      ],
+      "appearance": {
+        "pixels": 856687,
+        "changed_pixels": 0,
+        "pixels_over_1": 0,
+        "pixels_over_4": 0,
+        "pixels_over_8": 0,
+        "max_rgb_difference": 0,
+        "mean_absolute_rgb": 0.0,
+        "rmse_rgb": 0.0,
+        "p99_max_rgb": 0.0
+      },
+      "cloud_roi_appearance": {
+        "pixels": 319110,
+        "changed_pixels": 0,
+        "pixels_over_1": 0,
+        "pixels_over_4": 0,
+        "pixels_over_8": 0,
+        "max_rgb_difference": 0,
+        "mean_absolute_rgb": 0.0,
+        "rmse_rgb": 0.0,
+        "p99_max_rgb": 0.0
+      }
+    },
+    {
+      "name": "light-08",
+      "light_steps": 8,
+      "gpu_ms": 243.197,
+      "gpu_samples": 239,
+      "local_memory_bytes": 1854631936,
+      "lighting": {
+        "direction": [
+          -0.260139,
+          -0.371031,
+          0.891439
+        ],
+        "illumination": [
+          4.82078,
+          2.08879,
+          0.621313
+        ],
+        "skyAmbient": [
+          0.8,
+          1,
+          1.3
+        ],
+        "groundAmbient": [
+          0.12,
+          0.1,
+          0.08
+        ],
+        "viewSteps": 192,
+        "lightSteps": 8,
+        "cloudAttenuation": true
+      },
+      "cloud_ms": 206.448,
+      "density_bytes": 4711056,
+      "pool_resident_bytes": 961871871,
+      "pool_used_bytes": 948174847,
+      "cloud_counts": [
+        2
+      ],
+      "appearance": {
+        "pixels": 856687,
+        "changed_pixels": 169667,
+        "pixels_over_1": 65222,
+        "pixels_over_4": 8983,
+        "pixels_over_8": 569,
+        "max_rgb_difference": 11,
+        "mean_absolute_rgb": 0.2385227432344991,
+        "rmse_rgb": 0.7786242027993867,
+        "p99_max_rgb": 5.0
+      },
+      "cloud_roi_appearance": {
+        "pixels": 319110,
+        "changed_pixels": 124844,
+        "pixels_over_1": 53343,
+        "pixels_over_4": 8329,
+        "pixels_over_8": 569,
+        "max_rgb_difference": 11,
+        "mean_absolute_rgb": 0.5165407957548599,
+        "rmse_rgb": 1.1884773686128522,
+        "p99_max_rgb": 6.0
+      }
+    },
+    {
+      "name": "light-04",
+      "light_steps": 4,
+      "gpu_ms": 222.753,
+      "gpu_samples": 240,
+      "local_memory_bytes": 1854631936,
+      "lighting": {
+        "direction": [
+          -0.260139,
+          -0.371031,
+          0.891439
+        ],
+        "illumination": [
+          4.82078,
+          2.08879,
+          0.621313
+        ],
+        "skyAmbient": [
+          0.8,
+          1,
+          1.3
+        ],
+        "groundAmbient": [
+          0.12,
+          0.1,
+          0.08
+        ],
+        "viewSteps": 192,
+        "lightSteps": 4,
+        "cloudAttenuation": true
+      },
+      "cloud_ms": 186.65699999999998,
+      "density_bytes": 4711056,
+      "pool_resident_bytes": 961871871,
+      "pool_used_bytes": 948174847,
+      "cloud_counts": [
+        2
+      ],
+      "appearance": {
+        "pixels": 856687,
+        "changed_pixels": 220095,
+        "pixels_over_1": 151732,
+        "pixels_over_4": 71766,
+        "pixels_over_8": 36229,
+        "max_rgb_difference": 25,
+        "mean_absolute_rgb": 0.8513447735287217,
+        "rmse_rgb": 2.5364607797683956,
+        "p99_max_rgb": 15.0
+      },
+      "cloud_roi_appearance": {
+        "pixels": 319110,
+        "changed_pixels": 163913,
+        "pixels_over_1": 115478,
+        "pixels_over_4": 60311,
+        "pixels_over_8": 33245,
+        "max_rgb_difference": 25,
+        "mean_absolute_rgb": 1.9015376098106191,
+        "rmse_rgb": 3.951235531998227,
+        "p99_max_rgb": 18.0
+      }
+    },
+    {
+      "name": "light-02",
+      "light_steps": 2,
+      "gpu_ms": 217.6995,
+      "gpu_samples": 240,
+      "local_memory_bytes": 1854631936,
+      "lighting": {
+        "direction": [
+          -0.260139,
+          -0.371031,
+          0.891439
+        ],
+        "illumination": [
+          4.82078,
+          2.08879,
+          0.621313
+        ],
+        "skyAmbient": [
+          0.8,
+          1,
+          1.3
+        ],
+        "groundAmbient": [
+          0.12,
+          0.1,
+          0.08
+        ],
+        "viewSteps": 192,
+        "lightSteps": 2,
+        "cloudAttenuation": true
+      },
+      "cloud_ms": 181.356,
+      "density_bytes": 4711056,
+      "pool_resident_bytes": 961871871,
+      "pool_used_bytes": 948174847,
+      "cloud_counts": [
+        2
+      ],
+      "appearance": {
+        "pixels": 856687,
+        "changed_pixels": 229598,
+        "pixels_over_1": 171284,
+        "pixels_over_4": 106544,
+        "pixels_over_8": 64248,
+        "max_rgb_difference": 40,
+        "mean_absolute_rgb": 1.2199846618426566,
+        "rmse_rgb": 3.6391361247724987,
+        "p99_max_rgb": 20.0
+      },
+      "cloud_roi_appearance": {
+        "pixels": 319110,
+        "changed_pixels": 171379,
+        "pixels_over_1": 131840,
+        "pixels_over_4": 85181,
+        "pixels_over_8": 55741,
+        "max_rgb_difference": 40,
+        "mean_absolute_rgb": 2.7093656314959316,
+        "rmse_rgb": 5.582803090483421,
+        "p99_max_rgb": 28.0
+      }
+    },
+    {
+      "name": "light-02-repeat",
+      "light_steps": 2,
+      "gpu_ms": 217.397,
+      "gpu_samples": 240,
+      "local_memory_bytes": 1854631936,
+      "lighting": {
+        "direction": [
+          -0.260139,
+          -0.371031,
+          0.891439
+        ],
+        "illumination": [
+          4.82078,
+          2.08879,
+          0.621313
+        ],
+        "skyAmbient": [
+          0.8,
+          1,
+          1.3
+        ],
+        "groundAmbient": [
+          0.12,
+          0.1,
+          0.08
+        ],
+        "viewSteps": 192,
+        "lightSteps": 2,
+        "cloudAttenuation": true
+      },
+      "cloud_ms": 181.4305,
+      "density_bytes": 4711056,
+      "pool_resident_bytes": 961871871,
+      "pool_used_bytes": 948174847,
+      "cloud_counts": [
+        2
+      ],
+      "appearance": {
+        "pixels": 856687,
+        "changed_pixels": 229598,
+        "pixels_over_1": 171284,
+        "pixels_over_4": 106544,
+        "pixels_over_8": 64248,
+        "max_rgb_difference": 40,
+        "mean_absolute_rgb": 1.2199846618426566,
+        "rmse_rgb": 3.6391361247724987,
+        "p99_max_rgb": 20.0
+      },
+      "cloud_roi_appearance": {
+        "pixels": 319110,
+        "changed_pixels": 171379,
+        "pixels_over_1": 131840,
+        "pixels_over_4": 85181,
+        "pixels_over_8": 55741,
+        "max_rgb_difference": 40,
+        "mean_absolute_rgb": 2.7093656314959316,
+        "rmse_rgb": 5.582803090483421,
+        "p99_max_rgb": 28.0
+      }
+    },
+    {
+      "name": "light-04-repeat",
+      "light_steps": 4,
+      "gpu_ms": 222.529,
+      "gpu_samples": 240,
+      "local_memory_bytes": 1854631936,
+      "lighting": {
+        "direction": [
+          -0.260139,
+          -0.371031,
+          0.891439
+        ],
+        "illumination": [
+          4.82078,
+          2.08879,
+          0.621313
+        ],
+        "skyAmbient": [
+          0.8,
+          1,
+          1.3
+        ],
+        "groundAmbient": [
+          0.12,
+          0.1,
+          0.08
+        ],
+        "viewSteps": 192,
+        "lightSteps": 4,
+        "cloudAttenuation": true
+      },
+      "cloud_ms": 185.88,
+      "density_bytes": 4711056,
+      "pool_resident_bytes": 961871871,
+      "pool_used_bytes": 948174847,
+      "cloud_counts": [
+        2
+      ],
+      "appearance": {
+        "pixels": 856687,
+        "changed_pixels": 220095,
+        "pixels_over_1": 151732,
+        "pixels_over_4": 71766,
+        "pixels_over_8": 36229,
+        "max_rgb_difference": 25,
+        "mean_absolute_rgb": 0.8513447735287217,
+        "rmse_rgb": 2.5364607797683956,
+        "p99_max_rgb": 15.0
+      },
+      "cloud_roi_appearance": {
+        "pixels": 319110,
+        "changed_pixels": 163913,
+        "pixels_over_1": 115478,
+        "pixels_over_4": 60311,
+        "pixels_over_8": 33245,
+        "max_rgb_difference": 25,
+        "mean_absolute_rgb": 1.9015376098106191,
+        "rmse_rgb": 3.951235531998227,
+        "p99_max_rgb": 18.0
+      }
+    },
+    {
+      "name": "light-08-repeat",
+      "light_steps": 8,
+      "gpu_ms": 243.1455,
+      "gpu_samples": 240,
+      "local_memory_bytes": 1854631936,
+      "lighting": {
+        "direction": [
+          -0.260139,
+          -0.371031,
+          0.891439
+        ],
+        "illumination": [
+          4.82078,
+          2.08879,
+          0.621313
+        ],
+        "skyAmbient": [
+          0.8,
+          1,
+          1.3
+        ],
+        "groundAmbient": [
+          0.12,
+          0.1,
+          0.08
+        ],
+        "viewSteps": 192,
+        "lightSteps": 8,
+        "cloudAttenuation": true
+      },
+      "cloud_ms": 206.98250000000002,
+      "density_bytes": 4711056,
+      "pool_resident_bytes": 961871871,
+      "pool_used_bytes": 948174847,
+      "cloud_counts": [
+        2
+      ],
+      "appearance": {
+        "pixels": 856687,
+        "changed_pixels": 169667,
+        "pixels_over_1": 65222,
+        "pixels_over_4": 8983,
+        "pixels_over_8": 569,
+        "max_rgb_difference": 11,
+        "mean_absolute_rgb": 0.2385227432344991,
+        "rmse_rgb": 0.7786242027993867,
+        "p99_max_rgb": 5.0
+      },
+      "cloud_roi_appearance": {
+        "pixels": 319110,
+        "changed_pixels": 124844,
+        "pixels_over_1": 53343,
+        "pixels_over_4": 8329,
+        "pixels_over_8": 569,
+        "max_rgb_difference": 11,
+        "mean_absolute_rgb": 0.5165407957548599,
+        "rmse_rgb": 1.1884773686128522,
+        "p99_max_rgb": 6.0
+      }
+    },
+    {
+      "name": "light-16-final",
+      "light_steps": 16,
+      "gpu_ms": 282.297,
+      "gpu_samples": 240,
+      "local_memory_bytes": 1854631936,
+      "lighting": {
+        "direction": [
+          -0.260139,
+          -0.371031,
+          0.891439
+        ],
+        "illumination": [
+          4.82078,
+          2.08879,
+          0.621313
+        ],
+        "skyAmbient": [
+          0.8,
+          1,
+          1.3
+        ],
+        "groundAmbient": [
+          0.12,
+          0.1,
+          0.08
+        ],
+        "viewSteps": 192,
+        "lightSteps": 16,
+        "cloudAttenuation": true
+      },
+      "cloud_ms": 245.68,
+      "density_bytes": 4711056,
+      "pool_resident_bytes": 961871871,
+      "pool_used_bytes": 948174847,
+      "cloud_counts": [
+        2
+      ],
+      "appearance": {
+        "pixels": 856687,
+        "changed_pixels": 0,
+        "pixels_over_1": 0,
+        "pixels_over_4": 0,
+        "pixels_over_8": 0,
+        "max_rgb_difference": 0,
+        "mean_absolute_rgb": 0.0,
+        "rmse_rgb": 0.0,
+        "p99_max_rgb": 0.0
+      },
+      "cloud_roi_appearance": {
+        "pixels": 319110,
+        "changed_pixels": 0,
+        "pixels_over_1": 0,
+        "pixels_over_4": 0,
+        "pixels_over_8": 0,
+        "max_rgb_difference": 0,
+        "mean_absolute_rgb": 0.0,
+        "rmse_rgb": 0.0,
+        "p99_max_rgb": 0.0
+      }
+    }
+  ],
+  "environment": {
+    "enabled": [
+      {
+        "type": "Sky Atmosphere",
+        "enabled": 1
+      },
+      {
+        "type": "HDRI Sky",
+        "enabled": 1
+      },
+      {
+        "type": "Finite Cloud Volume",
+        "enabled": 2
+      }
+    ],
+    "aerial_controls": 1,
+    "restored": true,
+    "light_steps": 16,
+    "lighting_after": {
+      "direction": [
+        -0.260139,
+        -0.371031,
+        0.891439
+      ],
+      "illumination": [
+        4.82078,
+        2.08879,
+        0.621313
+      ],
+      "skyAmbient": [
+        0.8,
+        1,
+        1.3
+      ],
+      "groundAmbient": [
+        0.12,
+        0.1,
+        0.08
+      ],
+      "viewSteps": 192,
+      "lightSteps": 16,
+      "cloudAttenuation": true
+    }
+  },
+  "camera": [
+    [
+      1370.7984619140625,
+      -583.088134765625,
+      65.9495620727539
+    ],
+    [
+      -4.212778568267822,
+      24.837879180908203,
+      99.94619750976562
+    ]
+  ],
+  "viewport": [
+    1267,
+    761
+  ],
+  "original_lighting": {
+    "direction": [
+      -0.260139,
+      -0.371031,
+      0.891439
+    ],
+    "illumination": [
+      4.82078,
+      2.08879,
+      0.621313
+    ],
+    "skyAmbient": [
+      0.8,
+      1,
+      1.3
+    ],
+    "groundAmbient": [
+      0.12,
+      0.1,
+      0.08
+    ],
+    "viewSteps": 192,
+    "lightSteps": 16,
+    "cloudAttenuation": true
+  },
+  "terrain_defaults": {
+    "enabled": true,
+    "detailNormals": false,
+    "key": 0
+  },
+  "aggregates": [
+    {
+      "light_steps": 16,
+      "gpu_ms": 282.3145,
+      "gpu_ms_runs": [
+        282.332,
+        282.297
+      ],
+      "cloud_ms": 245.88475,
+      "memory_bytes": [
+        1854631936
+      ],
+      "density_bytes": [
+        4711056
+      ],
+      "pool_resident_bytes": [
+        961871871
+      ],
+      "pool_used_bytes": [
+        948174847
+      ],
+      "appearance": {
+        "pixels": 856687,
+        "changed_pixels": 0,
+        "pixels_over_1": 0,
+        "pixels_over_4": 0,
+        "pixels_over_8": 0,
+        "max_rgb_difference": 0,
+        "mean_absolute_rgb": 0.0,
+        "rmse_rgb": 0.0,
+        "p99_max_rgb": 0.0
+      },
+      "cloud_roi_appearance": {
+        "pixels": 319110,
+        "changed_pixels": 0,
+        "pixels_over_1": 0,
+        "pixels_over_4": 0,
+        "pixels_over_8": 0,
+        "max_rgb_difference": 0,
+        "mean_absolute_rgb": 0.0,
+        "rmse_rgb": 0.0,
+        "p99_max_rgb": 0.0
+      },
+      "repeat_appearance": {
+        "pixels": 856687,
+        "changed_pixels": 0,
+        "pixels_over_1": 0,
+        "pixels_over_4": 0,
+        "pixels_over_8": 0,
+        "max_rgb_difference": 0,
+        "mean_absolute_rgb": 0.0,
+        "rmse_rgb": 0.0,
+        "p99_max_rgb": 0.0
+      },
+      "saved_ms": 0.0,
+      "saved_percent": 0.0
+    },
+    {
+      "light_steps": 8,
+      "gpu_ms": 243.17125,
+      "gpu_ms_runs": [
+        243.197,
+        243.1455
+      ],
+      "cloud_ms": 206.71525000000003,
+      "memory_bytes": [
+        1854631936
+      ],
+      "density_bytes": [
+        4711056
+      ],
+      "pool_resident_bytes": [
+        961871871
+      ],
+      "pool_used_bytes": [
+        948174847
+      ],
+      "appearance": {
+        "pixels": 856687,
+        "changed_pixels": 169667,
+        "pixels_over_1": 65222,
+        "pixels_over_4": 8983,
+        "pixels_over_8": 569,
+        "max_rgb_difference": 11,
+        "mean_absolute_rgb": 0.2385227432344991,
+        "rmse_rgb": 0.7786242027993867,
+        "p99_max_rgb": 5.0
+      },
+      "cloud_roi_appearance": {
+        "pixels": 319110,
+        "changed_pixels": 124844,
+        "pixels_over_1": 53343,
+        "pixels_over_4": 8329,
+        "pixels_over_8": 569,
+        "max_rgb_difference": 11,
+        "mean_absolute_rgb": 0.5165407957548599,
+        "rmse_rgb": 1.1884773686128522,
+        "p99_max_rgb": 6.0
+      },
+      "repeat_appearance": {
+        "pixels": 856687,
+        "changed_pixels": 0,
+        "pixels_over_1": 0,
+        "pixels_over_4": 0,
+        "pixels_over_8": 0,
+        "max_rgb_difference": 0,
+        "mean_absolute_rgb": 0.0,
+        "rmse_rgb": 0.0,
+        "p99_max_rgb": 0.0
+      },
+      "saved_ms": 39.14325000000002,
+      "saved_percent": 13.865122053596268
+    },
+    {
+      "light_steps": 4,
+      "gpu_ms": 222.641,
+      "gpu_ms_runs": [
+        222.753,
+        222.529
+      ],
+      "cloud_ms": 186.2685,
+      "memory_bytes": [
+        1854631936
+      ],
+      "density_bytes": [
+        4711056
+      ],
+      "pool_resident_bytes": [
+        961871871
+      ],
+      "pool_used_bytes": [
+        948174847
+      ],
+      "appearance": {
+        "pixels": 856687,
+        "changed_pixels": 220095,
+        "pixels_over_1": 151732,
+        "pixels_over_4": 71766,
+        "pixels_over_8": 36229,
+        "max_rgb_difference": 25,
+        "mean_absolute_rgb": 0.8513447735287217,
+        "rmse_rgb": 2.5364607797683956,
+        "p99_max_rgb": 15.0
+      },
+      "cloud_roi_appearance": {
+        "pixels": 319110,
+        "changed_pixels": 163913,
+        "pixels_over_1": 115478,
+        "pixels_over_4": 60311,
+        "pixels_over_8": 33245,
+        "max_rgb_difference": 25,
+        "mean_absolute_rgb": 1.9015376098106191,
+        "rmse_rgb": 3.951235531998227,
+        "p99_max_rgb": 18.0
+      },
+      "repeat_appearance": {
+        "pixels": 856687,
+        "changed_pixels": 0,
+        "pixels_over_1": 0,
+        "pixels_over_4": 0,
+        "pixels_over_8": 0,
+        "max_rgb_difference": 0,
+        "mean_absolute_rgb": 0.0,
+        "rmse_rgb": 0.0,
+        "p99_max_rgb": 0.0
+      },
+      "saved_ms": 59.67350000000002,
+      "saved_percent": 21.13724233080484
+    },
+    {
+      "light_steps": 2,
+      "gpu_ms": 217.54825,
+      "gpu_ms_runs": [
+        217.6995,
+        217.397
+      ],
+      "cloud_ms": 181.39325,
+      "memory_bytes": [
+        1854631936
+      ],
+      "density_bytes": [
+        4711056
+      ],
+      "pool_resident_bytes": [
+        961871871
+      ],
+      "pool_used_bytes": [
+        948174847
+      ],
+      "appearance": {
+        "pixels": 856687,
+        "changed_pixels": 229598,
+        "pixels_over_1": 171284,
+        "pixels_over_4": 106544,
+        "pixels_over_8": 64248,
+        "max_rgb_difference": 40,
+        "mean_absolute_rgb": 1.2199846618426566,
+        "rmse_rgb": 3.6391361247724987,
+        "p99_max_rgb": 20.0
+      },
+      "cloud_roi_appearance": {
+        "pixels": 319110,
+        "changed_pixels": 171379,
+        "pixels_over_1": 131840,
+        "pixels_over_4": 85181,
+        "pixels_over_8": 55741,
+        "max_rgb_difference": 40,
+        "mean_absolute_rgb": 2.7093656314959316,
+        "rmse_rgb": 5.582803090483421,
+        "p99_max_rgb": 28.0
+      },
+      "repeat_appearance": {
+        "pixels": 856687,
+        "changed_pixels": 0,
+        "pixels_over_1": 0,
+        "pixels_over_4": 0,
+        "pixels_over_8": 0,
+        "max_rgb_difference": 0,
+        "mean_absolute_rgb": 0.0,
+        "rmse_rgb": 0.0,
+        "p99_max_rgb": 0.0
+      },
+      "saved_ms": 64.76625000000001,
+      "saved_percent": 22.941170219737216
+    }
+  ]
+}

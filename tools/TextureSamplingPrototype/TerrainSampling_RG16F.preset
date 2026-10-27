@@ -1,0 +1,16 @@
+{
+  "Type": "JsonSerialization",
+  "Version": 1,
+  "ClassName": "MultiplatformPresetSettings",
+  "ClassData": {
+    "DefaultPreset": {
+      "UUID": "{D3A482BF-0E52-4F9A-8C27-37B01C4E975A}",
+      "Name": "TerrainSampling_RG16F",
+      "SourceColor": "Linear",
+      "DestColor": "Linear",
+      "PixelFormat": "R16G16F",
+      "SuppressEngineReduce": true
+    },
+    "PlatformsPresets": {}
+  }
+}

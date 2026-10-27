@@ -1,0 +1,2961 @@
+{
+  "status": "rejected; opt-in prototype disabled",
+  "environment_restoration": {
+    "disabled": [
+      {
+        "type": "Sky Atmosphere",
+        "disabled": 1
+      },
+      {
+        "type": "HDRI Sky",
+        "disabled": 1
+      },
+      {
+        "type": "Finite Cloud Volume",
+        "disabled": 2
+      },
+      {
+        "type": "Fog",
+        "disabled": 0
+      },
+      {
+        "type": "Volumetric Fog",
+        "disabled": 0
+      }
+    ],
+    "aerial_controls": 1,
+    "restored": true
+  },
+  "runs": [
+    {
+      "passed": true,
+      "camera": [
+        [
+          1025.0732421875,
+          488.1408386230469,
+          43.456932067871094
+        ],
+        [
+          -13.2926664352417,
+          4.55283784866333,
+          161.42835998535156
+        ]
+      ],
+      "viewport": [
+        1203,
+        656
+      ],
+      "height_precision": 16,
+      "original_pacing": {
+        "sys_MaxFPS": "-1",
+        "vsync_interval": "1"
+      },
+      "original_level_sha256": "faec5fd3f9b69643b918af3a917623776d31bf7cc962485cfba712313a36a922",
+      "restoration": {
+        "camera": true,
+        "entity_visibility": true,
+        "mesh_visibility": true,
+        "material_bindings": true,
+        "height_precision": true,
+        "level_file": true
+      },
+      "meshes": [
+        {
+          "name": "Terrain7",
+          "visible": true,
+          "entity": "[13061568095675349060]"
+        },
+        {
+          "name": "Terrain6",
+          "visible": true,
+          "entity": "[17351426748461061695]"
+        }
+      ],
+      "exception": null,
+      "restore_exception": null,
+      "capture_directory": "D:\\diversion\\TG\\TGProject\\user\\TerrainSceneProfile\\20261024-overlap-pages-prototype-v4",
+      "metadata": {
+        "benchmarkName": "Terrain scene",
+        "gpuInfo": {
+          "description": "AMD Radeon(TM) Graphics",
+          "driverVersion": 1794080768
+        }
+      },
+      "appearance": {
+        "direct__direct-repeat": {
+          "pixels": 701014,
+          "changed_pixels": 0,
+          "pixels_over_one": 0,
+          "max_channel_difference": 0,
+          "mean_channel_difference": 0.0
+        },
+        "pages__pages-repeat": {
+          "pixels": 701014,
+          "changed_pixels": 0,
+          "pixels_over_one": 0,
+          "max_channel_difference": 0,
+          "mean_channel_difference": 0.0
+        },
+        "direct__pages": {
+          "pixels": 701014,
+          "changed_pixels": 11,
+          "pixels_over_one": 0,
+          "max_channel_difference": 1,
+          "mean_channel_difference": 5.23051845849964e-06
+        },
+        "direct__fallback-only": {
+          "pixels": 701014,
+          "changed_pixels": 0,
+          "pixels_over_one": 0,
+          "max_channel_difference": 0,
+          "mean_channel_difference": 0.0
+        },
+        "pages__coverage": {
+          "pixels": 701014,
+          "changed_pixels": 0,
+          "pixels_over_one": 0,
+          "max_channel_difference": 0,
+          "mean_channel_difference": 0.0
+        }
+      },
+      "paired_median_means": {
+        "Engine Cpu Time": {
+          "direct": 49.067,
+          "pages": 50.635999999999996,
+          "difference_ms": 1.5689999999999955,
+          "difference_percent": 3.197668494099895
+        },
+        "Frame Gpu Time": {
+          "direct": 48.54475,
+          "pages": 50.13675,
+          "difference_ms": 1.5919999999999987,
+          "difference_percent": 3.2794483440536797
+        }
+      },
+      "page_cache": {
+        "prototype": true,
+        "baker": "offline CPU source-image approximation",
+        "key": "6c7cf67c6375bbc3f2e08caa",
+        "materials": {
+          "assets\\vuelivelink\\overlap\\d9e7b35caf90f0292a9e19d9\\13d046a1907c1ddef8a6ce2438e433a7af1396d73b7006df19a4376676016fcd.material": "Assets\\VueLiveLink\\overlap_pages\\6c7cf67c6375bbc3f2e08caa\\d9e7b35caf90f0292a9e19d9.material",
+          "assets\\vuelivelink\\overlap\\9f344ef8359b9976db0ed01a\\13d046a1907c1ddef8a6ce2438e433a7af1396d73b7006df19a4376676016fcd.material": "Assets\\VueLiveLink\\overlap_pages\\6c7cf67c6375bbc3f2e08caa\\9f344ef8359b9976db0ed01a.material"
+        },
+        "properties": {
+          "overlapPages.enabled": false,
+          "overlapPages.low": [
+            839.6370849609376,
+            -597.3531799316406
+          ],
+          "overlapPages.extent": [
+            554.9382934570314,
+            1000.0
+          ],
+          "overlapPages.size": 1024.0,
+          "overlapPages.channel0": "Assets/VueLiveLink/overlap_pages/6c7cf67c6375bbc3f2e08caa/page0.dds",
+          "overlapPages.channel1": "Assets/VueLiveLink/overlap_pages/6c7cf67c6375bbc3f2e08caa/page1.dds",
+          "overlapPages.channel2": "Assets/VueLiveLink/overlap_pages/6c7cf67c6375bbc3f2e08caa/page2.dds",
+          "overlapPages.channel3": "Assets/VueLiveLink/overlap_pages/6c7cf67c6375bbc3f2e08caa/page3.dds"
+        },
+        "pages": 16,
+        "atlas_size": 1024,
+        "payload_bytes": 33554432,
+        "source_files_bytes": 3778391,
+        "valid_texel_percent": 7.213020324707031,
+        "world_texel_size": [
+          0.5461991077332986,
+          0.984251968503937
+        ],
+        "bake_wall_seconds": 3.6580640000174753
+      },
+      "sources": {
+        "tools\\BuildOverlapPages.py": "89cc6f486be823beca0cf938a91685724d011400feb1c7ff693ca2c6f195373c",
+        "integrations\\tg\\project\\Assets\\VueLiveLink\\VueTerrainOverlap.azsli": "a44111fe9d717524d1605bb11ab6f85d5e79296aa543ff4295711dde9054265c",
+        "integrations\\tg\\project\\Gem\\Source\\Editor\\VueLiveLink\\terrain_overlap.py": "a0e33ed19f462c4d80b44ba86d7e9908f317f50298cfcd1a58a7cb232171e5f6"
+      },
+      "notes": [
+        "Offline CPU source-image baker; not cooked-texture/GPU equivalent.",
+        "No runtime page update scheduler; reported bake cost is CPU wall time.",
+        "DXGI CurrentUsage is process residency/accounting, not texture payload size.",
+        "A startup RenderPass SRG image-index assertion persisted before captures in both paths; this is not a clean-engine validation.",
+        "Previous v3 run rejected all cached pixels; excluded from cache-shading performance results."
+      ],
+      "cases": [
+        {
+          "name": "direct",
+          "configuration": {
+            "name": "direct",
+            "screenshot": true
+          },
+          "metrics": {
+            "Graphics Simulation Time": {
+              "samples": 240,
+              "median_ms": 0.06,
+              "mean_ms": 0.0609125,
+              "p95_ms": 0.079,
+              "min_ms": 0.034,
+              "max_ms": 0.105
+            },
+            "Graphics Render Time": {
+              "samples": 240,
+              "median_ms": 47.573,
+              "mean_ms": 47.41974166666667,
+              "p95_ms": 49.366,
+              "min_ms": 36.263,
+              "max_ms": 51.092
+            },
+            "Engine Cpu Time": {
+              "samples": 239,
+              "median_ms": 49.292,
+              "mean_ms": 49.19342259414226,
+              "p95_ms": 51.296,
+              "min_ms": 45.057,
+              "max_ms": 53.011
+            },
+            "Frame Gpu Time": {
+              "samples": 236,
+              "median_ms": 48.778000000000006,
+              "mean_ms": 48.61707627118644,
+              "p95_ms": 50.37,
+              "min_ms": 44.915,
+              "max_ms": 52.039
+            }
+          },
+          "cache_before": {
+            "Updates": "0",
+            "Ready": "false",
+            "Texels": "0",
+            "PendingTexels": "0",
+            "GpuNs": "0",
+            "GpuSamples": "0",
+            "FrameUs": "0",
+            "FrameId": "0"
+          },
+          "cache_after": {
+            "Updates": "0",
+            "Ready": "false",
+            "Texels": "0",
+            "PendingTexels": "0",
+            "GpuNs": "0",
+            "GpuSamples": "0",
+            "FrameUs": "0",
+            "FrameId": "0"
+          },
+          "gpu_frame_envelope_usable": true,
+          "approximate_engine_fps": 20.28726771078471,
+          "pipeline_statistics": [
+            {
+              "passName": "Root",
+              "pipelineStatisticsResult": {
+                "vertexCount": 41350829,
+                "primitiveCount": 13783627,
+                "vertexShaderInvocationCount": 10757339,
+                "rasterizedPrimitiveCount": 13783627,
+                "renderedPrimitiveCount": 10477129,
+                "pixelShaderInvocationCount": 21002243,
+                "computeShaderInvocationCount": 3195521
+              }
+            },
+            {
+              "passName": "DepthPass",
+              "pipelineStatisticsResult": {
+                "vertexCount": 7280202,
+                "primitiveCount": 2426734,
+                "vertexShaderInvocationCount": 1891720,
+                "rasterizedPrimitiveCount": 2426734,
+                "renderedPrimitiveCount": 1742208,
+                "pixelShaderInvocationCount": 1348471,
+                "computeShaderInvocationCount": 0
+              }
+            },
+            {
+              "passName": "Shadows",
+              "pipelineStatisticsResult": {
+                "vertexCount": 26785983,
+                "primitiveCount": 8928661,
+                "vertexShaderInvocationCount": 6970971,
+                "rasterizedPrimitiveCount": 8928661,
+                "renderedPrimitiveCount": 6991221,
+                "pixelShaderInvocationCount": 4498328,
+                "computeShaderInvocationCount": 602112
+              }
+            },
+            {
+              "passName": "Forward",
+              "pipelineStatisticsResult": {
+                "vertexCount": 7280202,
+                "primitiveCount": 2426734,
+                "vertexShaderInvocationCount": 1891720,
+                "rasterizedPrimitiveCount": 2426734,
+                "renderedPrimitiveCount": 1742208,
+                "pixelShaderInvocationCount": 994108,
+                "computeShaderInvocationCount": 0
+              }
+            }
+          ],
+          "process_video_memory": {
+            "local": {
+              "Budget": 16553564160,
+              "CurrentUsage": 1793421312,
+              "AvailableForReservation": 8410999808,
+              "CurrentReservation": 0
+            },
+            "nonlocal": {
+              "Budget": 0,
+              "CurrentUsage": 0,
+              "AvailableForReservation": 0,
+              "CurrentReservation": 0
+            }
+          }
+        },
+        {
+          "name": "pages",
+          "configuration": {
+            "name": "pages",
+            "page_materials": true,
+            "screenshot": true,
+            "material_overrides": {
+              "overlapPages.enabled": true
+            }
+          },
+          "metrics": {
+            "Graphics Simulation Time": {
+              "samples": 240,
+              "median_ms": 0.055,
+              "mean_ms": 0.0560625,
+              "p95_ms": 0.076,
+              "min_ms": 0.035,
+              "max_ms": 0.121
+            },
+            "Graphics Render Time": {
+              "samples": 240,
+              "median_ms": 48.4985,
+              "mean_ms": 48.42279583333333,
+              "p95_ms": 50.105,
+              "min_ms": 39.681,
+              "max_ms": 52.582
+            },
+            "Frame Gpu Time": {
+              "samples": 240,
+              "median_ms": 49.480000000000004,
+              "mean_ms": 49.398245833333334,
+              "p95_ms": 50.715,
+              "min_ms": 45.808,
+              "max_ms": 52.992
+            },
+            "Engine Cpu Time": {
+              "samples": 239,
+              "median_ms": 50.025,
+              "mean_ms": 50.04450627615063,
+              "p95_ms": 51.823,
+              "min_ms": 46.137,
+              "max_ms": 54.182
+            }
+          },
+          "cache_before": {
+            "Updates": "0",
+            "Ready": "false",
+            "Texels": "0",
+            "PendingTexels": "0",
+            "GpuNs": "0",
+            "GpuSamples": "0",
+            "FrameUs": "0",
+            "FrameId": "0"
+          },
+          "cache_after": {
+            "Updates": "0",
+            "Ready": "false",
+            "Texels": "0",
+            "PendingTexels": "0",
+            "GpuNs": "0",
+            "GpuSamples": "0",
+            "FrameUs": "0",
+            "FrameId": "0"
+          },
+          "gpu_frame_envelope_usable": true,
+          "approximate_engine_fps": 19.99000499750125,
+          "pipeline_statistics": [
+            {
+              "passName": "Root",
+              "pipelineStatisticsResult": {
+                "vertexCount": 41350853,
+                "primitiveCount": 13783635,
+                "vertexShaderInvocationCount": 10757355,
+                "rasterizedPrimitiveCount": 13783635,
+                "renderedPrimitiveCount": 10477137,
+                "pixelShaderInvocationCount": 21002531,
+                "computeShaderInvocationCount": 3195521
+              }
+            },
+            {
+              "passName": "DepthPass",
+              "pipelineStatisticsResult": {
+                "vertexCount": 7280202,
+                "primitiveCount": 2426734,
+                "vertexShaderInvocationCount": 1891720,
+                "rasterizedPrimitiveCount": 2426734,
+                "renderedPrimitiveCount": 1742208,
+                "pixelShaderInvocationCount": 1348471,
+                "computeShaderInvocationCount": 0
+              }
+            },
+            {
+              "passName": "Shadows",
+              "pipelineStatisticsResult": {
+                "vertexCount": 26785983,
+                "primitiveCount": 8928661,
+                "vertexShaderInvocationCount": 6970971,
+                "rasterizedPrimitiveCount": 8928661,
+                "renderedPrimitiveCount": 6991221,
+                "pixelShaderInvocationCount": 4498328,
+                "computeShaderInvocationCount": 602112
+              }
+            },
+            {
+              "passName": "Forward",
+              "pipelineStatisticsResult": {
+                "vertexCount": 7280202,
+                "primitiveCount": 2426734,
+                "vertexShaderInvocationCount": 1891720,
+                "rasterizedPrimitiveCount": 2426734,
+                "renderedPrimitiveCount": 1742208,
+                "pixelShaderInvocationCount": 994108,
+                "computeShaderInvocationCount": 0
+              }
+            }
+          ],
+          "process_video_memory": {
+            "local": {
+              "Budget": 16553564160,
+              "CurrentUsage": 1829072896,
+              "AvailableForReservation": 8410999808,
+              "CurrentReservation": 0
+            },
+            "nonlocal": {
+              "Budget": 0,
+              "CurrentUsage": 0,
+              "AvailableForReservation": 0,
+              "CurrentReservation": 0
+            }
+          }
+        },
+        {
+          "name": "direct-repeat",
+          "configuration": {
+            "name": "direct-repeat",
+            "screenshot": true
+          },
+          "metrics": {
+            "Graphics Simulation Time": {
+              "samples": 240,
+              "median_ms": 0.055,
+              "mean_ms": 0.05635833333333333,
+              "p95_ms": 0.075,
+              "min_ms": 0.035,
+              "max_ms": 0.095
+            },
+            "Graphics Render Time": {
+              "samples": 240,
+              "median_ms": 47.256,
+              "mean_ms": 47.07459166666667,
+              "p95_ms": 48.727,
+              "min_ms": 39.696,
+              "max_ms": 49.82
+            },
+            "Frame Gpu Time": {
+              "samples": 240,
+              "median_ms": 48.311499999999995,
+              "mean_ms": 48.08909166666667,
+              "p95_ms": 49.605,
+              "min_ms": 43.862,
+              "max_ms": 51.239
+            },
+            "Engine Cpu Time": {
+              "samples": 239,
+              "median_ms": 48.842,
+              "mean_ms": 48.715401673640166,
+              "p95_ms": 50.418,
+              "min_ms": 45.385,
+              "max_ms": 51.872
+            }
+          },
+          "cache_before": {
+            "Updates": "0",
+            "Ready": "false",
+            "Texels": "0",
+            "PendingTexels": "0",
+            "GpuNs": "0",
+            "GpuSamples": "0",
+            "FrameUs": "0",
+            "FrameId": "0"
+          },
+          "cache_after": {
+            "Updates": "0",
+            "Ready": "false",
+            "Texels": "0",
+            "PendingTexels": "0",
+            "GpuNs": "0",
+            "GpuSamples": "0",
+            "FrameUs": "0",
+            "FrameId": "0"
+          },
+          "gpu_frame_envelope_usable": true,
+          "approximate_engine_fps": 20.474182056426848,
+          "pipeline_statistics": [
+            {
+              "passName": "Root",
+              "pipelineStatisticsResult": {
+                "vertexCount": 41350829,
+                "primitiveCount": 13783627,
+                "vertexShaderInvocationCount": 10757339,
+                "rasterizedPrimitiveCount": 13783627,
+                "renderedPrimitiveCount": 10477129,
+                "pixelShaderInvocationCount": 21002459,
+                "computeShaderInvocationCount": 3195521
+              }
+            },
+            {
+              "passName": "DepthPass",
+              "pipelineStatisticsResult": {
+                "vertexCount": 7280202,
+                "primitiveCount": 2426734,
+                "vertexShaderInvocationCount": 1891720,
+                "rasterizedPrimitiveCount": 2426734,
+                "renderedPrimitiveCount": 1742208,
+                "pixelShaderInvocationCount": 1348471,
+                "computeShaderInvocationCount": 0
+              }
+            },
+            {
+              "passName": "Shadows",
+              "pipelineStatisticsResult": {
+                "vertexCount": 26785983,
+                "primitiveCount": 8928661,
+                "vertexShaderInvocationCount": 6970971,
+                "rasterizedPrimitiveCount": 8928661,
+                "renderedPrimitiveCount": 6991221,
+                "pixelShaderInvocationCount": 4498328,
+                "computeShaderInvocationCount": 602112
+              }
+            },
+            {
+              "passName": "Forward",
+              "pipelineStatisticsResult": {
+                "vertexCount": 7280202,
+                "primitiveCount": 2426734,
+                "vertexShaderInvocationCount": 1891720,
+                "rasterizedPrimitiveCount": 2426734,
+                "renderedPrimitiveCount": 1742208,
+                "pixelShaderInvocationCount": 994108,
+                "computeShaderInvocationCount": 0
+              }
+            }
+          ],
+          "process_video_memory": {
+            "local": {
+              "Budget": 16553564160,
+              "CurrentUsage": 1795518464,
+              "AvailableForReservation": 8410999808,
+              "CurrentReservation": 0
+            },
+            "nonlocal": {
+              "Budget": 0,
+              "CurrentUsage": 0,
+              "AvailableForReservation": 0,
+              "CurrentReservation": 0
+            }
+          }
+        },
+        {
+          "name": "pages-repeat",
+          "configuration": {
+            "name": "pages-repeat",
+            "page_materials": true,
+            "screenshot": true,
+            "material_overrides": {
+              "overlapPages.enabled": true
+            }
+          },
+          "metrics": {
+            "Graphics Simulation Time": {
+              "samples": 240,
+              "median_ms": 0.062,
+              "mean_ms": 0.06334583333333334,
+              "p95_ms": 0.083,
+              "min_ms": 0.037,
+              "max_ms": 0.13
+            },
+            "Graphics Render Time": {
+              "samples": 240,
+              "median_ms": 49.399,
+              "mean_ms": 49.732175,
+              "p95_ms": 52.964,
+              "min_ms": 40.248,
+              "max_ms": 56.773
+            },
+            "Frame Gpu Time": {
+              "samples": 240,
+              "median_ms": 50.793499999999995,
+              "mean_ms": 51.130358333333334,
+              "p95_ms": 53.909,
+              "min_ms": 47.195,
+              "max_ms": 57.49
+            },
+            "Engine Cpu Time": {
+              "samples": 239,
+              "median_ms": 51.247,
+              "mean_ms": 51.65297907949791,
+              "p95_ms": 55.105,
+              "min_ms": 47.618,
+              "max_ms": 58.367
+            }
+          },
+          "cache_before": {
+            "Updates": "0",
+            "Ready": "false",
+            "Texels": "0",
+            "PendingTexels": "0",
+            "GpuNs": "0",
+            "GpuSamples": "0",
+            "FrameUs": "0",
+            "FrameId": "0"
+          },
+          "cache_after": {
+            "Updates": "0",
+            "Ready": "false",
+            "Texels": "0",
+            "PendingTexels": "0",
+            "GpuNs": "0",
+            "GpuSamples": "0",
+            "FrameUs": "0",
+            "FrameId": "0"
+          },
+          "gpu_frame_envelope_usable": true,
+          "approximate_engine_fps": 19.513337366089722,
+          "pipeline_statistics": [
+            {
+              "passName": "Root",
+              "pipelineStatisticsResult": {
+                "vertexCount": 41350853,
+                "primitiveCount": 13783635,
+                "vertexShaderInvocationCount": 10757355,
+                "rasterizedPrimitiveCount": 13783635,
+                "renderedPrimitiveCount": 10477137,
+                "pixelShaderInvocationCount": 21002851,
+                "computeShaderInvocationCount": 3195521
+              }
+            },
+            {
+              "passName": "DepthPass",
+              "pipelineStatisticsResult": {
+                "vertexCount": 7280202,
+                "primitiveCount": 2426734,
+                "vertexShaderInvocationCount": 1891720,
+                "rasterizedPrimitiveCount": 2426734,
+                "renderedPrimitiveCount": 1742208,
+                "pixelShaderInvocationCount": 1348471,
+                "computeShaderInvocationCount": 0
+              }
+            },
+            {
+              "passName": "Shadows",
+              "pipelineStatisticsResult": {
+                "vertexCount": 26785983,
+                "primitiveCount": 8928661,
+                "vertexShaderInvocationCount": 6970971,
+                "rasterizedPrimitiveCount": 8928661,
+                "renderedPrimitiveCount": 6991221,
+                "pixelShaderInvocationCount": 4498328,
+                "computeShaderInvocationCount": 602112
+              }
+            },
+            {
+              "passName": "Forward",
+              "pipelineStatisticsResult": {
+                "vertexCount": 7280202,
+                "primitiveCount": 2426734,
+                "vertexShaderInvocationCount": 1891720,
+                "rasterizedPrimitiveCount": 2426734,
+                "renderedPrimitiveCount": 1742208,
+                "pixelShaderInvocationCount": 994108,
+                "computeShaderInvocationCount": 0
+              }
+            }
+          ],
+          "process_video_memory": {
+            "local": {
+              "Budget": 16553564160,
+              "CurrentUsage": 1829072896,
+              "AvailableForReservation": 8410999808,
+              "CurrentReservation": 0
+            },
+            "nonlocal": {
+              "Budget": 0,
+              "CurrentUsage": 0,
+              "AvailableForReservation": 0,
+              "CurrentReservation": 0
+            }
+          }
+        },
+        {
+          "name": "coverage",
+          "configuration": {
+            "name": "coverage",
+            "page_materials": true,
+            "screenshot": true,
+            "material_overrides": {
+              "overlapPages.enabled": true,
+              "overlapPages.debug": true
+            }
+          },
+          "metrics": {
+            "Graphics Simulation Time": {
+              "samples": 240,
+              "median_ms": 0.0605,
+              "mean_ms": 0.06177083333333333,
+              "p95_ms": 0.083,
+              "min_ms": 0.038,
+              "max_ms": 0.122
+            },
+            "Graphics Render Time": {
+              "samples": 240,
+              "median_ms": 49.475,
+              "mean_ms": 49.61918333333333,
+              "p95_ms": 52.169,
+              "min_ms": 43.017,
+              "max_ms": 56.218
+            },
+            "Frame Gpu Time": {
+              "samples": 240,
+              "median_ms": 50.857,
+              "mean_ms": 50.93437083333333,
+              "p95_ms": 53.713,
+              "min_ms": 44.456,
+              "max_ms": 57.629
+            },
+            "Engine Cpu Time": {
+              "samples": 239,
+              "median_ms": 51.329,
+              "mean_ms": 51.47075732217573,
+              "p95_ms": 54.034,
+              "min_ms": 45.016,
+              "max_ms": 58.046
+            }
+          },
+          "cache_before": {
+            "Updates": "0",
+            "Ready": "false",
+            "Texels": "0",
+            "PendingTexels": "0",
+            "GpuNs": "0",
+            "GpuSamples": "0",
+            "FrameUs": "0",
+            "FrameId": "0"
+          },
+          "cache_after": {
+            "Updates": "0",
+            "Ready": "false",
+            "Texels": "0",
+            "PendingTexels": "0",
+            "GpuNs": "0",
+            "GpuSamples": "0",
+            "FrameUs": "0",
+            "FrameId": "0"
+          },
+          "gpu_frame_envelope_usable": true,
+          "approximate_engine_fps": 19.48216407878587,
+          "pipeline_statistics": [
+            {
+              "passName": "Root",
+              "pipelineStatisticsResult": {
+                "vertexCount": 41350853,
+                "primitiveCount": 13783635,
+                "vertexShaderInvocationCount": 10757355,
+                "rasterizedPrimitiveCount": 13783635,
+                "renderedPrimitiveCount": 10477137,
+                "pixelShaderInvocationCount": 21001955,
+                "computeShaderInvocationCount": 3195521
+              }
+            },
+            {
+              "passName": "DepthPass",
+              "pipelineStatisticsResult": {
+                "vertexCount": 7280202,
+                "primitiveCount": 2426734,
+                "vertexShaderInvocationCount": 1891720,
+                "rasterizedPrimitiveCount": 2426734,
+                "renderedPrimitiveCount": 1742208,
+                "pixelShaderInvocationCount": 1348471,
+                "computeShaderInvocationCount": 0
+              }
+            },
+            {
+              "passName": "Shadows",
+              "pipelineStatisticsResult": {
+                "vertexCount": 26785983,
+                "primitiveCount": 8928661,
+                "vertexShaderInvocationCount": 6970971,
+                "rasterizedPrimitiveCount": 8928661,
+                "renderedPrimitiveCount": 6991221,
+                "pixelShaderInvocationCount": 4498328,
+                "computeShaderInvocationCount": 602112
+              }
+            },
+            {
+              "passName": "Forward",
+              "pipelineStatisticsResult": {
+                "vertexCount": 7280202,
+                "primitiveCount": 2426734,
+                "vertexShaderInvocationCount": 1891720,
+                "rasterizedPrimitiveCount": 2426734,
+                "renderedPrimitiveCount": 1742208,
+                "pixelShaderInvocationCount": 994108,
+                "computeShaderInvocationCount": 0
+              }
+            }
+          ],
+          "process_video_memory": {
+            "local": {
+              "Budget": 16553564160,
+              "CurrentUsage": 1829072896,
+              "AvailableForReservation": 8410999808,
+              "CurrentReservation": 0
+            },
+            "nonlocal": {
+              "Budget": 0,
+              "CurrentUsage": 0,
+              "AvailableForReservation": 0,
+              "CurrentReservation": 0
+            }
+          }
+        },
+        {
+          "name": "fallback-only",
+          "configuration": {
+            "name": "fallback-only",
+            "page_materials": true,
+            "screenshot": true,
+            "material_overrides": {
+              "overlapPages.enabled": false
+            }
+          },
+          "metrics": {
+            "Graphics Simulation Time": {
+              "samples": 240,
+              "median_ms": 0.06,
+              "mean_ms": 0.06095,
+              "p95_ms": 0.079,
+              "min_ms": 0.036,
+              "max_ms": 0.123
+            },
+            "Graphics Render Time": {
+              "samples": 240,
+              "median_ms": 48.0525,
+              "mean_ms": 48.212025,
+              "p95_ms": 50.104,
+              "min_ms": 44.222,
+              "max_ms": 58.473
+            },
+            "Frame Gpu Time": {
+              "samples": 240,
+              "median_ms": 49.542,
+              "mean_ms": 49.661570833333336,
+              "p95_ms": 51.382,
+              "min_ms": 45.949,
+              "max_ms": 59.794
+            },
+            "Engine Cpu Time": {
+              "samples": 239,
+              "median_ms": 49.836,
+              "mean_ms": 50.003548117154814,
+              "p95_ms": 52.373,
+              "min_ms": 45.734,
+              "max_ms": 60.475
+            }
+          },
+          "cache_before": {
+            "Updates": "0",
+            "Ready": "false",
+            "Texels": "0",
+            "PendingTexels": "0",
+            "GpuNs": "0",
+            "GpuSamples": "0",
+            "FrameUs": "0",
+            "FrameId": "0"
+          },
+          "cache_after": {
+            "Updates": "0",
+            "Ready": "false",
+            "Texels": "0",
+            "PendingTexels": "0",
+            "GpuNs": "0",
+            "GpuSamples": "0",
+            "FrameUs": "0",
+            "FrameId": "0"
+          },
+          "gpu_frame_envelope_usable": true,
+          "approximate_engine_fps": 20.065815876073522,
+          "pipeline_statistics": [
+            {
+              "passName": "Root",
+              "pipelineStatisticsResult": {
+                "vertexCount": 41350853,
+                "primitiveCount": 13783635,
+                "vertexShaderInvocationCount": 10757355,
+                "rasterizedPrimitiveCount": 13783635,
+                "renderedPrimitiveCount": 10477137,
+                "pixelShaderInvocationCount": 21000803,
+                "computeShaderInvocationCount": 3195521
+              }
+            },
+            {
+              "passName": "DepthPass",
+              "pipelineStatisticsResult": {
+                "vertexCount": 7280202,
+                "primitiveCount": 2426734,
+                "vertexShaderInvocationCount": 1891720,
+                "rasterizedPrimitiveCount": 2426734,
+                "renderedPrimitiveCount": 1742208,
+                "pixelShaderInvocationCount": 1348471,
+                "computeShaderInvocationCount": 0
+              }
+            },
+            {
+              "passName": "Shadows",
+              "pipelineStatisticsResult": {
+                "vertexCount": 26785983,
+                "primitiveCount": 8928661,
+                "vertexShaderInvocationCount": 6970971,
+                "rasterizedPrimitiveCount": 8928661,
+                "renderedPrimitiveCount": 6991221,
+                "pixelShaderInvocationCount": 4498328,
+                "computeShaderInvocationCount": 602112
+              }
+            },
+            {
+              "passName": "Forward",
+              "pipelineStatisticsResult": {
+                "vertexCount": 7280202,
+                "primitiveCount": 2426734,
+                "vertexShaderInvocationCount": 1891720,
+                "rasterizedPrimitiveCount": 2426734,
+                "renderedPrimitiveCount": 1742208,
+                "pixelShaderInvocationCount": 994108,
+                "computeShaderInvocationCount": 0
+              }
+            }
+          ],
+          "process_video_memory": {
+            "local": {
+              "Budget": 16553564160,
+              "CurrentUsage": 1829072896,
+              "AvailableForReservation": 8410999808,
+              "CurrentReservation": 0
+            },
+            "nonlocal": {
+              "Budget": 0,
+              "CurrentUsage": 0,
+              "AvailableForReservation": 0,
+              "CurrentReservation": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "passed": true,
+      "camera": [
+        [
+          1025.0732421875,
+          488.1408386230469,
+          43.456932067871094
+        ],
+        [
+          -13.2926664352417,
+          4.55283784866333,
+          161.42835998535156
+        ]
+      ],
+      "viewport": [
+        1203,
+        656
+      ],
+      "height_precision": 16,
+      "original_pacing": {
+        "sys_MaxFPS": "-1",
+        "vsync_interval": "1"
+      },
+      "original_level_sha256": "faec5fd3f9b69643b918af3a917623776d31bf7cc962485cfba712313a36a922",
+      "restoration": {
+        "camera": true,
+        "entity_visibility": true,
+        "mesh_visibility": true,
+        "material_bindings": true,
+        "height_precision": true,
+        "level_file": true
+      },
+      "meshes": [
+        {
+          "name": "Terrain6",
+          "visible": true,
+          "entity": "[6420088849882507997]"
+        },
+        {
+          "name": "Terrain7",
+          "visible": true,
+          "entity": "[10242516116722403029]"
+        }
+      ],
+      "exception": null,
+      "restore_exception": null,
+      "capture_directory": "D:\\diversion\\TG\\TGProject\\user\\TerrainSceneProfile\\20261024-overlap-pages-isolated",
+      "metadata": {
+        "benchmarkName": "Terrain scene",
+        "gpuInfo": {
+          "description": "AMD Radeon(TM) Graphics",
+          "driverVersion": 1794080768
+        }
+      },
+      "appearance": {
+        "direct__direct-repeat": {
+          "pixels": 701014,
+          "changed_pixels": 0,
+          "pixels_over_one": 0,
+          "max_channel_difference": 0,
+          "mean_channel_difference": 0.0
+        },
+        "pages__pages-repeat": {
+          "pixels": 701014,
+          "changed_pixels": 0,
+          "pixels_over_one": 0,
+          "max_channel_difference": 0,
+          "mean_channel_difference": 0.0
+        },
+        "direct__pages": {
+          "pixels": 701014,
+          "changed_pixels": 24,
+          "pixels_over_one": 0,
+          "max_channel_difference": 1,
+          "mean_channel_difference": 1.6167057053544343e-05
+        },
+        "direct__fallback-only": {
+          "pixels": 701014,
+          "changed_pixels": 0,
+          "pixels_over_one": 0,
+          "max_channel_difference": 0,
+          "mean_channel_difference": 0.0
+        },
+        "pages__coverage": {
+          "pixels": 701014,
+          "changed_pixels": 0,
+          "pixels_over_one": 0,
+          "max_channel_difference": 0,
+          "mean_channel_difference": 0.0
+        }
+      },
+      "paired_median_means": {
+        "Engine Cpu Time": {
+          "direct": 42.233000000000004,
+          "pages": 43.945,
+          "difference_ms": 1.7119999999999962,
+          "difference_percent": 4.0537020813108136
+        },
+        "Frame Gpu Time": {
+          "direct": 41.48524999999999,
+          "pages": 43.322500000000005,
+          "difference_ms": 1.8372500000000116,
+          "difference_percent": 4.428682483533333
+        }
+      },
+      "page_cache": {
+        "prototype": true,
+        "baker": "offline CPU source-image approximation",
+        "key": "6c7cf67c6375bbc3f2e08caa",
+        "materials": {
+          "assets\\vuelivelink\\overlap\\d9e7b35caf90f0292a9e19d9\\13d046a1907c1ddef8a6ce2438e433a7af1396d73b7006df19a4376676016fcd.material": "Assets\\VueLiveLink\\overlap_pages\\6c7cf67c6375bbc3f2e08caa\\d9e7b35caf90f0292a9e19d9.material",
+          "assets\\vuelivelink\\overlap\\9f344ef8359b9976db0ed01a\\13d046a1907c1ddef8a6ce2438e433a7af1396d73b7006df19a4376676016fcd.material": "Assets\\VueLiveLink\\overlap_pages\\6c7cf67c6375bbc3f2e08caa\\9f344ef8359b9976db0ed01a.material"
+        },
+        "properties": {
+          "overlapPages.enabled": false,
+          "overlapPages.low": [
+            839.6370849609376,
+            -597.3531799316406
+          ],
+          "overlapPages.extent": [
+            554.9382934570314,
+            1000.0
+          ],
+          "overlapPages.size": 1024.0,
+          "overlapPages.channel0": "Assets/VueLiveLink/overlap_pages/6c7cf67c6375bbc3f2e08caa/page0.dds",
+          "overlapPages.channel1": "Assets/VueLiveLink/overlap_pages/6c7cf67c6375bbc3f2e08caa/page1.dds",
+          "overlapPages.channel2": "Assets/VueLiveLink/overlap_pages/6c7cf67c6375bbc3f2e08caa/page2.dds",
+          "overlapPages.channel3": "Assets/VueLiveLink/overlap_pages/6c7cf67c6375bbc3f2e08caa/page3.dds"
+        },
+        "pages": 16,
+        "atlas_size": 1024,
+        "payload_bytes": 33554432,
+        "source_files_bytes": 3778391,
+        "valid_texel_percent": 7.213020324707031,
+        "world_texel_size": [
+          0.5461991077332986,
+          0.984251968503937
+        ],
+        "bake_wall_seconds": 3.6580640000174753
+      },
+      "sources": {
+        "tools\\BuildOverlapPages.py": "89cc6f486be823beca0cf938a91685724d011400feb1c7ff693ca2c6f195373c",
+        "integrations\\tg\\project\\Assets\\VueLiveLink\\VueTerrainOverlap.azsli": "a44111fe9d717524d1605bb11ab6f85d5e79296aa543ff4295711dde9054265c",
+        "integrations\\tg\\project\\Gem\\Source\\Editor\\VueLiveLink\\terrain_overlap.py": "a0e33ed19f462c4d80b44ba86d7e9908f317f50298cfcd1a58a7cb232171e5f6"
+      },
+      "notes": [
+        "Offline CPU source-image baker; not cooked-texture/GPU equivalent.",
+        "No runtime page update scheduler; reported bake cost is CPU wall time.",
+        "DXGI CurrentUsage is process residency/accounting, not texture payload size.",
+        "A startup RenderPass SRG image-index assertion persisted before captures in both paths; this is not a clean-engine validation.",
+        "Previous v3 run rejected all cached pixels; excluded from cache-shading performance results."
+      ],
+      "environment_disabled": [
+        {
+          "type": "Sky Atmosphere",
+          "disabled": 1
+        },
+        {
+          "type": "HDRI Sky",
+          "disabled": 1
+        },
+        {
+          "type": "Finite Cloud Volume",
+          "disabled": 2
+        },
+        {
+          "type": "Fog",
+          "disabled": 0
+        },
+        {
+          "type": "Volumetric Fog",
+          "disabled": 0
+        }
+      ],
+      "cases": [
+        {
+          "name": "direct",
+          "configuration": {
+            "name": "direct",
+            "screenshot": true
+          },
+          "metrics": {
+            "Graphics Simulation Time": {
+              "samples": 240,
+              "median_ms": 0.057,
+              "mean_ms": 0.05828333333333333,
+              "p95_ms": 0.078,
+              "min_ms": 0.038,
+              "max_ms": 0.087
+            },
+            "Graphics Render Time": {
+              "samples": 240,
+              "median_ms": 40.571,
+              "mean_ms": 40.641754166666665,
+              "p95_ms": 42.775,
+              "min_ms": 31.022,
+              "max_ms": 48.963
+            },
+            "Frame Gpu Time": {
+              "samples": 238,
+              "median_ms": 41.492999999999995,
+              "mean_ms": 41.4174705882353,
+              "p95_ms": 43.167,
+              "min_ms": 37.477,
+              "max_ms": 45.294
+            },
+            "Engine Cpu Time": {
+              "samples": 239,
+              "median_ms": 42.113,
+              "mean_ms": 42.187481171548114,
+              "p95_ms": 44.355,
+              "min_ms": 37.764,
+              "max_ms": 50.764
+            }
+          },
+          "cache_before": {
+            "Updates": "0",
+            "Ready": "false",
+            "Texels": "0",
+            "PendingTexels": "0",
+            "GpuNs": "0",
+            "GpuSamples": "0",
+            "FrameUs": "0",
+            "FrameId": "0"
+          },
+          "cache_after": {
+            "Updates": "0",
+            "Ready": "false",
+            "Texels": "0",
+            "PendingTexels": "0",
+            "GpuNs": "0",
+            "GpuSamples": "0",
+            "FrameUs": "0",
+            "FrameId": "0"
+          },
+          "gpu_frame_envelope_usable": true,
+          "approximate_engine_fps": 23.745636739249164,
+          "pipeline_statistics": [
+            {
+              "passName": "Root",
+              "pipelineStatisticsResult": {
+                "vertexCount": 41350820,
+                "primitiveCount": 13783624,
+                "vertexShaderInvocationCount": 10757330,
+                "rasterizedPrimitiveCount": 13783624,
+                "renderedPrimitiveCount": 10477126,
+                "pixelShaderInvocationCount": 18613551,
+                "computeShaderInvocationCount": 3195521
+              }
+            },
+            {
+              "passName": "DepthPass",
+              "pipelineStatisticsResult": {
+                "vertexCount": 7280202,
+                "primitiveCount": 2426734,
+                "vertexShaderInvocationCount": 1891720,
+                "rasterizedPrimitiveCount": 2426734,
+                "renderedPrimitiveCount": 1742208,
+                "pixelShaderInvocationCount": 1348471,
+                "computeShaderInvocationCount": 0
+              }
+            },
+            {
+              "passName": "Shadows",
+              "pipelineStatisticsResult": {
+                "vertexCount": 26785983,
+                "primitiveCount": 8928661,
+                "vertexShaderInvocationCount": 6970971,
+                "rasterizedPrimitiveCount": 8928661,
+                "renderedPrimitiveCount": 6991221,
+                "pixelShaderInvocationCount": 4498328,
+                "computeShaderInvocationCount": 602112
+              }
+            },
+            {
+              "passName": "Forward",
+              "pipelineStatisticsResult": {
+                "vertexCount": 7280202,
+                "primitiveCount": 2426734,
+                "vertexShaderInvocationCount": 1891720,
+                "rasterizedPrimitiveCount": 2426734,
+                "renderedPrimitiveCount": 1742208,
+                "pixelShaderInvocationCount": 994108,
+                "computeShaderInvocationCount": 0
+              }
+            }
+          ],
+          "process_video_memory": {
+            "local": {
+              "Budget": 16553564160,
+              "CurrentUsage": 1790799872,
+              "AvailableForReservation": 8410999808,
+              "CurrentReservation": 0
+            },
+            "nonlocal": {
+              "Budget": 0,
+              "CurrentUsage": 0,
+              "AvailableForReservation": 0,
+              "CurrentReservation": 0
+            }
+          },
+          "enabled_pipeline_gpu": {
+            "samples": 60,
+            "median_ms": 41.4695,
+            "cloud_counts": [
+              0
+            ]
+          }
+        },
+        {
+          "name": "pages",
+          "configuration": {
+            "name": "pages",
+            "page_materials": true,
+            "screenshot": true,
+            "material_overrides": {
+              "overlapPages.enabled": true
+            }
+          },
+          "metrics": {
+            "Graphics Simulation Time": {
+              "samples": 240,
+              "median_ms": 0.058,
+              "mean_ms": 0.058791666666666666,
+              "p95_ms": 0.078,
+              "min_ms": 0.032,
+              "max_ms": 0.111
+            },
+            "Graphics Render Time": {
+              "samples": 240,
+              "median_ms": 42.295500000000004,
+              "mean_ms": 42.35590833333333,
+              "p95_ms": 44.05,
+              "min_ms": 36.179,
+              "max_ms": 49.121
+            },
+            "Frame Gpu Time": {
+              "samples": 239,
+              "median_ms": 43.085,
+              "mean_ms": 43.075280334728035,
+              "p95_ms": 44.573,
+              "min_ms": 39.92,
+              "max_ms": 47.26
+            },
+            "Engine Cpu Time": {
+              "samples": 239,
+              "median_ms": 43.759,
+              "mean_ms": 43.87475732217573,
+              "p95_ms": 45.605,
+              "min_ms": 40.056,
+              "max_ms": 50.804
+            }
+          },
+          "cache_before": {
+            "Updates": "0",
+            "Ready": "false",
+            "Texels": "0",
+            "PendingTexels": "0",
+            "GpuNs": "0",
+            "GpuSamples": "0",
+            "FrameUs": "0",
+            "FrameId": "0"
+          },
+          "cache_after": {
+            "Updates": "0",
+            "Ready": "false",
+            "Texels": "0",
+            "PendingTexels": "0",
+            "GpuNs": "0",
+            "GpuSamples": "0",
+            "FrameUs": "0",
+            "FrameId": "0"
+          },
+          "gpu_frame_envelope_usable": true,
+          "approximate_engine_fps": 22.852441783404558,
+          "pipeline_statistics": [
+            {
+              "passName": "Root",
+              "pipelineStatisticsResult": {
+                "vertexCount": 41350844,
+                "primitiveCount": 13783632,
+                "vertexShaderInvocationCount": 10757346,
+                "rasterizedPrimitiveCount": 13783632,
+                "renderedPrimitiveCount": 10477134,
+                "pixelShaderInvocationCount": 18613159,
+                "computeShaderInvocationCount": 3195521
+              }
+            },
+            {
+              "passName": "DepthPass",
+              "pipelineStatisticsResult": {
+                "vertexCount": 7280202,
+                "primitiveCount": 2426734,
+                "vertexShaderInvocationCount": 1891720,
+                "rasterizedPrimitiveCount": 2426734,
+                "renderedPrimitiveCount": 1742208,
+                "pixelShaderInvocationCount": 1348471,
+                "computeShaderInvocationCount": 0
+              }
+            },
+            {
+              "passName": "Shadows",
+              "pipelineStatisticsResult": {
+                "vertexCount": 26785983,
+                "primitiveCount": 8928661,
+                "vertexShaderInvocationCount": 6970971,
+                "rasterizedPrimitiveCount": 8928661,
+                "renderedPrimitiveCount": 6991221,
+                "pixelShaderInvocationCount": 4498328,
+                "computeShaderInvocationCount": 602112
+              }
+            },
+            {
+              "passName": "Forward",
+              "pipelineStatisticsResult": {
+                "vertexCount": 7280202,
+                "primitiveCount": 2426734,
+                "vertexShaderInvocationCount": 1891720,
+                "rasterizedPrimitiveCount": 2426734,
+                "renderedPrimitiveCount": 1742208,
+                "pixelShaderInvocationCount": 994108,
+                "computeShaderInvocationCount": 0
+              }
+            }
+          ],
+          "process_video_memory": {
+            "local": {
+              "Budget": 16553564160,
+              "CurrentUsage": 1826451456,
+              "AvailableForReservation": 8410999808,
+              "CurrentReservation": 0
+            },
+            "nonlocal": {
+              "Budget": 0,
+              "CurrentUsage": 0,
+              "AvailableForReservation": 0,
+              "CurrentReservation": 0
+            }
+          },
+          "enabled_pipeline_gpu": {
+            "samples": 59,
+            "median_ms": 43.111,
+            "cloud_counts": [
+              0
+            ]
+          }
+        },
+        {
+          "name": "direct-repeat",
+          "configuration": {
+            "name": "direct-repeat",
+            "screenshot": true
+          },
+          "metrics": {
+            "Graphics Simulation Time": {
+              "samples": 240,
+              "median_ms": 0.057,
+              "mean_ms": 0.058575,
+              "p95_ms": 0.075,
+              "min_ms": 0.036,
+              "max_ms": 0.136
+            },
+            "Graphics Render Time": {
+              "samples": 240,
+              "median_ms": 40.7385,
+              "mean_ms": 40.80255416666667,
+              "p95_ms": 42.671,
+              "min_ms": 33.888,
+              "max_ms": 46.293
+            },
+            "Frame Gpu Time": {
+              "samples": 238,
+              "median_ms": 41.4775,
+              "mean_ms": 41.53382773109244,
+              "p95_ms": 43.191,
+              "min_ms": 39.564,
+              "max_ms": 46.318
+            },
+            "Engine Cpu Time": {
+              "samples": 239,
+              "median_ms": 42.353,
+              "mean_ms": 42.33473640167364,
+              "p95_ms": 44.479,
+              "min_ms": 40.044,
+              "max_ms": 47.587
+            }
+          },
+          "cache_before": {
+            "Updates": "0",
+            "Ready": "false",
+            "Texels": "0",
+            "PendingTexels": "0",
+            "GpuNs": "0",
+            "GpuSamples": "0",
+            "FrameUs": "0",
+            "FrameId": "0"
+          },
+          "cache_after": {
+            "Updates": "0",
+            "Ready": "false",
+            "Texels": "0",
+            "PendingTexels": "0",
+            "GpuNs": "0",
+            "GpuSamples": "0",
+            "FrameUs": "0",
+            "FrameId": "0"
+          },
+          "gpu_frame_envelope_usable": true,
+          "approximate_engine_fps": 23.61107831794678,
+          "pipeline_statistics": [
+            {
+              "passName": "Root",
+              "pipelineStatisticsResult": {
+                "vertexCount": 41350820,
+                "primitiveCount": 13783624,
+                "vertexShaderInvocationCount": 10757330,
+                "rasterizedPrimitiveCount": 13783624,
+                "renderedPrimitiveCount": 10477126,
+                "pixelShaderInvocationCount": 18613039,
+                "computeShaderInvocationCount": 3195521
+              }
+            },
+            {
+              "passName": "DepthPass",
+              "pipelineStatisticsResult": {
+                "vertexCount": 7280202,
+                "primitiveCount": 2426734,
+                "vertexShaderInvocationCount": 1891720,
+                "rasterizedPrimitiveCount": 2426734,
+                "renderedPrimitiveCount": 1742208,
+                "pixelShaderInvocationCount": 1348471,
+                "computeShaderInvocationCount": 0
+              }
+            },
+            {
+              "passName": "Shadows",
+              "pipelineStatisticsResult": {
+                "vertexCount": 26785983,
+                "primitiveCount": 8928661,
+                "vertexShaderInvocationCount": 6970971,
+                "rasterizedPrimitiveCount": 8928661,
+                "renderedPrimitiveCount": 6991221,
+                "pixelShaderInvocationCount": 4498328,
+                "computeShaderInvocationCount": 602112
+              }
+            },
+            {
+              "passName": "Forward",
+              "pipelineStatisticsResult": {
+                "vertexCount": 7280202,
+                "primitiveCount": 2426734,
+                "vertexShaderInvocationCount": 1891720,
+                "rasterizedPrimitiveCount": 2426734,
+                "renderedPrimitiveCount": 1742208,
+                "pixelShaderInvocationCount": 994108,
+                "computeShaderInvocationCount": 0
+              }
+            }
+          ],
+          "process_video_memory": {
+            "local": {
+              "Budget": 16553564160,
+              "CurrentUsage": 1792897024,
+              "AvailableForReservation": 8410999808,
+              "CurrentReservation": 0
+            },
+            "nonlocal": {
+              "Budget": 0,
+              "CurrentUsage": 0,
+              "AvailableForReservation": 0,
+              "CurrentReservation": 0
+            }
+          },
+          "enabled_pipeline_gpu": {
+            "samples": 60,
+            "median_ms": 41.5745,
+            "cloud_counts": [
+              0
+            ]
+          }
+        },
+        {
+          "name": "pages-repeat",
+          "configuration": {
+            "name": "pages-repeat",
+            "page_materials": true,
+            "screenshot": true,
+            "material_overrides": {
+              "overlapPages.enabled": true
+            }
+          },
+          "metrics": {
+            "Graphics Simulation Time": {
+              "samples": 240,
+              "median_ms": 0.06,
+              "mean_ms": 0.06255416666666666,
+              "p95_ms": 0.085,
+              "min_ms": 0.038,
+              "max_ms": 0.156
+            },
+            "Graphics Render Time": {
+              "samples": 240,
+              "median_ms": 42.4015,
+              "mean_ms": 42.581575,
+              "p95_ms": 45.906,
+              "min_ms": 34.792,
+              "max_ms": 50.388
+            },
+            "Frame Gpu Time": {
+              "samples": 239,
+              "median_ms": 43.56,
+              "mean_ms": 43.62663179916318,
+              "p95_ms": 46.848,
+              "min_ms": 37.907,
+              "max_ms": 50.431
+            },
+            "Engine Cpu Time": {
+              "samples": 239,
+              "median_ms": 44.131,
+              "mean_ms": 44.36687447698745,
+              "p95_ms": 47.891,
+              "min_ms": 38.245,
+              "max_ms": 52.213
+            }
+          },
+          "cache_before": {
+            "Updates": "0",
+            "Ready": "false",
+            "Texels": "0",
+            "PendingTexels": "0",
+            "GpuNs": "0",
+            "GpuSamples": "0",
+            "FrameUs": "0",
+            "FrameId": "0"
+          },
+          "cache_after": {
+            "Updates": "0",
+            "Ready": "false",
+            "Texels": "0",
+            "PendingTexels": "0",
+            "GpuNs": "0",
+            "GpuSamples": "0",
+            "FrameUs": "0",
+            "FrameId": "0"
+          },
+          "gpu_frame_envelope_usable": true,
+          "approximate_engine_fps": 22.659808298021797,
+          "pipeline_statistics": [
+            {
+              "passName": "Root",
+              "pipelineStatisticsResult": {
+                "vertexCount": 41350844,
+                "primitiveCount": 13783632,
+                "vertexShaderInvocationCount": 10757346,
+                "rasterizedPrimitiveCount": 13783632,
+                "renderedPrimitiveCount": 10477134,
+                "pixelShaderInvocationCount": 18613543,
+                "computeShaderInvocationCount": 3195521
+              }
+            },
+            {
+              "passName": "DepthPass",
+              "pipelineStatisticsResult": {
+                "vertexCount": 7280202,
+                "primitiveCount": 2426734,
+                "vertexShaderInvocationCount": 1891720,
+                "rasterizedPrimitiveCount": 2426734,
+                "renderedPrimitiveCount": 1742208,
+                "pixelShaderInvocationCount": 1348471,
+                "computeShaderInvocationCount": 0
+              }
+            },
+            {
+              "passName": "Shadows",
+              "pipelineStatisticsResult": {
+                "vertexCount": 26785983,
+                "primitiveCount": 8928661,
+                "vertexShaderInvocationCount": 6970971,
+                "rasterizedPrimitiveCount": 8928661,
+                "renderedPrimitiveCount": 6991221,
+                "pixelShaderInvocationCount": 4498328,
+                "computeShaderInvocationCount": 602112
+              }
+            },
+            {
+              "passName": "Forward",
+              "pipelineStatisticsResult": {
+                "vertexCount": 7280202,
+                "primitiveCount": 2426734,
+                "vertexShaderInvocationCount": 1891720,
+                "rasterizedPrimitiveCount": 2426734,
+                "renderedPrimitiveCount": 1742208,
+                "pixelShaderInvocationCount": 994108,
+                "computeShaderInvocationCount": 0
+              }
+            }
+          ],
+          "process_video_memory": {
+            "local": {
+              "Budget": 16553564160,
+              "CurrentUsage": 1826451456,
+              "AvailableForReservation": 8410999808,
+              "CurrentReservation": 0
+            },
+            "nonlocal": {
+              "Budget": 0,
+              "CurrentUsage": 0,
+              "AvailableForReservation": 0,
+              "CurrentReservation": 0
+            }
+          },
+          "enabled_pipeline_gpu": {
+            "samples": 59,
+            "median_ms": 43.669,
+            "cloud_counts": [
+              0
+            ]
+          }
+        },
+        {
+          "name": "coverage",
+          "configuration": {
+            "name": "coverage",
+            "page_materials": true,
+            "screenshot": true,
+            "material_overrides": {
+              "overlapPages.enabled": true,
+              "overlapPages.debug": true
+            }
+          },
+          "metrics": {
+            "Graphics Simulation Time": {
+              "samples": 240,
+              "median_ms": 0.057,
+              "mean_ms": 0.0575875,
+              "p95_ms": 0.077,
+              "min_ms": 0.033,
+              "max_ms": 0.105
+            },
+            "Graphics Render Time": {
+              "samples": 240,
+              "median_ms": 42.2005,
+              "mean_ms": 42.16973333333333,
+              "p95_ms": 44.254,
+              "min_ms": 35.717,
+              "max_ms": 49.181
+            },
+            "Frame Gpu Time": {
+              "samples": 238,
+              "median_ms": 43.0975,
+              "mean_ms": 42.956466386554624,
+              "p95_ms": 44.54,
+              "min_ms": 37.86,
+              "max_ms": 46.502
+            },
+            "Engine Cpu Time": {
+              "samples": 239,
+              "median_ms": 43.794,
+              "mean_ms": 43.74579916317992,
+              "p95_ms": 45.938,
+              "min_ms": 37.678,
+              "max_ms": 50.799
+            }
+          },
+          "cache_before": {
+            "Updates": "0",
+            "Ready": "false",
+            "Texels": "0",
+            "PendingTexels": "0",
+            "GpuNs": "0",
+            "GpuSamples": "0",
+            "FrameUs": "0",
+            "FrameId": "0"
+          },
+          "cache_after": {
+            "Updates": "0",
+            "Ready": "false",
+            "Texels": "0",
+            "PendingTexels": "0",
+            "GpuNs": "0",
+            "GpuSamples": "0",
+            "FrameUs": "0",
+            "FrameId": "0"
+          },
+          "gpu_frame_envelope_usable": true,
+          "approximate_engine_fps": 22.834178197926658,
+          "pipeline_statistics": [
+            {
+              "passName": "Root",
+              "pipelineStatisticsResult": {
+                "vertexCount": 41350844,
+                "primitiveCount": 13783632,
+                "vertexShaderInvocationCount": 10757346,
+                "rasterizedPrimitiveCount": 13783632,
+                "renderedPrimitiveCount": 10477134,
+                "pixelShaderInvocationCount": 18614483,
+                "computeShaderInvocationCount": 3195521
+              }
+            },
+            {
+              "passName": "DepthPass",
+              "pipelineStatisticsResult": {
+                "vertexCount": 7280202,
+                "primitiveCount": 2426734,
+                "vertexShaderInvocationCount": 1891720,
+                "rasterizedPrimitiveCount": 2426734,
+                "renderedPrimitiveCount": 1742208,
+                "pixelShaderInvocationCount": 1348471,
+                "computeShaderInvocationCount": 0
+              }
+            },
+            {
+              "passName": "Shadows",
+              "pipelineStatisticsResult": {
+                "vertexCount": 26785983,
+                "primitiveCount": 8928661,
+                "vertexShaderInvocationCount": 6970971,
+                "rasterizedPrimitiveCount": 8928661,
+                "renderedPrimitiveCount": 6991221,
+                "pixelShaderInvocationCount": 4498328,
+                "computeShaderInvocationCount": 602112
+              }
+            },
+            {
+              "passName": "Forward",
+              "pipelineStatisticsResult": {
+                "vertexCount": 7280202,
+                "primitiveCount": 2426734,
+                "vertexShaderInvocationCount": 1891720,
+                "rasterizedPrimitiveCount": 2426734,
+                "renderedPrimitiveCount": 1742208,
+                "pixelShaderInvocationCount": 994108,
+                "computeShaderInvocationCount": 0
+              }
+            }
+          ],
+          "process_video_memory": {
+            "local": {
+              "Budget": 16553564160,
+              "CurrentUsage": 1826451456,
+              "AvailableForReservation": 8410999808,
+              "CurrentReservation": 0
+            },
+            "nonlocal": {
+              "Budget": 0,
+              "CurrentUsage": 0,
+              "AvailableForReservation": 0,
+              "CurrentReservation": 0
+            }
+          },
+          "enabled_pipeline_gpu": {
+            "samples": 59,
+            "median_ms": 42.442,
+            "cloud_counts": [
+              0
+            ]
+          }
+        },
+        {
+          "name": "fallback-only",
+          "configuration": {
+            "name": "fallback-only",
+            "page_materials": true,
+            "screenshot": true,
+            "material_overrides": {
+              "overlapPages.enabled": false
+            }
+          },
+          "metrics": {
+            "Graphics Simulation Time": {
+              "samples": 240,
+              "median_ms": 0.057,
+              "mean_ms": 0.0585625,
+              "p95_ms": 0.075,
+              "min_ms": 0.035,
+              "max_ms": 0.163
+            },
+            "Graphics Render Time": {
+              "samples": 240,
+              "median_ms": 40.400999999999996,
+              "mean_ms": 40.50785416666667,
+              "p95_ms": 42.485,
+              "min_ms": 33.849,
+              "max_ms": 45.991
+            },
+            "Frame Gpu Time": {
+              "samples": 239,
+              "median_ms": 41.409,
+              "mean_ms": 41.368979079497905,
+              "p95_ms": 42.985,
+              "min_ms": 36.824,
+              "max_ms": 43.765
+            },
+            "Engine Cpu Time": {
+              "samples": 239,
+              "median_ms": 41.982,
+              "mean_ms": 42.06528033472804,
+              "p95_ms": 44.236,
+              "min_ms": 37.274,
+              "max_ms": 47.423
+            }
+          },
+          "cache_before": {
+            "Updates": "0",
+            "Ready": "false",
+            "Texels": "0",
+            "PendingTexels": "0",
+            "GpuNs": "0",
+            "GpuSamples": "0",
+            "FrameUs": "0",
+            "FrameId": "0"
+          },
+          "cache_after": {
+            "Updates": "0",
+            "Ready": "false",
+            "Texels": "0",
+            "PendingTexels": "0",
+            "GpuNs": "0",
+            "GpuSamples": "0",
+            "FrameUs": "0",
+            "FrameId": "0"
+          },
+          "gpu_frame_envelope_usable": true,
+          "approximate_engine_fps": 23.81973226620933,
+          "pipeline_statistics": [
+            {
+              "passName": "Root",
+              "pipelineStatisticsResult": {
+                "vertexCount": 41350844,
+                "primitiveCount": 13783632,
+                "vertexShaderInvocationCount": 10757346,
+                "rasterizedPrimitiveCount": 13783632,
+                "renderedPrimitiveCount": 10477134,
+                "pixelShaderInvocationCount": 18613095,
+                "computeShaderInvocationCount": 3195521
+              }
+            },
+            {
+              "passName": "DepthPass",
+              "pipelineStatisticsResult": {
+                "vertexCount": 7280202,
+                "primitiveCount": 2426734,
+                "vertexShaderInvocationCount": 1891720,
+                "rasterizedPrimitiveCount": 2426734,
+                "renderedPrimitiveCount": 1742208,
+                "pixelShaderInvocationCount": 1348471,
+                "computeShaderInvocationCount": 0
+              }
+            },
+            {
+              "passName": "Shadows",
+              "pipelineStatisticsResult": {
+                "vertexCount": 26785983,
+                "primitiveCount": 8928661,
+                "vertexShaderInvocationCount": 6970971,
+                "rasterizedPrimitiveCount": 8928661,
+                "renderedPrimitiveCount": 6991221,
+                "pixelShaderInvocationCount": 4498328,
+                "computeShaderInvocationCount": 602112
+              }
+            },
+            {
+              "passName": "Forward",
+              "pipelineStatisticsResult": {
+                "vertexCount": 7280202,
+                "primitiveCount": 2426734,
+                "vertexShaderInvocationCount": 1891720,
+                "rasterizedPrimitiveCount": 2426734,
+                "renderedPrimitiveCount": 1742208,
+                "pixelShaderInvocationCount": 994108,
+                "computeShaderInvocationCount": 0
+              }
+            }
+          ],
+          "process_video_memory": {
+            "local": {
+              "Budget": 16553564160,
+              "CurrentUsage": 1826451456,
+              "AvailableForReservation": 8410999808,
+              "CurrentReservation": 0
+            },
+            "nonlocal": {
+              "Budget": 0,
+              "CurrentUsage": 0,
+              "AvailableForReservation": 0,
+              "CurrentReservation": 0
+            }
+          },
+          "enabled_pipeline_gpu": {
+            "samples": 60,
+            "median_ms": 42.045500000000004,
+            "cloud_counts": [
+              0
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "passed": true,
+      "camera": [
+        [
+          1025.0732421875,
+          488.1408386230469,
+          43.456932067871094
+        ],
+        [
+          -13.2926664352417,
+          4.55283784866333,
+          161.42835998535156
+        ]
+      ],
+      "viewport": [
+        1203,
+        656
+      ],
+      "height_precision": 16,
+      "original_pacing": {
+        "sys_MaxFPS": "-1",
+        "vsync_interval": "1"
+      },
+      "original_level_sha256": "faec5fd3f9b69643b918af3a917623776d31bf7cc962485cfba712313a36a922",
+      "restoration": {
+        "camera": true,
+        "entity_visibility": true,
+        "mesh_visibility": true,
+        "material_bindings": true,
+        "height_precision": true,
+        "level_file": true
+      },
+      "meshes": [
+        {
+          "name": "Terrain7",
+          "visible": true,
+          "entity": "[1072946576228668283]"
+        },
+        {
+          "name": "Terrain6",
+          "visible": true,
+          "entity": "[13157998486672419220]"
+        }
+      ],
+      "exception": null,
+      "restore_exception": null,
+      "capture_directory": "D:\\diversion\\TG\\TGProject\\user\\TerrainSceneProfile\\20261024-overlap-pages-coarse",
+      "metadata": {
+        "benchmarkName": "Terrain scene",
+        "gpuInfo": {
+          "description": "AMD Radeon(TM) Graphics",
+          "driverVersion": 1794080768
+        }
+      },
+      "appearance": {
+        "direct__direct-repeat": {
+          "pixels": 701014,
+          "changed_pixels": 0,
+          "pixels_over_one": 0,
+          "max_channel_difference": 0,
+          "mean_channel_difference": 0.0
+        },
+        "pages__pages-repeat": {
+          "pixels": 701014,
+          "changed_pixels": 0,
+          "pixels_over_one": 0,
+          "max_channel_difference": 0,
+          "mean_channel_difference": 0.0
+        },
+        "direct__pages": {
+          "pixels": 701014,
+          "changed_pixels": 653,
+          "pixels_over_one": 172,
+          "max_channel_difference": 6,
+          "mean_channel_difference": 0.000809303856033308
+        },
+        "direct__fallback-only": {
+          "pixels": 701014,
+          "changed_pixels": 0,
+          "pixels_over_one": 0,
+          "max_channel_difference": 0,
+          "mean_channel_difference": 0.0
+        },
+        "pages__coverage": {
+          "pixels": 701014,
+          "changed_pixels": 855,
+          "pixels_over_one": 855,
+          "max_channel_difference": 175,
+          "mean_channel_difference": 0.07785293874302082
+        }
+      },
+      "paired_median_means": {
+        "Engine Cpu Time": {
+          "direct": 42.0715,
+          "pages": 43.876,
+          "difference_ms": 1.8044999999999973,
+          "difference_percent": 4.289126843587695
+        },
+        "Frame Gpu Time": {
+          "direct": 41.44,
+          "pages": 43.18075,
+          "difference_ms": 1.7407500000000056,
+          "difference_percent": 4.200651544401558
+        }
+      },
+      "page_cache": {
+        "prototype": true,
+        "baker": "offline CPU source-image approximation",
+        "key": "c67c061518241e515c87cb84",
+        "materials": {
+          "assets\\vuelivelink\\overlap\\d9e7b35caf90f0292a9e19d9\\13d046a1907c1ddef8a6ce2438e433a7af1396d73b7006df19a4376676016fcd.material": "Assets\\VueLiveLink\\overlap_pages\\c67c061518241e515c87cb84\\d9e7b35caf90f0292a9e19d9.material",
+          "assets\\vuelivelink\\overlap\\9f344ef8359b9976db0ed01a\\13d046a1907c1ddef8a6ce2438e433a7af1396d73b7006df19a4376676016fcd.material": "Assets\\VueLiveLink\\overlap_pages\\c67c061518241e515c87cb84\\9f344ef8359b9976db0ed01a.material"
+        },
+        "properties": {
+          "overlapPages.enabled": false,
+          "overlapPages.low": [
+            839.6370849609376,
+            -597.3531799316406
+          ],
+          "overlapPages.extent": [
+            554.9382934570314,
+            1000.0
+          ],
+          "overlapPages.size": 256.0,
+          "overlapPages.channel0": "Assets/VueLiveLink/overlap_pages/c67c061518241e515c87cb84/page0.dds",
+          "overlapPages.channel1": "Assets/VueLiveLink/overlap_pages/c67c061518241e515c87cb84/page1.dds",
+          "overlapPages.channel2": "Assets/VueLiveLink/overlap_pages/c67c061518241e515c87cb84/page2.dds",
+          "overlapPages.channel3": "Assets/VueLiveLink/overlap_pages/c67c061518241e515c87cb84/page3.dds"
+        },
+        "pages": 16,
+        "atlas_size": 256,
+        "payload_bytes": 2097152,
+        "source_files_bytes": 3778391,
+        "valid_texel_percent": 5.5572509765625,
+        "world_texel_size": [
+          2.2376544091009327,
+          4.032258064516129
+        ],
+        "bake_wall_seconds": 0.35325689997989684
+      },
+      "sources": {
+        "tools\\BuildOverlapPages.py": "8742cc4f9e6e4b7a8f5e97ee3c7b1215ed8d206455660f608b1de64119b0ceca",
+        "integrations\\tg\\project\\Assets\\VueLiveLink\\VueTerrainOverlap.azsli": "a44111fe9d717524d1605bb11ab6f85d5e79296aa543ff4295711dde9054265c",
+        "integrations\\tg\\project\\Gem\\Source\\Editor\\VueLiveLink\\terrain_overlap.py": "a0e33ed19f462c4d80b44ba86d7e9908f317f50298cfcd1a58a7cb232171e5f6"
+      },
+      "notes": [
+        "Offline CPU source-image baker; not cooked-texture/GPU equivalent.",
+        "No runtime page update scheduler; reported bake cost is CPU wall time.",
+        "DXGI CurrentUsage is process residency/accounting, not texture payload size.",
+        "A startup RenderPass SRG image-index assertion persisted before captures in both paths; this is not a clean-engine validation.",
+        "Previous v3 run rejected all cached pixels; excluded from cache-shading performance results."
+      ],
+      "environment_disabled": [
+        {
+          "type": "Sky Atmosphere",
+          "disabled": 1
+        },
+        {
+          "type": "HDRI Sky",
+          "disabled": 1
+        },
+        {
+          "type": "Finite Cloud Volume",
+          "disabled": 2
+        },
+        {
+          "type": "Fog",
+          "disabled": 0
+        },
+        {
+          "type": "Volumetric Fog",
+          "disabled": 0
+        }
+      ],
+      "cases": [
+        {
+          "name": "direct",
+          "configuration": {
+            "name": "direct",
+            "screenshot": true
+          },
+          "metrics": {
+            "Graphics Simulation Time": {
+              "samples": 240,
+              "median_ms": 0.057,
+              "mean_ms": 0.059075,
+              "p95_ms": 0.082,
+              "min_ms": 0.035,
+              "max_ms": 0.148
+            },
+            "Graphics Render Time": {
+              "samples": 240,
+              "median_ms": 40.623999999999995,
+              "mean_ms": 40.65300833333333,
+              "p95_ms": 42.549,
+              "min_ms": 32.439,
+              "max_ms": 45.107
+            },
+            "Frame Gpu Time": {
+              "samples": 240,
+              "median_ms": 41.4435,
+              "mean_ms": 41.470108333333336,
+              "p95_ms": 42.995,
+              "min_ms": 39.237,
+              "max_ms": 45.193
+            },
+            "Engine Cpu Time": {
+              "samples": 239,
+              "median_ms": 42.133,
+              "mean_ms": 42.177033472803345,
+              "p95_ms": 44.076,
+              "min_ms": 39.238,
+              "max_ms": 46.481
+            }
+          },
+          "cache_before": {
+            "Updates": "0",
+            "Ready": "false",
+            "Texels": "0",
+            "PendingTexels": "0",
+            "GpuNs": "0",
+            "GpuSamples": "0",
+            "FrameUs": "0",
+            "FrameId": "0"
+          },
+          "cache_after": {
+            "Updates": "0",
+            "Ready": "false",
+            "Texels": "0",
+            "PendingTexels": "0",
+            "GpuNs": "0",
+            "GpuSamples": "0",
+            "FrameUs": "0",
+            "FrameId": "0"
+          },
+          "gpu_frame_envelope_usable": true,
+          "approximate_engine_fps": 23.73436498706477,
+          "pipeline_statistics": [
+            {
+              "passName": "Root",
+              "pipelineStatisticsResult": {
+                "vertexCount": 41350820,
+                "primitiveCount": 13783624,
+                "vertexShaderInvocationCount": 10757330,
+                "rasterizedPrimitiveCount": 13783624,
+                "renderedPrimitiveCount": 10477126,
+                "pixelShaderInvocationCount": 18614403,
+                "computeShaderInvocationCount": 3195521
+              }
+            },
+            {
+              "passName": "DepthPass",
+              "pipelineStatisticsResult": {
+                "vertexCount": 7280202,
+                "primitiveCount": 2426734,
+                "vertexShaderInvocationCount": 1891720,
+                "rasterizedPrimitiveCount": 2426734,
+                "renderedPrimitiveCount": 1742208,
+                "pixelShaderInvocationCount": 1348471,
+                "computeShaderInvocationCount": 0
+              }
+            },
+            {
+              "passName": "Shadows",
+              "pipelineStatisticsResult": {
+                "vertexCount": 26785983,
+                "primitiveCount": 8928661,
+                "vertexShaderInvocationCount": 6970971,
+                "rasterizedPrimitiveCount": 8928661,
+                "renderedPrimitiveCount": 6991221,
+                "pixelShaderInvocationCount": 4498328,
+                "computeShaderInvocationCount": 602112
+              }
+            },
+            {
+              "passName": "Forward",
+              "pipelineStatisticsResult": {
+                "vertexCount": 7280202,
+                "primitiveCount": 2426734,
+                "vertexShaderInvocationCount": 1891720,
+                "rasterizedPrimitiveCount": 2426734,
+                "renderedPrimitiveCount": 1742208,
+                "pixelShaderInvocationCount": 994108,
+                "computeShaderInvocationCount": 0
+              }
+            }
+          ],
+          "process_video_memory": {
+            "local": {
+              "Budget": 16553564160,
+              "CurrentUsage": 1792897024,
+              "AvailableForReservation": 8410999808,
+              "CurrentReservation": 0
+            },
+            "nonlocal": {
+              "Budget": 0,
+              "CurrentUsage": 0,
+              "AvailableForReservation": 0,
+              "CurrentReservation": 0
+            }
+          },
+          "enabled_pipeline_gpu": {
+            "samples": 60,
+            "median_ms": 41.4885,
+            "cloud_counts": [
+              0
+            ]
+          }
+        },
+        {
+          "name": "pages",
+          "configuration": {
+            "name": "pages",
+            "page_materials": true,
+            "screenshot": true,
+            "material_overrides": {
+              "overlapPages.enabled": true
+            }
+          },
+          "metrics": {
+            "Graphics Simulation Time": {
+              "samples": 240,
+              "median_ms": 0.059,
+              "mean_ms": 0.059666666666666666,
+              "p95_ms": 0.08,
+              "min_ms": 0.033,
+              "max_ms": 0.116
+            },
+            "Graphics Render Time": {
+              "samples": 240,
+              "median_ms": 42.3655,
+              "mean_ms": 42.34305416666667,
+              "p95_ms": 44.388,
+              "min_ms": 33.608,
+              "max_ms": 47.378
+            },
+            "Frame Gpu Time": {
+              "samples": 240,
+              "median_ms": 43.218,
+              "mean_ms": 43.173179166666664,
+              "p95_ms": 44.708,
+              "min_ms": 39.973,
+              "max_ms": 48.178
+            },
+            "Engine Cpu Time": {
+              "samples": 239,
+              "median_ms": 43.794,
+              "mean_ms": 43.899221757322174,
+              "p95_ms": 45.987,
+              "min_ms": 39.967,
+              "max_ms": 49.108
+            }
+          },
+          "cache_before": {
+            "Updates": "0",
+            "Ready": "false",
+            "Texels": "0",
+            "PendingTexels": "0",
+            "GpuNs": "0",
+            "GpuSamples": "0",
+            "FrameUs": "0",
+            "FrameId": "0"
+          },
+          "cache_after": {
+            "Updates": "0",
+            "Ready": "false",
+            "Texels": "0",
+            "PendingTexels": "0",
+            "GpuNs": "0",
+            "GpuSamples": "0",
+            "FrameUs": "0",
+            "FrameId": "0"
+          },
+          "gpu_frame_envelope_usable": true,
+          "approximate_engine_fps": 22.834178197926658,
+          "pipeline_statistics": [
+            {
+              "passName": "Root",
+              "pipelineStatisticsResult": {
+                "vertexCount": 41350820,
+                "primitiveCount": 13783624,
+                "vertexShaderInvocationCount": 10757330,
+                "rasterizedPrimitiveCount": 13783624,
+                "renderedPrimitiveCount": 10477126,
+                "pixelShaderInvocationCount": 18614471,
+                "computeShaderInvocationCount": 3195521
+              }
+            },
+            {
+              "passName": "DepthPass",
+              "pipelineStatisticsResult": {
+                "vertexCount": 7280202,
+                "primitiveCount": 2426734,
+                "vertexShaderInvocationCount": 1891720,
+                "rasterizedPrimitiveCount": 2426734,
+                "renderedPrimitiveCount": 1742208,
+                "pixelShaderInvocationCount": 1348471,
+                "computeShaderInvocationCount": 0
+              }
+            },
+            {
+              "passName": "Shadows",
+              "pipelineStatisticsResult": {
+                "vertexCount": 26785983,
+                "primitiveCount": 8928661,
+                "vertexShaderInvocationCount": 6970971,
+                "rasterizedPrimitiveCount": 8928661,
+                "renderedPrimitiveCount": 6991221,
+                "pixelShaderInvocationCount": 4498328,
+                "computeShaderInvocationCount": 602112
+              }
+            },
+            {
+              "passName": "Forward",
+              "pipelineStatisticsResult": {
+                "vertexCount": 7280202,
+                "primitiveCount": 2426734,
+                "vertexShaderInvocationCount": 1891720,
+                "rasterizedPrimitiveCount": 2426734,
+                "renderedPrimitiveCount": 1742208,
+                "pixelShaderInvocationCount": 994108,
+                "computeShaderInvocationCount": 0
+              }
+            }
+          ],
+          "process_video_memory": {
+            "local": {
+              "Budget": 16553564160,
+              "CurrentUsage": 1794994176,
+              "AvailableForReservation": 8410999808,
+              "CurrentReservation": 0
+            },
+            "nonlocal": {
+              "Budget": 0,
+              "CurrentUsage": 0,
+              "AvailableForReservation": 0,
+              "CurrentReservation": 0
+            }
+          },
+          "enabled_pipeline_gpu": {
+            "samples": 60,
+            "median_ms": 43.3895,
+            "cloud_counts": [
+              0
+            ]
+          }
+        },
+        {
+          "name": "direct-repeat",
+          "configuration": {
+            "name": "direct-repeat",
+            "screenshot": true
+          },
+          "metrics": {
+            "Graphics Simulation Time": {
+              "samples": 240,
+              "median_ms": 0.057,
+              "mean_ms": 0.05847083333333333,
+              "p95_ms": 0.076,
+              "min_ms": 0.036,
+              "max_ms": 0.129
+            },
+            "Graphics Render Time": {
+              "samples": 240,
+              "median_ms": 40.41,
+              "mean_ms": 40.62201666666667,
+              "p95_ms": 42.652,
+              "min_ms": 33.169,
+              "max_ms": 44.48
+            },
+            "Frame Gpu Time": {
+              "samples": 240,
+              "median_ms": 41.436499999999995,
+              "mean_ms": 41.444429166666666,
+              "p95_ms": 43.033,
+              "min_ms": 39.773,
+              "max_ms": 43.917
+            },
+            "Engine Cpu Time": {
+              "samples": 239,
+              "median_ms": 42.01,
+              "mean_ms": 42.15960251046025,
+              "p95_ms": 44.23,
+              "min_ms": 39.937,
+              "max_ms": 46.272
+            }
+          },
+          "cache_before": {
+            "Updates": "0",
+            "Ready": "false",
+            "Texels": "0",
+            "PendingTexels": "0",
+            "GpuNs": "0",
+            "GpuSamples": "0",
+            "FrameUs": "0",
+            "FrameId": "0"
+          },
+          "cache_after": {
+            "Updates": "0",
+            "Ready": "false",
+            "Texels": "0",
+            "PendingTexels": "0",
+            "GpuNs": "0",
+            "GpuSamples": "0",
+            "FrameUs": "0",
+            "FrameId": "0"
+          },
+          "gpu_frame_envelope_usable": true,
+          "approximate_engine_fps": 23.803856224708404,
+          "pipeline_statistics": [
+            {
+              "passName": "Root",
+              "pipelineStatisticsResult": {
+                "vertexCount": 41350820,
+                "primitiveCount": 13783624,
+                "vertexShaderInvocationCount": 10757330,
+                "rasterizedPrimitiveCount": 13783624,
+                "renderedPrimitiveCount": 10477126,
+                "pixelShaderInvocationCount": 18615279,
+                "computeShaderInvocationCount": 3195521
+              }
+            },
+            {
+              "passName": "DepthPass",
+              "pipelineStatisticsResult": {
+                "vertexCount": 7280202,
+                "primitiveCount": 2426734,
+                "vertexShaderInvocationCount": 1891720,
+                "rasterizedPrimitiveCount": 2426734,
+                "renderedPrimitiveCount": 1742208,
+                "pixelShaderInvocationCount": 1348471,
+                "computeShaderInvocationCount": 0
+              }
+            },
+            {
+              "passName": "Shadows",
+              "pipelineStatisticsResult": {
+                "vertexCount": 26785983,
+                "primitiveCount": 8928661,
+                "vertexShaderInvocationCount": 6970971,
+                "rasterizedPrimitiveCount": 8928661,
+                "renderedPrimitiveCount": 6991221,
+                "pixelShaderInvocationCount": 4498328,
+                "computeShaderInvocationCount": 602112
+              }
+            },
+            {
+              "passName": "Forward",
+              "pipelineStatisticsResult": {
+                "vertexCount": 7280202,
+                "primitiveCount": 2426734,
+                "vertexShaderInvocationCount": 1891720,
+                "rasterizedPrimitiveCount": 2426734,
+                "renderedPrimitiveCount": 1742208,
+                "pixelShaderInvocationCount": 994108,
+                "computeShaderInvocationCount": 0
+              }
+            }
+          ],
+          "process_video_memory": {
+            "local": {
+              "Budget": 16553564160,
+              "CurrentUsage": 1794994176,
+              "AvailableForReservation": 8410999808,
+              "CurrentReservation": 0
+            },
+            "nonlocal": {
+              "Budget": 0,
+              "CurrentUsage": 0,
+              "AvailableForReservation": 0,
+              "CurrentReservation": 0
+            }
+          },
+          "enabled_pipeline_gpu": {
+            "samples": 60,
+            "median_ms": 41.4545,
+            "cloud_counts": [
+              0
+            ]
+          }
+        },
+        {
+          "name": "pages-repeat",
+          "configuration": {
+            "name": "pages-repeat",
+            "page_materials": true,
+            "screenshot": true,
+            "material_overrides": {
+              "overlapPages.enabled": true
+            }
+          },
+          "metrics": {
+            "Graphics Simulation Time": {
+              "samples": 240,
+              "median_ms": 0.0565,
+              "mean_ms": 0.0583875,
+              "p95_ms": 0.076,
+              "min_ms": 0.035,
+              "max_ms": 0.209
+            },
+            "Graphics Render Time": {
+              "samples": 240,
+              "median_ms": 42.432,
+              "mean_ms": 42.32015,
+              "p95_ms": 44.111,
+              "min_ms": 35.295,
+              "max_ms": 47.607
+            },
+            "Frame Gpu Time": {
+              "samples": 240,
+              "median_ms": 43.1435,
+              "mean_ms": 43.10752083333333,
+              "p95_ms": 44.625,
+              "min_ms": 39.871,
+              "max_ms": 46.76
+            },
+            "Engine Cpu Time": {
+              "samples": 239,
+              "median_ms": 43.958,
+              "mean_ms": 43.859740585774055,
+              "p95_ms": 45.831,
+              "min_ms": 39.959,
+              "max_ms": 48.937
+            }
+          },
+          "cache_before": {
+            "Updates": "0",
+            "Ready": "false",
+            "Texels": "0",
+            "PendingTexels": "0",
+            "GpuNs": "0",
+            "GpuSamples": "0",
+            "FrameUs": "0",
+            "FrameId": "0"
+          },
+          "cache_after": {
+            "Updates": "0",
+            "Ready": "false",
+            "Texels": "0",
+            "PendingTexels": "0",
+            "GpuNs": "0",
+            "GpuSamples": "0",
+            "FrameUs": "0",
+            "FrameId": "0"
+          },
+          "gpu_frame_envelope_usable": true,
+          "approximate_engine_fps": 22.748987670048685,
+          "pipeline_statistics": [
+            {
+              "passName": "Root",
+              "pipelineStatisticsResult": {
+                "vertexCount": 41350820,
+                "primitiveCount": 13783624,
+                "vertexShaderInvocationCount": 10757330,
+                "rasterizedPrimitiveCount": 13783624,
+                "renderedPrimitiveCount": 10477126,
+                "pixelShaderInvocationCount": 18613023,
+                "computeShaderInvocationCount": 3195521
+              }
+            },
+            {
+              "passName": "DepthPass",
+              "pipelineStatisticsResult": {
+                "vertexCount": 7280202,
+                "primitiveCount": 2426734,
+                "vertexShaderInvocationCount": 1891720,
+                "rasterizedPrimitiveCount": 2426734,
+                "renderedPrimitiveCount": 1742208,
+                "pixelShaderInvocationCount": 1348471,
+                "computeShaderInvocationCount": 0
+              }
+            },
+            {
+              "passName": "Shadows",
+              "pipelineStatisticsResult": {
+                "vertexCount": 26785983,
+                "primitiveCount": 8928661,
+                "vertexShaderInvocationCount": 6970971,
+                "rasterizedPrimitiveCount": 8928661,
+                "renderedPrimitiveCount": 6991221,
+                "pixelShaderInvocationCount": 4498328,
+                "computeShaderInvocationCount": 602112
+              }
+            },
+            {
+              "passName": "Forward",
+              "pipelineStatisticsResult": {
+                "vertexCount": 7280202,
+                "primitiveCount": 2426734,
+                "vertexShaderInvocationCount": 1891720,
+                "rasterizedPrimitiveCount": 2426734,
+                "renderedPrimitiveCount": 1742208,
+                "pixelShaderInvocationCount": 994108,
+                "computeShaderInvocationCount": 0
+              }
+            }
+          ],
+          "process_video_memory": {
+            "local": {
+              "Budget": 16553564160,
+              "CurrentUsage": 1794994176,
+              "AvailableForReservation": 8410999808,
+              "CurrentReservation": 0
+            },
+            "nonlocal": {
+              "Budget": 0,
+              "CurrentUsage": 0,
+              "AvailableForReservation": 0,
+              "CurrentReservation": 0
+            }
+          },
+          "enabled_pipeline_gpu": {
+            "samples": 60,
+            "median_ms": 43.2145,
+            "cloud_counts": [
+              0
+            ]
+          }
+        },
+        {
+          "name": "coverage",
+          "configuration": {
+            "name": "coverage",
+            "page_materials": true,
+            "screenshot": true,
+            "material_overrides": {
+              "overlapPages.enabled": true,
+              "overlapPages.debug": true
+            }
+          },
+          "metrics": {
+            "Graphics Simulation Time": {
+              "samples": 240,
+              "median_ms": 0.057,
+              "mean_ms": 0.05877916666666667,
+              "p95_ms": 0.08,
+              "min_ms": 0.036,
+              "max_ms": 0.206
+            },
+            "Graphics Render Time": {
+              "samples": 240,
+              "median_ms": 42.2785,
+              "mean_ms": 42.286966666666665,
+              "p95_ms": 44.163,
+              "min_ms": 34.027,
+              "max_ms": 46.023
+            },
+            "Frame Gpu Time": {
+              "samples": 240,
+              "median_ms": 43.171,
+              "mean_ms": 43.1131625,
+              "p95_ms": 44.622,
+              "min_ms": 39.321,
+              "max_ms": 45.766
+            },
+            "Engine Cpu Time": {
+              "samples": 239,
+              "median_ms": 43.881,
+              "mean_ms": 43.84353138075314,
+              "p95_ms": 45.748,
+              "min_ms": 40.355,
+              "max_ms": 47.407
+            }
+          },
+          "cache_before": {
+            "Updates": "0",
+            "Ready": "false",
+            "Texels": "0",
+            "PendingTexels": "0",
+            "GpuNs": "0",
+            "GpuSamples": "0",
+            "FrameUs": "0",
+            "FrameId": "0"
+          },
+          "cache_after": {
+            "Updates": "0",
+            "Ready": "false",
+            "Texels": "0",
+            "PendingTexels": "0",
+            "GpuNs": "0",
+            "GpuSamples": "0",
+            "FrameUs": "0",
+            "FrameId": "0"
+          },
+          "gpu_frame_envelope_usable": true,
+          "approximate_engine_fps": 22.788906360383766,
+          "pipeline_statistics": [
+            {
+              "passName": "Root",
+              "pipelineStatisticsResult": {
+                "vertexCount": 41350820,
+                "primitiveCount": 13783624,
+                "vertexShaderInvocationCount": 10757330,
+                "rasterizedPrimitiveCount": 13783624,
+                "renderedPrimitiveCount": 10477126,
+                "pixelShaderInvocationCount": 18614471,
+                "computeShaderInvocationCount": 3195521
+              }
+            },
+            {
+              "passName": "DepthPass",
+              "pipelineStatisticsResult": {
+                "vertexCount": 7280202,
+                "primitiveCount": 2426734,
+                "vertexShaderInvocationCount": 1891720,
+                "rasterizedPrimitiveCount": 2426734,
+                "renderedPrimitiveCount": 1742208,
+                "pixelShaderInvocationCount": 1348471,
+                "computeShaderInvocationCount": 0
+              }
+            },
+            {
+              "passName": "Shadows",
+              "pipelineStatisticsResult": {
+                "vertexCount": 26785983,
+                "primitiveCount": 8928661,
+                "vertexShaderInvocationCount": 6970971,
+                "rasterizedPrimitiveCount": 8928661,
+                "renderedPrimitiveCount": 6991221,
+                "pixelShaderInvocationCount": 4498328,
+                "computeShaderInvocationCount": 602112
+              }
+            },
+            {
+              "passName": "Forward",
+              "pipelineStatisticsResult": {
+                "vertexCount": 7280202,
+                "primitiveCount": 2426734,
+                "vertexShaderInvocationCount": 1891720,
+                "rasterizedPrimitiveCount": 2426734,
+                "renderedPrimitiveCount": 1742208,
+                "pixelShaderInvocationCount": 994108,
+                "computeShaderInvocationCount": 0
+              }
+            }
+          ],
+          "process_video_memory": {
+            "local": {
+              "Budget": 16553564160,
+              "CurrentUsage": 1794994176,
+              "AvailableForReservation": 8410999808,
+              "CurrentReservation": 0
+            },
+            "nonlocal": {
+              "Budget": 0,
+              "CurrentUsage": 0,
+              "AvailableForReservation": 0,
+              "CurrentReservation": 0
+            }
+          },
+          "enabled_pipeline_gpu": {
+            "samples": 60,
+            "median_ms": 43.346999999999994,
+            "cloud_counts": [
+              0
+            ]
+          }
+        },
+        {
+          "name": "fallback-only",
+          "configuration": {
+            "name": "fallback-only",
+            "page_materials": true,
+            "screenshot": true,
+            "material_overrides": {
+              "overlapPages.enabled": false
+            }
+          },
+          "metrics": {
+            "Graphics Simulation Time": {
+              "samples": 240,
+              "median_ms": 0.06,
+              "mean_ms": 0.061845833333333336,
+              "p95_ms": 0.085,
+              "min_ms": 0.032,
+              "max_ms": 0.166
+            },
+            "Graphics Render Time": {
+              "samples": 240,
+              "median_ms": 40.6695,
+              "mean_ms": 40.99989583333333,
+              "p95_ms": 44.335,
+              "min_ms": 32.576,
+              "max_ms": 51.549
+            },
+            "Frame Gpu Time": {
+              "samples": 239,
+              "median_ms": 41.54,
+              "mean_ms": 41.92306694560669,
+              "p95_ms": 45.484,
+              "min_ms": 38.742,
+              "max_ms": 47.468
+            },
+            "Engine Cpu Time": {
+              "samples": 239,
+              "median_ms": 42.268,
+              "mean_ms": 42.65989539748954,
+              "p95_ms": 46.496,
+              "min_ms": 38.341,
+              "max_ms": 53.765
+            }
+          },
+          "cache_before": {
+            "Updates": "0",
+            "Ready": "false",
+            "Texels": "0",
+            "PendingTexels": "0",
+            "GpuNs": "0",
+            "GpuSamples": "0",
+            "FrameUs": "0",
+            "FrameId": "0"
+          },
+          "cache_after": {
+            "Updates": "0",
+            "Ready": "false",
+            "Texels": "0",
+            "PendingTexels": "0",
+            "GpuNs": "0",
+            "GpuSamples": "0",
+            "FrameUs": "0",
+            "FrameId": "0"
+          },
+          "gpu_frame_envelope_usable": true,
+          "approximate_engine_fps": 23.65855966688748,
+          "pipeline_statistics": [
+            {
+              "passName": "Root",
+              "pipelineStatisticsResult": {
+                "vertexCount": 41350820,
+                "primitiveCount": 13783624,
+                "vertexShaderInvocationCount": 10757330,
+                "rasterizedPrimitiveCount": 13783624,
+                "renderedPrimitiveCount": 10477126,
+                "pixelShaderInvocationCount": 18614727,
+                "computeShaderInvocationCount": 3195521
+              }
+            },
+            {
+              "passName": "DepthPass",
+              "pipelineStatisticsResult": {
+                "vertexCount": 7280202,
+                "primitiveCount": 2426734,
+                "vertexShaderInvocationCount": 1891720,
+                "rasterizedPrimitiveCount": 2426734,
+                "renderedPrimitiveCount": 1742208,
+                "pixelShaderInvocationCount": 1348471,
+                "computeShaderInvocationCount": 0
+              }
+            },
+            {
+              "passName": "Shadows",
+              "pipelineStatisticsResult": {
+                "vertexCount": 26785983,
+                "primitiveCount": 8928661,
+                "vertexShaderInvocationCount": 6970971,
+                "rasterizedPrimitiveCount": 8928661,
+                "renderedPrimitiveCount": 6991221,
+                "pixelShaderInvocationCount": 4498328,
+                "computeShaderInvocationCount": 602112
+              }
+            },
+            {
+              "passName": "Forward",
+              "pipelineStatisticsResult": {
+                "vertexCount": 7280202,
+                "primitiveCount": 2426734,
+                "vertexShaderInvocationCount": 1891720,
+                "rasterizedPrimitiveCount": 2426734,
+                "renderedPrimitiveCount": 1742208,
+                "pixelShaderInvocationCount": 994108,
+                "computeShaderInvocationCount": 0
+              }
+            }
+          ],
+          "process_video_memory": {
+            "local": {
+              "Budget": 16553564160,
+              "CurrentUsage": 1794994176,
+              "AvailableForReservation": 8410999808,
+              "CurrentReservation": 0
+            },
+            "nonlocal": {
+              "Budget": 0,
+              "CurrentUsage": 0,
+              "AvailableForReservation": 0,
+              "CurrentReservation": 0
+            }
+          },
+          "enabled_pipeline_gpu": {
+            "samples": 60,
+            "median_ms": 42.7445,
+            "cloud_counts": [
+              0
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

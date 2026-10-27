@@ -3,6 +3,15 @@
 #include <TerrainCompositor/TerrainOverlapWeights.azsli>
 #include <TerrainCompositor/TerrainOverlapWeights16.azsli>
 option bool o_terrainHeightFp16 = false;
+option bool o_terrainOverlapPages = false;
+// Measured resource-layout path. With the default publication key zero,
+// contributor selection/shading is identical to the original implementation.
+// Disable contributorSelection.enabled to compile the original fallback.
+option bool o_terrainContributorTiles = true;
+// Fine normal textures are an explicit quality choice; original fallback ignores it.
+option bool o_terrainDetailNormalMaps = false;
+#include "VueTerrainContributorTiles.azsli"
+
 // Owned query fields use the extent emitted by the same publisher. Legacy or
 // manually authored materials keep the dynamic-dimension path by default.
 option bool o_terrainOverlapFixedHeightExtent = false;
@@ -10,6 +19,14 @@ option bool o_terrainOverlapFixedHeightExtent = false;
 // Fixed loop bounds also allow inactive sources to be removed by the compiler.
 [[range(0, 4)]]
 option int o_terrainOverlapSourceCount = 0;
+
+// Key zero or a mismatched publication retains the exact original selector.
+bool VueContributorSelectionValid(const MaterialParameters params)
+{
+    return o_terrainHeightFp16 && o_terrainOverlapFixedHeightExtent && o_terrainOverlapSourceCount == 2 &&
+        params.m_vueContributorKey == VueContributorKey && params.m_vueOverlapWidth == 10.0 &&
+        params.m_vueGroundHeight == 0.0 && params.m_vueGroundTolerance == 0.001;
+}
 
 // Preserve the StandardPBR channels that overlap does not replace. The
 // publisher accepts opaque baked PBR without emissive/clear coat. Retain the
@@ -29,6 +46,46 @@ Surface VueOverlapSurfaceBase(VsOutput IN, VsSystemValues SV, PixelGeometryData 
         real(params.m_specularOcclusionFactor), o_specularOcclusion_useTexture, uvDxDy, true);
     surface.opacityAffectsSpecularFactor = real(params.m_opacityAffectsSpecularFactor);
     return surface;
+}
+
+// Fixed sixteen-page edit-time cache. Each physical page has a one-texel
+// gutter; absent pages, invalid coverage, unsupported precision/features and
+// unresolved footprints retain the exact existing overlap shader below.
+bool VueTryOverlapPages(VsOutput IN, VsSystemValues SV, PixelGeometryData geoData,
+    const MaterialParameters params, float4 uvDxDy, float4 worldDerivatives, out Surface surface)
+{
+    if (!o_terrainOverlapPages || !o_terrainHeightFp16 || o_terrainOverlapSourceCount != 2 ||
+        o_emissiveEnabled || o_clearCoat_enabled || params.m_vueOverlapWidth <= 0 ||
+        params.m_vuePagesChannel0 < 0 || params.m_vuePagesChannel1 < 0 ||
+        params.m_vuePagesChannel2 < 0 || params.m_vuePagesChannel3 < 0 ||
+        any(params.m_vuePagesExtent <= 0)) return false;
+    float2 uv = (geoData.positionWS.xy - params.m_vuePagesLow) / params.m_vuePagesExtent;
+    if (any(uv <= 0) || any(uv >= 1)) return false;
+    float pitch = params.m_vuePagesSize * 0.25;
+    float core = pitch - 2.0;
+    float2 virtualPixel = uv * (4.0 * core);
+    float2 dx = worldDerivatives.xy / params.m_vuePagesExtent * (4.0 * core);
+    float2 dy = worldDerivatives.zw / params.m_vuePagesExtent * (4.0 * core);
+    // This prototype has no mip chain. Magnification uses the baked texel
+    // resolution (appearance is measured); reject minification beyond the gutter.
+    float footprint = max(length(dx), length(dy));
+    if (!isfinite(footprint) || footprint > 1.5) return false;
+    float2 page = floor(virtualPixel / core);
+    float2 physicalUv = (page * pitch + frac(virtualPixel / core) * core + 1.0) / params.m_vuePagesSize;
+    float4 validity = GetMaterialTexture(params.m_vuePagesChannel3).SampleLevel(GetMaterialTextureSampler(), physicalUv, 0);
+    if (validity.y < 0.99999) return false;
+    half4 colorSpec = half4(GetMaterialTexture(params.m_vuePagesChannel0).SampleLevel(GetMaterialTextureSampler(), physicalUv, 0));
+    half4 normalRough = half4(GetMaterialTexture(params.m_vuePagesChannel1).SampleLevel(GetMaterialTextureSampler(), physicalUv, 0));
+    half4 vertexMetal = half4(GetMaterialTexture(params.m_vuePagesChannel2).SampleLevel(GetMaterialTextureSampler(), physicalUv, 0));
+    surface = VueOverlapSurfaceBase(IN, SV, geoData, params, uvDxDy);
+    surface.SetAlbedoAndSpecularF0(colorSpec.rgb, colorSpec.a, vertexMetal.a);
+    surface.normal = normalize(normalRough.xyz);
+    surface.vertexNormal = normalize(vertexMetal.xyz);
+    surface.roughnessLinear = normalRough.a;
+    surface.CalculateRoughnessA();
+    surface.diffuseAmbientOcclusion = half(validity.x);
+    if (params.m_vuePagesDebug) surface.SetAlbedoAndSpecularF0(half3(0,1,0), half(0), half(0));
+    return true;
 }
 
 struct VueOverlapQuery
@@ -202,7 +259,7 @@ bool VueTryTerrainOverlap32(VsOutput IN, VsSystemValues SV, PixelGeometryData ge
             s.color.rgb, s.colorMap >= 0, derivatives, true);
         color += weights[j] * BlendBaseColor(sampled, s.color.rgb, s.colorFactor, TextureBlendMode::Multiply, s.colorMap >= 0);
         normal += half(weights[j]) * half3(GetNormalInputWS(GetMaterialTexture(s.normalMap), GetMaterialTextureSampler(), q.uv,
-            false, false, true, n, t, b, CreateIdentity3x3_real(), s.normalMap >= 0, s.normalStrength, derivatives, true));
+            false, false, true, n, t, b, CreateIdentity3x3_real(), (s.normalMap >= 0 && (!o_terrainContributorTiles || o_terrainDetailNormalMaps)), s.normalStrength, derivatives, true));
         vertexNormal += half(weights[j]) * n;
         roughness += weights[j] * s.roughness;
         metallic += weights[j] * s.metallic;
@@ -260,7 +317,7 @@ bool VueTryTerrainOverlap16(VsOutput IN, VsSystemValues SV, PixelGeometryData ge
             s.color.rgb, s.colorMap >= 0, derivatives, true);
         color += weights[j] * half3(BlendBaseColor(sampled, s.color.rgb, s.colorFactor, TextureBlendMode::Multiply, s.colorMap >= 0));
         normal += weights[j] * half3(GetNormalInputWS(GetMaterialTexture(s.normalMap), GetMaterialTextureSampler(), q.uv,
-            false, false, true, n, t, b, CreateIdentity3x3_real(), s.normalMap >= 0, s.normalStrength, derivatives, true));
+            false, false, true, n, t, b, CreateIdentity3x3_real(), (s.normalMap >= 0 && (!o_terrainContributorTiles || o_terrainDetailNormalMaps)), s.normalStrength, derivatives, true));
         vertexNormal += weights[j] * n;
         roughness += weights[j] * half(s.roughness);
         metallic += weights[j] * half(s.metallic);
@@ -282,6 +339,11 @@ bool VueTryTerrainOverlap(VsOutput IN, VsSystemValues SV, PixelGeometryData geoD
 {
     // SampleGrad footprints must be continuous across pair endpoint exits.
     float4 worldDerivatives = float4(ddx(geoData.positionWS.xy), ddy(geoData.positionWS.xy));
+    // Reject only whole tiles proven to have no retained blend. Derivatives
+    // precede this varying exit; all uncertain tiles retain the original path.
+    if (o_terrainContributorTiles && VueContributorSelectionValid(params) &&
+        VueContributorTile(geoData.positionWS.xy) == 1u) return false;
+    if (VueTryOverlapPages(IN, SV, geoData, params, uvDxDy, worldDerivatives, surface)) return true;
     if (o_terrainHeightFp16) return VueTryTerrainOverlap16(IN, SV, geoData, params, uvDxDy, worldDerivatives, surface);
     return VueTryTerrainOverlap32(IN, SV, geoData, params, uvDxDy, worldDerivatives, surface);
 }

@@ -1,0 +1,288 @@
+{
+  "passed": true,
+  "restoration": {
+    "camera": true,
+    "entity_visibility": true,
+    "mesh_visibility": true,
+    "material_bindings": true,
+    "height_precision": true,
+    "level_file": true
+  },
+  "rows": [
+    {
+      "name": "complete",
+      "gpu_ms": 202.3755,
+      "cpu_ms": 203.051,
+      "local_memory_bytes": 1831170048,
+      "enabled_pipeline_ms": 202.476,
+      "versus_complete": {
+        "changed_pixels": 0,
+        "max_rgb_difference": 0,
+        "pixels_over_one": 0,
+        "compared_pixels": 701014
+      }
+    },
+    {
+      "name": "previous-fast",
+      "gpu_ms": 177.12400000000002,
+      "cpu_ms": 177.849,
+      "local_memory_bytes": 1838510080,
+      "enabled_pipeline_ms": 176.7295,
+      "versus_complete": {
+        "changed_pixels": 0,
+        "max_rgb_difference": 0,
+        "pixels_over_one": 0,
+        "compared_pixels": 701014
+      }
+    },
+    {
+      "name": "default",
+      "gpu_ms": 171.75650000000002,
+      "cpu_ms": 172.483,
+      "local_memory_bytes": 1838510080,
+      "enabled_pipeline_ms": 171.81,
+      "versus_complete": {
+        "changed_pixels": 33672,
+        "max_rgb_difference": 1,
+        "pixels_over_one": 0,
+        "compared_pixels": 701014
+      }
+    },
+    {
+      "name": "previous-fast-repeat",
+      "gpu_ms": 176.9075,
+      "cpu_ms": 177.666,
+      "local_memory_bytes": 1838510080,
+      "enabled_pipeline_ms": 177.13549999999998,
+      "versus_complete": {
+        "changed_pixels": 0,
+        "max_rgb_difference": 0,
+        "pixels_over_one": 0,
+        "compared_pixels": 701014
+      }
+    },
+    {
+      "name": "default-repeat",
+      "gpu_ms": 171.655,
+      "cpu_ms": 172.531,
+      "local_memory_bytes": 1838510080,
+      "enabled_pipeline_ms": 171.7255,
+      "versus_complete": {
+        "changed_pixels": 33672,
+        "max_rgb_difference": 1,
+        "pixels_over_one": 0,
+        "compared_pixels": 701014
+      }
+    },
+    {
+      "name": "complete-final",
+      "gpu_ms": 202.1455,
+      "cpu_ms": 202.834,
+      "local_memory_bytes": 1838510080,
+      "enabled_pipeline_ms": 202.472,
+      "versus_complete": {
+        "changed_pixels": 0,
+        "max_rgb_difference": 0,
+        "pixels_over_one": 0,
+        "compared_pixels": 701014
+      }
+    }
+  ],
+  "environment": {
+    "enabled": [
+      {
+        "type": "Sky Atmosphere",
+        "enabled": 1
+      },
+      {
+        "type": "HDRI Sky",
+        "enabled": 1
+      },
+      {
+        "type": "Finite Cloud Volume",
+        "enabled": 2
+      }
+    ],
+    "aerial_controls": 1,
+    "restored": true
+  },
+  "camera": [
+    [
+      1025.0732421875,
+      488.1408386230469,
+      43.456932067871094
+    ],
+    [
+      -13.2926664352417,
+      4.55283784866333,
+      161.42835998535156
+    ]
+  ],
+  "viewport": [
+    1203,
+    656
+  ],
+  "aggregate_gpu_ms": {
+    "Original fallback": 202.26049999999998,
+    "Previous faster shader": 177.01575000000003,
+    "New default": 171.70575000000002
+  },
+  "native_memory_samples": [
+    {
+      "name": "complete",
+      "sample": {
+        "gpuCloudNs": 133073000,
+        "gpuCopyNs": 434000,
+        "gpuOpaqueNs": 45677000,
+        "gpuPipelineNs": 201750000,
+        "pipelineTimestamp": 20876307200545,
+        "cloudTimestamp": 20876313724021,
+        "opaqueTimestamp": 20876308316829,
+        "cpuSceneSrgNs": 46700,
+        "cpuPassSrgNs": 28500,
+        "densityBytes": 4711056,
+        "pendingDensityBytes": 0,
+        "gpuPoolResidentBytes": 937033727,
+        "gpuPoolUsedBytes": 923271167,
+        "hostPoolUsedBytes": 50331648,
+        "memoryStatisticsAvailable": true,
+        "cloudCount": 2,
+        "sunIndex": 0,
+        "companionIndex": 4294967295,
+        "receiverShadows": true,
+        "profileEnabled": true,
+        "method": "Atom delayed enabled-pass pipeline span and per-pass queries; RHI all-scene pool memory; CPU measures SRG preparation only"
+      }
+    },
+    {
+      "name": "previous-fast",
+      "sample": {
+        "gpuCloudNs": 133087000,
+        "gpuCopyNs": 448000,
+        "gpuOpaqueNs": 20535000,
+        "gpuPipelineNs": 176542000,
+        "pipelineTimestamp": 20889644592257,
+        "cloudTimestamp": 20889648629333,
+        "opaqueTimestamp": 20889645941145,
+        "cpuSceneSrgNs": 35600,
+        "cpuPassSrgNs": 30500,
+        "densityBytes": 4711056,
+        "pendingDensityBytes": 0,
+        "gpuPoolResidentBytes": 937033727,
+        "gpuPoolUsedBytes": 923271167,
+        "hostPoolUsedBytes": 50331648,
+        "memoryStatisticsAvailable": true,
+        "cloudCount": 2,
+        "sunIndex": 0,
+        "companionIndex": 4294967295,
+        "receiverShadows": true,
+        "profileEnabled": true,
+        "method": "Atom delayed enabled-pass pipeline span and per-pass queries; RHI all-scene pool memory; CPU measures SRG preparation only"
+      }
+    },
+    {
+      "name": "default",
+      "sample": {
+        "gpuCloudNs": 133892000,
+        "gpuCopyNs": 417000,
+        "gpuOpaqueNs": 15530000,
+        "gpuPipelineNs": 173002000,
+        "pipelineTimestamp": 20902721997486,
+        "cloudTimestamp": 20902725545522,
+        "opaqueTimestamp": 20902723348682,
+        "cpuSceneSrgNs": 28900,
+        "cpuPassSrgNs": 33400,
+        "densityBytes": 4711056,
+        "pendingDensityBytes": 0,
+        "gpuPoolResidentBytes": 937033727,
+        "gpuPoolUsedBytes": 923271167,
+        "hostPoolUsedBytes": 50331648,
+        "memoryStatisticsAvailable": true,
+        "cloudCount": 2,
+        "sunIndex": 0,
+        "companionIndex": 4294967295,
+        "receiverShadows": true,
+        "profileEnabled": true,
+        "method": "Atom delayed enabled-pass pipeline span and per-pass queries; RHI all-scene pool memory; CPU measures SRG preparation only"
+      }
+    },
+    {
+      "name": "previous-fast-repeat",
+      "sample": {
+        "gpuCloudNs": 132542000,
+        "gpuCopyNs": 413000,
+        "gpuOpaqueNs": 20534000,
+        "gpuPipelineNs": 176342000,
+        "pipelineTimestamp": 20915701342870,
+        "cloudTimestamp": 20915705374738,
+        "opaqueTimestamp": 20915702480174,
+        "cpuSceneSrgNs": 28000,
+        "cpuPassSrgNs": 31200,
+        "densityBytes": 4711056,
+        "pendingDensityBytes": 0,
+        "gpuPoolResidentBytes": 937033727,
+        "gpuPoolUsedBytes": 923271167,
+        "hostPoolUsedBytes": 50331648,
+        "memoryStatisticsAvailable": true,
+        "cloudCount": 2,
+        "sunIndex": 0,
+        "companionIndex": 4294967295,
+        "receiverShadows": true,
+        "profileEnabled": true,
+        "method": "Atom delayed enabled-pass pipeline span and per-pass queries; RHI all-scene pool memory; CPU measures SRG preparation only"
+      }
+    },
+    {
+      "name": "default-repeat",
+      "sample": {
+        "gpuCloudNs": 132550000,
+        "gpuCopyNs": 415000,
+        "gpuOpaqueNs": 15513000,
+        "gpuPipelineNs": 170958000,
+        "pipelineTimestamp": 20928348112962,
+        "cloudTimestamp": 20928351605778,
+        "opaqueTimestamp": 20928349241430,
+        "cpuSceneSrgNs": 47900,
+        "cpuPassSrgNs": 46900,
+        "densityBytes": 4711056,
+        "pendingDensityBytes": 0,
+        "gpuPoolResidentBytes": 937033727,
+        "gpuPoolUsedBytes": 923271167,
+        "hostPoolUsedBytes": 50331648,
+        "memoryStatisticsAvailable": true,
+        "cloudCount": 2,
+        "sunIndex": 0,
+        "companionIndex": 4294967295,
+        "receiverShadows": true,
+        "profileEnabled": true,
+        "method": "Atom delayed enabled-pass pipeline span and per-pass queries; RHI all-scene pool memory; CPU measures SRG preparation only"
+      }
+    },
+    {
+      "name": "complete-final",
+      "sample": {
+        "gpuCloudNs": 132716000,
+        "gpuCopyNs": 418000,
+        "gpuOpaqueNs": 45741000,
+        "gpuPipelineNs": 202777000,
+        "pipelineTimestamp": 20943508806662,
+        "cloudTimestamp": 20943515441510,
+        "opaqueTimestamp": 20943509940598,
+        "cpuSceneSrgNs": 44800,
+        "cpuPassSrgNs": 62400,
+        "densityBytes": 4711056,
+        "pendingDensityBytes": 0,
+        "gpuPoolResidentBytes": 937033727,
+        "gpuPoolUsedBytes": 923271167,
+        "hostPoolUsedBytes": 50331648,
+        "memoryStatisticsAvailable": true,
+        "cloudCount": 2,
+        "sunIndex": 0,
+        "companionIndex": 4294967295,
+        "receiverShadows": true,
+        "profileEnabled": true,
+        "method": "Atom delayed enabled-pass pipeline span and per-pass queries; RHI all-scene pool memory; CPU measures SRG preparation only"
+      }
+    }
+  ]
+}

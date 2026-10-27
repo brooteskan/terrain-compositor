@@ -1,0 +1,42 @@
+[
+  {
+    "mode": 0,
+    "instructions": 17295,
+    "vmov": 1301,
+    "waits": 659,
+    "image_ops": 128,
+    "flat_ops": 0,
+    "buffer_stores": 0,
+    "buffer_loads": 0
+  },
+  {
+    "mode": 4,
+    "instructions": 17457,
+    "vmov": 1292,
+    "waits": 649,
+    "image_ops": 128,
+    "flat_ops": 0,
+    "buffer_stores": 0,
+    "buffer_loads": 0
+  },
+  {
+    "mode": 5,
+    "instructions": 17316,
+    "vmov": 1303,
+    "waits": 666,
+    "image_ops": 128,
+    "flat_ops": 0,
+    "buffer_stores": 0,
+    "buffer_loads": 0
+  },
+  {
+    "mode": 6,
+    "instructions": 17337,
+    "vmov": 1307,
+    "waits": 658,
+    "image_ops": 128,
+    "flat_ops": 0,
+    "buffer_stores": 0,
+    "buffer_loads": 0
+  }
+]

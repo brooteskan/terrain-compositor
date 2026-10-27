@@ -1,0 +1,14 @@
+{
+  "description": "Vue response owned by 82b2e8c01b5c41e99883138b20d758d0:ground:local-ground:0; imported parent is unchanged.",
+  "materialType": "Assets/VueLiveLink/VueSimpleTerrain.materialtype",
+  "materialTypeVersion": 2,
+  "parentMaterial": "Assets/VueLiveLink/Ground.material",
+  "propertyValues": {
+    "vueResponse.albedoScale": 1.0,
+    "vueResponse.ambientGain": 1.0,
+    "vueResponse.backlight": 0.0,
+    "vueResponse.contrast": 1.0,
+    "vueResponse.directGain": 1.0,
+    "vueSimple.stochasticTiling": false
+  }
+}

@@ -4,12 +4,13 @@ This directory owns the TG-side updates shipped with graph material clipmaps. TG
 
 ## Updating TG
 
-Update this checkout from GitHub `main`, then build TG normally. The base Gem's CMake configuration invokes `SyncProject.py` for projects containing the VueLiveLink importer. Changes to the manifest and managed files trigger reconfiguration. No extra TG CMake patch or machine-local installer is required. A pinned Git submodule update follows its parent's recorded commit; use a remote update or advance that pin to consume a newer main commit.
+TG's Diversion workspace records the published Git revision in `scripts/GitDependencies.json`; the Git dependency directory itself is excluded from Diversion. Publish changes here first, then update that revision in TG and sync the project through Diversion. TG's `Setup-And-Build-TG.cmd` restores the pinned dependencies automatically before configuring and building. `Restore-GitDependencies.cmd` can also restore them separately. Local changes are preserved: dependency restore refuses a dirty checkout.
+
+The base Gem's CMake configuration invokes `SyncProject.py` for projects containing the VueLiveLink importer. Changes to the manifest and managed files trigger reconfiguration. No extra TG CMake patch or machine-local installer is required. For another Git-managed consumer, advance its submodule pin to the published revision before building.
 
 ```text
-git -C TGProject/Gems/terrain-compositor switch main
-git -C TGProject/Gems/terrain-compositor pull --ff-only origin main
-cmake --build TGProject/build/windows --config profile --target TGProject.Editor MaterialCanvas
+cd TGProject
+Setup-And-Build-TG.cmd
 ```
 
 To synchronize or inspect without building:
@@ -21,7 +22,7 @@ python TGProject/Gems/terrain-compositor/integrations/tg/SyncProject.py --projec
 
 ## Owned consumer files
 
-`manifest.json` lists 23 managed copies. `project/` contains their canonical source:
+`manifest.json` lists 36 managed copies, including the contributor-tile include and normal-quality policy assets. `project/` contains their canonical source:
 
 - VueSimpleTerrain and MountainExport2 generated clipmap shaders/material types, plus the Vulkan forward-shader target setting.
 - Vue terrain normal generation in signed RGBA16F, independent RGBA32F height settings for retained-terrain overlap, and the full-strength normal smoothing shortcut.

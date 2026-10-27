@@ -1,0 +1,17 @@
+from pathlib import Path
+import json
+P=Path('D:/diversion/TG/TGProject');W=Path('D:/brooteskan/work');O=W/'texture-sampling';mapping=json.loads((O/'mapping.json').read_text());mapping['6']={}
+for raw in mapping['1']:
+ mat=json.loads((P/mapping['1'][raw]).read_text());mat['propertyValues']['groundBlend.stochastic']=False;src=Path(raw);dst=Path('Assets/VueLiveLink/texture_sampling_test/6')/(src.parent.name+'.material');(P/dst).parent.mkdir(parents=True,exist_ok=True);(P/dst).write_text(json.dumps(mat,indent=2)+'\n');mapping['6'][raw]=dst.as_posix()
+ground='assets/vuelivelink/response/dff3864acdf72847bfbfabfb/c7faf3f3e932ef32987da0cea3f4fe73dbdeca615d51263296a83383b15527eb.material';g=json.loads((P/ground).read_text());assert 'ground:local-ground' in g['description'];g['propertyValues']['vueSimple.stochasticTiling']=False;ground_test='Assets/VueLiveLink/texture_sampling_test/ground-single.material';(P/ground_test).write_text(json.dumps(g,indent=2)+'\n')
+s=(W/'profile_texture_sampling.py').read_text();start=s.index('  cases=[');end=s.index('  output=',start)
+s=s[:start]+"  cases=[case('complete',0),case('default',1),case('compact-xy',2),case('compact-octa',3),case('default-middle',1),case('no-normal-maps',4),case('mip-probe',5),case('ground-single',6),case('default-repeat',1),case('ground-single-repeat',6),case('mip-probe-repeat',5),case('no-normal-maps-repeat',4),case('compact-octa-repeat',3),case('compact-xy-repeat',2),case('default-final',1),case('complete-final',0)]\n"+s[end:]
+start=s.index('dict(MODE_MATERIALS=');end=s.index(',SHADER_SHA256=',start);s=s[:start]+'dict(MODE_MATERIALS='+repr({int(k):v for k,v in mapping.items()})+s[end:]
+needle='  from OverlapPageMemory import memory';assert needle in s
+patch='''  source=source.replace('PRECISION_COMPONENT=None;ORIGINAL_PRECISION=None','PRECISION_COMPONENT=None;ORIGINAL_PRECISION=None;GROUND=None')
+  source=source.replace("  if target['ground']:continue", "  if target['ground']:\\n   GROUND=(target,response.binding(target))\\n   assert overlap.raw_path(GROUND[1]).lower() == GROUND_ORIGINAL\\n   continue")
+  source=source.replace(' MATERIAL_OVERRIDES.clear()', " MATERIAL_OVERRIDES.clear()\\n if GROUND and overlap.raw_path(response.binding(GROUND[0])) != overlap.raw_path(GROUND[1]):\\n  response.link()._set(GROUND[0]['component'],GROUND[0]['property'],GROUND[1])")
+  source=source.replace("  settle(CONFIG.get('settle_seconds',5))", "  if case.get('mode') == 6:\\n   assert GROUND is not None\\n   response.link()._set(GROUND[0]['component'],GROUND[0]['property'],response.product(GROUND_TEST))\\n  settle(CONFIG.get('settle_seconds',5))")
+  source=source.replace("  R['restoration']['mesh_visibility']=True;", "  R['restoration']['ground_material_binding']=GROUND is not None and overlap.raw_path(response.binding(GROUND[0]))==overlap.raw_path(GROUND[1])\\n  R['restoration']['mesh_visibility']=True;")
+'''
+s=s.replace(needle,patch+needle,1);s=s.replace('dict(MODE_MATERIALS=','dict(GROUND_ORIGINAL='+repr(ground.replace('.material','.azmaterial'))+',GROUND_TEST='+repr(ground_test.lower().replace('.material','.azmaterial'))+',MODE_MATERIALS=',1);compile(s,'groundprobe','exec');(W/'profile_texture_sampling.py').write_text(s);(O/'mapping.json').write_text(json.dumps(mapping,indent=2)+'\n');(O/'ground.json').write_text(json.dumps({'original':ground,'test':ground_test},indent=2)+'\n');print('Added reversible ground/contact single-patch diagnostic; both bindings restored after each case')
