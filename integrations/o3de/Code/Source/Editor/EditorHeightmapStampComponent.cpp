@@ -49,7 +49,7 @@ namespace TerrainCompositor
     }
 
     AZ::TypeId EditorHeightmapStampComponent::GetUnderlyingComponentType() const
-    { return azrtti_typeid<HeightmapStampComponent>(); }
+    { return azrtti_typeid<EditorHeightmapStampComponent>(); }
 
     void EditorHeightmapStampComponent::SetExportOrderKey(const AZStd::string& key)
     {

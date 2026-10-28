@@ -346,15 +346,9 @@ namespace TerrainCompositor
         this->m_editor->BuildGameEntity(&gameEntity);
         auto* runtime = gameEntity.FindComponent<typename TypeParam::Runtime>();
         ASSERT_NE(runtime, nullptr);
-        if constexpr (AZStd::is_same_v<typename TypeParam::Editor, EditorTerrainCompositionGradientComponent>)
-        {
-            // The composition editor owns its inspector layout directly; export still builds Runtime above.
-            EXPECT_EQ(this->m_editor->GetUnderlyingComponentType(), azrtti_typeid<typename TypeParam::Editor>());
-        }
-        else
-        {
-            EXPECT_EQ(this->m_editor->GetUnderlyingComponentType(), azrtti_typeid<typename TypeParam::Runtime>());
-        }
+        // Direct adapters own their Configuration and change callbacks. The
+        // property API must use that layout, while export builds Runtime above.
+        EXPECT_EQ(this->m_editor->GetUnderlyingComponentType(), azrtti_typeid<typename TypeParam::Editor>());
         typename TypeParam::Config exported, authored;
         ASSERT_TRUE(runtime->WriteOutConfig(&exported));
         ASSERT_TRUE(this->m_editor->WriteOutConfig(&authored));

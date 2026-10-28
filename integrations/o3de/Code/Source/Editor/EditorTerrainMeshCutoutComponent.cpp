@@ -46,7 +46,7 @@ namespace TerrainCompositor
     }
 
     AZ::TypeId EditorTerrainMeshCutoutComponent::GetUnderlyingComponentType() const
-    { return azrtti_typeid<TerrainMeshCutoutComponent>(); }
+    { return azrtti_typeid<EditorTerrainMeshCutoutComponent>(); }
 
     void EditorTerrainMeshCutoutComponent::SetExportData(const AZStd::string& key)
     {

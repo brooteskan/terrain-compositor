@@ -106,7 +106,7 @@ namespace TerrainCompositor
 
     AZ::TypeId EditorTerrainMeshHeightStampComponent::GetUnderlyingComponentType() const
     {
-        return azrtti_typeid<TerrainMeshHeightStampComponent>();
+        return azrtti_typeid<EditorTerrainMeshHeightStampComponent>();
     }
 
     void EditorTerrainMeshHeightStampComponent::SetExportData(const AZStd::string& key)

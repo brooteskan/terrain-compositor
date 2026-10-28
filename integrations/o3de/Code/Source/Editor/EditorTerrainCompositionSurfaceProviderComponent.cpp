@@ -50,7 +50,7 @@ namespace TerrainCompositor
 
     AZ::TypeId EditorTerrainCompositionSurfaceProviderComponent::GetUnderlyingComponentType() const
     {
-        return azrtti_typeid<TerrainCompositionSurfaceProviderComponent>();
+        return azrtti_typeid<EditorTerrainCompositionSurfaceProviderComponent>();
     }
 
     bool EditorTerrainCompositionSurfaceProviderComponent::ReadInConfig(const AZ::ComponentConfig* configuration)
