@@ -180,6 +180,20 @@ namespace TerrainCompositor
         }
         auto* Preview() const { return m_editor->m_preview.get(); }
         auto Status() const { return m_editor->GetStatusText(); }
+        bool CollisionRefreshBusy() const
+        {
+            bool busy = false;
+            TerrainCollisionSurfaceEditorRequestBus::EventResult(busy, m_owner,
+                &TerrainCollisionSurfaceEditorRequests::IsRefreshInProgress);
+            return busy;
+        }
+        AZStd::string CollisionRefreshStatus() const
+        {
+            AZStd::string status;
+            TerrainCollisionSurfaceEditorRequestBus::EventResult(status, m_owner,
+                &TerrainCollisionSurfaceEditorRequests::GetRefreshStatus);
+            return status;
+        }
         void Tick(float elapsed)
         {
             AZ::TickBus::Broadcast(&AZ::TickEvents::OnTick, elapsed, AZ::ScriptTimePoint{});
@@ -362,6 +376,43 @@ namespace TerrainCompositor
     }
 
     using TerrainCompositionEditorPreviewTests = TerrainEditorPreviewLifecycleTests<EditorPreviewTestSupport::Composition>;
+    TEST_F(TerrainCompositionEditorPreviewTests, CollisionRefreshDispatchesOwnerAndPreventsDuplicateWorkUntilCompletion)
+    {
+        struct Refresh : TerrainCollisionSurfaceRefreshNotificationBus::Handler
+        {
+            Refresh() { BusConnect(); }
+            ~Refresh() override { BusDisconnect(); }
+            void OnRefreshCollisionSurface(AZ::EntityId owner) override { m_owner = owner; ++m_calls; }
+            AZ::EntityId m_owner;
+            int m_calls = 0;
+        } refresh;
+        Start();
+        TerrainCollisionSurfaceEditorRequestBus::Event(m_owner, &TerrainCollisionSurfaceEditorRequests::RefreshCollisionSurface);
+        EXPECT_EQ(refresh.m_owner, m_owner);
+        EXPECT_EQ(refresh.m_calls, 1);
+        EXPECT_TRUE(CollisionRefreshBusy());
+        TerrainCollisionSurfaceEditorRequestBus::Event(m_owner, &TerrainCollisionSurfaceEditorRequests::RefreshCollisionSurface);
+        EXPECT_EQ(refresh.m_calls, 1);
+        TerrainCollisionSurfaceEditorRequestBus::Event(m_owner, &TerrainCollisionSurfaceEditorRequests::SetRefreshStatus,
+            AZStd::string("Collision surface refreshed."), false);
+        EXPECT_FALSE(CollisionRefreshBusy());
+        EXPECT_EQ(CollisionRefreshStatus(), "Collision surface refreshed.");
+        EXPECT_GT(m_display.m_count, 0);
+        TerrainCollisionSurfaceEditorRequestBus::Event(m_owner, &TerrainCollisionSurfaceEditorRequests::RefreshCollisionSurface);
+        EXPECT_EQ(refresh.m_calls, 2);
+        Stop();
+        EXPECT_FALSE(CollisionRefreshBusy());
+        EXPECT_FALSE(TerrainCollisionSurfaceEditorRequestBus::HasHandlers(m_owner));
+    }
+
+    TEST_F(TerrainCompositionEditorPreviewTests, MissingCollisionRefresherReportsActionableStatusWithoutBecomingBusy)
+    {
+        Start();
+        TerrainCollisionSurfaceEditorRequestBus::Event(m_owner, &TerrainCollisionSurfaceEditorRequests::RefreshCollisionSurface);
+        EXPECT_FALSE(CollisionRefreshBusy());
+        EXPECT_NE(CollisionRefreshStatus().find("No collision surface refresher"), AZStd::string::npos);
+    }
+
     TEST_F(TerrainCompositionEditorPreviewTests, CapturesQualityBaselineBeforePreviewActivationAndRestoresItOnStop)
     {
         float resolution = 2.0f;

@@ -41,3 +41,24 @@ Only registered composition contributors affect the composed collision surface.
 A rendered mesh that has not been registered as a terrain-mesh height stamp is
 not implicitly converted into terrain. Holes remain non-colliding by design.
 Editor preview does not start this runtime simulation; enter game mode to use it.
+
+### Refreshing imported collision surfaces
+
+The Terrain Composition Gradient inspector includes **Refresh collision
+surface** and a progress label. The button is disabled while a refresh is in
+progress. This is an Editor-only extension point for project source converters;
+ordinary registered contributors still update through their existing change
+notifications.
+
+A project listens to `TerrainCollisionSurfaceRefreshNotificationBus` /
+`OnRefreshCollisionSurface(compositionEntityId)`, then reports progress through
+`TerrainCollisionSurfaceEditorRequestBus` addressed to that compositor:
+`SetRefreshStatus(message, busy)`. Both buses are reflected in `azlmbr.editor`.
+Set `busy=false` on success or failure. `RefreshCollisionSurface`,
+`GetRefreshStatus`, and `IsRefreshInProgress` also support automation using the
+same callback as the inspector button. No project handler produces an
+actionable status instead of starting work. Requests never run at runtime.
+
+TG's Vue integration captures current Editor placements, prepares assets in a
+background worker, waits for Asset Processor, and validates the updated height
+queries. Successful refreshes leave level saving to the user.

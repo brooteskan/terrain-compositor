@@ -19,6 +19,14 @@
 
 namespace TerrainCompositor
 {
+    class CollisionSurfaceRefreshBehaviorHandler final
+        : public TerrainCollisionSurfaceRefreshNotificationBus::Handler, public AZ::BehaviorEBusHandler
+    {
+    public:
+        AZ_EBUS_BEHAVIOR_BINDER(CollisionSurfaceRefreshBehaviorHandler, "{61CC5537-0391-47EE-A9BF-B2F502409990}",
+            AZ::SystemAllocator, OnRefreshCollisionSurface);
+        void OnRefreshCollisionSurface(AZ::EntityId composition) override { Call(FN_OnRefreshCollisionSurface, composition); }
+    };
     class HeightPrecisionBehaviorHandler final
         : public TerrainHeightPrecisionNotificationBus::Handler, public AZ::BehaviorEBusHandler
     {
@@ -94,6 +102,17 @@ namespace TerrainCompositor
     {
         if (auto* behavior = azrtti_cast<AZ::BehaviorContext*>(context))
         {
+            behavior->EBus<TerrainCollisionSurfaceRefreshNotificationBus>("TerrainCollisionSurfaceRefreshNotificationBus")
+                ->Attribute(AZ::Script::Attributes::Scope, AZ::Script::Attributes::ScopeFlags::Automation)
+                ->Attribute(AZ::Script::Attributes::Module, "editor")
+                ->Handler<CollisionSurfaceRefreshBehaviorHandler>();
+            behavior->EBus<TerrainCollisionSurfaceEditorRequestBus>("TerrainCollisionSurfaceEditorRequestBus")
+                ->Attribute(AZ::Script::Attributes::Scope, AZ::Script::Attributes::ScopeFlags::Automation)
+                ->Attribute(AZ::Script::Attributes::Module, "editor")
+                ->Event("RefreshCollisionSurface", &TerrainCollisionSurfaceEditorRequests::RefreshCollisionSurface)
+                ->Event("SetRefreshStatus", &TerrainCollisionSurfaceEditorRequests::SetRefreshStatus)
+                ->Event("GetRefreshStatus", &TerrainCollisionSurfaceEditorRequests::GetRefreshStatus)
+                ->Event("IsRefreshInProgress", &TerrainCollisionSurfaceEditorRequests::IsRefreshInProgress);
             behavior->EBus<TerrainHeightPrecisionRequestBus>("TerrainHeightPrecisionRequestBus")
                 ->Attribute(AZ::Script::Attributes::Scope, AZ::Script::Attributes::ScopeFlags::Automation)
                 ->Attribute(AZ::Script::Attributes::Module, "editor")
@@ -111,6 +130,47 @@ namespace TerrainCompositor
             "One height source combining procedural ground and scoped heightmap stamps. Use a separate entity from Terrain Region.",
             "References to the existing procedural source and target terrain region.",
             "Read-only composition preview status.");
+        if (auto* serialize = azrtti_cast<AZ::SerializeContext*>(context))
+        {
+            if (auto* edit = serialize->GetEditContext())
+            {
+                edit->Class<EditorTerrainCompositionGradientComponent>("Terrain Composition Gradient", "")
+                    ->UIElement(AZ::Edit::UIHandlers::Button, "Collision surface", "Rebuild the registered collision surface from this project's source terrains.")
+                    ->Attribute(AZ::Edit::Attributes::ButtonText, "Refresh collision surface")
+                    ->Attribute(AZ::Edit::Attributes::ReadOnly, &EditorTerrainCompositionGradientComponent::IsRefreshInProgress)
+                    ->Attribute(AZ::Edit::Attributes::ChangeNotify, &EditorTerrainCompositionGradientComponent::RequestCollisionSurfaceRefresh)
+                    ->UIElement(AZ::Edit::UIHandlers::Label, "Collision refresh", "Progress of the current collision surface refresh.")
+                    ->Attribute(AZ::Edit::Attributes::ValueText, &EditorTerrainCompositionGradientComponent::GetRefreshStatus);
+            }
+        }
+    }
+
+    AZ::u32 EditorTerrainCompositionGradientComponent::RequestCollisionSurfaceRefresh()
+    {
+        RefreshCollisionSurface();
+        return AZ::Edit::PropertyRefreshLevels::AttributesAndValues;
+    }
+
+    void EditorTerrainCompositionGradientComponent::RefreshCollisionSurface()
+    {
+        if (m_collisionRefreshBusy) return;
+        if (!TerrainCollisionSurfaceRefreshNotificationBus::HasHandlers())
+        {
+            SetRefreshStatus("No collision surface refresher is registered for this project.", false);
+            return;
+        }
+        SetRefreshStatus("Preparing collision surface...", true);
+        TerrainCollisionSurfaceRefreshNotificationBus::Broadcast(
+            &TerrainCollisionSurfaceRefreshNotifications::OnRefreshCollisionSurface, GetEntityId());
+    }
+
+    void EditorTerrainCompositionGradientComponent::SetRefreshStatus(const AZStd::string& status, bool busy)
+    {
+        m_collisionRefreshStatus = status;
+        m_collisionRefreshBusy = busy;
+        AzToolsFramework::ToolsApplicationNotificationBus::Broadcast(
+            &AzToolsFramework::ToolsApplicationNotificationBus::Events::InvalidatePropertyDisplayForComponent,
+            AZ::EntityComponentIdPair(GetEntityId(), GetId()), AzToolsFramework::Refresh_AttributesAndValues);
     }
 
     namespace
@@ -161,6 +221,7 @@ namespace TerrainCompositor
     {
         BaseClass::Activate();
         TerrainHeightPrecisionRequestBus::Handler::BusConnect(GetEntityId());
+        TerrainCollisionSurfaceEditorRequestBus::Handler::BusConnect(GetEntityId());
         m_preview.Activate(m_configuration, [this](auto& preview)
         {
             const TerrainQualityBaseline baseline = CaptureTerrainQualityBaseline(GetEntityId());
@@ -171,6 +232,10 @@ namespace TerrainCompositor
 
     void EditorTerrainCompositionGradientComponent::Deactivate()
     {
+        TerrainCollisionSurfaceEditorRequestBus::Handler::BusDisconnect();
+        if (m_collisionRefreshBusy)
+            m_collisionRefreshStatus = "Refresh cancelled. Refresh again in edit mode.";
+        m_collisionRefreshBusy = false;
         TerrainHeightPrecisionRequestBus::Handler::BusDisconnect();
         AzFramework::EntityDebugDisplayEventBus::Handler::BusDisconnect();
         m_preview.Deactivate();
