@@ -22,12 +22,13 @@ python TGProject/Gems/terrain-compositor/integrations/tg/SyncProject.py --projec
 
 ## Owned consumer files
 
-`manifest.json` lists 36 managed copies, including the contributor-tile include and normal-quality policy assets. `project/` contains their canonical source:
+`manifest.json` lists 43 managed copies, including the contributor-tile include, normal-quality policy assets, and Vue collision refresh workflow. `project/` contains their canonical source:
 
 - VueSimpleTerrain and MountainExport2 generated clipmap shaders/material types, plus the Vulkan forward-shader target setting.
 - Vue terrain normal generation in signed RGBA16F, independent RGBA32F height settings for retained-terrain overlap, and the full-strength normal smoothing shortcut.
 - The two already-converted normal DDS fields and their image settings, retaining the same asset paths and ownership.
 - Small test entry points that delegate to the canonical tests in `tests/editor` and `tests/tg`. The editor camera settings live in `tests/editor/VueSceneBenchmark.json`.
+- The Vue collision refresh adapter, background preparation and registration scripts, startup registration, instructions, and regression tests. The compositor inspector's **Refresh collision surface** action works after restoring this pin; it captures live Editor placements, waits for asset processing, and leaves saving to the user. Generated terrain snapshots and character assets remain consumer-owned.
 
 Normal terrain input, graph source, levels and unrelated importer code remain consumer-owned. This integration does not change geometry LOD or saved levels. Normal-field serialization and generated material updates are the same ones already validated in TG; synchronizing them is idempotent.
 

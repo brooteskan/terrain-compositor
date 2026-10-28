@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "description": "Canonical TG consumer updates delivered with the terrain-compositor submodule.",
+  "description": "Canonical TG terrain rendering and collision refresh updates delivered with the terrain-compositor submodule.",
   "files": [
     {
       "path": "Gem/Source/Editor/VueLiveLink/terrain_normals.py",
@@ -390,6 +390,57 @@
     {
       "path": "Assets/VueLiveLink/VueTerrainNormalPolicy.lua",
       "source": "project/Assets/VueLiveLink/VueTerrainNormalPolicy.lua",
+      "binary": false,
+      "accepted_sha256": [],
+      "accepted_json_sha256": []
+    },
+    {
+      "path": "Editor/Scripts/vue_live_link_tool.py",
+      "source": "project/Editor/Scripts/vue_live_link_tool.py",
+      "binary": false,
+      "accepted_sha256": [
+        "9d83f3c40ac532f88b2b8b1db2aeebf1cacc212011a11f8a7edb45017c50e964"
+      ],
+      "accepted_json_sha256": []
+    },
+    {
+      "path": "Editor/Scripts/prepare_vue_composition.py",
+      "source": "project/Editor/Scripts/prepare_vue_composition.py",
+      "binary": false,
+      "accepted_sha256": [],
+      "accepted_json_sha256": []
+    },
+    {
+      "path": "Editor/Scripts/register_vue_composition.py",
+      "source": "project/Editor/Scripts/register_vue_composition.py",
+      "binary": false,
+      "accepted_sha256": [],
+      "accepted_json_sha256": []
+    },
+    {
+      "path": "Gem/Source/Editor/VueLiveLink/collision_surface_editor.py",
+      "source": "project/Gem/Source/Editor/VueLiveLink/collision_surface_editor.py",
+      "binary": false,
+      "accepted_sha256": [],
+      "accepted_json_sha256": []
+    },
+    {
+      "path": "Gem/Tests/test_vue_collision_surface.py",
+      "source": "project/Gem/Tests/test_vue_collision_surface.py",
+      "binary": false,
+      "accepted_sha256": [],
+      "accepted_json_sha256": []
+    },
+    {
+      "path": "Gem/Tests/verify_collision_refresh_button_editor.py",
+      "source": "project/Gem/Tests/verify_collision_refresh_button_editor.py",
+      "binary": false,
+      "accepted_sha256": [],
+      "accepted_json_sha256": []
+    },
+    {
+      "path": "Assets/VueLiveLink/composition/README.md",
+      "source": "project/Assets/VueLiveLink/composition/README.md",
       "binary": false,
       "accepted_sha256": [],
       "accepted_json_sha256": []
