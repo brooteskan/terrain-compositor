@@ -8,6 +8,7 @@
 #include <TerrainSystem/TerrainSystemBus.h>
 #include <LmbrCentral/Dependency/DependencyNotificationBus.h>
 #include <TerrainCompositor/Internal/ProviderLifecycle.h>
+#include <TerrainCompositor/Internal/TerrainCollision.h>
 #include <TerrainCompositor/TerrainCompositionBus.h>
 #include <TerrainCompositor/TerrainCompositorTypeIds.h>
 
@@ -21,6 +22,9 @@ namespace TerrainCompositor
 
         static void Reflect(AZ::ReflectContext* context);
         AZ::EntityId m_compositionEntityId;
+        bool m_enableCollisions = true;
+        float m_collisionRange = 128.0f;
+        float m_collisionGridSpacing = 0.5f;
     };
 
     //! Terrain-region adapter that returns the compositor's atomic world-height/existence snapshot.
@@ -72,5 +76,7 @@ namespace TerrainCompositor
         TerrainCompositionHeightProviderConfig m_configuration;
         mutable AZStd::shared_mutex m_heightBoundsMutex;
         AzFramework::Terrain::FloatRange m_heightBounds = AzFramework::Terrain::FloatRange::CreateNull();
+        Internal::TerrainCollision m_collision;
+        bool m_runtimeActive = false;
     };
 } // namespace TerrainCompositor

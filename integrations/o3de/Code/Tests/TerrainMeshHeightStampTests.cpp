@@ -141,9 +141,9 @@ namespace TerrainCompositor
         TerrainMeshHeightStampConfig::Reflect(&currentContext);
         const auto* classData = currentContext.FindClassData(azrtti_typeid<TerrainMeshHeightStampConfig>());
         ASSERT_NE(classData, nullptr);
-        EXPECT_EQ(classData->m_version, 3);
+        EXPECT_EQ(classData->m_version, 4);
 
-        for (const unsigned int version : { 1u, 2u })
+        for (const unsigned int version : { 1u, 2u, 3u })
         {
             AZ::SerializeContext legacyContext;
             auto classBuilder = legacyContext.Class<TerrainMeshHeightStampConfigV2>();

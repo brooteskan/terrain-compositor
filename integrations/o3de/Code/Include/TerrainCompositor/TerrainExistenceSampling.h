@@ -7,6 +7,8 @@
 #include <TerrainCompositor/TerrainExistenceConfig.h>
 #include <TerrainCompositor/TerrainMeshCutoutSampling.h>
 #include <memory>
+#include <cmath>
+#include <limits>
 
 namespace TerrainCompositor
 {
@@ -57,6 +59,60 @@ namespace TerrainCompositor
         AZStd::vector<TerrainHeightfieldCellAddress> m_cells;
     };
     using PreparedTerrainHeightfieldCellMaskPtr = std::shared_ptr<const PreparedTerrainHeightfieldCellMask>;
+
+    //! Shared by the engine boundary and compositor; no compositor-library link is required.
+    inline bool IsTerrainHeightfieldCellMasked(const PreparedTerrainHeightfieldCellMask& prepared,
+        const AZ::Vector2& worldCellMinimum, const AZ::Vector2& gridSpacing)
+    {
+        const auto less = [](const TerrainHeightfieldCellAddress& left, const TerrainHeightfieldCellAddress& right)
+        {
+            return left.m_y < right.m_y || (left.m_y == right.m_y && left.m_x < right.m_x);
+        };
+        if (prepared.m_cells.empty() || !worldCellMinimum.IsFinite() ||
+            !gridSpacing.IsFinite() || gridSpacing.GetX() <= 0.0f || gridSpacing.GetY() <= 0.0f ||
+            !std::isfinite(prepared.m_gridSpacing) || prepared.m_gridSpacing <= 0.0f)
+        {
+            return false;
+        }
+        const double spacing = prepared.m_gridSpacing;
+        const double x = double(worldCellMinimum.GetX()) / spacing;
+        const double y = double(worldCellMinimum.GetY()) / spacing;
+        if (gridSpacing.GetX() != prepared.m_gridSpacing || gridSpacing.GetY() != prepared.m_gridSpacing)
+        {
+            // Physics tiles may use a different sample grid from visual terrain.
+            // Remove every physics cell overlapping a conservatively removed source cell.
+            const double lastX = std::ceil((double(worldCellMinimum.GetX()) + gridSpacing.GetX()) / spacing) - 1.0;
+            const double lastY = std::ceil((double(worldCellMinimum.GetY()) + gridSpacing.GetY()) / spacing) - 1.0;
+            constexpr double Limit = 9.0e18;
+            if (!std::isfinite(x) || !std::isfinite(y) || !std::isfinite(lastX) || !std::isfinite(lastY) ||
+                std::abs(x) > Limit || std::abs(y) > Limit || std::abs(lastX) > Limit || std::abs(lastY) > Limit)
+                return false;
+            const auto minX = static_cast<AZ::s64>(std::floor(x));
+            const auto minY = static_cast<AZ::s64>(std::floor(y));
+            const auto maxX = static_cast<AZ::s64>(lastX);
+            const auto maxY = static_cast<AZ::s64>(lastY);
+            auto cell = AZStd::lower_bound(prepared.m_cells.begin(), prepared.m_cells.end(),
+                TerrainHeightfieldCellAddress{minX, minY}, less);
+            while (cell != prepared.m_cells.end() && cell->m_y <= maxY)
+            {
+                if (cell->m_x >= minX && cell->m_x <= maxX) return true;
+                const auto nextRow = cell->m_y + 1;
+                cell = AZStd::lower_bound(cell, prepared.m_cells.end(),
+                    TerrainHeightfieldCellAddress{minX, nextRow}, less);
+            }
+            return false;
+        }
+        if (!std::isfinite(x) || !std::isfinite(y) || x < double(std::numeric_limits<AZ::s64>::min()) ||
+            x > double(std::numeric_limits<AZ::s64>::max()) || y < double(std::numeric_limits<AZ::s64>::min()) ||
+            y > double(std::numeric_limits<AZ::s64>::max()))
+        {
+            return false;
+        }
+        const TerrainHeightfieldCellAddress address{ aznumeric_cast<AZ::s64>(std::llround(x)), aznumeric_cast<AZ::s64>(std::llround(y)) };
+        const auto found = AZStd::lower_bound(prepared.m_cells.begin(), prepared.m_cells.end(), address, less);
+        return found != prepared.m_cells.end() && *found == address;
+    }
+
 
     //! Remove-only XY contributor derived from the same immutable mesh-height
     //! revision and prepared placement as its height record.

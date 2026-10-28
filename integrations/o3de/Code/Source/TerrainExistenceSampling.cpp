@@ -483,28 +483,10 @@ namespace TerrainCompositor
     }
 
     bool IsTerrainMeshHeightGapCollisionCell(
-        const AZ::Vector2& worldCellMinimum,
-        const AZ::Vector2& gridSpacing,
-        const PreparedTerrainMeshHeightGap& gap)
+        const AZ::Vector2& worldCellMinimum, const AZ::Vector2& gridSpacing, const PreparedTerrainMeshHeightGap& gap)
     {
-        const auto& prepared = gap.m_collisionCells;
-        if (!gap.m_affectTerrainCollisionQueries || !prepared || prepared->m_cells.empty() || !worldCellMinimum.IsFinite() ||
-            !gridSpacing.IsFinite() || gridSpacing.GetX() != prepared->m_gridSpacing || gridSpacing.GetY() != prepared->m_gridSpacing)
-        {
-            return false;
-        }
-        const double spacing = prepared->m_gridSpacing;
-        const double x = double(worldCellMinimum.GetX()) / spacing;
-        const double y = double(worldCellMinimum.GetY()) / spacing;
-        if (!std::isfinite(x) || !std::isfinite(y) || x < double(std::numeric_limits<AZ::s64>::min()) ||
-            x > double(std::numeric_limits<AZ::s64>::max()) || y < double(std::numeric_limits<AZ::s64>::min()) ||
-            y > double(std::numeric_limits<AZ::s64>::max()))
-        {
-            return false;
-        }
-        const TerrainHeightfieldCellAddress address{ aznumeric_cast<AZ::s64>(std::llround(x)), aznumeric_cast<AZ::s64>(std::llround(y)) };
-        const auto found = AZStd::lower_bound(prepared->m_cells.begin(), prepared->m_cells.end(), address, HeightfieldCellLess);
-        return found != prepared->m_cells.end() && *found == address;
+        return gap.m_affectTerrainCollisionQueries && gap.m_collisionCells &&
+            IsTerrainHeightfieldCellMasked(*gap.m_collisionCells, worldCellMinimum, gridSpacing);
     }
 
     bool ComposeTerrainExists(const AZ::Vector3& position, bool baseExists, AZStd::span<const PreparedTerrainExistenceStamp> stamps)

@@ -93,6 +93,7 @@ ly_add_target(
         PRIVATE
             AZ::AzGameFramework
             Gem::Atom_AtomBridge.Static
+            Gem::PhysX5.Static
         PUBLIC
             AZ::AzFramework
             Gem::Atom_RPI.Public
@@ -200,7 +201,7 @@ if(PAL_TRAIT_BUILD_TESTS_SUPPORTED)
             NAME ${gem_name}.Editor.Tests ${PAL_TRAIT_TEST_TARGET_TYPE}
             NAMESPACE Gem
             FILES_CMAKE Code/Tests/terrain_compositor_editor_tests_files.cmake
-            INCLUDE_DIRECTORIES PRIVATE Code/Include Code/Source ${LY_ROOT_FOLDER}/Gems/Terrain/Code/Source
+            INCLUDE_DIRECTORIES PRIVATE Code/Include Code/Source "${tc_generated_overrides}" EngineOverrides ${LY_ROOT_FOLDER}/Gems/Terrain/Code/Source
             BUILD_DEPENDENCIES PRIVATE AZ::AzTest AZ::AzToolsFramework Gem::${gem_name}.Static
         )
         ly_add_googletest(NAME Gem::${gem_name}.Editor.Tests LABELS REQUIRES_tiaf)

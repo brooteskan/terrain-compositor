@@ -1,4 +1,5 @@
 #include "ProceduralSnapshotTestSupport.h"
+#include <AzCore/UnitTest/UnitTest.h>
 #include <AzCore/std/containers/array.h>
 #include <thread>
 #include <chrono>

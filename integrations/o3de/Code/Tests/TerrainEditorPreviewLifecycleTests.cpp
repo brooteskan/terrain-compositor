@@ -1,6 +1,7 @@
 #include <AzTest/AzTest.h>
 #include <AzCore/UnitTest/UnitTest.h>
 #include <AzCore/std/parallel/thread.h>
+#include <AzCore/std/typetraits/is_same.h>
 #include <AzFramework/Scene/SceneSystemComponent.h>
 #include <AzToolsFramework/Entity/EditorEntityInfoBus.h>
 #include <Tests/Mocks/Terrain/MockTerrainDataRequestBus.h>
@@ -345,7 +346,15 @@ namespace TerrainCompositor
         this->m_editor->BuildGameEntity(&gameEntity);
         auto* runtime = gameEntity.FindComponent<typename TypeParam::Runtime>();
         ASSERT_NE(runtime, nullptr);
-        EXPECT_EQ(this->m_editor->GetUnderlyingComponentType(), azrtti_typeid<typename TypeParam::Runtime>());
+        if constexpr (AZStd::is_same_v<typename TypeParam::Editor, EditorTerrainCompositionGradientComponent>)
+        {
+            // The composition editor owns its inspector layout directly; export still builds Runtime above.
+            EXPECT_EQ(this->m_editor->GetUnderlyingComponentType(), azrtti_typeid<typename TypeParam::Editor>());
+        }
+        else
+        {
+            EXPECT_EQ(this->m_editor->GetUnderlyingComponentType(), azrtti_typeid<typename TypeParam::Runtime>());
+        }
         typename TypeParam::Config exported, authored;
         ASSERT_TRUE(runtime->WriteOutConfig(&exported));
         ASSERT_TRUE(this->m_editor->WriteOutConfig(&authored));

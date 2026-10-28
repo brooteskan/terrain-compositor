@@ -13,9 +13,32 @@ namespace TerrainCompositor
 
     void TerrainCompositionHeightProviderConfig::Reflect(AZ::ReflectContext* context)
     {
-        Internal::ReflectProviderConfiguration<TerrainCompositionHeightProviderConfig>(context,
-            "Terrain Composition Height Provider Configuration",
-            "Composition whose height and terrain-existence snapshot provides this region.");
+        if (auto* serialize = azrtti_cast<AZ::SerializeContext*>(context))
+        {
+            if (!serialize->IsRemovingReflection() && serialize->FindClassData(azrtti_typeid<TerrainCompositionHeightProviderConfig>())) return;
+            serialize->Class<TerrainCompositionHeightProviderConfig, AZ::ComponentConfig>()->Version(2)
+                ->Field("CompositionEntityId", &TerrainCompositionHeightProviderConfig::m_compositionEntityId)
+                ->Field("EnableCollisions", &TerrainCompositionHeightProviderConfig::m_enableCollisions)
+                ->Field("CollisionRange", &TerrainCompositionHeightProviderConfig::m_collisionRange)
+                ->Field("CollisionGridSpacing", &TerrainCompositionHeightProviderConfig::m_collisionGridSpacing);
+            if (auto* edit = serialize->GetEditContext())
+            {
+                edit->Class<TerrainCompositionHeightProviderConfig>("Terrain Composition Height Provider Configuration", "Composition and physics for this terrain region.")
+                    ->ClassElement(AZ::Edit::ClassElements::EditorData, "")
+                    ->Attribute(AZ::Edit::Attributes::Visibility, AZ::Edit::PropertyVisibility::ShowChildrenOnly)
+                    ->DataElement(AZ::Edit::UIHandlers::Default, &TerrainCompositionHeightProviderConfig::m_compositionEntityId,
+                        "Terrain Composition", "Composition whose final height and holes provide this region.")
+                    ->Attribute(AZ::Edit::Attributes::RequiredService, AZ_CRC_CE("TerrainCompositionService"))
+                    ->DataElement(AZ::Edit::UIHandlers::Default, &TerrainCompositionHeightProviderConfig::m_enableCollisions,
+                        "Enable Collisions", "Automatically create PhysX collision for all composed terrain surfaces, respecting holes.")
+                    ->DataElement(AZ::Edit::UIHandlers::Default, &TerrainCompositionHeightProviderConfig::m_collisionRange,
+                        "Collision Range", "Coverage radius around each character, rigid body, and active viewport camera, in metres.")
+                    ->Attribute(AZ::Edit::Attributes::Min, 16.0f)->Attribute(AZ::Edit::Attributes::Max, 512.0f)
+                    ->DataElement(AZ::Edit::UIHandlers::Default, &TerrainCompositionHeightProviderConfig::m_collisionGridSpacing,
+                        "Collision Grid Spacing", "Physics sample spacing in metres. Smaller values preserve finer features.")
+                    ->Attribute(AZ::Edit::Attributes::Min, 0.25f)->Attribute(AZ::Edit::Attributes::Max, 4.0f);
+            }
+        }
     }
 
     void TerrainCompositionHeightProviderComponent::Reflect(AZ::ReflectContext* context)
@@ -54,8 +77,18 @@ namespace TerrainCompositor
     {
     }
 
-    void TerrainCompositionHeightProviderComponent::Activate() { m_binding.Start(GetEntityId()); }
-    void TerrainCompositionHeightProviderComponent::Deactivate() { m_binding.Stop(); }
+    void TerrainCompositionHeightProviderComponent::Activate()
+    {
+        if (!m_binding.CheckControlThread()) return;
+        m_runtimeActive = true;
+        m_binding.Start(GetEntityId());
+    }
+    void TerrainCompositionHeightProviderComponent::Deactivate()
+    {
+        if (!m_binding.CheckControlThread()) return;
+        m_binding.Stop();
+        m_runtimeActive = false;
+    }
     void TerrainCompositionHeightProviderComponent::EditorActivate(AZ::EntityId entityId) { m_binding.Start(entityId); }
     void TerrainCompositionHeightProviderComponent::EditorDeactivate([[maybe_unused]] AZ::EntityId entityId) { m_binding.Stop(); }
 
@@ -68,10 +101,13 @@ namespace TerrainCompositor
         }
         AzFramework::Terrain::TerrainDataNotificationBus::Handler::BusConnect();
         Terrain::TerrainAreaHeightRequestBus::Handler::BusConnect(m_binding.GetTerrainRegionEntityId());
+        if (m_runtimeActive && m_configuration.m_enableCollisions)
+            m_collision.Start(m_binding.GetTerrainRegionEntityId(), m_configuration.m_collisionRange, m_configuration.m_collisionGridSpacing);
     }
 
     void TerrainCompositionHeightProviderComponent::DisconnectProvider()
     {
+        m_collision.Stop();
         Terrain::TerrainAreaHeightRequestBus::Handler::BusDisconnect();
         LmbrCentral::DependencyNotificationBus::Handler::BusDisconnect();
         AzFramework::Terrain::TerrainDataNotificationBus::Handler::BusDisconnect();
@@ -94,7 +130,17 @@ namespace TerrainCompositor
 
     bool TerrainCompositionHeightProviderComponent::ReadInConfig(const AZ::ComponentConfig* baseConfig)
     {
-        return m_binding.ReadConfiguration(baseConfig, m_configuration);
+        if (!m_binding.CheckControlThread()) return false;
+        if (m_runtimeActive && azrtti_cast<const TerrainCompositionHeightProviderConfig*>(baseConfig))
+            m_collision.Stop();
+        const bool accepted = m_binding.ReadConfiguration(baseConfig, m_configuration);
+        if (accepted && m_runtimeActive)
+        {
+            m_collision.Stop();
+            if (m_configuration.m_enableCollisions)
+                m_collision.Start(GetEntityId(), m_configuration.m_collisionRange, m_configuration.m_collisionGridSpacing);
+        }
+        return accepted;
     }
 
     bool TerrainCompositionHeightProviderComponent::WriteOutConfig(AZ::ComponentConfig* outBaseConfig) const

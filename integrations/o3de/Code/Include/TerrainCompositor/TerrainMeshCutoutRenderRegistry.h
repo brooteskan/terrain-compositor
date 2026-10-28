@@ -419,30 +419,8 @@ namespace TerrainCompositor
         for (const PreparedTerrainMeshHeightGap& gap : snapshot.m_meshHeightGaps)
         {
             const bool gapAdmitted = IsTerrainMeshHeightGapAdmitted(gap, admitted);
-            const auto& cells = gap.m_collisionCells;
-            if (!gapAdmitted || !gap.m_affectTerrainCollisionQueries || !cells || cells->m_cells.empty() ||
-                !worldCellMinimum.IsFinite() || !gridSpacing.IsFinite() ||
-                gridSpacing.GetX() != cells->m_gridSpacing || gridSpacing.GetY() != cells->m_gridSpacing)
-            {
-                continue;
-            }
-            const double spacing = cells->m_gridSpacing;
-            const double x = double(worldCellMinimum.GetX()) / spacing;
-            const double y = double(worldCellMinimum.GetY()) / spacing;
-            if (!std::isfinite(x) || !std::isfinite(y) || x < double(std::numeric_limits<AZ::s64>::min()) ||
-                x > double(std::numeric_limits<AZ::s64>::max()) || y < double(std::numeric_limits<AZ::s64>::min()) ||
-                y > double(std::numeric_limits<AZ::s64>::max()))
-            {
-                continue;
-            }
-            const TerrainHeightfieldCellAddress address{
-                static_cast<AZ::s64>(std::llround(x)), static_cast<AZ::s64>(std::llround(y)) };
-            if (AZStd::binary_search(
-                    cells->m_cells.begin(), cells->m_cells.end(), address,
-                    [](const TerrainHeightfieldCellAddress& left, const TerrainHeightfieldCellAddress& right)
-                    {
-                        return left.m_y < right.m_y || (left.m_y == right.m_y && left.m_x < right.m_x);
-                    }))
+            if (gapAdmitted && gap.m_affectTerrainCollisionQueries && gap.m_collisionCells &&
+                IsTerrainHeightfieldCellMasked(*gap.m_collisionCells, worldCellMinimum, gridSpacing))
             {
                 return true;
             }
