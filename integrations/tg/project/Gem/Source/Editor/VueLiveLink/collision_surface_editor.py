@@ -12,7 +12,7 @@ import runpy
 import subprocess
 import time
 import uuid
-from PySide6 import QtCore
+from PySide6 import QtCore, QtWidgets
 import azlmbr.asset as asset
 import azlmbr.bus as bus
 import azlmbr.components as components
@@ -110,9 +110,82 @@ def restore_bindings(records):
                 if not outcome.IsSuccess(): raise RuntimeError('Could not restore '+path)
 
 
+class RefreshProgress(QtWidgets.QDialog):
+    """Keep the refresh visible and prevent entering Play during publication."""
+    def __init__(self):
+        # TG supplies PySide directly without the optional QtForPython bus.
+        # Application modality covers all editor windows without relying on
+        # transient tool-pane owners. Bridge retains this top-level dialog.
+        super().__init__()
+        self.setObjectName('TerrainCollisionRefreshDialog')
+        self.setWindowTitle('Refresh terrain collision')
+        self.setWindowModality(QtCore.Qt.ApplicationModal)
+        self.setWindowFlag(QtCore.Qt.WindowCloseButtonHint, False)
+        self.setMinimumWidth(480)
+        self.active = True
+        self.allow_close = False
+        self.cancel_callback = None
+        layout = QtWidgets.QVBoxLayout(self)
+        self.stage = QtWidgets.QLabel('Preparing collision refresh…')
+        layout.addWidget(self.stage)
+        self.details = QtWidgets.QLabel('Reading the current terrain positions…')
+        self.details.setWordWrap(True)
+        layout.addWidget(self.details)
+        self.progress = QtWidgets.QProgressBar()
+        self.progress.setRange(0, 0)
+        layout.addWidget(self.progress)
+        buttons = QtWidgets.QHBoxLayout()
+        buttons.addStretch()
+        self.button = QtWidgets.QPushButton('Cancel')
+        self.button.clicked.connect(self.action)
+        buttons.addWidget(self.button)
+        layout.addLayout(buttons)
+
+    def update_progress(self, phase, text):
+        titles = {'preparing': 'Step 1 of 3 — Building the collision surface',
+                  'processing': 'Step 2 of 3 — Processing terrain assets',
+                  'loading': 'Step 3 of 3 — Applying and checking collision'}
+        if self.active:
+            self.stage.setText(titles.get(phase, 'Refreshing terrain collision'))
+            self.details.setText(text)
+
+    def complete(self, phase, text):
+        self.active = False
+        self.cancel_callback = None
+        self.progress.setRange(0, 1)
+        self.progress.setValue(1 if phase == 'ready' else 0)
+        self.progress.setVisible(phase == 'ready')
+        self.stage.setText({'ready': 'Collision surface refreshed', 'cancelled': 'Refresh cancelled'}.get(phase, 'Collision refresh failed'))
+        self.details.setText(text)
+        self.button.setText('Close')
+
+    def action(self):
+        if self.active and self.cancel_callback:
+            self.cancel_callback()
+        elif not self.active:
+            self.allow_close = True
+            self.accept()
+
+    def reject(self):
+        if self.active and self.cancel_callback: self.cancel_callback()
+        self.allow_close = True
+        super().reject()
+
+    def closeEvent(self, event):
+        # Editor lifecycle checks send synthetic close events to tool windows.
+        # Cancellation is explicit through Cancel/Escape; a close probe must not
+        # silently abort background work or erase its completion message.
+        if not self.allow_close:
+            event.ignore()
+            return
+        super().closeEvent(event)
+
+
 class Refresh:
-    def __init__(self, composition, finished):
+    def __init__(self, composition, finished, dialog):
         self.composition, self.finished = composition, finished
+        self.dialog = dialog
+        self.dialog.cancel_callback = self.cancel
         self.process = self.log = None
         self.backup = None
         self.phase = 'preparing'
@@ -132,6 +205,7 @@ class Refresh:
     def status(self, text, busy=True):
         editor.TerrainCollisionSurfaceEditorRequestBus(bus.Event, 'SetRefreshStatus', self.composition, text, busy)
         (self.folder/'status.json').write_text(json.dumps(dict(phase=self.phase, detail=text, busy=busy)))
+        if busy: self.dialog.update_progress(self.phase, text)
 
     def start(self):
         import editor_link
@@ -151,15 +225,22 @@ class Refresh:
             self.status('Rebuilding the collision surface in the background...')
         self.timer.start()
 
-    def finish(self, message, error=False):
+    def cancel(self):
+        self.finish('Collision refresh cancelled. The previous collision surface is retained.', cancelled=True)
+
+    def finish(self, message, error=False, cancelled=False):
         self.timer.stop()
         if self.process and self.process.poll() is None: self.process.terminate()
         if self.log: self.log.close(); self.log = None
-        if error and self.backup:
+        if (error or cancelled) and self.backup:
             try: restore_bindings(self.backup)
-            except Exception as rollback: message += ' Restore failed: '+str(rollback)
-        self.phase = 'error' if error else 'ready'
+            except Exception as rollback:
+                message += ' Restore failed: '+str(rollback)
+                error = True
+        self.backup = None
+        self.phase = 'error' if error else ('cancelled' if cancelled else 'ready')
         self.status(message, False)
+        self.dialog.complete(self.phase, message)
         self.finished(self)
 
     def tick(self):
@@ -219,6 +300,7 @@ class Refresh:
 class Bridge:
     def __init__(self):
         self.job = None
+        self.dialog = None
         self.handler = bus.NotificationHandler('TerrainCollisionSurfaceRefreshNotificationBus')
         self.handler.connect()
         self.handler.add_callback('OnRefreshCollisionSurface', self.request)
@@ -228,15 +310,22 @@ class Bridge:
         if self.job:
             editor.TerrainCollisionSurfaceEditorRequestBus(bus.Event, 'SetRefreshStatus', composition,
                 'A collision surface refresh is already running.', composition.ToString() == self.job.composition.ToString())
+            self.dialog.raise_()
             return
         try:
-            self.job = Refresh(composition, self.finished)
+            if self.dialog is not None:
+                self.dialog.accept()
+                self.dialog.deleteLater()
+            self.dialog = RefreshProgress()
+            self.dialog.show()
+            self.job = Refresh(composition, self.finished, self.dialog)
             self.job.start()
         except Exception as error:
             if self.job:
                 self.job.finish(str(error), True)
             else:
                 editor.TerrainCollisionSurfaceEditorRequestBus(bus.Event, 'SetRefreshStatus', composition, str(error), False)
+                if self.dialog is not None: self.dialog.complete('error', str(error))
 
     def finished(self, job):
         if self.job is job: self.job = None

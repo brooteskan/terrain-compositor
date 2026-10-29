@@ -22,6 +22,13 @@ After moving or rebaking Vue terrains:
 2. Click **Refresh collision surface** in **Terrain Composition Gradient**.
 3. Wait for **Collision surface refreshed** in the inspector, then save the level.
 
+A progress dialog stays open through building, asset processing, and checking the
+new surface. It blocks editor interaction, including entering Play, until the
+operation completes or is cancelled. **Cancel** stops the worker and retains the
+previous surface, restoring its bindings if publication already began. Completion,
+cancellation, and errors remain visible with a **Close** button. Save the level
+after a successful refresh to keep the new collision registration.
+
 The button captures current, unsaved Editor transforms. Preparation runs in a
 background worker using the same Python selection as Vue Live Link
 (`TG_VUE_LINK_PYTHON`, the bundled runtime, or Python on PATH; numpy and Pillow

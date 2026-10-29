@@ -421,7 +421,9 @@
       "path": "Gem/Source/Editor/VueLiveLink/collision_surface_editor.py",
       "source": "project/Gem/Source/Editor/VueLiveLink/collision_surface_editor.py",
       "binary": false,
-      "accepted_sha256": [],
+      "accepted_sha256": [
+        "cc3f0272294097f10c97160036572bb00b70e9af7e2ce6f7af09eb4d91c3998a"
+      ],
       "accepted_json_sha256": []
     },
     {
@@ -435,14 +437,18 @@
       "path": "Gem/Tests/verify_collision_refresh_button_editor.py",
       "source": "project/Gem/Tests/verify_collision_refresh_button_editor.py",
       "binary": false,
-      "accepted_sha256": [],
+      "accepted_sha256": [
+        "7311e237f31471ad29c3fb829bcc8fca09faea58d42472e4307b8d9fe46ac8f9"
+      ],
       "accepted_json_sha256": []
     },
     {
       "path": "Assets/VueLiveLink/composition/README.md",
       "source": "project/Assets/VueLiveLink/composition/README.md",
       "binary": false,
-      "accepted_sha256": [],
+      "accepted_sha256": [
+        "9229ea1b346c0fded3a797ea4d639c53bf7fee1bca9ed96cc38a94a1ca22d078"
+      ],
       "accepted_json_sha256": []
     }
   ]
