@@ -1,0 +1,8 @@
+cmake_minimum_required(VERSION 3.22)
+project(TerrainMeshBlendGpuTests LANGUAGES CXX)
+enable_testing()
+add_executable(TerrainMeshBlendGpuTests TerrainMeshBlendGpuTests.cpp)
+target_compile_features(TerrainMeshBlendGpuTests PRIVATE cxx_std_17)
+target_compile_definitions(TerrainMeshBlendGpuTests PRIVATE NOMINMAX)
+target_link_libraries(TerrainMeshBlendGpuTests PRIVATE d3d11 d3dcompiler)
+add_test(NAME TerrainMeshBlendGpuTests COMMAND TerrainMeshBlendGpuTests "${CMAKE_CURRENT_SOURCE_DIR}/../..")

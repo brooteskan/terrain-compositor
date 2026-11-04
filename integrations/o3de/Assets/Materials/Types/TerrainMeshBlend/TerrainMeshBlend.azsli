@@ -1,0 +1,114 @@
+#pragma once
+// Preserve the source mesh's standard PBR, atlas, tangent normal and POM paths.
+#if MATERIALPIPELINE_SHADER_HAS_PIXEL_STAGE
+#define EvaluateSurface EvaluateSurface_TerrainMeshBlend
+#endif
+#if MATERIALPIPELINE_SHADER_HAS_PIXEL_STAGE || MATERIALPIPELINE_SHADER_HAS_GEOMETRIC_PIXEL_STAGE
+#define EvaluatePixelGeometry EvaluatePixelGeometry_TerrainMeshBlend
+#endif
+#include <Atom/Feature/Common/Assets/Materials/Types/StandardPBR.azsli>
+#if MATERIALPIPELINE_SHADER_HAS_PIXEL_STAGE || MATERIALPIPELINE_SHADER_HAS_GEOMETRIC_PIXEL_STAGE
+#include <TerrainCompositor/TerrainMeshUvMetric.azsli>
+PixelGeometryData EvaluatePixelGeometry_TerrainMeshBlend(inout VsOutput IN,VsSystemValues SV,bool isFrontFace,const MaterialParameters p)
+{
+    if (!p.m_terrainBlend_atlasParallax) return EvaluatePixelGeometry_StandardPBR(IN,SV,isFrontFace,p);
+    real4x4 objectToWorld=real4x4(GetObjectToWorldMatrix(SV));
+    real3x3 objectToWorldIT=real3x3(GetObjectToWorldMatrixInverseTranspose(SV));
+    real3 n,t,b;
+    ConstructTBN(real3(IN.normal),real4(IN.tangent),objectToWorld,objectToWorldIT,n,t,b);
+    PixelGeometryData geometry=EvaluatePixelGeometry_BasePBR(SV,p,IN.worldPosition,n,t,b,IN.uvs,isFrontFace);
+    geometry.isDisplacementClipped=false;
+#if ENABLE_PARALLAX
+    // Compute derivatives before varying ray-march branches, using the mesh's
+    // real atlas UVs. The same UV offset subsequently drives all PBR textures.
+    uint channel=p.m_parallaxUvIndex;
+    float3 worldDx=ddx_fine(geometry.positionWS),worldDy=ddy_fine(geometry.positionWS);
+    float2 uvDx=ddx_fine(geometry.uvs[channel]),uvDy=ddy_fine(geometry.uvs[channel]);
+    if (ShouldHandleParallax())
+    {
+        float3 view=ViewSrg::m_projectionMatrix[3].w==1?float3(ViewSrg::m_viewMatrix[2].xyz):float3(ViewSrg::m_worldPosition.xyz-geometry.positionWS);
+        float3 ray;
+        if (TC_AtlasRay(float3(geometry.vertexNormal),worldDx,worldDy,uvDx,uvDy,view,ray))
+        {
+            float scale=length(float3(objectToWorld[0].xyz));
+            float heightScale=float(p.m_heightmapScale)*scale;
+            float heightOffset=-float(p.m_heightmapOffset)*scale;
+            uint width,height; GetMaterialTexture(p.m_heightmap).GetDimensions(width,height);
+            float limit=p.m_terrainBlend_atlasGutterPixels/max(float(max(width,height)),1);
+            // Keep every height sample inside the atlas gutter, rather than
+            // merely clamping the UV after an unbounded search has finished.
+            ray=TC_BoundAtlasRay(ray,heightScale,heightOffset,float2(limit,limit));
+            float attenuation=1;
+            ParallaxOffset offset=CalculateParallaxOffset(p,GetMaterialTexture(p.m_heightmap),GetMaterialTextureSampler(),
+                heightScale,heightOffset,geometry.uvs[channel],normalize(ray),float3(0,0,0),attenuation);
+            float ratio=limit>0?min(1,limit/max(max(abs(offset.m_offsetTS.x),abs(offset.m_offsetTS.y)),1e-12)):1;
+            // Atlas gutters bound the grazing-angle search so it cannot pull
+            // another island's color, normal, roughness or height into this one.
+            geometry.uvs[channel]+=offset.m_offsetTS.xy*ratio;
+            geometry.isDisplacementClipped=offset.m_isClipped;
+            if (o_parallax_enablePixelDepthOffset)
+            {
+                float3 moved=geometry.positionWS+view/max(dot(float3(geometry.vertexNormal),view),1e-6)*offset.m_offsetTS.z*ratio;
+                float4 clip=mul(float4x4(ViewSrg::m_viewProjectionMatrix),float4(moved,1));
+                geometry.positionWS=moved; IN.position.z=clip.z/clip.w; IN.position.w=clip.w;
+            }
+        }
+    }
+#endif
+    return geometry;
+}
+#endif
+#if MATERIALPIPELINE_SHADER_HAS_PIXEL_STAGE
+#include <TerrainCompositor/TerrainGroundSampling.azsli>
+float TC_MeshBlendTerrainHeight(float3 position, const MaterialParameters p)
+{
+    float height=p.m_terrainBlend_groundHeight;
+    if (p.m_terrainBlend_heightTexture>=0 && all(p.m_terrainBlend_heightBounds.zw>0))
+    {
+        float2 uv=(position.xy-p.m_terrainBlend_heightBounds.xy)/p.m_terrainBlend_heightBounds.zw;
+        if (all(uv>=0) && all(uv<=1))
+            height+=GetMaterialTexture(p.m_terrainBlend_heightTexture).SampleLevel(GetMaterialTextureSampler(),float2(uv.x,1-uv.y),0).r*p.m_terrainBlend_heightScale;
+    }
+    return height;
+}
+Surface EvaluateSurface_TerrainMeshBlend(VsOutput IN, VsSystemValues SV, PixelGeometryData geoData, const MaterialParameters p)
+{
+    float4 atlasDerivatives=float4(ddx(IN.uvs[0]),ddy(IN.uvs[0]));
+    Surface surface=EvaluateSurface_StandardPBR(IN,SV,geoData,p,atlasDerivatives,true);
+#if FORCE_OPAQUE
+    // Derivatives precede all varying branches, retaining the source texel footprint.
+    float2 dx=ddx(surface.position.xy), dy=ddy(surface.position.xy);
+    if (p.m_terrainBlend_distance>0 && p.m_terrainBlend_colorTexture>=0)
+    {
+        float height=TC_MeshBlendTerrainHeight(surface.position,p);
+        half weight=half(1-smoothstep(0,p.m_terrainBlend_distance,max(0,surface.position.z-height)));
+        if (weight>0)
+        {
+            TC_GroundParameters ground;
+            ground.m_colorTexture=p.m_terrainBlend_colorTexture;
+            ground.m_normalTexture=p.m_terrainBlend_normalTexture;
+            ground.m_textureScale=p.m_terrainBlend_textureScale;
+            ground.m_normalStrength=p.m_terrainBlend_normalStrength;
+            ground.m_colorTint=p.m_terrainBlend_colorTint;
+            ground.m_roughness=p.m_terrainBlend_roughness;
+            ground.m_specularFactor=p.m_terrainBlend_specularFactor;
+            ground.m_ambientOcclusion=p.m_terrainBlend_ambientOcclusion;
+            TC_GroundChannels sampled=TC_SampleGroundGrad(surface.position,float3(0,0,1),ground,p.m_terrainBlend_stochasticTiling,dx,dy);
+            surface.albedo=lerp(half3(surface.albedo),sampled.baseColor,weight);
+            surface.specularF0=lerp(half3(surface.specularF0),half3(.08,.08,.08)*sampled.specularFactor,weight);
+            surface.normal=normalize(lerp(half3(surface.normal),sampled.normal,weight));
+            surface.vertexNormal=normalize(lerp(half3(surface.vertexNormal),half3(0,0,1),weight));
+            surface.roughnessLinear=lerp(half(surface.roughnessLinear),sampled.roughness,weight);
+            surface.CalculateRoughnessA();
+            surface.diffuseAmbientOcclusion=lerp(half(surface.diffuseAmbientOcclusion),sampled.ambientOcclusion,weight);
+            surface.specularOcclusion=lerp(half(surface.specularOcclusion),half(1),weight);
+            surface.emissiveLighting*=1-weight;
+#if ENABLE_CLEAR_COAT
+            surface.clearCoat.factor*=1-weight;
+#endif
+        }
+    }
+#endif
+    return surface;
+}
+#endif

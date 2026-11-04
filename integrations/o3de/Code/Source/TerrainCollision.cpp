@@ -23,6 +23,7 @@ namespace TerrainCompositor::Internal
         class CollisionHeightProvider final : public Terrain::TerrainPhysicsColliderComponent
         {
         public:
+            AZ_CLASS_ALLOCATOR(CollisionHeightProvider, AZ::SystemAllocator);
             explicit CollisionHeightProvider(float spacing) : m_spacing(spacing) {}
             AZ::Vector2 GetHeightfieldGridSpacing() const override { return AZ::Vector2(m_spacing); }
         private:
@@ -30,30 +31,38 @@ namespace TerrainCompositor::Internal
         };
     }
 
+    CollisionCoverage TerrainCollisionCoverage(const AZ::Aabb& region,
+        const AZ::Vector3& observer, float range, float spacing)
+    {
+        if (!region.IsValid() || !region.GetMin().IsFinite() || !region.GetMax().IsFinite() ||
+            !std::isfinite(range) || range < 16 || range > 512 ||
+            !std::isfinite(spacing) || spacing < .25f || spacing > 4)
+            return {};
+        const double width = std::ceil(double(TileWidth) / spacing) * spacing;
+        if (!observer.IsFinite()) return {};
+        const double minX = AZStd::max(double(region.GetMin().GetX()), double(observer.GetX()) - range);
+        const double minY = AZStd::max(double(region.GetMin().GetY()), double(observer.GetY()) - range);
+        const double maxX = AZStd::min(double(region.GetMax().GetX()), double(observer.GetX()) + range);
+        const double maxY = AZStd::min(double(region.GetMax().GetY()), double(observer.GetY()) + range);
+        if (minX >= maxX || minY >= maxY || std::abs(minX / width) > 1.e12 || std::abs(minY / width) > 1.e12 ||
+            std::abs(maxX / width) > 1.e12 || std::abs(maxY / width) > 1.e12) return {};
+        return {static_cast<AZ::s64>(std::floor(minX / width)),
+            static_cast<AZ::s64>(std::floor(minY / width)),
+            static_cast<AZ::s64>(std::ceil(maxX / width)) - 1,
+            static_cast<AZ::s64>(std::ceil(maxY / width)) - 1};
+    }
+
     CollisionTiles PlanTerrainCollisionTiles(const AZ::Aabb& region,
         const AZStd::vector<AZ::Vector3>& observers, float range, float spacing)
     {
         CollisionTiles result;
-        if (!region.IsValid() || !region.GetMin().IsFinite() || !region.GetMax().IsFinite() ||
-            !std::isfinite(range) || range < 16 || range > 512 ||
-            !std::isfinite(spacing) || spacing < .25f || spacing > 4)
-            return result;
+        if (!std::isfinite(spacing) || spacing < .25f || spacing > 4) return result;
         const double width = std::ceil(double(TileWidth) / spacing) * spacing;
         for (const auto& observer : observers)
         {
-            if (!observer.IsFinite()) continue;
-            const double minX = AZStd::max(double(region.GetMin().GetX()), double(observer.GetX()) - range);
-            const double minY = AZStd::max(double(region.GetMin().GetY()), double(observer.GetY()) - range);
-            const double maxX = AZStd::min(double(region.GetMax().GetX()), double(observer.GetX()) + range);
-            const double maxY = AZStd::min(double(region.GetMax().GetY()), double(observer.GetY()) + range);
-            if (minX >= maxX || minY >= maxY || std::abs(minX / width) > 1.e12 || std::abs(minY / width) > 1.e12 ||
-                std::abs(maxX / width) > 1.e12 || std::abs(maxY / width) > 1.e12) continue;
-            const auto firstX = static_cast<AZ::s64>(std::floor(minX / width));
-            const auto firstY = static_cast<AZ::s64>(std::floor(minY / width));
-            const auto lastX = static_cast<AZ::s64>(std::ceil(maxX / width)) - 1;
-            const auto lastY = static_cast<AZ::s64>(std::ceil(maxY / width)) - 1;
-            for (AZ::s64 y = firstY; y <= lastY; ++y)
-                for (AZ::s64 x = firstX; x <= lastX; ++x)
+            const auto coverage = TerrainCollisionCoverage(region, observer, range, spacing);
+            for (AZ::s64 y = coverage.m_firstY; y <= coverage.m_lastY; ++y)
+                for (AZ::s64 x = coverage.m_firstX; x <= coverage.m_lastX; ++x)
                 {
                     const double left = std::ceil(AZStd::max(double(region.GetMin().GetX()), x * width) / spacing) * spacing;
                     const double bottom = std::ceil(AZStd::max(double(region.GetMin().GetY()), y * width) / spacing) * spacing;
@@ -80,11 +89,30 @@ namespace TerrainCompositor::Internal
         m_region = region; m_range = range; m_spacing = spacing;
         AzFramework::EntityIdContextQueryBus::EventResult(m_context, region,
             &AzFramework::EntityIdContextQueries::GetOwningContextId);
-        AZ::TickBus::Handler::BusConnect();
+        AZ::EntitySystemBus::Handler::BusConnect();
+        LmbrCentral::ShapeComponentNotificationsBus::Handler::BusConnect(region);
+        AzFramework::Terrain::TerrainDataNotificationBus::Handler::BusConnect();
+        AZ::RPI::ViewportContextManagerNotificationsBus::Handler::BusConnect();
+        if (auto* system = AZ::Interface<AzPhysics::SystemInterface>::Get()) system->RegisterSceneAddedEvent(m_sceneAdded);
+        // Discover existing observers once; subsequent changes arrive through entity/physics events.
+        AZ::ComponentApplicationBus::Broadcast(&AZ::ComponentApplicationRequests::EnumerateEntities,
+            AZ::ComponentApplicationRequests::EntityCallback([this](AZ::Entity* entity)
+            { if (entity->GetState() == AZ::Entity::State::Active) TrackEntity(entity->GetId()); }));
+        BindViewport();
+        ScheduleUpdate();
     }
     void TerrainCollision::Stop()
     {
         AZ::TickBus::Handler::BusDisconnect();
+        AZ::EntitySystemBus::Handler::BusDisconnect();
+        AZ::TransformNotificationBus::MultiHandler::BusDisconnect();
+        Physics::RigidBodyNotificationBus::MultiHandler::BusDisconnect();
+        Physics::CharacterNotificationBus::MultiHandler::BusDisconnect();
+        LmbrCentral::ShapeComponentNotificationsBus::Handler::BusDisconnect();
+        AzFramework::Terrain::TerrainDataNotificationBus::Handler::BusDisconnect();
+        AZ::RPI::ViewportContextManagerNotificationsBus::Handler::BusDisconnect();
+        m_cameraChanged.Disconnect(); m_sceneAdded.Disconnect(); m_viewport.reset();
+        m_observers.clear(); m_bounds = AZ::Aabb::CreateNull(); m_hasCamera = false; m_cameraCoverage = {};
         // Collider destruction drains refresh jobs before the source provider disconnects.
         m_tiles.clear();
         AzFramework::EntityIdContextQueryBus::MultiHandler::BusDisconnect();
@@ -107,13 +135,96 @@ namespace TerrainCompositor::Internal
         auto* collider = tile->CreateComponent<PhysX::HeightfieldColliderComponent>();
         // Match the provider's scene so admitted mesh-height holes share its publication.
         AzFramework::EntityIdContextQueryBus::MultiHandler::BusConnect(tile->GetId());
-        tile->Init(); tile->Activate();
+        tile->Init(); m_creatingTile = true; tile->Activate(); m_creatingTile = false;
         // Finish cooking before the first gravity step, including at streaming boundaries.
         collider->BlockOnPendingJobs();
         return tile;
     }
+    void TerrainCollision::ScheduleUpdate()
+    {
+        if (m_region.IsValid() && !AZ::TickBus::Handler::BusIsConnected()) AZ::TickBus::Handler::BusConnect();
+    }
+    void TerrainCollision::TrackEntity(AZ::EntityId id)
+    {
+        if (m_creatingTile || m_observers.contains(id) ||
+            (!Physics::CharacterRequestBus::HasHandlers(id) && !Physics::RigidBodyRequestBus::HasHandlers(id))) return;
+        AzFramework::EntityContextId context;
+        AzFramework::EntityIdContextQueryBus::EventResult(context, id, &AzFramework::EntityIdContextQueries::GetOwningContextId);
+        if (context != m_context) return;
+        m_observers.emplace(id, Observer{});
+        AZ::TransformNotificationBus::MultiHandler::BusConnect(id);
+        Physics::RigidBodyNotificationBus::MultiHandler::BusConnect(id);
+        Physics::CharacterNotificationBus::MultiHandler::BusConnect(id);
+        SampleObserver(id);
+    }
+    void TerrainCollision::OnEntityDeactivated(const AZ::EntityId& id)
+    {
+        if (m_observers.erase(id))
+        {
+            AZ::TransformNotificationBus::MultiHandler::BusDisconnect(id);
+            Physics::RigidBodyNotificationBus::MultiHandler::BusDisconnect(id);
+            Physics::CharacterNotificationBus::MultiHandler::BusDisconnect(id);
+            ScheduleUpdate();
+        }
+    }
+    void TerrainCollision::OnCharacterDeactivated(const AZ::EntityId& id)
+    {
+        if (auto it = m_observers.find(id); it != m_observers.end())
+        { it->second.m_positions.clear(); it->second.m_coverage.clear(); ScheduleUpdate(); }
+    }
+    void TerrainCollision::SampleObserver(AZ::EntityId id, const AZ::Transform* world)
+    {
+        const auto it = m_observers.find(id); if (it == m_observers.end()) return;
+        auto& observer = it->second;
+        observer.m_positions.clear();
+        Physics::CharacterRequestBus::EnumerateHandlersId(id, [&observer,world](Physics::CharacterRequests* character)
+        { if (character->IsPresent()) observer.m_positions.push_back(world ? world->GetTranslation() : character->GetBasePosition()); return true; });
+        Physics::RigidBodyRequestBus::EnumerateHandlersId(id, [&observer,world](Physics::RigidBodyRequests* body)
+        { observer.m_positions.push_back(world ? world->GetRotation().TransformVector(body->GetCenterOfMassLocal()) + world->GetTranslation() : body->GetCenterOfMassWorld()); return true; });
+        AZStd::vector<CollisionCoverage> coverage;
+        for (const auto& position : observer.m_positions)
+            coverage.push_back(TerrainCollisionCoverage(m_bounds, position, m_range, m_spacing));
+        if (coverage != observer.m_coverage) { observer.m_coverage = AZStd::move(coverage); ScheduleUpdate(); }
+    }
+    void TerrainCollision::OnTransformChanged(const AZ::Transform&, const AZ::Transform& world)
+    {
+        // The transform notification can precede the physics component's listener
+        // during a teleport. Use the announced pose rather than its old body pose.
+        if (auto* id = AZ::TransformNotificationBus::GetCurrentBusId()) SampleObserver(*id, &world);
+    }
+    void TerrainCollision::OnTerrainDataChanged(const AZ::Aabb&,
+        AzFramework::Terrain::TerrainDataNotifications::TerrainDataChangedMask mask)
+    {
+        using Mask = AzFramework::Terrain::TerrainDataNotifications::TerrainDataChangedMask;
+        if ((mask & Mask::Settings) != Mask::None) ScheduleUpdate();
+    }
+    void TerrainCollision::BindViewport()
+    {
+        auto* manager = AZ::Interface<AZ::RPI::ViewportContextRequestsInterface>::Get();
+        auto viewport = manager ? manager->GetDefaultViewportContext() : nullptr;
+        if (viewport == m_viewport.lock()) return;
+        m_cameraChanged.Disconnect(); m_viewport = viewport;
+        if (viewport) viewport->ConnectViewMatrixChangedHandler(m_cameraChanged);
+        SampleCamera();
+    }
+    void TerrainCollision::OnViewportContextRemoved(AzFramework::ViewportId id)
+    {
+        if (auto viewport = m_viewport.lock(); viewport && viewport->GetId() != id) return;
+        m_cameraChanged.Disconnect(); m_viewport.reset(); SampleCamera();
+    }
+    void TerrainCollision::SampleCamera()
+    {
+        auto viewport = m_viewport.lock();
+        const bool present = bool(viewport);
+        if (viewport) m_cameraPosition = viewport->GetCameraTransform().GetTranslation();
+        const auto coverage = present ? TerrainCollisionCoverage(m_bounds, m_cameraPosition, m_range, m_spacing) : CollisionCoverage{};
+        if (m_hasCamera != present || coverage != m_cameraCoverage)
+        { m_hasCamera = present; m_cameraCoverage = coverage; ScheduleUpdate(); }
+    }
     void TerrainCollision::OnTick(float, AZ::ScriptTimePoint)
     {
+        // One deferred update, before physics. Unchanged coverage has no standing tick.
+        AZ::TickBus::Handler::BusDisconnect();
         // ProviderLifecycle retries context ownership before connecting runtime sources.
         if (m_context.IsNull()) return;
         AzPhysics::SceneHandle scene = AzPhysics::InvalidSceneHandle;
@@ -128,19 +239,22 @@ namespace TerrainCompositor::Internal
         if (!region.IsValid() || !heights.IsValid() || heights.m_max <= heights.m_min) return;
         region.SetMin(AZ::Vector3(region.GetMin().GetX(), region.GetMin().GetY(), heights.m_min));
         region.SetMax(AZ::Vector3(region.GetMax().GetX(), region.GetMax().GetY(), heights.m_max));
+        m_bounds = region;
         AZStd::vector<AZ::Vector3> observers;
-        Physics::CharacterRequestBus::EnumerateHandlers([&observers](Physics::CharacterRequests* character)
+        for (auto& [id, observer] : m_observers)
         {
-            if (character->IsPresent()) observers.push_back(character->GetBasePosition());
-            return true;
-        });
-        Physics::RigidBodyRequestBus::EnumerateHandlers([&observers](Physics::RigidBodyRequests* body)
+            observer.m_coverage.clear();
+            for (const auto& position : observer.m_positions)
+            {
+                observers.push_back(position);
+                observer.m_coverage.push_back(TerrainCollisionCoverage(region, position, m_range, m_spacing));
+            }
+        }
+        if (m_hasCamera)
         {
-            observers.push_back(body->GetCenterOfMassWorld()); return true;
-        });
-        if (auto* viewports = AZ::Interface<AZ::RPI::ViewportContextRequestsInterface>::Get())
-            if (auto viewport = viewports->GetDefaultViewportContext())
-                observers.push_back(viewport->GetCameraTransform().GetTranslation());
+            observers.push_back(m_cameraPosition);
+            m_cameraCoverage = TerrainCollisionCoverage(region, m_cameraPosition, m_range, m_spacing);
+        }
         const auto desired = PlanTerrainCollisionTiles(region, observers, m_range, m_spacing);
         // Fill new coverage before retiring old tiles. Stable keys avoid recooking while walking.
         for (const auto& [key, bounds] : desired)

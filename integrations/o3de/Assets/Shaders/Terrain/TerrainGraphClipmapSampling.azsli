@@ -19,6 +19,28 @@ float TC_GraphCacheExpectedTag(uint level, int2 cell)
     uint index = (uint(tile.x)&1u) | ((uint(tile.y)&1u)<<1u);
     return TerrainSrg::m_graphCacheTileTags[level][index];
 }
+// Contact materials sample the shared terrain formula directly. Match that
+// evaluation under their bounds and smoothly restore the cache outside them.
+float TC_MeshContactCacheWeight(float2 worldXY)
+{
+    uint count,stride; TerrainMaterialSrg::m_surfaceWords.GetDimensions(count,stride);
+    if (count<4 || TerrainMaterialSrg::m_surfaceWords[count-3]!=0x54434d42u) return 1;
+    uint header=TerrainMaterialSrg::m_surfaceWords[count-4];
+    if (header>=count-4) return 1;
+    uint contacts=TerrainMaterialSrg::m_surfaceWords[header];
+    if (contacts>(count-4-header-1)/4) return 1;
+    if (contacts>64) return 0; // Correct direct evaluation is the bounded overflow fallback.
+    float weight=1;
+    for (uint i=0;i<contacts;++i)
+    {
+        uint at=header+1+i*4;
+        float2 lo=float2(asfloat(TerrainMaterialSrg::m_surfaceWords[at]),asfloat(TerrainMaterialSrg::m_surfaceWords[at+1]));
+        float2 hi=float2(asfloat(TerrainMaterialSrg::m_surfaceWords[at+2]),asfloat(TerrainMaterialSrg::m_surfaceWords[at+3]));
+        float2 outside=max(max(lo-worldXY,worldXY-hi),0);
+        weight=min(weight,smoothstep(0,4,max(outside.x,outside.y)));
+    }
+    return weight;
+}
 TerrainSurfaceChannels TC_ResolveGraphClipmap(TerrainSurfaceContext context, const MaterialParameters params)
 {
     float2 dx = ddx(context.worldPosition.xy), dy = ddy(context.worldPosition.xy);
@@ -92,6 +114,7 @@ TerrainSurfaceChannels TC_ResolveGraphClipmap(TerrainSurfaceContext context, con
             }
         }
     }
+    weight*=TC_MeshContactCacheWeight(context.worldPosition.xy);
     bool cacheOnly = TC_CacheQuadAll(found && weight >= 0.9999);
     TerrainSurfaceChannels result;
     if (cacheOnly) result = cached;

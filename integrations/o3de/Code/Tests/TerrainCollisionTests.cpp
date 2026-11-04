@@ -115,4 +115,47 @@ namespace TerrainCompositor
         EXPECT_TRUE(Internal::PlanTerrainCollisionTiles(region, {AZ::Vector3(1.e30f,0,0)}, 128, .5f).empty());
         EXPECT_TRUE(Internal::PlanTerrainCollisionTiles(region, {}, 128, .5f).empty());
     }
+    TEST(TerrainCollision, CoverageInvalidationMatchesUnchangedAndCrossedTileBoundaries)
+    {
+        const auto region = AZ::Aabb::CreateFromMinMaxValues(-100.1f,-100.1f,-5,100.1f,100.1f,5);
+        for (float spacing : {.5f, .75f, 4.f})
+        {
+            for (float start : {-90.f,-65.f,-1.f,0.f,1.f,63.f,90.f})
+            {
+                const AZ::Vector3 before(start, -10.f, 0.f);
+                for (float delta : {0.f,.01f,1.f,64.f,1000.f})
+                {
+                    const auto after = before + AZ::Vector3(delta, 0.f, 500.f);
+                    const auto a = Internal::PlanTerrainCollisionTiles(region, {before}, 16.f, spacing);
+                    const auto b = Internal::PlanTerrainCollisionTiles(region, {after}, 16.f, spacing);
+                    if (Internal::TerrainCollisionCoverage(region,before,16.f,spacing) ==
+                        Internal::TerrainCollisionCoverage(region,after,16.f,spacing))
+                        EXPECT_EQ(a, b); // No recook is needed anywhere inside the same footprint.
+                }
+            }
+        }
+    }
+
+    TEST(TerrainCollision, DeferredTickDisconnectsAndShapeChangesScheduleOnlyOneUpdate)
+    {
+        const auto baseline = AZ::TickBus::GetTotalNumOfEventHandlers();
+        const AZ::EntityId region(9283746);
+        Internal::TerrainCollision collision;
+        collision.Start(region,128,.5f);
+        EXPECT_EQ(AZ::TickBus::GetTotalNumOfEventHandlers(),baseline+1);
+        AZ::TickBus::Broadcast(&AZ::TickBus::Events::OnTick,0.f,AZ::ScriptTimePoint{});
+        EXPECT_EQ(AZ::TickBus::GetTotalNumOfEventHandlers(),baseline);
+        for (int i=0;i<3;++i)
+            LmbrCentral::ShapeComponentNotificationsBus::Event(region,
+                &LmbrCentral::ShapeComponentNotifications::OnShapeChanged,
+                LmbrCentral::ShapeComponentNotifications::ShapeChangeReasons::ShapeChanged);
+        EXPECT_EQ(AZ::TickBus::GetTotalNumOfEventHandlers(),baseline+1);
+        collision.Stop();
+        EXPECT_EQ(AZ::TickBus::GetTotalNumOfEventHandlers(),baseline);
+        LmbrCentral::ShapeComponentNotificationsBus::Event(region,
+            &LmbrCentral::ShapeComponentNotifications::OnShapeChanged,
+            LmbrCentral::ShapeComponentNotifications::ShapeChangeReasons::ShapeChanged);
+        EXPECT_EQ(AZ::TickBus::GetTotalNumOfEventHandlers(),baseline);
+    }
+
 }

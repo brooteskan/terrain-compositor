@@ -6,6 +6,7 @@
 #include "TerrainCompositorSystemComponent.h"
 
 #include <TerrainCompositor/Components/HeightmapStampComponent.h>
+#include <TerrainCompositor/Components/TerrainMeshBlendComponent.h>
 #include <TerrainCompositor/Components/ProceduralGroundGradientComponent.h>
 #include <TerrainCompositor/Components/TerrainCompositionGradientComponent.h>
 #include <TerrainCompositor/Components/TerrainCompositionHeightProviderComponent.h>
@@ -28,6 +29,7 @@ namespace TerrainCompositor
                 m_descriptors.end(),
                 {
                     HeightmapStampComponent::CreateDescriptor(),
+                    TerrainMeshBlendComponent::CreateDescriptor(),
                     ProceduralGroundGradientComponent::CreateDescriptor(),
                     TerrainCompositionGradientComponent::CreateDescriptor(),
                     TerrainCompositionHeightProviderComponent::CreateDescriptor(),

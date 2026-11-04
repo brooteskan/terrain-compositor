@@ -89,6 +89,16 @@ namespace TerrainCompositor
         AZ::Aabb m_currentRegionBounds = AZ::Aabb::CreateNull();
     };
 
+    //! Retained appearance registration, owned by a prefab root in one composition/context.
+    struct TerrainMeshBlendRegistrationData
+    {
+        AZ::EntityId m_entityId;
+        AzFramework::EntityContextId m_contextId;
+        AZ::Uuid m_compositionSession;
+        float m_blendDistance=0.f;
+        AZ::Aabb m_worldBounds=AZ::Aabb::CreateNull();
+    };
+
     //! Control-plane requests run on the main thread. Terrain queries use GradientRequestBus instead.
     class TerrainCompositionRequests : public AZ::EBusTraits
     {
@@ -100,6 +110,10 @@ namespace TerrainCompositor
 
         virtual ~TerrainCompositionRequests() = default;
         virtual AZ::Uuid GetCompositionSession() const = 0;
+        virtual bool RegisterMeshBlend(const TerrainMeshBlendRegistrationData&) { return false; }
+        virtual void UnregisterMeshBlend(AZ::EntityId, const AZ::Uuid&) {}
+        virtual AZStd::vector<TerrainMeshBlendRegistrationData> GetRegisteredMeshBlends() const { return {}; }
+
         //! Store the current lease's claim, including invalid/noncontributing settings.
         //! False rejects stale/wrong-context requests. True does not imply a contributing footprint.
         virtual bool RegisterStamp(const HeightmapStampRegistrationData& registration) = 0;

@@ -362,6 +362,7 @@ namespace TerrainCompositor
 
     void TerrainCompositionGradientComponent::Deactivate()
     {
+        m_meshBlendRegistrations.clear();
         if (!m_active || !m_controlThread.Check())
         {
             return;
@@ -1580,6 +1581,32 @@ namespace TerrainCompositor
         }
     }
 
+    bool TerrainCompositionGradientComponent::RegisterMeshBlend(const TerrainMeshBlendRegistrationData& registration)
+    {
+        if (!m_controlThread.Check() || !m_active || !registration.m_entityId.IsValid() ||
+            registration.m_contextId!=m_address.first || registration.m_compositionSession!=m_session ||
+            !AZ::IsFiniteFloat(registration.m_blendDistance) || registration.m_blendDistance<0) return false;
+        const auto found=m_meshBlendRegistrations.find(registration.m_entityId);
+        if (found!=m_meshBlendRegistrations.end() && found->second.m_blendDistance==registration.m_blendDistance &&
+            found->second.m_worldBounds.IsClose(registration.m_worldBounds)) return true;
+        m_meshBlendRegistrations[registration.m_entityId]=registration;
+        PublishStamps();
+        return true;
+    }
+
+    void TerrainCompositionGradientComponent::UnregisterMeshBlend(AZ::EntityId entityId,const AZ::Uuid& session)
+    {
+        if (m_controlThread.Check() && m_active && session==m_session && m_meshBlendRegistrations.erase(entityId)) PublishStamps();
+    }
+
+    AZStd::vector<TerrainMeshBlendRegistrationData> TerrainCompositionGradientComponent::GetRegisteredMeshBlends() const
+    {
+        AZStd::vector<TerrainMeshBlendRegistrationData> result;
+        if (m_controlThread.Check() && m_active)
+            for (const auto& entry:m_meshBlendRegistrations) result.push_back(entry.second);
+        return result;
+    }
+
     AZ::Uuid TerrainCompositionGradientComponent::GetCompositionSession() const
     {
         return m_controlThread.Check() && m_active ? m_session : AZ::Uuid{};
@@ -1675,6 +1702,10 @@ namespace TerrainCompositor
         auto prepared = Internal::PrepareComposition(
             m_registrations, m_configuration, m_regionBounds, m_session, collisionGridSpacing, nonUniformScaleEntities);
         static_cast<Internal::PreparedComposition&>(*replacement) = AZStd::move(prepared.m_query);
+        for (const auto& entry:m_meshBlendRegistrations)
+            if (entry.second.m_blendDistance>0 && entry.second.m_worldBounds.IsValid())
+                replacement->m_meshBlendBounds.push_back(entry.second.m_worldBounds);
+
         if (!replacement->m_overlap.m_diagnostic.empty() && replacement->m_overlap.m_diagnostic != previous->m_overlap.m_diagnostic)
             m_pendingDiagnostics.push_back(AZStd::string::format("Composition %s material overlap disabled: %s",
                 m_address.second.ToString().c_str(), replacement->m_overlap.m_diagnostic.c_str()));

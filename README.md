@@ -77,3 +77,5 @@ source-aware PBR blending, Material Canvas authoring, retained-material integrat
 resource limits and validation for issue #19.
 
 The [TG consumer integration](integrations/tg/README.md) versions the TG-side material, normal-storage and test updates alongside the Gem and synchronizes their managed copies during TG CMake configuration.
+
+Imported PBR meshes and prefabs can use the reusable [mesh-to-terrain blend material](docs/MeshTerrainBlending.md), preserving atlas UVs and exposing per-instance Blend Distance without rock masks.

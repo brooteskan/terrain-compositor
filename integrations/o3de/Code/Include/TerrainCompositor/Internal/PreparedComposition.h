@@ -19,5 +19,6 @@ namespace TerrainCompositor::Internal
         // Retain render-only gaps to correlate ownership with the query revision.
         AZStd::vector<PreparedTerrainMeshHeightGap> m_meshHeightGaps;
         PreparedTerrainOverlap m_overlap;
+        AZStd::vector<AZ::Aabb> m_meshBlendBounds;
     };
 }

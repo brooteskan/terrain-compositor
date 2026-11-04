@@ -1,4 +1,6 @@
 set(FILES
+    Code/Include/TerrainCompositor/Components/TerrainMeshBlendComponent.h
+    Code/Source/Components/TerrainMeshBlendComponent.cpp
     Code/Include/TerrainCompositor/Internal/TerrainCollision.h
     Code/Source/TerrainCollision.cpp
     Code/Include/TerrainCompositor/TerrainHeightPrecision.h

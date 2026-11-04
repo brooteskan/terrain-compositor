@@ -180,6 +180,26 @@ namespace TerrainCompositor
             }
             // Never let hash-map iteration decide which region wins a scene-wide resource budget.
             words[overlapHeader] = overlapResourceFailure ? 0 : overlapCount;
+            // Keep the overlap footer last for old readers. The preceding versioned
+            // section records contact regions that must sample terrain directly,
+            // avoiding a far-distance cache/direct-sampling seam against mesh skirts.
+            const auto contactHeader=append(1);
+            AZ::u32 contactCount=0;
+            for (const auto& query:snapshot->m_renderGeometryQueries)
+            {
+                if (!query.m_surfaces) continue;
+                for (const auto& bounds:query.m_surfaces->m_meshBlendBounds)
+                {
+                    if (!bounds.IsValid()) continue;
+                    const auto at=append(4);
+                    putFloat(at,bounds.GetMin().GetX()); putFloat(at+1,bounds.GetMin().GetY());
+                    putFloat(at+2,bounds.GetMax().GetX()); putFloat(at+3,bounds.GetMax().GetY());
+                    ++contactCount;
+                }
+            }
+            words[contactHeader]=contactCount;
+            words.push_back(contactHeader);
+            words.push_back(0x54434d42u); // TCMB
             words.push_back(overlapHeader);
             words.push_back(TerrainOverlapMagic);
             m_statistics.m_overlapRegions = words[overlapHeader];

@@ -359,7 +359,11 @@ namespace TerrainCompositor
                 if(!raster->FindAttachmentBinding(slotName))
                 {
                     auto slot=Slot(slotName,RPI::PassSlotType::Input,RHI::ScopeAttachmentUsage::Shader);
-                    raster->AddAttachmentBinding(RPI::PassAttachmentBinding(slot));
+                    RPI::PassAttachmentBinding cacheBinding(slot);
+                    // Added after the raster pass has been built: RenderPass::BuildInternal
+                    // will not resolve the NoBind name for this dependency-only slot.
+                    cacheBinding.m_shaderInputIndex=RPI::PassAttachmentBinding::ShaderInputNoBind;
+                    raster->AddAttachmentBinding(cacheBinding);
                 }
                 auto* binding=raster->FindAttachmentBinding(slotName);
                 const auto& image=state.layers[level].images[c];

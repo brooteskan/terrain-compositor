@@ -1,0 +1,250 @@
+{
+  "description": "Opaque imported PBR meshes blended into a shared world-space terrain surface. Arbitrary atlas UVs are preserved; no rock masks.",
+  "version": 1,
+  "propertyLayout": {
+    "propertyGroups": [
+      {
+        "$import": "@gemroot:Atom_Feature_Common@/Assets/Materials/Types/MaterialInputs/BaseColorPropertyGroup.json"
+      },
+      {
+        "$import": "@gemroot:Atom_Feature_Common@/Assets/Materials/Types/MaterialInputs/VertexColorPropertyGroup.json"
+      },
+      {
+        "$import": "@gemroot:Atom_Feature_Common@/Assets/Materials/Types/MaterialInputs/MetallicPropertyGroup.json"
+      },
+      {
+        "$import": "@gemroot:Atom_Feature_Common@/Assets/Materials/Types/MaterialInputs/RoughnessPropertyGroup.json"
+      },
+      {
+        "$import": "@gemroot:Atom_Feature_Common@/Assets/Materials/Types/MaterialInputs/SpecularPropertyGroup.json"
+      },
+      {
+        "$import": "@gemroot:Atom_Feature_Common@/Assets/Materials/Types/MaterialInputs/NormalPropertyGroup.json"
+      },
+      {
+        "$import": "@gemroot:Atom_Feature_Common@/Assets/Materials/Types/MaterialInputs/OcclusionPropertyGroup.json"
+      },
+      {
+        "$import": "@gemroot:Atom_Feature_Common@/Assets/Materials/Types/MaterialInputs/EmissivePropertyGroup.json"
+      },
+      {
+        "$import": "@gemroot:Atom_Feature_Common@/Assets/Materials/Types/MaterialInputs/ClearCoatPropertyGroup.json"
+      },
+      {
+        "$import": "@gemroot:Atom_Feature_Common@/Assets/Materials/Types/MaterialInputs/ParallaxPropertyGroup.json"
+      },
+      {
+        "$import": "@gemroot:Atom_Feature_Common@/Assets/Materials/Types/MaterialInputs/OpacityPropertyGroup.json"
+      },
+      {
+        "$import": "@gemroot:Atom_Feature_Common@/Assets/Materials/Types/MaterialInputs/UvPropertyGroup.json"
+      },
+      {
+        "$import": "@gemroot:Atom_Feature_Common@/Assets/Materials/Types/MaterialInputs/IrradiancePropertyGroup.json"
+      },
+      {
+        "$import": "@gemroot:Atom_Feature_Common@/Assets/Materials/Types/MaterialInputs/GeneralCommonPropertyGroup.json"
+      },
+      {
+        "$import": "@gemroot:Atom_Feature_Common@/Assets/Materials/Types/MaterialInputs/SilhouetteBlockerPropertyGroup.json"
+      },
+      {
+        "name": "terrainBlend",
+        "displayName": "Terrain Blending",
+        "properties": [
+          {
+            "name": "distance",
+            "displayName": "Blend Distance",
+            "type": "Float",
+            "connection": {
+              "type": "ShaderInput",
+              "name": "m_terrainBlend_distance"
+            },
+            "defaultValue": 0.0,
+            "description": "World metres above the terrain surface over which the imported material transitions to terrain. Zero disables blending. No masks or surface exclusions.",
+            "min": 0.0,
+            "visibility": "Hidden"
+          },
+          {
+            "name": "groundHeight",
+            "displayName": "Terrain Height",
+            "type": "Float",
+            "connection": {
+              "type": "ShaderInput",
+              "name": "m_terrainBlend_groundHeight"
+            },
+            "defaultValue": 0.0,
+            "description": "World height of a flat base, or offset added to the optional terrain height image."
+          },
+          {
+            "name": "heightTexture",
+            "displayName": "Terrain Height Image",
+            "type": "Image",
+            "connection": {
+              "type": "ShaderInput",
+              "name": "m_terrainBlend_heightTexture"
+            },
+            "description": "Optional linear height field; absent uses Terrain Height."
+          },
+          {
+            "name": "heightBounds",
+            "displayName": "Height Image Bounds",
+            "type": "Vector4",
+            "connection": {
+              "type": "ShaderInput",
+              "name": "m_terrainBlend_heightBounds"
+            },
+            "defaultValue": [
+              0.0,
+              0.0,
+              1.0,
+              1.0
+            ],
+            "description": "World XY origin and positive XY extent. Image top maps to world +Y."
+          },
+          {
+            "name": "heightScale",
+            "displayName": "Height Image Scale",
+            "type": "Float",
+            "connection": {
+              "type": "ShaderInput",
+              "name": "m_terrainBlend_heightScale"
+            },
+            "defaultValue": 1.0,
+            "description": "Metres per normalized height-image unit.",
+            "min": 0.0
+          },
+          {
+            "name": "colorTexture",
+            "displayName": "Terrain Color",
+            "type": "Image",
+            "connection": {
+              "type": "ShaderInput",
+              "name": "m_terrainBlend_colorTexture"
+            }
+          },
+          {
+            "name": "normalTexture",
+            "displayName": "Terrain Normal",
+            "type": "Image",
+            "connection": {
+              "type": "ShaderInput",
+              "name": "m_terrainBlend_normalTexture"
+            }
+          },
+          {
+            "name": "textureScale",
+            "displayName": "Terrain Texture World Size",
+            "type": "Float",
+            "connection": {
+              "type": "ShaderInput",
+              "name": "m_terrainBlend_textureScale"
+            },
+            "defaultValue": 1000.0,
+            "description": "Metres per full texture repeat.",
+            "min": 0.0001
+          },
+          {
+            "name": "stochasticTiling",
+            "displayName": "Randomized Interior Tiling",
+            "type": "Bool",
+            "connection": {
+              "type": "ShaderInput",
+              "name": "m_terrainBlend_stochasticTiling"
+            },
+            "defaultValue": true
+          },
+          {
+            "name": "colorTint",
+            "displayName": "Terrain Color Tint",
+            "type": "Color",
+            "connection": {
+              "type": "ShaderInput",
+              "name": "m_terrainBlend_colorTint"
+            },
+            "defaultValue": [
+              1.0,
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          {
+            "name": "normalStrength",
+            "displayName": "Terrain Normal Strength",
+            "type": "Float",
+            "connection": {
+              "type": "ShaderInput",
+              "name": "m_terrainBlend_normalStrength"
+            },
+            "defaultValue": 1.0,
+            "min": 0.0
+          },
+          {
+            "name": "roughness",
+            "displayName": "Terrain Roughness",
+            "type": "Float",
+            "connection": {
+              "type": "ShaderInput",
+              "name": "m_terrainBlend_roughness"
+            },
+            "defaultValue": 1.0,
+            "min": 0.0
+          },
+          {
+            "name": "specularFactor",
+            "displayName": "Terrain Specular Factor",
+            "type": "Float",
+            "connection": {
+              "type": "ShaderInput",
+              "name": "m_terrainBlend_specularFactor"
+            },
+            "defaultValue": 0.5,
+            "min": 0.0
+          },
+          {
+            "name": "ambientOcclusion",
+            "displayName": "Terrain Ambient Occlusion",
+            "type": "Float",
+            "connection": {
+              "type": "ShaderInput",
+              "name": "m_terrainBlend_ambientOcclusion"
+            },
+            "defaultValue": 1.0,
+            "min": 0.0
+          },
+          {
+            "name": "atlasParallax",
+            "displayName": "Atlas Parallax Mapping",
+            "type": "Bool",
+            "defaultValue": true,
+            "description": "Use physical UV derivatives so POM height is in model metres, independent of atlas packing.",
+            "connection": {
+              "type": "ShaderInput",
+              "name": "m_terrainBlend_atlasParallax"
+            }
+          },
+          {
+            "name": "atlasGutterPixels",
+            "displayName": "Atlas Gutter",
+            "type": "Float",
+            "defaultValue": 6.0,
+            "description": "Maximum parallax UV offset in height-texture pixels. Zero removes the bound; set to the exported island gutter.",
+            "connection": {
+              "type": "ShaderInput",
+              "name": "m_terrainBlend_atlasGutterPixels"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "lightingModel": "Standard",
+  "materialShaderDefines": "@gemroot:Atom_Feature_Common@/Assets/Materials/Types/StandardPBR_Defines.azsli",
+  "materialShaderCode": "TerrainMeshBlend.azsli",
+  "functors": [],
+  "uvNameMap": {
+    "UV0": "Tiled",
+    "UV1": "Unwrapped"
+  }
+}

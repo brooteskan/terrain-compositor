@@ -1,0 +1,26 @@
+#pragma once
+// Bound the entire search path, including its starting depth offset, before
+// sampling height. Clamping only the final hit still reads neighbouring charts.
+float3 TC_BoundAtlasRay(float3 ray, float depthScale, float depthOffset, float2 uvLimit)
+{
+    if (any(uvLimit<=0)) return ray;
+    float travel=max(abs(depthOffset),abs(depthOffset+depthScale));
+    float2 extent=abs(ray.xy)*travel/max(ray.z,1e-12);
+    float2 ratio=uvLimit/max(extent,float2(1e-12,1e-12));
+    ray.xy*=min(1,min(ratio.x,ratio.y));
+    return ray;
+}
+// Dual UV gradients convert a physical ray into atlas coordinates. Imported
+// tangents are unit directions and cannot represent metres-per-atlas-repeat.
+bool TC_AtlasRay(float3 normal, float3 worldDx, float3 worldDy,
+    float2 uvDx, float2 uvDy, float3 rayWS, out float3 rayUvDepth)
+{
+    float3 x=cross(worldDy,normal), y=cross(normal,worldDx);
+    float determinant=dot(worldDx,x);
+    rayUvDepth=float3(0,0,1);
+    if (!isfinite(determinant) || abs(determinant)<1e-15) return false;
+    float3 gradU=(uvDx.x*x+uvDy.x*y)/determinant;
+    float3 gradV=(uvDx.y*x+uvDy.y*y)/determinant;
+    rayUvDepth=float3(dot(gradU,rayWS),dot(gradV,rayWS),dot(normal,rayWS));
+    return all(isfinite(rayUvDepth)) && rayUvDepth.z>1e-6;
+}

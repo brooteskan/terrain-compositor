@@ -228,6 +228,11 @@ namespace TerrainCompositor
         bool RegisterMeshCutout(const TerrainMeshCutoutRegistrationData& registration) override;
         bool RegisterMeshHeightStamp(const TerrainMeshHeightStampRegistrationData& registration) override;
         AZ::Uuid GetCompositionSession() const override;
+        bool RegisterMeshBlend(const TerrainMeshBlendRegistrationData& registration) override;
+        void UnregisterMeshBlend(AZ::EntityId entityId, const AZ::Uuid& session) override;
+        AZStd::vector<TerrainMeshBlendRegistrationData> GetRegisteredMeshBlends() const override;
+        AZStd::unordered_map<AZ::EntityId,TerrainMeshBlendRegistrationData> m_meshBlendRegistrations;
+
         void UnregisterStamp(AZ::EntityId stampEntityId, const AZ::Uuid& registrationId, const AZ::Uuid& compositionSession) override;
         AZStd::vector<HeightmapStampRegistrationData> GetRegisteredStamps() const override;
         void UnregisterMeshCutout(AZ::EntityId cutoutEntityId, const AZ::Uuid& registrationId, const AZ::Uuid& compositionSession) override;
