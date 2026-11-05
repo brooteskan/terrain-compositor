@@ -47,21 +47,48 @@ real3 GetDiffuseLighting_Vue(Surface surface, LightingData lightingData, real3 l
 #endif
 
 #if MATERIALPIPELINE_SHADER_HAS_PIXEL_STAGE || MATERIALPIPELINE_SHADER_HAS_GEOMETRIC_PIXEL_STAGE
-// The custom-depth pipeline writes SV_Depth. Its default centroid position
-// broadcasts one depth to every MSAA sample, which can overlap the ground even
-// when the mesh is above it. Preserve raster depth and evaluate the ground
-// cutoff at each sample in both the depth and color passes.
+// Keep sample interpolation only for materials that require custom pixel depth.
+// Plain opaque terrain clips against the ground in the rasterizer, allowing
+// ordinary pixel-frequency shading while retaining per-sample MSAA coverage.
 #define VsOutput VsOutput_VueTerrain
 struct VsOutput_VueTerrain
 {
+#if OUTPUT_DEPTH || MATERIALPIPELINE_SHADER_HAS_GEOMETRIC_PIXEL_STAGE || !FORCE_OPAQUE
+    // Custom-depth/cutout materials retain the existing per-sample path.
     precise sample float4 position : SV_Position;
     sample float3 worldPosition : UV4;
+#else
+    // Hardware-clipped opaque terrain uses raster depth and pixel shading.
+    precise centroid float4 position : SV_Position;
+    centroid float3 worldPosition : UV4;
+#endif
     float3 normal : NORMAL;
     float4 tangent : TANGENT;
     float2 uvs[UvSetCount] : UV0;
     float3 localPosition : UV5;
     float4 color0 : UV7;
+#if OUTPUT_DEPTH || MATERIALPIPELINE_SHADER_HAS_GEOMETRIC_PIXEL_STAGE || !FORCE_OPAQUE
     sample float2 terrainUv : UV8;
+#else
+    float2 terrainUv : UV8;
+#endif
+    float groundClipDistance : SV_ClipDistance0;
+    float groundCullDistance : SV_CullDistance0;
+    uint m_instanceId : SV_InstanceID;
+};
+#else
+// Position-only depth/shadow and motion-vector paths carry the same clip plane.
+#define VsOutput VsOutput_VueTerrain
+struct VsOutput_VueTerrain
+{
+    precise centroid float4 position : SV_Position;
+#if MATERIAL_USES_VERTEX_POSITIONWS
+    float3 worldPosition : UV4;
+#endif
+#if MATERIAL_USES_VERTEX_PREV_POSITION
+    float3 worldPosPrev : UV6;
+#endif
+    float groundClipDistance : SV_ClipDistance0;
     float groundCullDistance : SV_CullDistance0;
     uint m_instanceId : SV_InstanceID;
 };
