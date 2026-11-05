@@ -51,17 +51,18 @@
      private:
  
          using MaterialInstance = AZ::Data::Instance<AZ::RPI::Material>;
-@@ -75,6 +82,9 @@
+@@ -75,6 +82,10 @@
          //! AZ::Data::AssetBus overrides...
          void OnAssetReady(AZ::Data::Asset<AZ::Data::AssetData> asset) override;
          void OnAssetReloaded(AZ::Data::Asset<AZ::Data::AssetData> asset) override;
 +        void OnAssetError(AZ::Data::Asset<AZ::Data::AssetData> asset) override;
 +        void OnAssetReloadError(AZ::Data::Asset<AZ::Data::AssetData> asset) override;
 +        bool ValidateTintMaterial(const MaterialInstance& material) const;
++        bool PrepareMaterialForDraw();
  
          // AzFramework::Terrain::TerrainDataNotificationBus overrides...
          void OnTerrainDataDestroyBegin() override;
-@@ -84,7 +94,6 @@
+@@ -84,7 +95,6 @@
          void OnRenderPipelineChanged(AZ::RPI::RenderPipeline* pipeline, AZ::RPI::SceneNotification::RenderPipelineChangeType changeType) override;
          
          // AZ::RPI::FeatureProcessor overrides...
@@ -69,7 +70,7 @@
  
          void Initialize();
  
-@@ -94,13 +103,22 @@
+@@ -94,13 +104,23 @@
  
          void CachePasses();
  
@@ -82,6 +83,7 @@
  
          AZ::Data::Asset<AZ::RPI::MaterialAsset> m_materialAsset;
          MaterialInstance m_materialInstance;
++        bool m_materialDrawDeferred = false;
 +        MaterialInstance m_defaultMaterial;
 +        MaterialInstance m_pendingTintMaterial;
 +        AZ::Data::Asset<AZ::RPI::MaterialAsset> m_tintAsset;

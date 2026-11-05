@@ -3,6 +3,29 @@
 // compiled into Terrain.Static, so the optional Canvas Gem adds no reverse link.
 namespace Terrain
 {
+    bool TerrainFeatureProcessor::PrepareMaterialForDraw()
+    {
+        if (!m_materialInstance || m_materialInstance->NeedsCompile()) return false;
+        const auto srg = m_materialInstance->GetShaderResourceGroup();
+        if (!srg || !srg->IsInitialized() || srg->IsQueuedForCompile()) return false;
+        const auto* submitted = m_materialInstance->GetRHIShaderResourceGroup();
+        if (!submitted || submitted->IsQueuedForCompile()) return false;
+        if (!TerrainCompositor::IsTerrainPublicationCurrent(srg->GetLayout(), *srg, submitted->GetData()))
+        {
+            // Buffer setters alone need not dirty the Material. Queue complete
+            // bindings even for a zero-count publication, then admit a later frame.
+            bool complete = true;
+            for (const char* name : { "m_meshCutouts", "m_meshCutoutVertices", "m_meshCutoutIndices", "m_meshHeightGaps", "m_meshHeightGapWords", "m_surfaceWords" })
+            {
+                const auto index = srg->FindShaderInputBufferIndex(AZ::Name(name));
+                complete &= index.IsValid() && srg->GetBufferView(index) != nullptr;
+            }
+            if (complete) srg->Compile();
+            return false;
+        }
+        return true;
+    }
+
     void TerrainFeatureProcessor::ValidateActiveTintMaterial()
     {
         // Material shader reloads can replace an SRG inside the same instance.

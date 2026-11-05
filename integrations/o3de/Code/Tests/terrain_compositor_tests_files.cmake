@@ -4,6 +4,7 @@ set(FILES
     TerrainHeightPrecisionTests.cpp
     ProceduralHillReference.h
     InternalHelperTests.cpp
+    TerrainMaterialReadinessTests.cpp
     ImageRegistrationStateTests.cpp
     MeshRegistrationStateTests.cpp
     RegistrationStateReference.h

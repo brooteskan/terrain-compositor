@@ -1,8 +1,36 @@
 #pragma once
 #include <Atom/RHI.Reflect/ShaderResourceGroupLayout.h>
+#include <AzCore/std/algorithm.h>
 
 namespace TerrainCompositor
 {
+    // Compare the complete publication, including valid empty buffers when all
+    // counts are zero. Queued RHI compilation is checked by the draw admission gate.
+    template<class RequestedData, class SubmittedData>
+    bool IsTerrainPublicationCurrent(
+        const AZ::RHI::ShaderResourceGroupLayout* layout,
+        const RequestedData& requested, const SubmittedData& submitted)
+    {
+        if (!layout) return false;
+        for (const char* name : { "m_meshCutouts", "m_meshCutoutVertices", "m_meshCutoutIndices", "m_meshHeightGaps", "m_meshHeightGapWords", "m_surfaceWords" })
+        {
+            const auto index = layout->FindShaderInputBufferIndex(AZ::Name(name));
+            if (!index.IsValid()) return false;
+            const auto& view = requested.GetBufferView(index, 0);
+            if (!view || view != submitted.GetBufferView(index, 0)) return false;
+        }
+        for (const char* name : { "m_meshCutoutCount", "m_meshCutoutRevision", "m_meshHeightGapCount", "m_meshHeightGapRevision", "m_surfaceRegionCount", "m_surfaceRevision" })
+        {
+            const auto index = layout->FindShaderInputConstantIndex(AZ::Name(name));
+            if (!index.IsValid()) return false;
+            const auto current = requested.GetConstantRaw(index);
+            const auto compiled = submitted.GetConstantRaw(index);
+            if (current.size() != sizeof(AZ::u32) || compiled.size() != current.size() ||
+                !AZStd::equal(current.begin(), current.end(), compiled.begin())) return false;
+        }
+        return true;
+    }
+
     // Additional graph fields and resource order are deliberately unrestricted.
     inline bool ValidateTerrainRendererBindings(
         const AZ::RHI::ShaderResourceGroupLayout* layout,

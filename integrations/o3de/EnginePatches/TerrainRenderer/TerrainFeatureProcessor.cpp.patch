@@ -1,6 +1,24 @@
 --- a/TerrainRenderer/TerrainFeatureProcessor.cpp
 +++ b/TerrainRenderer/TerrainFeatureProcessor.cpp
-@@ -65,7 +65,7 @@
+@@ -7,6 +7,7 @@
+  */
+ 
+ #include <TerrainRenderer/TerrainFeatureProcessor.h>
++#include <AzCore/Console/IConsole.h>
+ 
+ #include <Atom/Utils/Utils.h>
+ #include <Atom/RHI/RHISystemInterface.h>
+@@ -28,6 +29,9 @@
+ #include <Atom/RPI.Reflect/Asset/AssetUtils.h>
+ #include <Atom/RPI.Reflect/Material/MaterialAssetCreator.h>
+ 
++AZ_CVAR(bool, r_terrainMaterialReadinessDiagnostics, false, nullptr, AZ::ConsoleFunctorFlags::Null,
++    "Log terrain material draw admission changes.");
++
+ namespace Terrain
+ {
+     namespace
+@@ -65,7 +69,7 @@
          {
              m_materialAsset.Create(materialAssetId);
              m_materialAsset.QueueLoad();
@@ -9,7 +27,7 @@
          }
  
          OnTerrainDataChanged(
-@@ -75,22 +75,23 @@
+@@ -75,22 +79,23 @@
  
      void TerrainFeatureProcessor::Deactivate()
      {
@@ -41,7 +59,7 @@
      }
  
      void TerrainFeatureProcessor::Render(const AZ::RPI::FeatureProcessor::RenderPacket& packet)
-@@ -100,6 +101,15 @@
+@@ -100,6 +105,15 @@
  
      void TerrainFeatureProcessor::OnAssetReady(AZ::Data::Asset<AZ::Data::AssetData> asset)
      {
@@ -57,7 +75,7 @@
          m_materialAsset = asset;
          if (!m_materialAsset->GetObjectSrgLayout())
          {
-@@ -107,7 +117,9 @@
+@@ -107,7 +121,9 @@
          }
          else
          {
@@ -68,7 +86,7 @@
              PrepareMaterialData();
              m_terrainBoundsNeedUpdate = true;
          }
-@@ -122,9 +134,10 @@
+@@ -122,9 +138,10 @@
      {
          m_zBounds = {};
      }
@@ -80,7 +98,7 @@
          if ((dataChangedMask & TerrainDataChangedMask::Settings) == TerrainDataChangedMask::Settings)
          {
              AzFramework::Terrain::TerrainDataRequestBus::BroadcastResult(
-@@ -144,17 +157,7 @@
+@@ -144,17 +161,7 @@
          }
      }
  
@@ -99,7 +117,7 @@
  
      void TerrainFeatureProcessor::PrepareMaterialData()
      {
-@@ -173,59 +176,19 @@
+@@ -173,59 +180,19 @@
                      // skip the rest of shader items
                      return false;
                  }
@@ -161,7 +179,7 @@
          if (m_zBounds.m_min == 0.0f && m_zBounds.m_max == 0.0f)
          {
              return;
-@@ -233,14 +196,12 @@
+@@ -233,14 +200,12 @@
  
          if (m_materialInstance && m_materialInstance->CanCompile())
          {
@@ -176,7 +194,7 @@
                      break;
                  }
              }
-@@ -249,30 +210,18 @@
+@@ -249,30 +214,27 @@
              {
                  if (m_meshManager.IsInitialized())
                  {
@@ -202,18 +220,30 @@
 -                    }
 -                }
 -            }
+-
+-            if (m_meshManager.IsInitialized())
+-            {
 +            }
 +
-+            m_graphClipmaps.Update(GetParentScene(), m_materialInstance, m_terrainSrg, mainView, m_meshManager.GetGraphCacheGeometryRevision());
- 
-             if (m_meshManager.IsInitialized())
-             {
++            const bool materialReady = PrepareMaterialForDraw();
++            if (m_materialDrawDeferred == materialReady)
++            {
++                if (r_terrainMaterialReadinessDiagnostics)
++                    AZ_TracePrintf("TerrainMaterialReadiness", "%s terrain material publication.\n",
++                        materialReady ? "Admitted compiled" : "Deferred incomplete");
++                m_materialDrawDeferred = !materialReady;
++            }
++            if (materialReady)
++                m_graphClipmaps.Update(GetParentScene(), m_materialInstance, m_terrainSrg, mainView, m_meshManager.GetGraphCacheGeometryRevision());
++
++            if (m_meshManager.IsInitialized() && materialReady)
++            {
 +                AZ_PROFILE_SCOPE(AzRender, "Terrain::DrawMeshes");
 +                m_meshManager.SetMaterial(m_materialInstance);
                  m_meshManager.DrawMeshes(process, mainView);
              }
          }
-@@ -292,11 +241,13 @@
+@@ -292,11 +254,13 @@
  
          if (m_materialInstance)
          {
@@ -227,7 +257,7 @@
              m_terrainSrg->Compile();
              for (auto* pass : m_passes)
              {
-@@ -305,22 +256,36 @@
+@@ -305,22 +269,36 @@
          }
      }
  
@@ -277,7 +307,7 @@
      void TerrainFeatureProcessor::CachePasses()
      {
          m_passes.clear();
-@@ -361,8 +326,7 @@
+@@ -361,8 +339,7 @@
          return m_materialInstance;
      }
  
