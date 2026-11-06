@@ -38,8 +38,15 @@ Surface EvaluateSurface_VueTerrain(VsOutput IN, VsSystemValues SV, PixelGeometry
     {
         // Derivatives must precede the varying height branch. SampleGrad keeps
         // the original texture footprint for quads crossing the transition.
-        float2 groundPositionDx = ddx(surface.position.xy);
-        float2 groundPositionDy = ddy(surface.position.xy);
+        // Centroid interpolation is useful for shading covered samples, but
+        // its edge-dependent locations are not a valid texture derivative grid.
+        // Evaluate the pixel centre and project onto the ground plane first.
+        float3 footprintPosition = EvaluateAttributeSnapped(IN.worldPosition, int2(0, 0));
+        float2 footprint = footprintPosition.xy;
+        if (abs(ViewSrg::m_projectionMatrix[3][3]) < 0.5)
+            footprint = TC_GroundFootprintPosition(footprintPosition, ViewSrg::m_worldPosition, params.m_vueGroundHeight);
+        float2 groundPositionDx = ddx(footprint);
+        float2 groundPositionDy = ddy(footprint);
         if (blend > 0.0)
         {
             VueGroundParameters ground;

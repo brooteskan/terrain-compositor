@@ -25,6 +25,16 @@ struct TC_GroundChannels
 
 static const float TC_GroundPatchFraction = 0.35;
 
+// Match the flat ground's screen-space texture footprint at a terrain contact.
+// Using the sloping mesh's derivatives selects different texture mips, which
+// becomes a visible material join when rendering at a lower resolution.
+float2 TC_GroundFootprintPosition(float3 position, float3 camera, float groundHeight)
+{
+    float dz = position.z - camera.z;
+    if (abs(dz) < 0.0001 || abs(groundHeight - camera.z) < 0.0001) return position.xy;
+    return camera.xy + (position.xy - camera.xy) * ((groundHeight - camera.z) / dz);
+}
+
 // Performance-first cell randomization: arithmetic rather than sine hashing.
 // This intentionally changes patch distribution, not the interior-UV bounds.
 // Both color and normal sampling must use this same deterministic mapping.
