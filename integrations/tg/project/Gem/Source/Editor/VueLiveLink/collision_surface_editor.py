@@ -28,7 +28,7 @@ PROJECT = Path(paths.projectroot)
 OWNED = {
     'Vue Terrain Walkable Surface': {'Heightmap Stamp': [
         'Configuration|'+key for key in ['Target Composition', 'Heightmap Asset', 'Footprint Width',
-        'Footprint Depth', 'Height Scale', 'Vertical Offset', 'Strength', 'Edge Feather Width', 'Priority']]},
+        'Footprint Depth', 'Height Scale', 'Vertical Offset', 'Strength', 'Render Height', 'Edge Feather Width', 'Priority']]},
     'Vue Terrain Render Mask': {
         'Mesh': ['Controller|Configuration|Model Asset'],
         'Terrain Mesh Cutout': ['Configuration|'+key for key in ['Target Composition', 'Cutout Mesh',

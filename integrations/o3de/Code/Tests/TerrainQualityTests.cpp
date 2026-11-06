@@ -31,6 +31,7 @@ namespace TerrainCompositor
     TEST(TerrainQualityConfigurationTests, NewFieldsHaveCompatibilityDefaultsAndAreReflectedAtCurrentVersions)
     {
         HeightmapStampConfig stamp;
+        EXPECT_TRUE(stamp.m_renderHeight);
         EXPECT_EQ(stamp.m_samplingMode, HeightmapSamplingMode::Bilinear);
         EXPECT_FLOAT_EQ(stamp.m_reconstructionRadius, 0.0f);
 
@@ -56,8 +57,8 @@ namespace TerrainCompositor
         HeightmapStampConfig::Reflect(&serializeContext);
         serializeContext.DisableRemoveReflection();
 
-        EXPECT_EQ(stampVersion, 7);
-        EXPECT_EQ(compositionVersion, 3);
+        EXPECT_EQ(stampVersion, 8);
+        EXPECT_EQ(compositionVersion, 5);
     }
 
     TEST(TerrainQualityConfigurationTests, LegacyConfigurationsLoadWithCompatibilityDefaults)
@@ -81,6 +82,7 @@ namespace TerrainCompositor
             AZ::Utils::LoadObjectFromBuffer<HeightmapStampConfig>(stampBuffer.data(), stampBuffer.size(), &currentContext));
         ASSERT_NE(stamp, nullptr);
         EXPECT_FLOAT_EQ(stamp->m_strength, 0.25f);
+        EXPECT_TRUE(stamp->m_renderHeight);
         EXPECT_EQ(stamp->m_samplingMode, HeightmapSamplingMode::Bilinear);
         EXPECT_FLOAT_EQ(stamp->m_reconstructionRadius, 0.0f);
 

@@ -101,6 +101,7 @@ namespace TerrainCompositor::Internal
             {
                 PreparedHeightContributor contributor;
                 contributor.m_type = PreparedHeightContributor::Type::Image;
+                contributor.m_renderHeight = registration.m_configuration.m_renderHeight;
                 contributor.m_image = AZStd::move(prepared);
                 query.m_heightContributors.push_back(AZStd::move(contributor));
             }

@@ -86,6 +86,7 @@ namespace TerrainCompositor
             if (a.m_heightmapAsset.GetId() != b.m_heightmapAsset.GetId() || a.m_heightScale != b.m_heightScale ||
                 a.m_verticalOffset != b.m_verticalOffset || a.m_samplingMode != b.m_samplingMode ||
                 a.m_reconstructionRadius != b.m_reconstructionRadius || a.m_relativeEdgeBlend != b.m_relativeEdgeBlend ||
+                a.m_renderHeight != b.m_renderHeight ||
                 !Internal::AssetSnapshotsEqual(previous->m_heightmap, current.m_heightmap))
             {
                 dirty |= DirtyHeight;
@@ -1183,6 +1184,16 @@ namespace TerrainCompositor
     TerrainRenderGeometryQuery TerrainCompositionGradientComponent::CreateRenderGeometryQuery(QueryStatePtr state,
         TerrainProceduralSnapshotPtr source, TerrainSourceAcquisition acquisition)
     {
+        if (AZStd::any_of(state->m_heightContributors.begin(), state->m_heightContributors.end(),
+            [](const auto& contributor) { return !contributor.m_renderHeight; }))
+        {
+            // Own a render-only immutable view once per publication. The
+            // original state continues serving collision/ordinary height queries.
+            // Source acquisition reuses this filtered view; no per-sample copy.
+            auto rendered = std::make_shared<QueryState>(*state);
+            AZStd::erase_if(rendered->m_heightContributors, [](const auto& contributor) { return !contributor.m_renderHeight; });
+            state = AZStd::move(rendered);
+        }
         TerrainRenderGeometryQuery query;
         query.m_surfaces = state;
         query.m_regionBounds = state->m_regionBounds;

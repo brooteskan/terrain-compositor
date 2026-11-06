@@ -3,6 +3,7 @@
 #include <Tests/Mocks/Terrain/MockTerrainDataRequestBus.h>
 #include "TerrainTestFixtures.h"
 #include <cmath>
+#include <set>
 
 namespace Terrain
 {
@@ -13,6 +14,138 @@ namespace Terrain
     protected:
         using Manager = TerrainMeshManager;
         using Vertex = Manager::HeightNormalVertex;
+
+        void CheckFlatGroundEligibility()
+        {
+            auto settings = Settings();
+            settings->m_gridSize = 8;
+            settings->m_gridVerts1D = 9;
+            settings->m_gridVerts2D = 81;
+            settings->m_clodEnabled = true;
+            Manager::PreparedSectorResult result;
+            result.m_request.m_data.m_settings = settings;
+            result.m_status = Manager::SectorPreparationStatus::Ready;
+            result.m_hasData = true;
+            const auto reset = [&]()
+            {
+                result.m_heights.assign(81, Vertex{0.5f, {0, 0}});
+                result.m_lodHeights = result.m_heights;
+            };
+            reset();
+            EXPECT_TRUE(Manager::IsFlatGround(result));
+            // Inspect every vertex, including interior relief and edge/halo normals.
+            for (size_t index = 0; index < 81; ++index)
+            {
+                reset(); result.m_heights[index].m_height = std::nextafter(0.5f, 1.0f);
+                EXPECT_FALSE(Manager::IsFlatGround(result));
+                reset(); result.m_heights[index].m_height = Manager::NoTerrainVertexHeight;
+                EXPECT_FALSE(Manager::IsFlatGround(result));
+                reset(); result.m_heights[index].m_normal.first = 1;
+                EXPECT_FALSE(Manager::IsFlatGround(result));
+                reset(); result.m_lodHeights[index].m_height = 0.51f;
+                EXPECT_FALSE(Manager::IsFlatGround(result));
+                reset(); result.m_lodHeights[index].m_normal.second = 1;
+                EXPECT_FALSE(Manager::IsFlatGround(result));
+            }
+            for (float invalid : {Manager::NoTerrainVertexHeight, -0.1f, 1.1f,
+                AZStd::numeric_limits<float>::infinity(), AZStd::numeric_limits<float>::quiet_NaN()})
+            {
+                reset();
+                for (auto& vertex : result.m_heights) vertex.m_height = invalid;
+                for (auto& vertex : result.m_lodHeights) vertex.m_height = invalid;
+                EXPECT_FALSE(Manager::IsFlatGround(result));
+            }
+            for (float height : {0.0f, 1.0f})
+            {
+                for (auto& vertex : result.m_heights) vertex.m_height = height;
+                for (auto& vertex : result.m_lodHeights) vertex.m_height = height;
+                EXPECT_TRUE(Manager::IsFlatGround(result));
+            }
+            reset(); result.m_lodHeights.pop_back();
+            EXPECT_FALSE(Manager::IsFlatGround(result));
+            settings->m_clodEnabled = false;
+            EXPECT_TRUE(Manager::IsFlatGround(result));
+            settings->m_simplifyFlatGround = false;
+            EXPECT_FALSE(Manager::IsFlatGround(result));
+            settings->m_simplifyFlatGround = true;
+            result.m_hasData = false;
+            EXPECT_FALSE(Manager::IsFlatGround(result));
+        }
+
+        void CheckFlatGroundTopology()
+        {
+            for (uint32_t grid : {8u, 16u, 32u, 64u, 128u})
+                for (bool remapped : {false, true})
+                {
+                    SCOPED_TRACE(::testing::Message() << grid << " remapped " << remapped);
+                    const uint32_t vertices = (grid + 1) * (grid + 1), side = grid / 2;
+                    AZStd::vector<uint16_t> order(vertices);
+                    for (uint32_t i = 0; i < vertices; ++i) order[i] = uint16_t(remapped ? vertices - 1 - i : i);
+                    const auto indices = Manager::CreateFlatGroundIndices(grid, order);
+                    ASSERT_EQ(indices.size(), grid * 24);
+                    const auto coordinate = [&](uint16_t index)
+                    {
+                        const uint32_t linear = remapped ? vertices - 1 - index : index;
+                        return AZStd::pair<int, int>{int(linear % (grid + 1)), int(linear / (grid + 1))};
+                    };
+                    for (uint32_t quadrant = 0; quadrant < 4; ++quadrant)
+                    {
+                        const int x = int(quadrant & 1) * side, y = int(quadrant >> 1) * side;
+                        const int maxX = x + side, maxY = y + side;
+                        int twiceArea = 0;
+                        std::set<AZStd::array<int, 4>> boundary;
+                        const size_t begin = quadrant * indices.size() / 4, end = begin + indices.size() / 4;
+                        for (size_t i = begin; i < end; i += 3)
+                        {
+                            const auto a = coordinate(indices[i]), b = coordinate(indices[i + 1]), c = coordinate(indices[i + 2]);
+                            const int cross = (b.first - a.first) * (c.second - a.second) - (b.second - a.second) * (c.first - a.first);
+                            EXPECT_GT(cross, 0); // Same upward winding as the dense grid.
+                            twiceArea += cross;
+                            const AZStd::array<AZStd::pair<int, int>, 3> points{a, b, c};
+                            for (size_t edge = 0; edge < 3; ++edge)
+                            {
+                                const auto p = points[edge], q = points[(edge + 1) % 3];
+                                ASSERT_GE(p.first, x); ASSERT_LE(p.first, maxX);
+                                ASSERT_GE(p.second, y); ASSERT_LE(p.second, maxY);
+                                const bool perimeter = (p.first == q.first && (p.first == x || p.first == maxX)) ||
+                                    (p.second == q.second && (p.second == y || p.second == maxY));
+                                if (perimeter)
+                                {
+                                    EXPECT_EQ(abs(q.first - p.first) + abs(q.second - p.second), 1);
+                                    EXPECT_TRUE(boundary.insert({p.first, p.second, q.first, q.second}).second);
+                                }
+                            }
+                        }
+                        EXPECT_EQ(twiceArea, 2 * int(side * side));
+                        EXPECT_EQ(boundary.size(), 4 * side); // Every original unit boundary segment exactly once.
+                    }
+                }
+        }
+
+        void CheckFlatGroundRenderedPrecision()
+        {
+            auto settings = Settings();
+            settings->m_gridSize = 8; settings->m_gridVerts1D = 9; settings->m_gridVerts2D = 81;
+            settings->m_clodEnabled = true;
+            Manager::PreparedSectorResult result;
+            result.m_request.m_data.m_settings = settings;
+            result.m_status = Manager::SectorPreparationStatus::Ready;
+            result.m_hasData = true;
+            result.m_heights.assign(81, Vertex{0.5f, {0, 0}});
+            result.m_lodHeights = result.m_heights;
+            // Different query floats, but exactly one height in the active GPU format.
+            result.m_heights[40].m_height = std::nextafter(0.5f, 1.0f);
+            result.m_lodHeights[17].m_height = std::nextafter(0.5f, 0.0f);
+            EXPECT_TRUE(Manager::IsFlatGround(result, true));
+            EXPECT_FALSE(Manager::IsFlatGround(result, false)); // Retain full-float raster/RT geometry.
+            result.m_lodHeights[17].m_height = 0.50048828125f; // Adjacent representable half height.
+            EXPECT_FALSE(Manager::IsFlatGround(result, true));
+            result.m_lodHeights[17].m_height = Manager::NoTerrainVertexHeight;
+            EXPECT_FALSE(Manager::IsFlatGround(result, true));
+            result.m_lodHeights[17].m_height = 0.5f;
+            result.m_heights[40].m_normal.first = 1;
+            EXPECT_FALSE(Manager::IsFlatGround(result, true));
+        }
 
         std::shared_ptr<Manager::SectorPreparationSettings> Settings()
         {
@@ -292,4 +425,10 @@ namespace Terrain
     { CheckHalfHeightStreamLayout(); }
     TEST_F(TerrainRenderingTests, RayTracingNormalsRemainUnitLengthAtPackedDiskBoundary)
     { CheckRayTracingNormalBoundary(); }
+    TEST_F(TerrainRenderingTests, FlatGroundRequiresExactRegularClodHeightAndUpwardNormalsWithoutHoles)
+    { CheckFlatGroundEligibility(); }
+    TEST_F(TerrainRenderingTests, FlatGroundFansPreserveAllQuadrantBoundariesWindingAndArea)
+    { CheckFlatGroundTopology(); }
+    TEST_F(TerrainRenderingTests, FlatGroundUsesExactSelectedGpuPrecisionAndPreservesFullFloatRayTracing)
+    { CheckFlatGroundRenderedPrecision(); }
 }

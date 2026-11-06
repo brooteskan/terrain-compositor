@@ -662,6 +662,16 @@ namespace TerrainCompositor
     class TerrainRenderGeometryBatchTests : public ::testing::Test
     {
     protected:
+        static float OrdinaryHeight(AZ::EntityId source, const PreparedHeightContributor& height, const AZ::Vector3& point)
+        {
+            TerrainCompositionGradientComponent::QueryState state;
+            state.m_ownerEntityId = AZ::EntityId(98001);
+            state.m_regionEntityId = AZ::EntityId(98002);
+            state.m_sourceEntityId = source;
+            state.m_regionMapping = {-100.0, 200.0};
+            state.m_heightContributors.push_back(height);
+            return TerrainCompositionGradientComponent::GetNormalizedHeight(state, point);
+        }
         static void CheckImmediateSourceInvalidation()
         {
             TerrainCompositionGradientComponent component;
@@ -1185,6 +1195,38 @@ namespace TerrainCompositor
         ApplyTerrainRenderGeometry(snapshot, points, heights, exists);
         EXPECT_TRUE(exists[0]);
         EXPECT_TRUE(exists[1]); // A mesh-height gap cannot become a coarse topology hole.
+    }
+
+    TEST_F(TerrainRenderGeometryBatchTests, CollisionHeightStampCanBeExcludedFromScalarAndBatchRendering)
+    {
+        const AZ::EntityId sourceId(98003);
+        CountingRenderSource source(sourceId);
+        const auto mask = MakeActiveImageMask(TerrainExistenceOperation::RemoveTerrain);
+        PreparedHeightContributor height;
+        height.m_image.m_placement = mask.m_placement;
+        height.m_image.m_image = mask.m_mask;
+        height.m_image.m_heightOrigin = 30.0;
+        height.m_image.m_heightRange = 10.0;
+        height.m_image.m_strength = 1.0;
+        height.m_image.m_relativeEdgeBlend = false;
+        const auto legacy = MakeQuery(sourceId, {}, {height});
+        const AZ::Vector3 point(0, 0, -1000);
+        EXPECT_FLOAT_EQ(legacy.m_getHeight(point), 40.0f);
+        height.m_renderHeight = false;
+        EXPECT_FLOAT_EQ(OrdinaryHeight(sourceId, height, point), 0.7f); // Collision keeps the 40 m surface.
+        TerrainMeshCutoutRenderSnapshot snapshot;
+        snapshot.m_renderGeometryQueries.push_back(MakeQuery(sourceId, {}, {height}));
+        AZ::Vector3 points[]{point, {0.25f, 0, -1000}};
+        float heights[2]{}; bool exists[2]{};
+        ApplyTerrainRenderGeometry(snapshot, points, heights, exists);
+        for (size_t i = 0; i < 2; ++i)
+        {
+            const float expected = float(-100.0 + double(CountingRenderSource::Height(points[i])) * 200.0);
+            EXPECT_FLOAT_EQ(heights[i], expected);
+            EXPECT_FLOAT_EQ(snapshot.m_renderGeometryQueries[0].m_getHeight(points[i]), expected);
+            EXPECT_TRUE(exists[i]);
+        }
+        EXPECT_FLOAT_EQ(legacy.m_getHeight(point), 40.0f); // The original immutable query is retained.
     }
 
     TEST_F(TerrainRenderGeometryBatchTests, MissingAndCyclicSourcesPreserveScalarFallbacks)

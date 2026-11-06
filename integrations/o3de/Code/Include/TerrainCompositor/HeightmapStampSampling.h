@@ -65,6 +65,7 @@ namespace TerrainCompositor
         }
 
         Type m_type = Type::Image;
+        bool m_renderHeight = true;
         PreparedHeightmapStamp m_image;
         PreparedTerrainMeshHeightStamp m_mesh;
     };

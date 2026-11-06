@@ -45,6 +45,8 @@ namespace TerrainCompositor
         HeightmapSamplingMode m_samplingMode = HeightmapSamplingMode::Bilinear;
         float m_reconstructionRadius = 0.0f;
         float m_strength = 1.0f;
+        // Ordinary terrain/collision queries always retain this stamp's height.
+        bool m_renderHeight = true;
         float m_featherWidth = 10.0f;
         // These two defaults preserve the original feather mask.
         float m_featherExponent = 1.0f;

@@ -63,7 +63,7 @@ def register(save=True, info_path=None, composition=None, update_character=True,
     stamp = ensure_component(stamp_owner, 'Heightmap Stamp')
     for key, value in [('Target Composition', composition), ('Heightmap Asset', height_asset),
                        ('Footprint Width', width), ('Footprint Depth', depth), ('Height Scale', info['heightScale']),
-                       ('Vertical Offset', 0.0), ('Strength', 1.0), ('Edge Feather Width', 0.0), ('Priority', 100)]:
+                       ('Vertical Offset', 0.0), ('Strength', 1.0), ('Render Height', False), ('Edge Feather Width', 0.0), ('Priority', 100)]:
         set_property(stamp, 'Configuration|'+key, value)
     clip_owner = ensure_entity('Vue Terrain Render Mask')
     components.TransformBus(bus.Event, 'SetWorldTranslation', clip_owner,

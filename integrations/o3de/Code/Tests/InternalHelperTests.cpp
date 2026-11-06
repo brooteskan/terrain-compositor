@@ -458,7 +458,7 @@ namespace TerrainCompositor
                 image.m_type = ShaderInputImageType::Image2D;
                 layout->AddShaderInput(image);
             }
-            for (const char* name : { "m_meshCutoutCount", "m_meshCutoutRevision", "m_meshHeightGapCount", "m_meshHeightGapRevision" })
+            for (const char* name : { "m_meshCutoutCount", "m_meshCutoutRevision", "m_meshHeightGapCount", "m_meshHeightGapRevision", "m_surfaceRegionCount", "m_surfaceRevision" })
             {
                 ShaderInputConstantDescriptor constant;
                 constant.m_name = AZ::Name(name);
@@ -467,7 +467,7 @@ namespace TerrainCompositor
                 offset += constant.m_constantByteCount;
                 layout->AddShaderInput(constant);
             }
-            for (const char* name : { "m_meshCutouts", "m_meshCutoutVertices", "m_meshCutoutIndices", "m_meshHeightGaps", "m_meshHeightGapWords" })
+            for (const char* name : { "m_meshCutouts", "m_meshCutoutVertices", "m_meshCutoutIndices", "m_meshHeightGaps", "m_meshHeightGapWords", "m_surfaceWords" })
             {
                 ShaderInputBufferDescriptor buffer;
                 buffer.m_name = AZ::Name(mutation == 2 && AZStd::string_view(name) == "m_meshCutouts" ? "missingCutouts" : name);

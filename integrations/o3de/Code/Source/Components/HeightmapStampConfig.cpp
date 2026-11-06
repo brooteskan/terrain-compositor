@@ -61,7 +61,7 @@ namespace TerrainCompositor
                 ->Value("SmoothCubic", HeightmapSamplingMode::SmoothCubic);
 
             serializeContext->Class<HeightmapStampConfig, AZ::ComponentConfig>()
-                ->Version(7)
+                ->Version(8)
                 ->Field("TargetCompositionEntityId", &HeightmapStampConfig::m_targetCompositionEntityId)
                 ->Field("HeightmapAsset", &HeightmapStampConfig::m_heightmapAsset)
                 ->Field("SurfaceMaps", &HeightmapStampConfig::m_surfaceMaps)
@@ -73,6 +73,7 @@ namespace TerrainCompositor
                 ->Field("SamplingMode", &HeightmapStampConfig::m_samplingMode)
                 ->Field("ReconstructionRadius", &HeightmapStampConfig::m_reconstructionRadius)
                 ->Field("Strength", &HeightmapStampConfig::m_strength)
+                ->Field("RenderHeight", &HeightmapStampConfig::m_renderHeight)
                 ->Field("FeatherWidth", &HeightmapStampConfig::m_featherWidth)
                 ->Field("FeatherExponent", &HeightmapStampConfig::m_featherExponent)
                 ->Field("EdgeInset", &HeightmapStampConfig::m_edgeInset)
@@ -92,6 +93,8 @@ namespace TerrainCompositor
                     ->Attribute(AZ::Edit::Attributes::RequiredService, AZ_CRC_CE("TerrainCompositionService"))
                     ->DataElement(AZ::Edit::UIHandlers::Default, &HeightmapStampConfig::m_heightmapAsset,
                         "Heightmap Asset", "16-bit grayscale TIFF with GSI16, Linear source/destination, R16, and resolution reduction 0. Missing or loading assets contribute nothing.")
+                    ->DataElement(AZ::Edit::UIHandlers::Default, &HeightmapStampConfig::m_renderHeight,
+                        "Render Height", "Include this height in the generated ground mesh. Disable for collision heights beneath an imported terrain mesh. Collision, terrain queries, surface maps and hole masks are retained.")
                     ->DataElement(AZ::Edit::UIHandlers::Default, &HeightmapStampConfig::m_surfaceMaps,
                         "Surface Maps", "Optional categorical surface data. Invalid or unavailable surface inputs never disable height contribution.")
                     ->DataElement(AZ::Edit::UIHandlers::Default, &HeightmapStampConfig::m_holeMask,

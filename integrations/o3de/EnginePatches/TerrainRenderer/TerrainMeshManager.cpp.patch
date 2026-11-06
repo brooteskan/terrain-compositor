@@ -25,7 +25,7 @@
  
  #include <Atom/RHI.Reflect/BufferViewDescriptor.h>
  #include <Atom/RHI.Reflect/IndexFormat.h>
-@@ -34,9 +43,47 @@
+@@ -34,9 +43,49 @@
  #include <Atom/Feature/Mesh/MeshFeatureProcessorInterface.h>
  #include <Atom/Feature/Mesh/MeshInfo.h>
  #include <Atom/Feature/RenderCommon.h>
@@ -56,6 +56,8 @@
 +        "Reuse immutable dependency metadata and observe current revisions for visibility; commits remain locked.");
 +    AZ_CVAR(bool, r_terrainSampleReuse, true, nullptr, AZ::ConsoleFunctorFlags::Null,
 +        "Reuse exact regular/CLOD raw samples within certified retained requests.");
++    AZ_CVAR(bool, r_terrainSimplifyFlatGround, true, nullptr, AZ::ConsoleFunctorFlags::Null,
++        "Remove interior triangles only from exactly flat regular/CLOD ground. Keeps LOD, spacing, boundaries and fragment cutouts unchanged.");
 +    AZ_CVAR(
 +        bool,
 +        r_terrainSectorUpdateTiming,
@@ -73,7 +75,7 @@
      namespace
      {
          [[maybe_unused]] static const char* TerrainMeshManagerName = "TerrainMeshManager";
-@@ -67,11 +114,15 @@
+@@ -67,11 +116,15 @@
  
      TerrainMeshManager::~TerrainMeshManager()
      {
@@ -89,7 +91,7 @@
          m_parentScene = &parentScene;
  
          AzFramework::Terrain::TerrainDataNotificationBus::Handler::BusConnect();
-@@ -81,19 +132,58 @@
+@@ -81,19 +134,58 @@
              [this](const AZ::Name&, AZ::RPI::ShaderOptionValue) { m_rebuildDrawPackets = true; }
          };
          AZ::RPI::ShaderSystemInterface::Get()->Connect(m_handleGlobalShaderOptionUpdate);
@@ -150,7 +152,7 @@
          bool requireRebuild = m_config.CheckWouldRequireRebuild(config);
  
          m_config = config;
-@@ -132,7 +222,16 @@
+@@ -132,7 +224,16 @@
  
      void TerrainMeshManager::SetMaterial(MaterialInstance materialInstance)
      {
@@ -168,7 +170,7 @@
          {
              m_lastMaterialChangeId = materialInstance->GetCurrentChangeId();
              m_materialInstance = materialInstance;
-@@ -153,6 +252,12 @@
+@@ -153,6 +254,12 @@
          }
      }
  
@@ -181,7 +183,7 @@
      bool TerrainMeshManager::IsInitialized() const
      {
          return m_isInitialized;
-@@ -160,15 +265,39 @@
+@@ -160,15 +267,39 @@
  
      void TerrainMeshManager::ClearSectorBuffers()
      {
@@ -222,7 +224,7 @@
          if (m_meshMovedFlag.IsValid())
          {
              m_parentScene->GetViewTagBitRegistry().ReleaseTag(m_meshMovedFlag);
-@@ -188,18 +317,15 @@
+@@ -188,22 +319,26 @@
  
          for (RayTracedItem& item : m_rayTracedItems)
          {
@@ -243,7 +245,18 @@
      }
  
      void TerrainMeshManager::Update(const AZ::RPI::ViewPtr mainView, AZ::Data::Instance<AZ::RPI::ShaderResourceGroup>& terrainSrg)
-@@ -213,6 +339,13 @@
+     {
++        if (m_simplifyFlatGround != r_terrainSimplifyFlatGround)
++        {
++            m_simplifyFlatGround = r_terrainSimplifyFlatGround;
++            // Use the existing invalidation/replacement boundary, including any
++            // outstanding deferred work, when switching the diagnostic control.
++            OnTerrainDataChanged(AZ::Aabb::CreateNull(), TerrainDataChangedMask::HeightData);
++        }
+         if (m_rebuildDrawPackets)
+         {
+             // Rebuild the draw packets when the material or shaders change.
+@@ -213,6 +348,13 @@
  
          if (m_rebuildSectors)
          {
@@ -257,7 +270,7 @@
              // Rebuild the sectors when the configuration or terrain world changes
              CreateCommonBuffers();
              RebuildSectors();
-@@ -228,76 +361,515 @@
+@@ -228,76 +370,515 @@
          terrainSrg->SetConstant(m_srgMeshDataIndex, meshData);
      }
  
@@ -839,19 +852,94 @@
      }
  
      AZ::RHI::StreamBufferView TerrainMeshManager::CreateStreamBufferView(AZ::Data::Instance<AZ::RPI::Buffer>& buffer, uint32_t offset)
-@@ -313,17 +885,20 @@
+@@ -311,19 +892,94 @@
+         };
+     }
  
++    bool TerrainMeshManager::IsFlatGround(const PreparedSectorResult& result, bool heightFp16)
++    {
++        const auto& settings = result.m_request.m_data.m_settings;
++        if (!settings || !settings->m_simplifyFlatGround || !result.m_hasData ||
++            result.m_status != SectorPreparationStatus::Ready || settings->m_gridSize < 8 ||
++            result.m_heights.size() != settings->m_gridVerts2D || result.m_heights.empty()) return false;
++        const float height = result.m_heights.front().m_height;
++        // Reject holes, NaN and infinity, and require exact equality, not a
++        // tolerance that could flatten small authored relief or a normal halo.
++        if (!(height >= 0.0f && height <= 1.0f)) return false;
++        const auto packedHeight = TerrainCompositor::PackTerrainHeight16(height);
++        const auto isPlane = [height, packedHeight, heightFp16](const auto& vertices)
++        {
++            return AZStd::all_of(vertices.begin(), vertices.end(), [height, packedHeight, heightFp16](const HeightNormalVertex& vertex)
++            {
++                // Compare exactly what the vertex shader receives. FP16 can
++                // represent one plane despite rounding noise in the CPU query.
++                // There is no epsilon and no change to the selected precision.
++                const bool sameHeight = heightFp16 ? vertex.m_height >= 0.0f && vertex.m_height <= 1.0f &&
++                    TerrainCompositor::PackTerrainHeight16(vertex.m_height) == packedHeight : vertex.m_height == height;
++                return sameHeight && vertex.m_normal.first == 0 && vertex.m_normal.second == 0;
++            });
++        };
++        return isPlane(result.m_heights) && (!settings->m_clodEnabled ||
++            (result.m_lodHeights.size() == result.m_heights.size() && isPlane(result.m_lodHeights)));
++    }
++
++    AZStd::vector<uint16_t> TerrainMeshManager::CreateFlatGroundIndices(
++        uint32_t gridSize, AZStd::span<const uint16_t> vertexOrder)
++    {
++        AZStd::vector<uint16_t> indices;
++        if (gridSize < 8 || gridSize > 128 || !AZ::RHI::IsPowerOfTwo(gridSize) ||
++            vertexOrder.size() != (gridSize + 1) * (gridSize + 1)) return indices;
++        indices.reserve(gridSize * 24); // 8 * gridSize triangles, versus 2 * gridSize^2.
++        const uint32_t side = gridSize / 2;
++        const auto vertex = [&](uint32_t x, uint32_t y) { return vertexOrder[y * (gridSize + 1) + x]; };
++        for (uint32_t quadrant = 0; quadrant < 4; ++quadrant)
++        {
++            const uint32_t x = (quadrant & 1) * side, y = (quadrant >> 1) * side;
++            const uint16_t center = vertex(x + side / 2, y + side / 2);
++            const auto triangle = [&](uint32_t ax, uint32_t ay, uint32_t bx, uint32_t by)
++            {
++                indices.push_back(center);
++                indices.push_back(vertex(ax, ay));
++                indices.push_back(vertex(bx, by));
++            };
++            for (uint32_t i = 0; i < side; ++i)
++            {
++                triangle(x + i, y, x + i + 1, y);
++                triangle(x + side, y + i, x + side, y + i + 1);
++                triangle(x + side - i, y + side, x + side - i - 1, y + side);
++                triangle(x, y + side - i, x, y + side - i - 1);
++            }
++        }
++        return indices;
++    }
++
++    void TerrainMeshManager::SetSectorIndexBufferViews(CommittedSector& sector)
++    {
++        const auto& buffer = sector.m_flatGround ? m_flatGroundIndexBuffer : m_indexBuffer;
++        const uint32_t indexCount = buffer->GetBufferViewDescriptor().m_elementCount;
++        const AZ::RHI::IndexBufferView view(*buffer->GetRHIBuffer(), 0,
++            aznumeric_cast<uint32_t>(buffer->GetBufferSize()), AZ::RHI::IndexFormat::Uint16);
++        sector.m_geometryView.SetIndexBufferView(view);
++        sector.m_geometryView.SetDrawArguments(AZ::RHI::DrawIndexed(0, indexCount, 0));
++        for (uint32_t i = 0; i < 4; ++i)
++        {
++            sector.m_quadrantGeometryViews[i].SetIndexBufferView(view);
++            sector.m_quadrantGeometryViews[i].SetDrawArguments(AZ::RHI::DrawIndexed(0, indexCount / 4, indexCount / 4 * i));
++        }
++    }
++
      void TerrainMeshManager::BuildDrawPacket(Sector& sector)
      {
 +        // Withdraw borrowed draw pointers before replacing their owning packets.
 +        RemoveCoverageItems(sector.m_coverageOrder);
 +        sector.m_committed.m_coverageResourceVersion = ++m_nextCoverageResourceVersion;
          AZ::RHI::DrawPacketBuilder drawPacketBuilder{AZ::RHI::MultiDevice::AllDevices};
-         uint32_t indexCount = m_indexBuffer->GetBufferViewDescriptor().m_elementCount;
+-        uint32_t indexCount = m_indexBuffer->GetBufferViewDescriptor().m_elementCount;
 -        sector.m_geometryView.SetDrawArguments(AZ::RHI::DrawIndexed(0, indexCount, 0));
 -        sector.m_geometryView.SetIndexBufferView(m_indexBufferView);
-+        sector.m_committed.m_geometryView.SetDrawArguments(AZ::RHI::DrawIndexed(0, indexCount, 0));
-+        sector.m_committed.m_geometryView.SetIndexBufferView(m_indexBufferView);
++        SetSectorIndexBufferViews(sector.m_committed);
++        const auto& indexBuffer = sector.m_committed.m_flatGround ? m_flatGroundIndexBuffer : m_indexBuffer;
++        uint32_t indexCount = indexBuffer->GetBufferViewDescriptor().m_elementCount;
  
          drawPacketBuilder.Begin(nullptr);
 -        drawPacketBuilder.SetGeometryView(&sector.m_geometryView);
@@ -865,7 +953,7 @@
  
          for (CachedDrawData& drawData : m_cachedDrawData)
          {
-@@ -332,7 +907,7 @@
+@@ -332,7 +988,7 @@
              AZ::RHI::DrawPacketBuilder::DrawRequest drawRequest;
              drawRequest.m_listTag = drawData.m_drawListTag;
              drawRequest.m_pipelineState = drawData.m_pipelineState;
@@ -874,7 +962,7 @@
              drawRequest.m_stencilRef = AZ::Render::StencilRefs::UseDiffuseGIPass | AZ::Render::StencilRefs::UseIBLSpecularPass;
  
              if (drawData.m_materialPipelineName != AZ::RPI::MaterialPipelineNone)
-@@ -357,13 +932,13 @@
+@@ -357,13 +1013,13 @@
              if (drawSrg)
              {
                  drawRequest.m_uniqueShaderResourceGroup = drawSrg->GetRHIShaderResourceGroup();
@@ -890,7 +978,7 @@
  
          // Generate draw packets for each of the quadrants so they can be used to fill in places where the previous LOD didn't draw.
          // Due to z-ordered index buffer, no additional data is needed, just a different index offset and index count. Each quarter of
-@@ -371,12 +946,12 @@
+@@ -371,12 +1027,12 @@
          uint32_t lowerLodIndexCount = indexCount / 4;
          for (uint32_t i = 0; i < 4; ++i)
          {
@@ -907,7 +995,7 @@
          }
      }
  
-@@ -386,12 +961,18 @@
+@@ -386,12 +1042,18 @@
          // The position for a BLAS supports only R32G32B32_FLOAT or R16G16B16A16_FLOAT, but the normal could be octahedron - encoded with
          // various bit-sizes (N32_OCT, N16_OCT and N8_OCT). Similarily, the Index-Buffer supports 32 and 16 bit indices.
  
@@ -925,12 +1013,21 @@
 +        BuildRtSectorViews(rtSector, lodLevel);
 +    }
 +
-+    void TerrainMeshManager::BuildRtSectorViews(RtSector& rtSector, uint32_t lodLevel)
++    void TerrainMeshManager::BuildRtSectorViews(RtSector& rtSector, uint32_t lodLevel, bool flatGround)
 +    {
  
          // setup the stream and shader buffer views
          AZ::RHI::Buffer& rhiPositionsBuffer = *rtSector.m_positionsBuffer->GetRHIBuffer();
-@@ -463,9 +1044,6 @@
+@@ -406,7 +1068,7 @@
+         uint32_t normalsBufferElementSize = AZ::RHI::GetFormatSize(normalsBufferFormat);
+         AZ::RHI::StreamBufferView normalsVertexBufferView(rhiNormalsBuffer, 0, normalsBufferByteCount, normalsBufferElementSize);
+ 
+-        AZ::RHI::Buffer& rhiIndexBuffer = *m_rtIndexBuffer->GetRHIBuffer();
++        AZ::RHI::Buffer& rhiIndexBuffer = *(flatGround ? m_flatGroundRtIndexBuffer : m_rtIndexBuffer)->GetRHIBuffer();
+         AZ::RHI::IndexFormat indexBufferFormat = AZ::RHI::IndexFormat::Uint32;
+ 
+         uint32_t totalIndexBufferByteCount = aznumeric_cast<uint32_t>(rhiIndexBuffer.GetDescriptor().m_byteCount);
+@@ -463,9 +1125,6 @@
      {
          const float gridMeters = m_gridSize * m_sampleSpacing;
  
@@ -940,7 +1037,7 @@
          // Calculate the largest potential number of sectors needed per dimension at any lod level.
          const float firstLodDiameter = m_config.m_firstLodDistance * 2.0f;
          m_1dSectorCount = aznumeric_cast<uint32_t>(AZStd::ceilf(firstLodDiameter / gridMeters));
-@@ -479,7 +1057,7 @@
+@@ -479,7 +1138,7 @@
  
          const uint8_t lodCount = aznumeric_cast<uint8_t>(AZStd::ceilf(log2f(AZStd::GetMax(1.0f, m_config.m_renderDistance / m_config.m_firstLodDistance)) + 1.0f));
          m_sectorLods.reserve(lodCount);
@@ -949,7 +1046,7 @@
          // Create all the sectors with uninitialized SRGs. The SRGs will be updated later by CheckLodGridsForUpdate().
          m_indexBufferView =
          {
-@@ -498,57 +1076,75 @@
+@@ -498,57 +1157,75 @@
  
              for (Sector& sector : lodGrid.m_sectors)
              {
@@ -1065,7 +1162,7 @@
          if (terrainChanged || m_cameraPosition.GetDistanceSq(mainCameraPosition) > minMovedDistanceSq)
          {
              m_cameraPosition = mainCameraPosition;
-@@ -559,6 +1155,7 @@
+@@ -559,6 +1236,7 @@
              AZ::RPI::AuxGeomFeatureProcessorInterface::GetDrawQueueForScene(m_parentScene) :
              nullptr;
  
@@ -1073,7 +1170,7 @@
          // Compare view frustums against the list of candidate sectors and submit those sectors to draw.
          for (auto& view : process.m_views)
          {
-@@ -592,7 +1189,7 @@
+@@ -592,7 +1270,7 @@
      {
          m_materialInstance->ApplyGlobalShaderOptions();
          m_cachedDrawData.clear();
@@ -1082,7 +1179,7 @@
  
          // Rebuild common draw packet data
          m_materialInstance->ForAllShaderItems(
-@@ -647,13 +1244,7 @@
+@@ -647,13 +1325,7 @@
                  AZ::RHI::PipelineStateDescriptorForDraw pipelineStateDescriptor;
                  variant.ConfigurePipelineState(pipelineStateDescriptor, shaderOptions);
  
@@ -1097,7 +1194,7 @@
  
                  m_parentScene->ConfigurePipelineState(drawListTag, pipelineStateDescriptor);
  
-@@ -679,7 +1270,7 @@
+@@ -679,7 +1351,7 @@
          {
              for (auto& sector : lodGrid.m_sectors)
              {
@@ -1106,7 +1203,7 @@
              }
          }
      }
-@@ -699,6 +1290,11 @@
+@@ -699,6 +1371,11 @@
      {
          if ((dataChangedMask & (TerrainDataChangedMask::HeightData | TerrainDataChangedMask::Settings)) != TerrainDataChangedMask::None)
          {
@@ -1118,7 +1215,7 @@
              AzFramework::Terrain::FloatRange heightBounds = AzFramework::Terrain::FloatRange::CreateNull();
              AzFramework::Terrain::TerrainDataRequestBus::BroadcastResult(
                  heightBounds, &AzFramework::Terrain::TerrainDataRequests::GetTerrainHeightBounds);
-@@ -707,32 +1303,10 @@
+@@ -707,32 +1384,10 @@
              AzFramework::Terrain::TerrainDataRequestBus::BroadcastResult(
                  queryResolution, &AzFramework::Terrain::TerrainDataRequests::GetTerrainHeightQueryResolution);
  
@@ -1152,7 +1249,32 @@
          }
      }
  
-@@ -842,94 +1416,86 @@
+@@ -809,6 +1464,12 @@
+             aznumeric_cast<uint32_t>(indices.size()),
+             indices.data());
+ 
++        // Four independent fans preserve the existing quadrant draw contract.
++        // All sector/quadrant edge vertices remain, including their CLOD motion.
++        const auto flatIndices = CreateFlatGroundIndices(m_gridSize, m_vertexOrder);
++        m_flatGroundIndexBuffer = CreateMeshBufferInstance(
++            sizeof(uint16_t), aznumeric_cast<uint32_t>(flatIndices.size()), flatIndices.data());
++
+         if (m_rayTracingEnabled)
+         {
+             // Generate a 32 bit index buffer for ray tracing by copying and transforming the 16 bit index buffer.
+@@ -824,6 +1485,11 @@
+                 AZ::RHI::GetFormatSize(AZ::RHI::Format::R32_UINT),
+                 aznumeric_cast<uint32_t>(rtIndices.size()),
+                 rtIndices.data());
++            rtIndices.resize(flatIndices.size());
++            AZStd::transform(flatIndices.begin(), flatIndices.end(), rtIndices.begin(),
++                [](uint16_t value) { return static_cast<uint32_t>(value); });
++            m_flatGroundRtIndexBuffer = CreateMeshBufferInstance(
++                sizeof(uint32_t), aznumeric_cast<uint32_t>(rtIndices.size()), rtIndices.data());
+         }
+ 
+         // Create x/y positions. These are the same for all sectors since they're in local space.
+@@ -842,94 +1508,86 @@
              aznumeric_cast<uint32_t>(m_xyPositions.size()),
              m_xyPositions.data());
  
@@ -1323,7 +1445,7 @@
                  uint16_t lodIndex1 = (yPos / 2) * lodGridVerts1D + (xPos / 2);
                  uint16_t lodIndex2 = lodIndex1;
  
-@@ -944,7 +1510,7 @@
+@@ -944,7 +1602,7 @@
                      lodIndex2 += lodGridVerts1D;
                  }
  
@@ -1332,7 +1454,7 @@
  
                  if (lodHeightsNormals[lodIndex1].m_height == NoTerrainVertexHeight || lodHeightsNormals[lodIndex2].m_height == NoTerrainVertexHeight)
                  {
-@@ -955,7 +1521,7 @@
+@@ -955,7 +1613,7 @@
                  {
                      clodHeightNormals[zOrderIndex] =
                      {
@@ -1341,7 +1463,7 @@
                          NormalXYDataType(
                          {
                              int8_t((lodHeightsNormals[lodIndex1].m_normal.first + lodHeightsNormals[lodIndex2].m_normal.first) / 2),
-@@ -966,49 +1532,185 @@
+@@ -966,49 +1624,185 @@
              }
          }
  
@@ -1557,7 +1679,7 @@
          const float rcpWorldZ = 1.0f / zExtents;
          const float vertexSpacing2 = request.m_vertexSpacing * 2.0f;
  
-@@ -1016,8 +1718,9 @@
+@@ -1016,8 +1810,9 @@
          float minHeight = zExtents;
          float maxHeight = 0.0f;
  
@@ -1568,7 +1690,7 @@
          constexpr float MaxNormal = AZStd::numeric_limits<NormalDataType>::max();
  
          for (uint16_t y = 0; y < request.m_samplesY; ++y)
-@@ -1030,30 +1733,28 @@
+@@ -1030,30 +1825,28 @@
                  const uint16_t queryCoord = queryY * querySamplesX + queryX;
  
                  uint16_t coord = y * request.m_samplesX + x;
@@ -1606,7 +1728,7 @@
                  {
                      maxHeight = height;
                  }
-@@ -1088,12 +1789,16 @@
+@@ -1088,12 +1881,16 @@
                  const float leftHeight = heights.at(queryCoord - 1);
                  const float rightHeight = heights.at(queryCoord + 1);
                  const float xSlope = getSlope(leftHeight, rightHeight);
@@ -1625,7 +1747,7 @@
  
                  meshHeightsNormals.at(coord).m_normal =
                  {
-@@ -1112,295 +1817,1188 @@
+@@ -1112,295 +1909,1221 @@
          {
              float width = (request.m_samplesX - 1) * request.m_vertexSpacing;
              float height = (request.m_samplesY - 1) * request.m_vertexSpacing;
@@ -1651,6 +1773,7 @@
 +        settings->m_retainedOnlyQueries = r_terrainRetainedOnlyQueries;
 +        settings->m_sampleReuse = r_terrainSampleReuse;
 +        settings->m_clodEnabled = m_config.m_clodEnabled;
++        settings->m_simplifyFlatGround = m_simplifyFlatGround;
 +        return settings;
 +    }
 +
@@ -2441,6 +2564,30 @@
 +    {
 +        if (result.m_hasData)
 +        {
++            const bool flatGround = IsFlatGround(result, m_heightFp16);
++            const bool flatGroundRt = IsFlatGround(result);
++            const bool topologyChanged = sector.m_committed.m_flatGroundRt != flatGroundRt;
++            if (r_terrainSectorUpdateTiming && m_simplifyFlatGround)
++            {
++                struct Range { float low = 1.0f, high = 0.0f; size_t normals = 0, holes = 0; };
++                const auto inspect = [](const auto& vertices)
++                {
++                    Range range;
++                    for (const auto& vertex : vertices)
++                    {
++                        if (vertex.m_height < 0.0f) { ++range.holes; continue; }
++                        range.low = AZStd::min(range.low, vertex.m_height);
++                        range.high = AZStd::max(range.high, vertex.m_height);
++                        range.normals += vertex.m_normal.first != 0 || vertex.m_normal.second != 0;
++                    }
++                    return range;
++                };
++                const auto regular = inspect(result.m_heights), clod = inspect(result.m_lodHeights);
++                AZ_Printf("TerrainFlatGround", "lod=%u xy=%d,%d flat=%u regular=%.9g..%.9g normals=%zu holes=%zu clod=%.9g..%.9g normals=%zu holes=%zu\n",
++                    result.m_request.m_lodLevel, result.m_request.m_worldCoord.m_x, result.m_request.m_worldCoord.m_y,
++                    unsigned(flatGround), regular.low, regular.high, regular.normals, regular.holes,
++                    clod.low, clod.high, clod.normals, clod.holes);
++            }
 +            if (result.m_request.m_stageUploads)
 +            {
 +                auto& uploads = *result.m_uploads;
@@ -2450,7 +2597,8 @@
 +                    AZStd::swap(committed.m_lodHeightsNormalsBuffer, uploads.m_buffers[1]);
 +                AZStd::swap(committed.m_rtData, uploads.m_rtData);
 +                // Draw packets reference these stable geometry-view objects.
-+                // Only their streams change; no draw packet/SRG allocation is
++                // Their streams change here; matching index ranges commit below.
++                // No draw packet/SRG allocation is
 +                // needed inside atomic publication. Old buffers/RT metadata are
 +                // released with the completed group after the commit locks exit.
 +                SetSectorBufferViews(committed);
@@ -2460,7 +2608,14 @@
 +                UpdateSectorBuffers(sector, result.m_heights, result.m_rtPositions, result.m_rtNormals);
 +                if (result.m_request.m_data.m_settings->m_clodEnabled)
 +                    UpdateHeightBuffer(sector.m_committed.m_lodHeightsNormalsBuffer, result.m_lodHeights);
++                if (topologyChanged && sector.m_committed.m_rtData)
++                    BuildRtSectorViews(*sector.m_committed.m_rtData, result.m_request.m_lodLevel, flatGroundRt);
 +            }
++            sector.m_committed.m_flatGround = flatGround;
++            sector.m_committed.m_flatGroundRt = flatGroundRt;
++            // Draw packets borrow these stable views. Topology changes commit
++            // with the same heights, CLOD, bounds and RT replacement, not later.
++            SetSectorIndexBufferViews(sector.m_committed);
 +        }
 +        auto objectData = result.m_request.m_objectData;
 +        objectData.m_heightFp16 = m_heightFp16 ? 1u : 0u;
@@ -2505,7 +2660,7 @@
 +                uploads.m_rtData = AZStd::make_unique<RtSector>();
 +                uploads.m_rtData->m_positionsBuffer = uploads.m_buffers[2];
 +                uploads.m_rtData->m_normalsBuffer = uploads.m_buffers[3];
-+                BuildRtSectorViews(*uploads.m_rtData, request.m_lodLevel);
++                BuildRtSectorViews(*uploads.m_rtData, request.m_lodLevel, IsFlatGround(result));
 +            }
 +            return true;
 +        }
@@ -3090,7 +3245,7 @@
          }
      }
  
-@@ -1427,37 +3025,6 @@
+@@ -1427,37 +3150,6 @@
          else
          {
              AZStd::fill(quadrantAabb.begin(), quadrantAabb.end(), AZ::Aabb::CreateNull());
