@@ -28,3 +28,19 @@ The TG project's `Gem/Tests/verify_ground_blend_footprint.py` extracts the actua
 production helper, builds the fixture and writes a JSON report. The measured run
 passed all 24 cases: maximum original error 0.165625, corrected error 0.000390589.
 This isolates sampling correctness; in-game visual confirmation remains separate.
+
+Collision-only heightmap footprints are also published as direct-material
+contact regions. The retained mesh evaluates ground textures directly, so the
+visible ground beneath and around that footprint must use the same evaluator.
+Otherwise the far-distance graph material clipmap can replace only the ground
+side with its baked/resampled colour and normal channels. Near views use the
+direct path naturally and can hide that mismatch. The existing four-metre
+contact-region falloff restores caching outside the footprint; other ground
+regions retain the cache. This changes material-path selection, not mesh LOD,
+normal reconstruction, shadows or collision.
+
+The native `CollisionOnlyFootprintsKeepFarGroundOnTheContactMaterialPath` test
+checks the region is present after render-height filtering and stays present
+without duplication after source acquisition. The headless
+`tests/mesh_blend/TerrainMeshBlendGpuTests.cpp` fixture executes the production
+contact decoder and its inside/boundary/falloff/outside decisions.

@@ -1191,6 +1191,17 @@ namespace TerrainCompositor
             // original state continues serving collision/ordinary height queries.
             // Source acquisition reuses this filtered view; no per-sample copy.
             auto rendered = std::make_shared<QueryState>(*state);
+            for (const auto& contributor : rendered->m_heightContributors)
+            {
+                if (!contributor.m_renderHeight && contributor.GetWorldBounds().IsValid())
+                {
+                    // Retained meshes sample the ground material directly at
+                    // their contact. Keep the ground on that same path beneath
+                    // collision-only footprints, including at far distances
+                    // where the material clipmap would otherwise take over.
+                    rendered->m_meshBlendBounds.push_back(contributor.GetWorldBounds());
+                }
+            }
             AZStd::erase_if(rendered->m_heightContributors, [](const auto& contributor) { return !contributor.m_renderHeight; });
             state = AZStd::move(rendered);
         }

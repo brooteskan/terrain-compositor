@@ -1229,6 +1229,30 @@ namespace TerrainCompositor
         EXPECT_FLOAT_EQ(legacy.m_getHeight(point), 40.0f); // The original immutable query is retained.
     }
 
+    TEST_F(TerrainRenderGeometryBatchTests, CollisionOnlyFootprintsKeepFarGroundOnTheContactMaterialPath)
+    {
+        PreparedHeightContributor height;
+        height.m_image.m_placement.m_worldBounds = AZ::Aabb::CreateFromMinMax(
+            AZ::Vector3(-4, -7, 0), AZ::Vector3(9, 8, 0));
+        const auto renderedHeight = MakeQuery(AZ::EntityId(98003), {}, {height});
+        EXPECT_TRUE(renderedHeight.m_surfaces->m_meshBlendBounds.empty());
+        height.m_renderHeight = false;
+        const auto collisionOnly = MakeQuery(AZ::EntityId(98003), {}, {height});
+        EXPECT_TRUE(collisionOnly.m_surfaces->m_heightContributors.empty());
+        ASSERT_EQ(collisionOnly.m_surfaces->m_meshBlendBounds.size(), 1);
+        EXPECT_TRUE(collisionOnly.m_surfaces->m_meshBlendBounds[0].Contains(AZ::Vector3(0, 0, 0)));
+        EXPECT_FALSE(collisionOnly.m_surfaces->m_meshBlendBounds[0].Contains(AZ::Vector3(20, 0, 0)));
+        // Source acquisition must retain the direct-material region exactly
+        // once even though the collision-only contributor was already removed.
+        ASSERT_TRUE(collisionOnly.m_acquireSources);
+        const auto acquired = collisionOnly.m_acquireSources();
+        ASSERT_TRUE(acquired);
+        ASSERT_EQ(acquired->m_surfaces->m_meshBlendBounds.size(), 1);
+        EXPECT_EQ(acquired->m_surfaces->m_meshBlendBounds[0], collisionOnly.m_surfaces->m_meshBlendBounds[0]);
+        EXPECT_TRUE(renderedHeight.m_surfaces->m_meshBlendBounds.empty());
+        EXPECT_EQ(renderedHeight.m_surfaces->m_heightContributors.size(), 1);
+    }
+
     TEST_F(TerrainRenderGeometryBatchTests, MissingAndCyclicSourcesPreserveScalarFallbacks)
     {
         const AZ::EntityId sourceId(98'004);
