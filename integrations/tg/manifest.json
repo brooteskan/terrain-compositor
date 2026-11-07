@@ -344,6 +344,7 @@
       "source": "project/Assets/VueLiveLink/VueGroundSampling.azsli",
       "binary": false,
       "accepted_sha256": [
+        "b57383b4703f239c10fef4f7b2fcde47b087e0013c5e335678c04053a752d071",
         "3cf6e441b3669055e66a3de8e2fc67da3a74a140be6fd9b7c5601d3d64b2c8a2"
       ],
       "accepted_json_sha256": []

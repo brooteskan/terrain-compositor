@@ -25,14 +25,16 @@ struct VueGroundChannels
 
 static const float TC_GroundPatchFraction = 0.35;
 
-// Match the flat ground's screen-space texture footprint at a terrain contact.
-// Using the sloping mesh's derivatives selects different texture mips, which
-// becomes a visible material join when rendering at a lower resolution.
+// Match the flat ground's texture differential at contact, then continue it
+// smoothly up the blend. This is the first-order expansion of camera-ray
+// projection onto the ground about position.z == groundHeight. Full ray/plane
+// intersection has a pole at eye height, producing a coarse-mip stripe across
+// a hillside at the camera horizon. The contact differential needs no such pole.
 float2 TC_GroundFootprintPosition(float3 position, float3 camera, float groundHeight)
 {
-    float dz = position.z - camera.z;
-    if (abs(dz) < 0.0001 || abs(groundHeight - camera.z) < 0.0001) return position.xy;
-    return camera.xy + (position.xy - camera.xy) * ((groundHeight - camera.z) / dz);
+    float eyeHeight = camera.z - groundHeight;
+    if (abs(eyeHeight) < 0.0001) return position.xy;
+    return position.xy + (position.xy - camera.xy) * ((position.z - groundHeight) / eyeHeight);
 }
 
 // Performance-first cell randomization: arithmetic rather than sine hashing.

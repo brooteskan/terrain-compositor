@@ -25,7 +25,8 @@ int main(int argc,char** argv)
 {
     try
     {
-        if(argc!=2)throw std::runtime_error("shader path required");
+        if(argc<2 || argc>3)throw std::runtime_error("shader path and optional --horizon required");
+        const bool horizon=argc==3 && std::string(argv[2])=="--horizon";
         std::ifstream input(argv[1]);const std::string text((std::istreambuf_iterator<char>(input)),{});
         ComPtr<ID3D11Device> device;ComPtr<ID3D11DeviceContext> context;D3D_FEATURE_LEVEL feature;
         Check(D3D11CreateDevice(nullptr,D3D_DRIVER_TYPE_HARDWARE,nullptr,0,nullptr,0,D3D11_SDK_VERSION,&device,&feature,&context));
@@ -81,16 +82,49 @@ int main(int argc,char** argv)
                 for(UINT y=0;y<size[1];++y)std::copy_n(reinterpret_cast<const float*>(static_cast<const char*>(mapped.pData)+y*mapped.RowPitch),size[0]*4,out.data()+y*size[0]*4);
                 context->Unmap(read.Get(),0);return out;
             };
+            if(horizon)
+            {
+                const auto legacy=render(1,-1),fixed=render(2,-1);
+                auto rowMean=[&](const std::vector<float>& image,UINT y)
+                {
+                    float sum=0;UINT count=0;
+                    for(UINT x=size[0]/4;x<3*size[0]/4;++x)
+                    {
+                        const size_t at=(size_t(y)*size[0]+x)*4;
+                        if(image[at+3]<.99f)throw std::runtime_error("Incomplete horizon coverage");
+                        if(!std::isfinite(image[at]) || !std::isfinite(image[at+1]))throw std::runtime_error("Non-finite horizon sample");
+                        sum+=image[at];++count;
+                    }
+                    return sum/count;
+                };
+                auto excess=[&](const std::vector<float>& image)
+                {
+                    const UINT middle=size[1]/2,offset=size[1]/16;
+                    const float center=.5f*(rowMean(image,middle-1)+rowMean(image,middle));
+                    return std::abs(center-.5f*(rowMean(image,middle-offset)+rowMean(image,middle+offset)));
+                };
+                const float oldError=excess(legacy),newError=excess(fixed);
+                largestLegacyError=std::max(largestLegacyError,oldError);
+                largestCorrectedError=std::max(largestCorrectedError,newError);++cases;
+                if(newError>.01f)throw std::runtime_error("Corrected horizon stripe remains: "+std::to_string(newError));
+                continue;
+            }
             const auto ground=render(0,0);
             for(float slope:{1.f,3.f})
             {
                 auto legacy=render(1,slope),fixed=render(2,slope);float oldError=0,newError=0;
+                size_t contacts=0;
                 for(size_t i=0;i<ground.size();i+=4)
-                    if(ground[i+3]>.01f && fixed[i+3]>.01f && legacy[i+3]>.01f)
+                    // Agreement is required at the physical contact. Extending
+                    // full ray/plane projection up the slope causes a horizon pole.
+                    if(ground[i+3]>.01f && fixed[i+3]>.01f && legacy[i+3]>.01f &&
+                        fixed[i+1]/fixed[i+3]<.02f)
                     {
+                        ++contacts;
                         oldError=std::max(oldError,std::abs(ground[i]/ground[i+3]-legacy[i]/legacy[i+3]));
                         newError=std::max(newError,std::abs(ground[i]/ground[i+3]-fixed[i]/fixed[i+3]));
                     }
+                if(!contacts)throw std::runtime_error("Fixture did not cover the ground contact");
                 largestLegacyError=std::max(largestLegacyError,oldError);largestCorrectedError=std::max(largestCorrectedError,newError);++cases;
                 if(newError>.003f)throw std::runtime_error("Corrected ground/contact mips differ: "+std::to_string(newError));
             }
